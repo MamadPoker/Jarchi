@@ -5,6 +5,7 @@ const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
 let S, settings, samples, goalData; // goalData = { state, styles, fonts } from /api/goals; state then follows the socket
 let chatStyles, chatStatus; // chat style looks (/api/chat/styles) and connection status (follows the socket)
+let chatThumbs; // sample messages for the chat style thumbnails (/api/chat/thumbs: random viewers and badges each visit)
 let view = 'alert', cur = 'follow', curGoal = 'subs'; // what's selected: an alert, a goal, or the theme / settings view
 
 const pct = (v) => `${Math.round(v * 100)}%`;
@@ -94,27 +95,15 @@ function chatControl(kind, f, o) {
   return node;
 }
 
-// Sample messages for the chat style thumbnails.
-function chatThumbMessages() {
-  const T = S.chatTest;
-  const kappa = { t: 'emote', name: 'Kappa', provider: 'twitch', src: 'https://static-cdn.jtvnw.net/emoticons/v2/25/default/dark/2.0', still: 'https://static-cdn.jtvnw.net/emoticons/v2/25/static/dark/2.0' };
-  const msg = (i, platform, extra) => ({ id: `thumb${i}`, platform, time: Date.now(), kind: 'message', first: false, action: false, system: '', test: true, ...extra });
-  return [
-    msg(1, 'twitch', { text: T.mod, user: { id: '1', login: 'm', name: T.names[0], color: '#1e90ff', badges: [] }, parts: [kappa, { t: 'text', v: ' great stream' }] }),
-    msg(2, 'kick', { text: T.burst[3], user: { id: '2', login: 'k', name: T.names[1], color: '#53fc18', badges: [] }, parts: [{ t: 'text', v: T.burst[3] }] }),
-    msg(3, 'twitch', { kind: 'sub', system: T.subSystem, text: T.subText, user: { id: '3', login: 't', name: T.names[2], color: '#ffd54d', badges: [] }, parts: [{ t: 'text', v: T.subText }] }),
-    msg(4, 'kick', { text: T.burst[6], user: { id: '4', login: 'v', name: T.names[3], color: '#ff69b4', badges: [] }, parts: [{ t: 'text', v: T.burst[6] }] }),
-  ];
-}
-
 // Each style's own look with sample messages; filters off so the samples always show.
 function drawChatThumbs() {
+  if (!chatThumbs) return;
   for (const f of $$('.chat-tile iframe')) {
     const style = f.dataset.style;
     const ticker = style === 'ticker';
     const cfg = { ...settings.chat, ...chatStyles[style], style, enabled: true, width: ticker ? 440 : 400, height: ticker ? 64 : 290, maxMessages: 6,
       hideCommands: false, hideBots: false, hiddenUsers: '', blockedWords: '', hideLinks: false, source: 'both', avatars: false, fxMention: false };
-    f.contentWindow?.postMessage({ strings: S, cfg, messages: chatThumbMessages() }, location.origin);
+    f.contentWindow?.postMessage({ strings: S, cfg, messages: chatThumbs }, location.origin);
   }
 }
 
@@ -244,7 +233,10 @@ function select(v, key) {
   render();
   preview();
   if (v === 'theme') $$('.theme-tile iframe').forEach((f) => playTile(f));
-  if (v === 'chat') { fitChat(); drawChatThumbs(); }
+  if (v === 'chat') {
+    fitChat();
+    api('GET', '/api/chat/thumbs').then((m) => { chatThumbs = m; drawChatThumbs(); }, () => {});
+  }
 }
 
 // Upload / remove buttons of a .file row.

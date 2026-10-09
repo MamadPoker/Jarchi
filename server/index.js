@@ -59,6 +59,7 @@ app.post('/api/reset{/:type}', (req, res) => {
 app.get('/api/chat/status', (req, res) => res.json(chat.status()));
 app.get('/api/chat/styles', (req, res) => res.json(settings.CHAT_STYLES));
 app.post('/api/chat/test', (req, res) => res.json({ sent: chat.test(req.body?.kind === 'burst' ? 'burst' : 'sample') }));
+app.get('/api/chat/thumbs', (req, res) => res.json(chat.thumbs()));
 app.post('/api/chat/reset-style', (req, res) => res.json(changed(settings.resetChatStyle())));
 
 // Goals: counts (current / reached) live in core/goals; their look and target are regular settings.

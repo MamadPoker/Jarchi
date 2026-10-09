@@ -101,7 +101,7 @@ function handle(event, raw, channel, info, cb) {
   }
 }
 
-// cb: { onStatus(state, detail), onMessage(msg), onClear(clear), onChannel({ userId }) }. Returns { stop() }.
+// cb: { onStatus(state, detail), onMessage(msg), onClear(clear), onChannel({ userId, subBadges }) }. Returns { stop() }.
 function connect(slug, cb) {
   let ws, timer, info, last = Date.now(), retry = 0, stopped = false;
   const again = (ms) => { if (!stopped) timer = setTimeout(open, ms); };
@@ -118,7 +118,7 @@ function connect(slug, cb) {
       return again(err.detail === 'not_found' ? 60000 : 15000);
     }
     if (stopped) return;
-    cb.onChannel({ userId: info.userId });
+    cb.onChannel({ userId: info.userId, subBadges: info.subBadges });
     last = Date.now();
     ws = new WebSocket(PUSHER);
     ws.onmessage = (e) => {

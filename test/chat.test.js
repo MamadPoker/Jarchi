@@ -109,3 +109,40 @@ test('chat settings, Reset style, test messages, OBS page and logos', async () =
   assert.equal((await fetch(`${base}/widgets/chat/`)).status, 200);
   for (const logo of ['kick', 'twitch']) assert.equal((await fetch(`${base}/assets/platform-logos/${logo}.svg`)).status, 200);
 });
+
+test('test messages: random viewers with real badge images and the Kick channel\'s own sub badges', async () => {
+  if (!server.listening) await new Promise((r) => server.once('listening', r));
+  const chat = require('../core/chat');
+  const badges = require('../connectors/twitch-badges');
+  assert.equal(badges.image('sub-gifter', '25'), 'https://static-cdn.jtvnw.net/badges/v1/052a5d41-f1cc-455c-bc7b-fe841ffaf17f/2');
+  assert.equal(badges.image('sub-gifter', '7'), null, 'no made-up images');
+
+  // A Kick channel with its own sub badges (1 and 6 months), without going online.
+  const SUB1 = 'https://files.kick.com/sub1.png', SUB6 = 'https://files.kick.com/sub6.png';
+  const realConnect = kick.connect;
+  kick.connect = (slug, cb) => {
+    cb.onChannel({ userId: null, subBadges: [{ months: 6, src: SUB6 }, { months: 1, src: SUB1 }] });
+    return { stop() {} };
+  };
+  await call('PATCH', '/api/settings', { chat: { enabled: true, kickChannel: 'somechannel' } });
+
+  const thumbs = await (await call('GET', '/api/chat/thumbs')).json();
+  assert.equal(thumbs.length, 5);
+  assert.ok(thumbs.every((m) => m.id && m.user.login && m.test));
+
+  const msgs = Array.from({ length: 200 }, () => chat.thumbs()).flat();
+  const names = (platform) => new Set(msgs.filter((m) => m.platform === platform).flatMap((m) => m.user.badges.map((b) => b.name)));
+  for (const n of ['broadcaster', 'moderator', 'vip', 'subscriber', 'founder', 'sub-gifter', 'premium']) assert.ok(names('twitch').has(n), `twitch ${n}`);
+  for (const n of ['broadcaster', 'moderator', 'vip', 'subscriber', 'og', 'founder', 'sub_gifter']) assert.ok(names('kick').has(n), `kick ${n}`);
+  const all = msgs.flatMap((m) => m.user.badges.map((b) => ({ ...b, platform: m.platform })));
+  assert.ok(all.filter((b) => b.platform === 'twitch').every((b) => b.img.startsWith('https://static-cdn.jtvnw.net/badges/v1/')), 'Twitch: Twitch\'s images');
+  assert.ok(all.filter((b) => b.platform === 'kick' && ['og', 'founder', 'sub_gifter', 'moderator'].includes(b.name)).every((b) => b.img === null), 'Kick roles: text tags');
+  const kickSubs = all.filter((b) => b.platform === 'kick' && b.name === 'subscriber');
+  assert.ok(kickSubs.every((b) => b.img === SUB1 || b.img === SUB6) && kickSubs.some((b) => b.img === SUB1) && kickSubs.some((b) => b.img === SUB6), 'Kick subs: the channel\'s badge for their months');
+  assert.ok(msgs.filter((m) => m.user.badges.length).length > msgs.length * 0.6, 'most viewers have badges');
+  const who = (list) => list.map((m) => m.user.name).join();
+  assert.notEqual(who(chat.thumbs()), who(chat.thumbs()), 'each send: other viewers');
+
+  await call('PATCH', '/api/settings', { chat: { kickChannel: '' } });
+  kick.connect = realConnect;
+});

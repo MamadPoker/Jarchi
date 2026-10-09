@@ -126,4 +126,4 @@ function connect(channel, cb) {
   return { stop() { stopped = true; clearTimeout(timer); clearInterval(watchdog); ws?.close(); } };
 }
 
-module.exports = { connect, handle, parseLine, emoteParts };
+module.exports = { connect, handle, parseLine, emoteParts, toBadges };

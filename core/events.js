@@ -30,9 +30,15 @@ function emitEvent(e) {
 //   parts: [{ t: 'text', v } | { t: 'emote', name, src, still, provider: 'twitch'|'kick'|'7tv' }] }
 const https = (v) => typeof v === 'string' && v.startsWith('https://');
 function emitChat(m) {
+  const msg = chatMessage(m);
+  bus.emit('chat', msg);
+  return msg;
+}
+// A connector's message -> the shape above (checked), without sending it.
+function chatMessage(m) {
   if (!PLATFORMS.includes(m.platform)) throw new Error(`bad chat platform: ${m.platform}`);
   const u = m.user ?? {};
-  const msg = {
+  return {
     id: String(m.id ?? randomUUID()),
     platform: m.platform,
     time: Number(m.time) || Date.now(),
@@ -53,8 +59,6 @@ function emitChat(m) {
     },
     parts: (m.parts ?? [{ t: 'text', v: m.text ?? '' }]).filter((p) => (p.t === 'emote' ? https(p.src) : p.t === 'text')).slice(0, 300),
   };
-  bus.emit('chat', msg);
-  return msg;
 }
 // { platform, messageId }: one message. { platform, userId }: everything a user said (ban / timeout). { platform }: the whole chat.
 function emitChatClear(c) {
@@ -71,4 +75,4 @@ function setConnected(platform, on) {
 }
 const connectedPlatforms = () => [...connected];
 
-module.exports = { bus, emitEvent, emitChat, emitChatClear, setConnected, connectedPlatforms, TYPES, PLATFORMS };
+module.exports = { bus, emitEvent, emitChat, chatMessage, emitChatClear, setConnected, connectedPlatforms, TYPES, PLATFORMS };
