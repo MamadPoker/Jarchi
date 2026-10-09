@@ -24,4 +24,14 @@ function emitEvent(e) {
   return ev;
 }
 
-module.exports = { bus, emitEvent, TYPES, PLATFORMS };
+// Which platform accounts are connected. Connectors will call setConnected(); until then nothing is connected.
+const connected = new Set();
+function setConnected(platform, on) {
+  if (!PLATFORMS.includes(platform)) throw new Error(`bad platform: ${platform}`);
+  if (on) connected.add(platform);
+  else connected.delete(platform);
+  bus.emit('connections');
+}
+const connectedPlatforms = () => [...connected];
+
+module.exports = { bus, emitEvent, setConnected, connectedPlatforms, TYPES, PLATFORMS };

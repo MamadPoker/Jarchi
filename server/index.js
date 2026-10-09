@@ -3,7 +3,7 @@ const http = require('node:http');
 const express = require('express');
 const { Server } = require('socket.io');
 const { HOST, PORT, UPLOADS_DIR } = require('../core/config');
-const { bus, emitEvent, TYPES, PLATFORMS } = require('../core/events');
+const { bus, emitEvent, connectedPlatforms, TYPES, PLATFORMS } = require('../core/events');
 const settings = require('../core/settings');
 const strings = require('../i18n/en.json');
 
@@ -12,8 +12,14 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
+// What the panel and widgets see: the settings plus which accounts are connected (widgets use it for the badge).
+const view = (s = settings.get()) => ({ ...s, connected: connectedPlatforms() });
 // Push every settings change to all open widgets.
-const changed = (s) => (io.emit('settings', s), s);
+const changed = (s) => {
+  const v = view(s);
+  io.emit('settings', v);
+  return v;
+};
 
 // Only this PC's own panel may use the API: the Host check blocks DNS rebinding, and the custom header
 // forces a CORS preflight (which we never answer), so other websites open in the browser can't call it.
@@ -24,7 +30,7 @@ app.use('/api', (req, res, next) => {
 });
 app.use(express.json());
 
-app.get('/api/settings', (req, res) => res.json(settings.get()));
+app.get('/api/settings', (req, res) => res.json(view()));
 app.patch('/api/settings', (req, res) => res.json(changed(settings.update(req.body))));
 
 app.post('/api/upload/:type/:kind', express.raw({ type: () => true, limit: '20mb' }), (req, res) => {
@@ -69,9 +75,10 @@ app.use((err, req, res, next) => {
 
 io.on('connection', (socket) => {
   socket.emit('strings', strings);
-  socket.emit('settings', settings.get());
+  socket.emit('settings', view());
 });
 bus.on('event', (ev) => io.emit('event', ev));
+bus.on('connections', () => changed());
 
 server.on('error', (err) => {
   console.error(err.code === 'EADDRINUSE' ? `Port ${PORT} is already in use. Set JARCHI_PORT in .env to another port.` : err);

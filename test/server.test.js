@@ -16,7 +16,7 @@ fs.writeFileSync(path.join(dataDir, 'settings.json'), JSON.stringify({
 process.env.JARCHI_DATA_DIR = dataDir;
 process.env.JARCHI_PORT = '3999';
 const { server, io } = require('../server');
-const { bus } = require('../core/events');
+const { bus, setConnected } = require('../core/events');
 
 const base = 'http://127.0.0.1:3999';
 const call = (method, url, body, headers = {}) => fetch(base + url, {
@@ -39,6 +39,15 @@ test('migration, settings, uploads, reset, events', async (t) => {
   assert.equal(s.alerts.follow.soundMode, 'theme');
   assert.equal(JSON.parse(fs.readFileSync(path.join(dataDir, 'settings.json'))).version, 2);
   assert.equal((await fetch(`${base}/uploads/sub-sound-1.wav`)).status, 200);
+
+  // Platform badge: setting on by default, but nothing is connected yet, so widgets keep it hidden.
+  assert.equal(s.showBadge, true);
+  assert.deepEqual(s.connected, []);
+  assert.equal((await (await call('PATCH', '/api/settings', { showBadge: false })).json()).showBadge, false);
+  assert.equal((await call('PATCH', '/api/settings', { showBadge: 'yes' })).status, 400);
+  setConnected('kick', true);
+  assert.deepEqual((await (await call('GET', '/api/settings')).json()).connected, ['kick']);
+  setConnected('kick', false);
 
   assert.equal(s.alerts.kicks.minAmount, 0);
   assert.ok(!('minAmount' in s.alerts.follow));

@@ -18,22 +18,29 @@ Optional: copy `.env.example` to `.env` to change the port or the data folder.
 ## Add the alerts to OBS
 
 1. In OBS, go to **Sources → + → Browser**, name it e.g. "Jarchi Alerts".
-2. URL: `http://127.0.0.1:3000/widgets/alerts` (the panel has a Copy button).
+2. URL: `http://127.0.0.1:3000/widgets/alerts` (copy it from **Settings** in the panel).
 3. Width **1920**, height **1080**.
 4. Tick **Control audio via OBS** so alert sounds show up in the OBS mixer.
-5. Click OK, then press **Test** in the panel to check it.
+5. Click OK, then open an alert in the panel and press **Test in OBS** to check it.
 
 Jarchi must be running before OBS loads the source. If you started OBS first, right-click the source and choose **Refresh**. Once loaded, the overlay reconnects by itself if Jarchi restarts.
 
-## Settings
+## The panel
 
-- **Theme**: Neon, Minimal, Fun, Retro, Glass, Fire, Ice, Galaxy or Comic. Each has its own animations, particles and synthesized sounds. All of it is CSS and Web Audio, with no image or sound files.
-- **Live preview**: the panel plays each alert exactly as OBS will show it, and replays it whenever you change something.
-- **Per alert**:
-  - on/off, text with `{user}` `{amount}` `{months}` `{platform}`, duration, minimum amount (Kicks, bits, gift subs)
-  - image/GIF/WebM/MP4 (only WebM keeps a transparent background), with an option to play the video's own sound
-  - sound: theme default, your own mp3/wav/ogg, or none, plus volume
-  - frame: theme style, custom (background, opacity, border, roundness) or off; text above/below/on top of the media; font size and text color
+The sidebar has three sections:
+
+- **Alerts**: a list of the event types, each with an on/off switch. Click one to open its settings. The live preview stays at the top and plays the alert exactly as OBS will show it.
+  - **Basic**: image/GIF/WebM/MP4 (only WebM keeps a transparent background); sound (theme default, your own mp3/wav/ogg, or none); text with `{user}` `{amount}` `{months}` `{platform}`.
+  - **Advanced**: frame (theme, custom or off), colors, roundness, text position, font size, text color, duration, volume, minimum amount (Kicks, bits, gift subs) and video sound.
+- **Themes**: Neon, Minimal, Fun, Retro, Glass, Fire, Ice, Galaxy or Comic, each with its own animations, particles and soft synthesized sounds. All of it is CSS and Web Audio, with no image or sound files.
+- **Settings**:
+  - the OBS URL
+  - the Kick/Twitch badge switch (the badge only appears when both accounts are connected)
+  - the platform used for test alerts
+  - Reset everything
+
+More about alerts:
+
 - **Bigger events feel bigger**: follow is small and quick; sub is bigger; gift subs, Kicks and bits grow with the amount (gift subs at 5/20, Kicks and bits at 100/1000) and play longer; raid is the biggest.
 - Uploads are checked by their real file type and are limited to 20 MB.
 - **Reset to default** per alert, or **Reset everything**.

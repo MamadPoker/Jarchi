@@ -27,6 +27,8 @@ const rgba = (hex, a) => {
   return `rgba(${n >> 16},${(n >> 8) & 255},${n & 255},${a})`;
 };
 const isVideo = (file) => /\.(webm|mp4)$/.test(file);
+// The Kick/Twitch badge only means something when you stream to both, so it needs both accounts connected.
+const badgeVisible = () => settings.showBadge && ['kick', 'twitch'].every((p) => settings.connected?.includes(p));
 
 function applyStrings(s) {
   S = s;
@@ -90,7 +92,8 @@ async function show(ev, muted = false) {
   for (let i = 0; i < RINGS[tier]; i++) media.append(h('b', { className: 'ring', style: `--delay:${0.1 + i * 0.22}s` }));
   if (tier >= 2) media.append(h('b', { className: 'glow' }));
 
-  const box = h('div', { className: 'box' }, h('span', { className: 'badge', textContent: v.platform }), text(cfg.template, v));
+  const box = h('div', { className: 'box' }, text(cfg.template, v));
+  if (badgeVisible()) box.prepend(h('span', { className: 'badge', textContent: v.platform }));
   if (ev.message) box.append(h('div', { className: 'msg', textContent: ev.message }));
   if (tier === 4) box.append(h('b', { className: 'sweep' }));
 

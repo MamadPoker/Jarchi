@@ -8,6 +8,9 @@ const strings = require('../i18n/en.json');
 const FILE = path.join(DATA_DIR, 'settings.json');
 const VERSION = 2;
 const THEMES = ['neon', 'minimal', 'fun', 'retro', 'glass', 'fire', 'ice', 'galaxy', 'comic'];
+// App-wide settings (not per alert). showBadge: platform badge on alerts; it still needs both Kick and Twitch connected.
+const GLOBAL = { theme: 'neon', showBadge: true };
+const GLOBAL_RULES = { theme: (v) => THEMES.includes(v), showBadge: (v) => typeof v === 'boolean' };
 // Follow is small and quick, raid is the big one. minAmount only where an amount makes sense.
 const PER_TYPE = {
   follow: { duration: 4, fontSize: 38 },
@@ -87,8 +90,9 @@ function persist() {
 }
 
 function get() {
+  const globals = Object.entries(GLOBAL).map(([k, d]) => [k, GLOBAL_RULES[k](saved[k]) ? saved[k] : d]);
   return {
-    theme: THEMES.includes(saved.theme) ? saved.theme : 'neon',
+    ...Object.fromEntries(globals),
     alerts: Object.fromEntries(TYPES.map((t) => [t, { ...DEFAULTS[t], ...saved.alerts?.[t] }])),
   };
 }
@@ -97,13 +101,13 @@ const overrides = (type) => ((saved.alerts ??= {})[type] ??= {});
 
 function update(patch) {
   if (!patch || typeof patch !== 'object') throw bad();
-  if ('theme' in patch && !THEMES.includes(patch.theme)) throw bad();
+  for (const k in GLOBAL) if (k in patch && !GLOBAL_RULES[k](patch[k])) throw bad();
   const alerts = Object.entries(patch.alerts ?? {});
   for (const [type, fields] of alerts) {
     if (!TYPES.includes(type) || !fields || typeof fields !== 'object') throw bad();
     for (const [k, v] of Object.entries(fields)) if (!RULES[k] || !(k in DEFAULTS[type]) || !RULES[k](v)) throw bad();
   }
-  if ('theme' in patch) saved.theme = patch.theme;
+  for (const k in GLOBAL) if (k in patch) saved[k] = patch[k];
   for (const [type, fields] of alerts) Object.assign(overrides(type), fields);
   persist();
   return get();

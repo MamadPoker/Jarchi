@@ -7,96 +7,103 @@
   <link rel="stylesheet" href="panel.css">
 </head>
 <body>
-  <header class="top">
-    <div class="logo" aria-hidden="true">J</div>
-    <h1 data-i18n="title"></h1>
-  </header>
+<div class="app">
+  <!-- Each nav link points at a <section id> in <main>. A new section = one link + one section. -->
+  <aside class="sidebar">
+    <div class="brand"><div class="logo" aria-hidden="true">J</div><span data-i18n="title"></span></div>
+    <nav id="nav">
+      <a href="#alerts">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a5 5 0 0 0-5 5v4l-2 3h14l-2-3V8a5 5 0 0 0-5-5z"/><path d="M10 18a2 2 0 0 0 4 0"/></svg>
+        <span data-i18n="navAlerts"></span>
+      </a>
+      <a href="#themes">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="9" r="5"/><circle cx="15" cy="9" r="5"/><circle cx="12" cy="15" r="5"/></svg>
+        <span data-i18n="navThemes"></span>
+      </a>
+      <a href="#settings">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>
+        <span data-i18n="navSettings"></span>
+      </a>
+    </nav>
+  </aside>
 
   <main>
-    <section class="panel">
-      <h2 data-i18n="obsTitle"></h2>
-      <p class="hint" data-i18n="obsHint"></p>
-      <div class="row">
-        <input id="obsUrl" type="text" readonly aria-label="OBS URL">
-        <button id="copy" class="primary" data-i18n="copy"></button>
+    <!-- ===== Alerts: list, then one alert's settings ===== -->
+    <section id="alerts" hidden>
+      <div id="list" class="page">
+        <header>
+          <h1 data-i18n="navAlerts"></h1>
+          <p class="hint" data-i18n="alertsHint"></p>
+        </header>
+        <ul id="rows" class="rows"></ul>
       </div>
-    </section>
 
-    <section class="panel">
-      <h2 data-i18n="themeTitle"></h2>
-      <p class="hint" data-i18n="themeHint"></p>
-      <div id="themes" class="themes"></div>
-    </section>
-
-    <section class="panel">
-      <div class="row between">
-        <h2 data-i18n="alertsTitle"></h2>
-        <div class="row">
-          <label class="row inline"><span data-i18n="testAs"></span><select id="testAs"></select></label>
-          <button id="resetAll" class="danger" data-i18n="resetAll"></button>
-        </div>
-      </div>
-      <nav id="tabs" class="tabs" role="tablist"></nav>
-
-      <div class="editor">
-        <div id="editor" class="form">
-          <div class="sect">
-            <div class="row between">
-              <h3 class="name"></h3>
-              <label class="row inline"><span data-i18n="enabled"></span><span class="switch"><input type="checkbox" data-f="enabled"><span></span></span></label>
-            </div>
-            <label class="field">
-              <span data-i18n="template"></span>
-              <input type="text" data-f="template" maxlength="200">
-              <small data-i18n="templateHint"></small>
-            </label>
-            <div class="cols">
-              <label class="field"><span data-i18n="duration"></span><input type="number" data-f="duration" min="1" max="60" step="0.5"></label>
-              <label class="field" data-only="minAmount"><span data-i18n="minAmount"></span><input type="number" data-f="minAmount" min="0" step="1"></label>
-            </div>
-            <small data-only="minAmount" data-i18n="scaleHint"></small>
+      <div id="detail" class="page" hidden>
+        <div class="detail-top">
+          <div class="row between">
+            <a href="#alerts" class="back">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
+              <span data-i18n="back"></span>
+            </a>
+            <label class="row inline"><span data-i18n="enabled"></span><span class="switch"><input type="checkbox" data-f="enabled"><span></span></span></label>
           </div>
+          <h1 class="name"></h1>
+          <div class="preview"><iframe id="preview" src="/widgets/alerts/?preview" title="Alert preview" allow="autoplay"></iframe></div>
+          <div class="row">
+            <button id="play" class="primary">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5l11 7-11 7z"/></svg>
+              <span data-i18n="play"></span>
+            </button>
+            <label class="row inline" data-only="amount"><span data-i18n="previewAmount"></span><input type="number" id="previewAmount" min="0" step="1"></label>
+            <label class="row inline"><input type="checkbox" id="previewSound" checked><span data-i18n="previewSound"></span></label>
+            <span class="grow"></span>
+            <button id="test" class="ghost" data-i18n="testObs"></button>
+          </div>
+        </div>
 
-          <div class="sect">
-            <h4 data-i18n="mediaTitle"></h4>
-            <div class="file" data-kind="image">
+        <div class="sect">
+          <h2 data-i18n="mediaTitle"></h2>
+          <div class="file" data-kind="image">
+            <span class="fname"></span>
+            <button class="upload" data-i18n="upload"></button>
+            <button class="ghost remove" data-i18n="remove"></button>
+            <input type="file" hidden accept="image/png,image/jpeg,image/gif,image/webp,video/webm,video/mp4,.webm,.mp4">
+          </div>
+          <small data-i18n="mediaHint"></small>
+        </div>
+
+        <div class="sect">
+          <h2 data-i18n="soundTitle"></h2>
+          <div class="seg">
+            <label><input type="radio" name="soundMode" data-f="soundMode" value="theme"><span data-i18n="soundTheme"></span></label>
+            <label><input type="radio" name="soundMode" data-f="soundMode" value="custom"><span data-i18n="soundCustom"></span></label>
+            <label><input type="radio" name="soundMode" data-f="soundMode" value="none"><span data-i18n="soundNone"></span></label>
+          </div>
+          <div class="stack" data-only="customSound">
+            <div class="file" data-kind="sound">
               <span class="fname"></span>
               <button class="upload" data-i18n="upload"></button>
               <button class="ghost remove" data-i18n="remove"></button>
-              <input type="file" hidden accept="image/png,image/jpeg,image/gif,image/webp,video/webm,video/mp4,.webm,.mp4">
+              <input type="file" hidden accept="audio/mpeg,audio/wav,audio/ogg,.mp3,.wav,.ogg">
             </div>
-            <small data-i18n="mediaHint"></small>
-            <div class="field" data-only="video">
-              <span data-i18n="videoSound"></span>
-              <div class="seg">
-                <label><input type="radio" name="videoSound" data-f="videoSound" value="off"><span data-i18n="videoSoundOff"></span></label>
-                <label><input type="radio" name="videoSound" data-f="videoSound" value="video"><span data-i18n="videoSoundVideo"></span></label>
-                <label><input type="radio" name="videoSound" data-f="videoSound" value="both"><span data-i18n="videoSoundBoth"></span></label>
-              </div>
-            </div>
+            <small data-i18n="soundHint"></small>
           </div>
+        </div>
 
-          <div class="sect">
-            <h4 data-i18n="soundTitle"></h4>
-            <div class="seg">
-              <label><input type="radio" name="soundMode" data-f="soundMode" value="theme"><span data-i18n="soundTheme"></span></label>
-              <label><input type="radio" name="soundMode" data-f="soundMode" value="custom"><span data-i18n="soundCustom"></span></label>
-              <label><input type="radio" name="soundMode" data-f="soundMode" value="none"><span data-i18n="soundNone"></span></label>
-            </div>
-            <div data-only="customSound">
-              <div class="file" data-kind="sound">
-                <span class="fname"></span>
-                <button class="upload" data-i18n="upload"></button>
-                <button class="ghost remove" data-i18n="remove"></button>
-                <input type="file" hidden accept="audio/mpeg,audio/wav,audio/ogg,.mp3,.wav,.ogg">
-              </div>
-              <small data-i18n="soundHint"></small>
-            </div>
-            <label class="field"><span><span data-i18n="volume"></span> <b data-out="volume"></b></span><input type="range" data-f="volume" min="0" max="1" step="0.05"></label>
-          </div>
+        <div class="sect">
+          <h2 data-i18n="textTitle"></h2>
+          <input type="text" data-f="template" maxlength="200" aria-label="Text">
+          <small data-i18n="templateHint"></small>
+        </div>
 
-          <div class="sect">
-            <h4 data-i18n="frameTitle"></h4>
+        <details class="sect advanced">
+          <summary>
+            <span data-i18n="advanced"></span>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+          </summary>
+
+          <div class="stack">
+            <h3 data-i18n="lookTitle"></h3>
             <div class="field">
               <span data-i18n="frame"></span>
               <div class="seg">
@@ -133,29 +140,90 @@
               </div>
             </div>
           </div>
+
+          <div class="stack">
+            <h3 data-i18n="playbackTitle"></h3>
+            <div class="cols">
+              <label class="field"><span data-i18n="duration"></span><input type="number" data-f="duration" min="1" max="60" step="0.5"></label>
+              <label class="field"><span><span data-i18n="volume"></span> <b data-out="volume"></b></span><input type="range" data-f="volume" min="0" max="1" step="0.05"></label>
+              <label class="field" data-only="minAmount"><span data-i18n="minAmount"></span><input type="number" data-f="minAmount" min="0" step="1"></label>
+            </div>
+            <small data-only="minAmount" data-i18n="scaleHint"></small>
+            <div class="field" data-only="video">
+              <span data-i18n="videoSound"></span>
+              <div class="seg">
+                <label><input type="radio" name="videoSound" data-f="videoSound" value="off"><span data-i18n="videoSoundOff"></span></label>
+                <label><input type="radio" name="videoSound" data-f="videoSound" value="video"><span data-i18n="videoSoundVideo"></span></label>
+                <label><input type="radio" name="videoSound" data-f="videoSound" value="both"><span data-i18n="videoSoundBoth"></span></label>
+              </div>
+            </div>
+          </div>
+        </details>
+
+        <div><button id="reset" class="ghost" data-i18n="resetAlert"></button></div>
+      </div>
+    </section>
+
+    <!-- ===== Themes ===== -->
+    <section id="themes" hidden>
+      <div class="page wide">
+        <header>
+          <h1 data-i18n="navThemes"></h1>
+          <p class="hint" data-i18n="themeHint"></p>
+        </header>
+        <div id="themeGrid" class="themes"></div>
+      </div>
+    </section>
+
+    <!-- ===== Settings ===== -->
+    <section id="settings" hidden>
+      <div class="page">
+        <header><h1 data-i18n="navSettings"></h1></header>
+
+        <div class="sect">
+          <h2 data-i18n="obsTitle"></h2>
+          <small data-i18n="obsHint"></small>
+          <div class="row">
+            <input id="obsUrl" type="text" readonly aria-label="OBS URL">
+            <button id="copy" class="primary" data-i18n="copy"></button>
+          </div>
         </div>
 
-        <aside class="preview-col">
-          <div class="row between">
-            <h3 data-i18n="previewTitle"></h3>
-            <label class="row inline"><input type="checkbox" id="previewSound" checked><span data-i18n="previewSound"></span></label>
-          </div>
-          <div class="preview"><iframe id="preview" src="/widgets/alerts/?preview" title="Alert preview" allow="autoplay"></iframe></div>
-          <small data-i18n="previewHint"></small>
-          <div class="row">
-            <button id="play" class="primary" data-i18n="play"></button>
-            <label class="row inline" data-only="amount"><span data-i18n="previewAmount"></span><input type="number" id="previewAmount" min="0" step="1"></label>
-          </div>
-          <div class="row">
-            <button id="test" data-i18n="testObs"></button>
-            <button id="reset" class="ghost" data-i18n="resetAlert"></button>
-          </div>
-        </aside>
+        <div class="sect">
+          <h2 data-i18n="badgeTitle"></h2>
+          <label class="row between toggle-row">
+            <span data-i18n="badgeLabel"></span>
+            <span class="switch"><input type="checkbox" id="showBadge"><span></span></span>
+          </label>
+          <small><span data-i18n="badgeHint"></span> <span data-i18n="connected"></span> <b id="connectedList"></b></small>
+        </div>
+
+        <div class="sect">
+          <h2 data-i18n="testTitle"></h2>
+          <label class="row between toggle-row"><span data-i18n="testAs"></span><select id="testAs"></select></label>
+        </div>
+
+        <div class="sect">
+          <h2 data-i18n="resetTitle"></h2>
+          <small data-i18n="resetHint"></small>
+          <div><button id="resetAll" class="danger" data-i18n="resetAll"></button></div>
+        </div>
       </div>
     </section>
   </main>
+</div>
 
-  <div id="toast" role="status" aria-live="polite"></div>
-  <script src="panel.js"></script>
+<template id="rowTpl">
+  <li class="item">
+    <a class="item-link">
+      <span class="item-text"><b class="item-name"></b><small class="item-sum"></small></span>
+      <svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+    </a>
+    <label class="switch"><input type="checkbox"><span></span></label>
+  </li>
+</template>
+
+<div id="toast" role="status" aria-live="polite"></div>
+<script src="panel.js"></script>
 </body>
 </html>
