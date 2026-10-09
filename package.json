@@ -1,0 +1,19 @@
+{
+  "name": "jarchi",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Stream alerts (and later more widgets) for OBS. Runs locally on your own PC.",
+  "main": "server/index.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server/index.js",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=20.12"
+  },
+  "dependencies": {
+    "express": "^5.2.1",
+    "socket.io": "^4.8.4"
+  }
+}

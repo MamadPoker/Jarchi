@@ -1,0 +1,69 @@
+{
+  "lang": "en",
+  "dir": "ltr",
+  "platforms": { "kick": "Kick", "twitch": "Twitch", "test": "Test" },
+  "themes": { "neon": "Neon", "minimal": "Minimal", "fun": "Fun" },
+  "types": {
+    "follow": "Follow",
+    "sub": "Subscription",
+    "resub": "Resubscription",
+    "gift_sub": "Gifted subs",
+    "kicks": "Kicks (Kick)",
+    "bits": "Bits (Twitch)",
+    "raid": "Raid"
+  },
+  "templates": {
+    "follow": "{user} just followed!",
+    "sub": "{user} just subscribed!",
+    "resub": "{user} resubscribed for {months} months!",
+    "gift_sub": "{user} gifted {amount} subs!",
+    "kicks": "{user} sent {amount} Kicks!",
+    "bits": "{user} cheered {amount} bits!",
+    "raid": "{user} is raiding with {amount} viewers!"
+  },
+  "emblems": {
+    "follow": "+1",
+    "sub": "SUB",
+    "resub": "{months}M",
+    "gift_sub": "×{amount}",
+    "kicks": "{amount}",
+    "bits": "{amount}",
+    "raid": "{amount}"
+  },
+  "test": { "user": "TestViewer", "message": "This is a test alert!" },
+  "panel": {
+    "title": "Jarchi",
+    "obsTitle": "OBS Browser Source",
+    "obsHint": "In OBS add a Browser Source with this URL, width 1920, height 1080.",
+    "copy": "Copy",
+    "copied": "Copied!",
+    "themeTitle": "Theme",
+    "themeHint": "Changes every alert that doesn't have its own image or sound.",
+    "alertsTitle": "Alerts",
+    "testAs": "Test as",
+    "resetAll": "Reset everything",
+    "confirmResetAll": "Click again to confirm",
+    "template": "Text",
+    "templateHint": "Variables: {user} {amount} {months} {platform}",
+    "duration": "Duration (s)",
+    "volume": "Volume",
+    "minAmount": "Minimum amount",
+    "image": "Image / GIF / WebM",
+    "sound": "Sound (mp3 / wav / ogg)",
+    "default": "Theme default",
+    "upload": "Upload",
+    "remove": "Remove",
+    "test": "Test",
+    "reset": "Reset to default",
+    "saved": "Saved",
+    "testSent": "Test alert sent"
+  },
+  "errors": {
+    "bad_type": "That file type isn't allowed.",
+    "too_large": "File is too big (max 20 MB).",
+    "bad_request": "Invalid value.",
+    "forbidden": "Request blocked.",
+    "server_error": "Something went wrong.",
+    "offline": "Can't reach Jarchi. Is it running?"
+  }
+}

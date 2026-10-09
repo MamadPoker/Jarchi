@@ -1,0 +1,189 @@
+/* Alerts overlay, 1920x1080, transparent. Three themes switch via body[data-theme]. */
+html, body {
+  margin: 0;
+  width: 1920px;
+  height: 1080px;
+  overflow: hidden;
+  background: transparent;
+}
+body { font-family: "Segoe UI", system-ui, sans-serif; }
+
+#stage {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding-top: 110px;
+}
+
+.alert {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 28px;
+  max-width: 1300px;
+  text-align: center;
+}
+.media.custom img,
+.media.custom video { display: block; max-width: 560px; max-height: 440px; }
+
+.box { position: relative; padding: 22px 48px; }
+.text { font-size: 46px; font-weight: 800; line-height: 1.2; overflow-wrap: anywhere; }
+.msg { font-size: 26px; margin-top: 8px; opacity: 0.85; overflow-wrap: anywhere; }
+
+/* Platform badge: plain text pill with a small square marker. No logos. */
+.badge {
+  position: absolute;
+  top: -15px;
+  right: -12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font: 800 15px/1 "Segoe UI", system-ui, sans-serif;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  text-shadow: none;
+  color: #0b0b0b;
+  background: #9aa0aa;
+}
+.badge::before { content: ""; width: 8px; height: 8px; border-radius: 2px; background: currentColor; }
+.plat-kick .badge { background: #53fc18; }
+.plat-twitch .badge { background: #9146ff; color: #fff; }
+
+.emblem {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 200px;
+  height: 200px;
+  font-size: 48px;
+  font-weight: 900;
+}
+.emblem span { position: relative; z-index: 1; }
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ---------- Neon ---------- */
+[data-theme="neon"] .alert { animation: neon-in 0.8s ease-out both; }
+[data-theme="neon"] .alert.out { animation: neon-out 0.5s ease-in both; }
+[data-theme="neon"] .box {
+  color: #fff;
+  background: rgba(10, 6, 30, 0.85);
+  border: 2px solid #0ff;
+  border-radius: 16px;
+  box-shadow: 0 0 16px #0ff, 0 0 44px rgba(255, 0, 220, 0.45), inset 0 0 18px rgba(0, 255, 255, 0.3);
+  text-shadow: 0 0 10px #0ff;
+}
+[data-theme="neon"] .hl { color: #ff4fd8; text-shadow: 0 0 12px #ff4fd8; }
+[data-theme="neon"] .emblem { color: #fff; text-shadow: 0 0 14px #0ff, 0 0 30px #ff00e6; }
+[data-theme="neon"] .emblem::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: conic-gradient(#0ff, #ff00e6, #7a5cff, #0ff);
+  filter: drop-shadow(0 0 16px #0ff);
+  animation: spin 1.8s linear infinite;
+}
+[data-theme="neon"] .emblem::after {
+  content: "";
+  position: absolute;
+  inset: 8px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #2a0f4d, #0a061e 70%);
+  animation: neon-pulse 0.9s ease-in-out infinite alternate;
+}
+@keyframes neon-pulse { to { box-shadow: inset 0 0 40px rgba(255, 0, 230, 0.7); } }
+@keyframes neon-in {
+  0% { opacity: 0; transform: scale(0.7); filter: blur(14px) brightness(3); }
+  55% { opacity: 1; transform: scale(1.03); filter: blur(0) brightness(1.6); }
+  65% { opacity: 0.4; }
+  75% { opacity: 1; }
+  85% { opacity: 0.7; }
+  100% { opacity: 1; transform: scale(1); filter: none; }
+}
+@keyframes neon-out { to { opacity: 0; transform: scale(1.15); filter: blur(12px) brightness(2); } }
+
+/* ---------- Minimal ---------- */
+[data-theme="minimal"] .alert { animation: min-in 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+[data-theme="minimal"] .alert.out { animation: min-out 0.4s ease-in both; }
+[data-theme="minimal"] .box {
+  color: #111;
+  background: rgba(255, 255, 255, 0.97);
+  border-left: 6px solid #111;
+  border-radius: 6px;
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.28);
+}
+[data-theme="minimal"] .text { font-weight: 600; font-size: 42px; }
+[data-theme="minimal"] .hl { font-weight: 800; color: #2563eb; }
+[data-theme="minimal"] .emblem {
+  width: 150px;
+  height: 150px;
+  font-size: 40px;
+  color: #111;
+  background: #fff;
+  border-radius: 50%;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+}
+[data-theme="minimal"] .emblem::before {
+  content: "";
+  position: absolute;
+  inset: -12px;
+  border: 3px solid #fff;
+  border-right-color: transparent;
+  border-bottom-color: transparent;
+  border-radius: 50%;
+  animation: spin 1.4s linear infinite;
+}
+@keyframes min-in { from { opacity: 0; transform: translateY(30px); } }
+@keyframes min-out { to { opacity: 0; transform: translateY(-20px); } }
+
+/* ---------- Fun ---------- */
+[data-theme="fun"] .alert { animation: fun-in 0.7s cubic-bezier(0.3, 1.6, 0.5, 1) both; }
+[data-theme="fun"] .alert.out { animation: fun-out 0.45s ease-in both; }
+[data-theme="fun"] .box {
+  color: #fff;
+  background: linear-gradient(135deg, #ff5fa2, #ffb443);
+  border: 5px solid #fff;
+  border-radius: 30px;
+  box-shadow: 0 10px 0 rgba(0, 0, 0, 0.2);
+  font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+  text-shadow: 0 3px 0 rgba(0, 0, 0, 0.22);
+}
+[data-theme="fun"] .hl { color: #fff35c; }
+[data-theme="fun"] .emblem {
+  color: #fff;
+  font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+  text-shadow: 0 4px 0 rgba(0, 0, 0, 0.2);
+  background: linear-gradient(135deg, #4fd1ff, #a46bff);
+  border: 6px solid #fff;
+  border-radius: 42% 58% 61% 39% / 45% 41% 59% 55%;
+  animation: blob 2.4s ease-in-out infinite, wobble 0.7s ease-in-out infinite alternate;
+}
+@keyframes blob { 50% { border-radius: 58% 42% 39% 61% / 55% 59% 41% 45%; } }
+@keyframes wobble { from { transform: rotate(-6deg) scale(1); } to { transform: rotate(6deg) scale(1.06); } }
+@keyframes fun-in {
+  0% { opacity: 0; transform: scale(0.2) rotate(-12deg); }
+  100% { opacity: 1; transform: none; }
+}
+@keyframes fun-out { to { opacity: 0; transform: scale(0.2) rotate(12deg); } }
+
+.confetti { position: absolute; left: -320px; right: -320px; top: -90px; height: 0; pointer-events: none; }
+.confetti i {
+  position: absolute;
+  left: var(--x);
+  width: 12px;
+  height: 18px;
+  border-radius: 3px;
+  background: var(--c);
+  transform: rotate(var(--r));
+  animation: fall var(--d) linear var(--delay) both;
+}
+@keyframes fall {
+  from { transform: translateY(0) rotate(var(--r)); opacity: 1; }
+  to { transform: translateY(760px) rotate(calc(var(--r) + 720deg)); opacity: 0; }
+}
