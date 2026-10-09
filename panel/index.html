@@ -309,6 +309,58 @@
         </details>
       </section>
 
+      <!-- ===== Chat widget ===== -->
+      <section class="view" data-view="chat" hidden>
+        <div class="row between">
+          <h1 class="title"><span class="dot"></span><span data-i18n="chatName"></span><span class="pill" data-only="off" data-i18n="off"></span></h1>
+          <div class="row">
+            <button id="chatCopy">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h8"/></svg>
+              <span data-i18n="chatCopy"></span>
+            </button>
+            <button id="chatResetStyle" class="ghost" data-i18n="chatResetStyle"></button>
+          </div>
+        </div>
+        <small data-i18n="chatHint"></small>
+
+        <div class="basics two">
+          <div class="box">
+            <h2 class="row"><img class="plat-logo" src="/assets/platform-logos/kick.svg" alt=""><span data-i18n="kickChannel"></span></h2>
+            <input type="text" data-f="kickChannel" maxlength="40" aria-label="Kick channel" data-placeholder="channelPlaceholder">
+            <span class="status" id="kickStatus"></span>
+          </div>
+          <div class="box">
+            <h2 class="row"><img class="plat-logo" src="/assets/platform-logos/twitch.svg" alt=""><span data-i18n="twitchChannel"></span></h2>
+            <input type="text" data-f="twitchChannel" maxlength="25" aria-label="Twitch channel" data-placeholder="channelPlaceholder">
+            <span class="status" id="twitchStatus"></span>
+          </div>
+        </div>
+
+        <div class="stage chat-stage">
+          <div class="chat-preview"><iframe id="chatPreview" title="Chat preview"></iframe></div>
+          <div class="stage-ctrl">
+            <button id="chatBurst" data-i18n="chatBurst"></button>
+            <button id="chatTest" class="primary">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+              <span data-i18n="chatTest"></span>
+            </button>
+          </div>
+        </div>
+
+        <div class="box">
+          <div class="row between"><h2 data-i18n="chatStyle"></h2><small data-i18n="chatStyleHint"></small></div>
+          <div id="chatStyleGrid" class="style-grid five"></div>
+        </div>
+
+        <details class="more">
+          <summary>
+            <span data-i18n="moreOptions"></span>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+          </summary>
+          <div id="chatMore" class="more-grid three"></div>
+        </details>
+      </section>
+
       <!-- ===== Theme ===== -->
       <section class="view" data-view="theme" hidden>
         <div class="stack">

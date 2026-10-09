@@ -24,6 +24,43 @@ function emitEvent(e) {
   return ev;
 }
 
+// Chat. Connectors call emitChat() for every message and emitChatClear() when a moderator removes messages.
+// Message: { id, platform, time, kind: 'message' | 'sub', channel, text, first, action, system, test,
+//   user: { id, login, name, color, avatar, badges: [{ type: 'broadcaster'|'moderator'|'vip'|'subscriber'|'other', name, img, title }] },
+//   parts: [{ t: 'text', v } | { t: 'emote', name, src, still, provider: 'twitch'|'kick'|'7tv' }] }
+const https = (v) => typeof v === 'string' && v.startsWith('https://');
+function emitChat(m) {
+  if (!PLATFORMS.includes(m.platform)) throw new Error(`bad chat platform: ${m.platform}`);
+  const u = m.user ?? {};
+  const msg = {
+    id: String(m.id ?? randomUUID()),
+    platform: m.platform,
+    time: Number(m.time) || Date.now(),
+    kind: m.kind === 'sub' ? 'sub' : 'message',
+    channel: String(m.channel ?? '').toLowerCase(),
+    text: String(m.text ?? '').slice(0, 1000),
+    first: !!m.first,
+    action: !!m.action,
+    system: String(m.system ?? '').slice(0, 300),
+    test: !!m.test,
+    user: {
+      id: String(u.id ?? ''),
+      login: String(u.login ?? u.name ?? '').toLowerCase().slice(0, 64),
+      name: String(u.name ?? u.login ?? '').slice(0, 64),
+      color: /^#[0-9a-f]{6}$/i.test(u.color) ? u.color : null,
+      avatar: https(u.avatar) ? u.avatar : null,
+      badges: (u.badges ?? []).slice(0, 8).map((b) => ({ type: b.type, name: String(b.name ?? ''), img: https(b.img) ? b.img : null, title: String(b.title ?? b.name ?? '') })),
+    },
+    parts: (m.parts ?? [{ t: 'text', v: m.text ?? '' }]).filter((p) => (p.t === 'emote' ? https(p.src) : p.t === 'text')).slice(0, 300),
+  };
+  bus.emit('chat', msg);
+  return msg;
+}
+// { platform, messageId }: one message. { platform, userId }: everything a user said (ban / timeout). { platform }: the whole chat.
+function emitChatClear(c) {
+  bus.emit('chatClear', { platform: c.platform, messageId: c.messageId ? String(c.messageId) : null, userId: c.userId ? String(c.userId) : null });
+}
+
 // Which platform accounts are connected. Connectors will call setConnected(); until then nothing is connected.
 const connected = new Set();
 function setConnected(platform, on) {
@@ -34,4 +71,4 @@ function setConnected(platform, on) {
 }
 const connectedPlatforms = () => [...connected];
 
-module.exports = { bus, emitEvent, setConnected, connectedPlatforms, TYPES, PLATFORMS };
+module.exports = { bus, emitEvent, emitChat, emitChatClear, setConnected, connectedPlatforms, TYPES, PLATFORMS };

@@ -62,6 +62,25 @@ When a goal is reached, the bar switches to the "full" color, plays a short cele
 
 Settings and uploads live in `data/` (gitignored). Delete that folder to start fresh.
 
+## Chat
+
+Kick and Twitch chat in one box: `http://127.0.0.1:3000/widgets/chat` (transparent background).
+
+1. In the panel, open **Widgets → Chat** and type your **Kick channel** and/or **Twitch channel** (just the names, no login). Each shows Connected / Connecting / Error and reconnects by itself.
+2. In OBS: **Sources → + → Browser**, paste the link from **Copy chat OBS link**. Make the source at least as big as the chat's width × height (More options → Box & messages); the chat sits in the top-left corner.
+3. **Send test message** shows every effect (badges, emotes, a sub, a first message, a mention); **Send 10 messages** shows the move-up-and-fade.
+
+- 10 styles (Classic box, Bubbles, Floating, Neon, Terminal, Retro, Glass, Pop-in, Side column, Ticker). A style is a starting point: every option works with every style, **Reset style** brings the style's own look back.
+- Messages deleted by a moderator, and everything from banned / timed-out users, disappear from the overlay too.
+- Emotes: Kick, Twitch and 7TV (the channel's set + global, refreshed every 5 minutes), animated or still.
+- Badges and logos come from the platforms: Twitch's own badge images, Kick's badge images and the channel's own sub badges. Kick's mod / VIP / OG / host badges have no public image, so they show as small text tags.
+- Chat also goes through the event bus (`chat`, `chatClear`), so other widgets can use it later.
+
+How it reads chat, and what needs a key:
+
+- **Twitch**: anonymous chat (IRC over WebSocket), no key. Optional key (`TWITCH_CLIENT_ID` / `TWITCH_CLIENT_SECRET` in `.env`, see `.env.example`) adds every Twitch badge, channels' own sub badges and Twitch profile pictures. Without it, Twitch's common badges show and Twitch avatars are letters.
+- **Kick**: Kick's public chat socket, no key. Finding a channel's chatroom by name uses Kick's website API (unofficial; it only answers HTTP/2). If Kick changes that API, the Kick status shows Error. Kick's official API needs an app key and will come with account connections.
+
 ## Project layout
 
 ```
@@ -71,7 +90,10 @@ core/events.js       event bus + the normalized event shape
 core/settings.js     defaults, user changes, uploads (alerts and goal looks)
 core/goals.js        goal counters, fed by the event bus
 core/store.js        JSON files in the data folder
-connectors/          Kick / Twitch go here later (see connectors/README.md)
+core/chat.js         runs the chat connectors, adds 7TV emotes, test messages
+core/seventv.js      7TV emote sets (cached)
+connectors/          Kick and Twitch chat readers (+ Twitch badge images)
+assets/              official platform logos (assets/platform-logos)
 widgets/<name>/      each widget is a folder, served at /widgets/<name>
 panel/               settings panel (served at /)
 i18n/en.json         every UI string, panel and overlay
@@ -84,7 +106,7 @@ Every event, whatever its source, looks like this:
 // type: follow | sub | resub | gift_sub | kicks | bits | raid
 ```
 
-Connectors only call `emitEvent()`. Widgets only listen on the socket: `event`, `settings` and (goals) `goals`.
+Connectors only call `emitEvent()`. Widgets only listen on the socket: `event`, `settings`, `goals` and (chat) `chat` / `chatClear`.
 
 ## Tests
 

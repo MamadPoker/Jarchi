@@ -6,6 +6,7 @@ const { HOST, PORT, UPLOADS_DIR } = require('../core/config');
 const { bus, emitEvent, connectedPlatforms, TYPES, PLATFORMS } = require('../core/events');
 const settings = require('../core/settings');
 const goals = require('../core/goals');
+const chat = require('../core/chat');
 const strings = require('../i18n/en.json');
 
 const ROOT = path.join(__dirname, '..');
@@ -35,6 +36,7 @@ app.get('/api/settings', (req, res) => res.json(view()));
 app.patch('/api/settings', (req, res) => {
   const s = settings.update(req.body);
   for (const [id, fields] of Object.entries(req.body.goals ?? {})) if ('target' in fields) goals.retarget(id);
+  if (req.body.chat) chat.sync(); // channel names or on/off may have changed
   res.json(changed(s));
 });
 
@@ -46,9 +48,18 @@ app.post('/api/upload/:type/:kind', express.raw({ type: () => true, limit: '20mb
 app.delete('/api/upload/:type/:kind', (req, res) => res.json(changed(settings.removeUpload(req.params.type, req.params.kind))));
 app.post('/api/reset{/:type}', (req, res) => {
   const s = settings.reset(req.params.type);
-  if (!req.params.type) settings.GOAL_IDS.forEach(goals.retarget); // targets went back to their defaults
+  if (!req.params.type) {
+    settings.GOAL_IDS.forEach(goals.retarget); // targets went back to their defaults
+    chat.sync(); // channels were cleared
+  }
   res.json(changed(s));
 });
+
+// Chat: connectors run in core/chat; the look is a regular setting.
+app.get('/api/chat/status', (req, res) => res.json(chat.status()));
+app.get('/api/chat/styles', (req, res) => res.json(settings.CHAT_STYLES));
+app.post('/api/chat/test', (req, res) => res.json({ sent: chat.test(req.body?.kind === 'burst' ? 'burst' : 'sample') }));
+app.post('/api/chat/reset-style', (req, res) => res.json(changed(settings.resetChatStyle())));
 
 // Goals: counts (current / reached) live in core/goals; their look and target are regular settings.
 app.get('/api/goals', (req, res) => res.json({ state: goals.all(), styles: settings.GOAL_STYLES, fonts: settings.FONTS }));
@@ -90,6 +101,7 @@ app.get('/widgets/goal/:id{/}', (req, res, next) => {
 });
 app.use('/widgets', express.static(path.join(ROOT, 'widgets'))); // every widgets/<name>/ folder is its own OBS URL
 app.use('/i18n', express.static(path.join(ROOT, 'i18n')));
+app.use('/assets', express.static(path.join(ROOT, 'assets'))); // official platform logos
 app.use('/', express.static(path.join(ROOT, 'panel')));
 
 app.use((err, req, res, next) => {
@@ -102,11 +114,17 @@ io.on('connection', (socket) => {
   socket.emit('strings', strings);
   socket.emit('settings', view());
   socket.emit('goals', goals.all());
+  socket.emit('chatStatus', chat.status());
+  socket.emit('chatHistory', chat.recent());
 });
 // Every count change goes to widgets and the panel; the second argument names a goal that just hit its target.
 goals.events.on('change', (reached) => io.emit('goals', goals.all(), reached));
 bus.on('event', (ev) => io.emit('event', ev));
 bus.on('connections', () => changed());
+bus.on('chat', (m) => io.emit('chat', m));
+bus.on('chatClear', (c) => io.emit('chatClear', c));
+bus.on('chatAvatar', (a) => io.emit('chatAvatar', a));
+chat.events.on('status', (st) => io.emit('chatStatus', st));
 
 server.on('error', (err) => {
   console.error(err.code === 'EADDRINUSE' ? `Port ${PORT} is already in use. Set JARCHI_PORT in .env to another port.` : err);
@@ -116,6 +134,7 @@ server.listen(PORT, HOST, () => {
   console.log(`Jarchi is running
   Settings panel: http://${HOST}:${PORT}/
   OBS alerts URL: http://${HOST}:${PORT}/widgets/alerts`);
+  chat.sync(); // connect to the saved Kick / Twitch channels
 });
 
 module.exports = { app, server, io };

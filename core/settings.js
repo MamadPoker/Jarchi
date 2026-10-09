@@ -115,6 +115,59 @@ const GOAL_RULES = {
   showNumbers: bool,
 };
 
+// ---------- Chat ----------
+// The Classic look. Every chat style is this plus a few changes; users then tweak any value. Reset style restores them.
+const CHAT_BASE = {
+  showPlatform: true, showBadges: true, badgeBroadcaster: true, badgeMod: true, badgeVip: true, badgeSub: true, badgeOther: true, showTime: false, showColon: true,
+  emotesAnimated: true, emoteSize: 28, bigEmotes: true, bigEmoteSize: 56,
+  font: 'Segoe UI', fontSize: 18, nameSize: 18, nameColorMode: 'user', nameColor: '#8b5cf6', textColor: '#ffffff', namePos: 'inline', textShadow: true, textDir: 'auto',
+  bg: 'color', bgColor: '#14141c', bgOpacity: 0.6, bubbles: false, border: false, borderColor: '#8b5cf6', borderWidth: 2, radius: 12, padding: 12, gap: 6, width: 420, height: 600,
+  layout: 'vertical', tickerDir: 'rtl', tickerSpeed: 120, newAt: 'bottom', maxMessages: 30, hideAfter: 0, enterAnim: 'slide', exitAnim: 'fade', animSpeed: 1, fadeZone: 80, fade: true,
+  fxSubGlow: true, fxFirst: true, fxRainbowVip: true, fxMention: true, fxCombo: true, avatars: false, blur: 0,
+};
+const CHAT_STYLES = Object.fromEntries(Object.entries({
+  classic: {},
+  bubbles: { bubbles: true, bgColor: '#1d2029', bgOpacity: 0.85, radius: 16, gap: 8, padding: 10 },
+  floating: { bg: 'off', padding: 0, gap: 8 },
+  neon: { bgColor: '#0a0620', bgOpacity: 0.75, border: true, borderColor: '#00f0ff', borderWidth: 2, radius: 14, textColor: '#e8fbff' },
+  terminal: { font: 'Consolas', fontSize: 16, nameSize: 16, bgColor: '#0c0c0c', bgOpacity: 0.92, border: true, borderColor: '#3a3a3a', borderWidth: 1, radius: 8, textColor: '#c8ffc8', showTime: true, textShadow: false, emoteSize: 24, enterAnim: 'fade' },
+  retro: { font: 'Consolas', fontSize: 16, nameSize: 16, bgColor: '#1b1b3a', bgOpacity: 0.95, border: true, borderColor: '#ffffff', borderWidth: 4, radius: 0, textShadow: false },
+  glass: { bgColor: '#ffffff', bgOpacity: 0.12, border: true, borderColor: '#ffffff', borderWidth: 1, radius: 18, blur: 14 },
+  popin: { bubbles: true, bgColor: '#1d2029', bgOpacity: 0.9, radius: 18, gap: 8, padding: 10, enterAnim: 'pop' },
+  side: { width: 300, height: 900, namePos: 'above', gap: 10 },
+  ticker: { layout: 'horizontal', width: 1920, height: 64, bgOpacity: 0.85, radius: 0, padding: 10, maxMessages: 15, fadeZone: 120 },
+}).map(([id, change]) => [id, { ...CHAT_BASE, ...change }]));
+const CHAT_LOOK = Object.keys(CHAT_BASE); // the fields a style sets
+const CHAT_DEFAULTS = {
+  enabled: true,
+  kickChannel: '',
+  twitchChannel: '',
+  style: 'classic',
+  emotesKick: true, emotesTwitch: true, emotes7tv: true,
+  hideCommands: true, hideBots: true, bots: 'botrix, kickbot', hiddenUsers: '', blockedWords: '', hideLinks: false, source: 'both',
+  rainbowUsers: '',
+};
+const words = (v) => typeof v === 'string' && v.length <= 1000;
+const CHAT_RULES = {
+  enabled: bool,
+  kickChannel: (v) => typeof v === 'string' && /^[a-z0-9_-]{0,40}$/i.test(v),
+  twitchChannel: (v) => typeof v === 'string' && /^[a-z0-9_]{0,25}$/i.test(v),
+  style: (v) => v in CHAT_STYLES,
+  emotesKick: bool, emotesTwitch: bool, emotes7tv: bool,
+  hideCommands: bool, hideBots: bool, bots: words, hiddenUsers: words, blockedWords: words, hideLinks: bool, source: oneOf('both', 'kick', 'twitch'),
+  rainbowUsers: words,
+  showPlatform: bool, showBadges: bool, badgeBroadcaster: bool, badgeMod: bool, badgeVip: bool, badgeSub: bool, badgeOther: bool, showTime: bool, showColon: bool,
+  emotesAnimated: bool, emoteSize: num(12, 112), bigEmotes: bool, bigEmoteSize: num(16, 160),
+  font: oneOf(...FONTS), fontSize: num(10, 72), nameSize: num(10, 72), nameColorMode: oneOf('user', 'custom'), nameColor: hex, textColor: hex,
+  namePos: oneOf('inline', 'above'), textShadow: bool, textDir: oneOf('auto', 'ltr', 'rtl'),
+  bg: oneOf('color', 'transparent', 'off'), bgColor: hex, bgOpacity: num(0, 1), bubbles: bool, border: bool, borderColor: hex, borderWidth: num(1, 12),
+  radius: num(0, 40), padding: num(0, 60), gap: num(0, 40), width: num(200, 1920), height: num(40, 1080),
+  layout: oneOf('vertical', 'horizontal'), tickerDir: oneOf('rtl', 'ltr'), tickerSpeed: num(20, 600), newAt: oneOf('bottom', 'top'),
+  maxMessages: (v) => Number.isInteger(v) && v >= 1 && v <= 100, hideAfter: num(0, 600),
+  enterAnim: oneOf('slide', 'fade', 'pop', 'none'), exitAnim: oneOf('fade', 'slide', 'none'), animSpeed: num(0.25, 3), fadeZone: num(0, 400), fade: bool,
+  fxSubGlow: bool, fxFirst: bool, fxRainbowVip: bool, fxMention: bool, fxCombo: bool, avatars: bool, blur: num(0, 40),
+};
+
 const ALLOWED = { image: ['png', 'jpg', 'gif', 'webp', 'webm', 'mp4'], sound: ['mp3', 'wav', 'ogg'] };
 
 const bad = (code = 'bad_request') => Object.assign(new Error(code), { status: 400, code });
@@ -138,7 +191,15 @@ function get() {
     ...Object.fromEntries(globals),
     alerts: Object.fromEntries(TYPES.map((t) => [t, { ...DEFAULTS[t], ...saved.alerts?.[t] }])),
     goals: Object.fromEntries(GOAL_IDS.map((id) => [id, goal(id)])),
+    chat: chat(),
   };
+}
+
+// Chat = its style's look + the chat defaults + the user's changes.
+function chat() {
+  const o = saved.chat ?? {};
+  const style = o.style in CHAT_STYLES ? o.style : CHAT_DEFAULTS.style;
+  return { ...CHAT_STYLES[style], ...CHAT_DEFAULTS, ...o, style };
 }
 
 // A goal = its style's look + the goal's defaults + the user's changes.
@@ -164,12 +225,22 @@ function update(patch) {
     if (!GOAL_IDS.includes(id) || !fields || typeof fields !== 'object') throw bad();
     for (const [k, v] of Object.entries(fields)) if (!GOAL_RULES[k] || !GOAL_RULES[k](v)) throw bad();
   }
+  const chatFields = patch.chat;
+  if (chatFields !== undefined) {
+    if (!chatFields || typeof chatFields !== 'object') throw bad();
+    for (const [k, v] of Object.entries(chatFields)) if (!CHAT_RULES[k] || !CHAT_RULES[k](v)) throw bad();
+  }
   for (const k in GLOBAL) if (k in patch) saved[k] = patch[k];
   for (const [type, fields] of alerts) Object.assign(overrides(type), fields);
   for (const [id, fields] of goals) {
     const o = goalOverrides(id);
     if ('style' in fields) for (const k of GOAL_LOOK) delete o[k]; // a new style starts from its own look
     Object.assign(o, fields);
+  }
+  if (chatFields) {
+    const o = (saved.chat ??= {});
+    if ('style' in chatFields) for (const k of CHAT_LOOK) delete o[k];
+    Object.assign(o, chatFields);
   }
   persist();
   return get();
@@ -241,6 +312,13 @@ function resetGoalStyle(id) {
   return get();
 }
 
+// Back to the selected chat style's look; channels, filters and emote sources stay.
+function resetChatStyle() {
+  for (const k of CHAT_LOOK) delete saved.chat?.[k];
+  persist();
+  return get();
+}
+
 // No type = reset everything.
 function reset(type) {
   if (type !== undefined && !TYPES.includes(type)) throw bad();
@@ -257,4 +335,4 @@ function reset(type) {
   return get();
 }
 
-module.exports = { get, update, saveUpload, removeUpload, reset, saveGoalSound, removeGoalSound, resetGoalStyle, GOAL_IDS, GOAL_STYLES, FONTS };
+module.exports = { get, update, saveUpload, removeUpload, reset, saveGoalSound, removeGoalSound, resetGoalStyle, resetChatStyle, GOAL_IDS, GOAL_STYLES, CHAT_STYLES, FONTS };
