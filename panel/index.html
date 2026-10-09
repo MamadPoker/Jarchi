@@ -174,6 +174,141 @@
         </details>
       </section>
 
+      <!-- ===== One goal widget ===== -->
+      <section class="view" data-view="goal" hidden>
+        <div class="row between">
+          <h1 class="title"><span class="dot"></span><span class="name"></span><span class="pill" data-only="off" data-i18n="off"></span></h1>
+          <div class="row">
+            <button id="goalCopy">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h8"/></svg>
+              <span data-i18n="goalCopy"></span>
+            </button>
+            <button id="goalResetStyle" class="ghost" data-i18n="goalResetStyle"></button>
+          </div>
+        </div>
+        <small><span id="goalCounts"></span> <span data-i18n="goalOffHint"></span></small>
+
+        <div class="stage">
+          <div class="preview goal-preview"><iframe id="goalPreview" title="Goal preview" allow="autoplay"></iframe></div>
+          <div class="stage-ctrl">
+            <button id="goalTest" class="primary">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+              <span></span>
+            </button>
+          </div>
+        </div>
+
+        <div class="basics">
+          <div class="box">
+            <h2 data-i18n="goalTitle"></h2>
+            <input type="text" data-f="title" maxlength="60" aria-label="Title">
+          </div>
+          <div class="box">
+            <h2 data-i18n="goalTarget"></h2>
+            <input type="number" data-f="target" min="1" step="1" aria-label="Target">
+          </div>
+          <div class="box">
+            <h2 data-i18n="goalCurrent"></h2>
+            <div class="stepper">
+              <button id="goalMinus" aria-label="−">−</button>
+              <input type="number" id="goalCurrent" min="0" step="1" aria-label="Current">
+              <button id="goalPlus" aria-label="+">+</button>
+            </div>
+            <div><button id="goalZero" class="ghost" data-i18n="goalZero"></button></div>
+          </div>
+        </div>
+
+        <div class="box">
+          <div class="row between"><h2 data-i18n="goalStyle"></h2><small data-i18n="goalStyleHint"></small></div>
+          <div id="styleGrid" class="style-grid"></div>
+        </div>
+
+        <div class="box">
+          <h2 data-i18n="goalColors"></h2>
+          <div class="cols4">
+            <label class="field"><span data-i18n="barColor"></span><input type="color" data-f="barColor"></label>
+            <label class="field"><span data-i18n="barBg"></span><input type="color" data-f="barBg"></label>
+            <label class="field"><span data-i18n="goalText"></span><input type="color" data-f="textColor"></label>
+            <label class="field"><span data-i18n="fullColor"></span><input type="color" data-f="fullColor"></label>
+          </div>
+        </div>
+
+        <details class="more">
+          <summary>
+            <span data-i18n="moreOptions"></span>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+          </summary>
+          <div class="more-grid three">
+            <div class="box">
+              <h3 data-i18n="goalBox"></h3>
+              <div class="field">
+                <span data-i18n="bgMode"></span>
+                <div class="seg">
+                  <label><input type="radio" name="goalBg" data-f="bg" value="color"><span data-i18n="bgColor"></span></label>
+                  <label><input type="radio" name="goalBg" data-f="bg" value="transparent"><span data-i18n="bgTransparent"></span></label>
+                  <label><input type="radio" name="goalBg" data-f="bg" value="off"><span data-i18n="bgOff"></span></label>
+                </div>
+              </div>
+              <div class="cols" data-only="bgColor">
+                <label class="field"><span data-i18n="bgColor"></span><input type="color" data-f="bgColor"></label>
+                <label class="field"><span><span data-i18n="bgOpacity"></span> <b data-out="bgOpacity"></b></span><input type="range" data-f="bgOpacity" min="0" max="1" step="0.05"></label>
+              </div>
+              <div class="stack" data-only="box">
+                <label class="row between toggle-row"><span data-i18n="border"></span><span class="switch"><input type="checkbox" data-f="border"><span></span></span></label>
+                <div class="cols" data-only="borderOn">
+                  <label class="field"><span data-i18n="borderColor"></span><input type="color" data-f="borderColor"></label>
+                  <label class="field"><span><span data-i18n="borderWidth"></span> <b data-out="borderWidth"></b></span><input type="range" data-f="borderWidth" min="1" max="12" step="1"></label>
+                </div>
+              </div>
+              <label class="field"><span><span data-i18n="radius"></span> <b data-out="radius"></b></span><input type="range" data-f="radius" min="0" max="60" step="1"></label>
+            </div>
+
+            <div class="box">
+              <h3 data-i18n="goalLook"></h3>
+              <div class="cols">
+                <label class="field"><span><span data-i18n="scale"></span> <b data-out="scale"></b></span><input type="range" data-f="scale" min="0.5" max="3" step="0.05"></label>
+                <label class="field"><span><span data-i18n="fontSize"></span> <b data-out="fontSize"></b></span><input type="range" data-f="fontSize" min="12" max="120" step="1"></label>
+              </div>
+              <label class="field"><span data-i18n="font"></span><select id="goalFont" data-f="font"></select></label>
+              <div class="field">
+                <span data-i18n="titlePos"></span>
+                <div class="seg">
+                  <label><input type="radio" name="goalTitlePos" data-f="titlePos" value="above"><span data-i18n="tpAbove"></span></label>
+                  <label><input type="radio" name="goalTitlePos" data-f="titlePos" value="below"><span data-i18n="tpBelow"></span></label>
+                  <label><input type="radio" name="goalTitlePos" data-f="titlePos" value="inside"><span data-i18n="tpInside"></span></label>
+                  <label><input type="radio" name="goalTitlePos" data-f="titlePos" value="hidden"><span data-i18n="tpHidden"></span></label>
+                </div>
+              </div>
+              <label class="row between toggle-row"><span data-i18n="showPercent"></span><span class="switch"><input type="checkbox" data-f="showPercent"><span></span></span></label>
+              <label class="row between toggle-row"><span data-i18n="showNumbers"></span><span class="switch"><input type="checkbox" data-f="showNumbers"><span></span></span></label>
+            </div>
+
+            <div class="box">
+              <h3 data-i18n="celebration"></h3>
+              <label class="row between toggle-row"><span data-i18n="celebrate"></span><span class="switch"><input type="checkbox" data-f="celebrate"><span></span></span></label>
+              <div class="field">
+                <span data-i18n="celebrateSound"></span>
+                <div class="seg">
+                  <label><input type="radio" name="goalSound" data-f="celebrateSound" value="theme"><span data-i18n="soundTheme"></span></label>
+                  <label><input type="radio" name="goalSound" data-f="celebrateSound" value="custom"><span data-i18n="soundCustom"></span></label>
+                  <label><input type="radio" name="goalSound" data-f="celebrateSound" value="none"><span data-i18n="soundNone"></span></label>
+                </div>
+              </div>
+              <div class="file" data-kind="sound" data-only="goalCustomSound">
+                <span class="fname"></span>
+                <div class="row">
+                  <button class="upload" data-i18n="upload"></button>
+                  <button class="ghost remove" data-i18n="remove"></button>
+                </div>
+                <input type="file" hidden accept="audio/mpeg,audio/wav,audio/ogg,.mp3,.wav,.ogg">
+                <small data-i18n="soundHint"></small>
+              </div>
+              <label class="field"><span><span data-i18n="volume"></span> <b data-out="volume"></b></span><input type="range" data-f="volume" min="0" max="1" step="0.05"></label>
+            </div>
+          </div>
+        </details>
+      </section>
+
       <!-- ===== Theme ===== -->
       <section class="view" data-view="theme" hidden>
         <div class="stack">
@@ -213,6 +348,7 @@
   </div>
 
   <div id="toast" role="status" aria-live="polite"></div>
+  <script src="/socket.io/socket.io.js"></script>
   <script src="panel.js"></script>
 </body>
 </html>

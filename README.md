@@ -45,6 +45,21 @@ Jarchi must be running before OBS loads the source. If you started OBS first, ri
 - Uploads are checked by their real file type and are limited to 20 MB.
 - **Reset to default** per alert, or **Reset everything**.
 
+## Goals
+
+Two goal widgets, each with its own OBS URL (transparent background):
+
+- **Sub goal**: `http://127.0.0.1:3000/widgets/goal/subs` counts subs, resubs and gifted subs (each gift = 1) from Kick and Twitch.
+- **Kicks goal**: `http://127.0.0.1:3000/widgets/goal/kicks` counts Kicks from Kick.
+
+They listen to the same event bus as the alerts, so they'll move by themselves once Kick and Twitch are connected. Until then, test alerts and the panel's buttons move them.
+
+In OBS: **Sources → + → Browser**, paste the goal's URL (the panel has **Copy this goal's OBS link**), width **1000**, height **400**. The goal sits in the middle; use the panel's **Size** option or OBS to scale it.
+
+In the panel (left list → **Widgets**): title, target, current count (−, +, number, **Reset to 0**), **Test**, 6 styles (Classic, Pill, Neon, Circle, Text only, Retro), colors, and **More options** for background, border, corners, size, font, title position, percentage/numbers and the celebration. A style is a starting point: every option works with every style, and **Reset style** brings the style's own look back.
+
+When a goal is reached, the bar switches to the "full" color, plays a short celebration (confetti + glow) and the celebration sound once, and stays full until **Reset to 0** or a new target. Counts above the target keep counting (e.g. 53 / 50). Counts are saved in `data/goals.json`, so they survive restarts. Turning a goal off hides it on stream; it keeps counting.
+
 Settings and uploads live in `data/` (gitignored). Delete that folder to start fresh.
 
 ## Project layout
@@ -53,7 +68,9 @@ Settings and uploads live in `data/` (gitignored). Delete that folder to start f
 server/index.js      HTTP + Socket.IO server, API routes
 core/config.js       port and data folder (the one place to change them)
 core/events.js       event bus + the normalized event shape
-core/settings.js     defaults, user changes, uploads
+core/settings.js     defaults, user changes, uploads (alerts and goal looks)
+core/goals.js        goal counters, fed by the event bus
+core/store.js        JSON files in the data folder
 connectors/          Kick / Twitch go here later (see connectors/README.md)
 widgets/<name>/      each widget is a folder, served at /widgets/<name>
 panel/               settings panel (served at /)
@@ -67,7 +84,7 @@ Every event, whatever its source, looks like this:
 // type: follow | sub | resub | gift_sub | kicks | bits | raid
 ```
 
-Connectors only call `emitEvent()`. Widgets only listen for `event` and `settings` on the socket.
+Connectors only call `emitEvent()`. Widgets only listen on the socket: `event`, `settings` and (goals) `goals`.
 
 ## Tests
 

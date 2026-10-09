@@ -5,6 +5,7 @@ const { Server } = require('socket.io');
 const { HOST, PORT, UPLOADS_DIR } = require('../core/config');
 const { bus, emitEvent, connectedPlatforms, TYPES, PLATFORMS } = require('../core/events');
 const settings = require('../core/settings');
+const goals = require('../core/goals');
 const strings = require('../i18n/en.json');
 
 const ROOT = path.join(__dirname, '..');
@@ -31,7 +32,11 @@ app.use('/api', (req, res, next) => {
 app.use(express.json());
 
 app.get('/api/settings', (req, res) => res.json(view()));
-app.patch('/api/settings', (req, res) => res.json(changed(settings.update(req.body))));
+app.patch('/api/settings', (req, res) => {
+  const s = settings.update(req.body);
+  for (const [id, fields] of Object.entries(req.body.goals ?? {})) if ('target' in fields) goals.retarget(id);
+  res.json(changed(s));
+});
 
 app.post('/api/upload/:type/:kind', express.raw({ type: () => true, limit: '20mb' }), (req, res) => {
   let name = '';
@@ -39,7 +44,22 @@ app.post('/api/upload/:type/:kind', express.raw({ type: () => true, limit: '20mb
   res.json(changed(settings.saveUpload(req.params.type, req.params.kind, req.body, name)));
 });
 app.delete('/api/upload/:type/:kind', (req, res) => res.json(changed(settings.removeUpload(req.params.type, req.params.kind))));
-app.post('/api/reset{/:type}', (req, res) => res.json(changed(settings.reset(req.params.type))));
+app.post('/api/reset{/:type}', (req, res) => {
+  const s = settings.reset(req.params.type);
+  if (!req.params.type) settings.GOAL_IDS.forEach(goals.retarget); // targets went back to their defaults
+  res.json(changed(s));
+});
+
+// Goals: counts (current / reached) live in core/goals; their look and target are regular settings.
+app.get('/api/goals', (req, res) => res.json({ state: goals.all(), styles: settings.GOAL_STYLES, fonts: settings.FONTS }));
+app.patch('/api/goals/:id', (req, res) => res.json(goals.change(req.params.id, req.body)));
+app.post('/api/goals/:id/reset-style', (req, res) => res.json(changed(settings.resetGoalStyle(req.params.id))));
+app.post('/api/goals/:id/sound', express.raw({ type: () => true, limit: '20mb' }), (req, res) => {
+  let name = '';
+  try { name = decodeURIComponent(req.get('x-filename') || ''); } catch {}
+  res.json(changed(settings.saveGoalSound(req.params.id, req.body, name)));
+});
+app.delete('/api/goals/:id/sound', (req, res) => res.json(changed(settings.removeGoalSound(req.params.id))));
 
 // Sample events for the Test button and the panel's live preview.
 const FAKE = {
@@ -63,6 +83,11 @@ app.post('/api/test/:type', (req, res) => {
 });
 
 app.use('/uploads', express.static(UPLOADS_DIR, { setHeaders: (res) => res.set('X-Content-Type-Options', 'nosniff') }));
+// One goal page, two OBS URLs: /widgets/goal/subs and /widgets/goal/kicks.
+app.get('/widgets/goal/:id{/}', (req, res, next) => {
+  if (!settings.GOAL_IDS.includes(req.params.id)) return next();
+  res.sendFile(path.join(ROOT, 'widgets', 'goal', 'index.html'));
+});
 app.use('/widgets', express.static(path.join(ROOT, 'widgets'))); // every widgets/<name>/ folder is its own OBS URL
 app.use('/i18n', express.static(path.join(ROOT, 'i18n')));
 app.use('/', express.static(path.join(ROOT, 'panel')));
@@ -76,7 +101,10 @@ app.use((err, req, res, next) => {
 io.on('connection', (socket) => {
   socket.emit('strings', strings);
   socket.emit('settings', view());
+  socket.emit('goals', goals.all());
 });
+// Every count change goes to widgets and the panel; the second argument names a goal that just hit its target.
+goals.events.on('change', (reached) => io.emit('goals', goals.all(), reached));
 bus.on('event', (ev) => io.emit('event', ev));
 bus.on('connections', () => changed());
 

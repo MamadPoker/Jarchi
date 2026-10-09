@@ -3,6 +3,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { DATA_DIR, UPLOADS_DIR } = require('./config');
 const { TYPES } = require('./events');
+const store = require('./store');
 const strings = require('../i18n/en.json');
 
 const FILE = path.join(DATA_DIR, 'settings.json');
@@ -63,12 +64,63 @@ const RULES = {
   fontSize: num(12, 120),
   textColor: (v) => v === null || hex(v),
 };
+// ---------- Goals ----------
+const GOAL_IDS = ['subs', 'kicks'];
+const FONTS = ['Segoe UI', 'Arial Black', 'Impact', 'Trebuchet MS', 'Georgia', 'Consolas'];
+// Each style is a complete set of look values; users then tweak any of them. Picking a style or "Reset style" restores these.
+const GOAL_STYLES = {
+  classic: { barColor: '#8b5cf6', barBg: '#2b2e3b', textColor: '#ffffff', fullColor: '#22c55e', bg: 'color', bgColor: '#14141c', bgOpacity: 0.85, border: false, borderColor: '#8b5cf6', borderWidth: 2, radius: 14, scale: 1, font: 'Segoe UI', fontSize: 26, titlePos: 'above', showPercent: false, showNumbers: true },
+  pill: { barColor: '#ff5fa2', barBg: '#3a2333', textColor: '#ffffff', fullColor: '#22c55e', bg: 'off', bgColor: '#14141c', bgOpacity: 0.85, border: false, borderColor: '#ffffff', borderWidth: 2, radius: 60, scale: 1, font: 'Segoe UI', fontSize: 24, titlePos: 'inside', showPercent: true, showNumbers: true },
+  neon: { barColor: '#00f0ff', barBg: '#0b1530', textColor: '#ffffff', fullColor: '#ff2bd6', bg: 'color', bgColor: '#0a0620', bgOpacity: 0.85, border: true, borderColor: '#00f0ff', borderWidth: 2, radius: 16, scale: 1, font: 'Segoe UI', fontSize: 26, titlePos: 'above', showPercent: true, showNumbers: true },
+  circle: { barColor: '#8b5cf6', barBg: '#2b2e3b', textColor: '#ffffff', fullColor: '#22c55e', bg: 'transparent', bgColor: '#14141c', bgOpacity: 0.85, border: true, borderColor: '#ffffff', borderWidth: 2, radius: 24, scale: 1, font: 'Segoe UI', fontSize: 24, titlePos: 'below', showPercent: true, showNumbers: true },
+  text: { barColor: '#8b5cf6', barBg: '#2b2e3b', textColor: '#ffffff', fullColor: '#22c55e', bg: 'off', bgColor: '#14141c', bgOpacity: 0.85, border: false, borderColor: '#ffffff', borderWidth: 2, radius: 12, scale: 1, font: 'Segoe UI', fontSize: 40, titlePos: 'above', showPercent: false, showNumbers: true },
+  retro: { barColor: '#ffe14d', barBg: '#2d2d5a', textColor: '#ffffff', fullColor: '#4dd2ff', bg: 'color', bgColor: '#1b1b3a', bgOpacity: 1, border: true, borderColor: '#ffffff', borderWidth: 4, radius: 0, scale: 1, font: 'Consolas', fontSize: 24, titlePos: 'above', showPercent: false, showNumbers: true },
+};
+const GOAL_LOOK = Object.keys(GOAL_STYLES.classic); // the fields a style sets
+const GOAL_DEFAULTS = Object.fromEntries(GOAL_IDS.map((id) => [id, {
+  enabled: true,
+  title: strings.goals[id].title,
+  target: id === 'subs' ? 50 : 1000,
+  style: 'classic',
+  celebrate: true,
+  celebrateSound: 'theme',
+  sound: null, // { file, name } once uploaded
+  volume: 0.7,
+}]));
+const bool = (v) => typeof v === 'boolean';
+const GOAL_RULES = {
+  enabled: bool,
+  title: (v) => typeof v === 'string' && v.length <= 60,
+  target: (v) => Number.isInteger(v) && v >= 1 && v <= 1e9,
+  style: (v) => v in GOAL_STYLES,
+  celebrate: bool,
+  celebrateSound: oneOf('theme', 'custom', 'none'),
+  volume: num(0, 1),
+  barColor: hex,
+  barBg: hex,
+  textColor: hex,
+  fullColor: hex,
+  bg: oneOf('color', 'transparent', 'off'),
+  bgColor: hex,
+  bgOpacity: num(0, 1),
+  border: bool,
+  borderColor: hex,
+  borderWidth: num(1, 12),
+  radius: num(0, 60),
+  scale: num(0.5, 3),
+  font: oneOf(...FONTS),
+  fontSize: num(12, 120),
+  titlePos: oneOf('above', 'below', 'inside', 'hidden'),
+  showPercent: bool,
+  showNumbers: bool,
+};
+
 const ALLOWED = { image: ['png', 'jpg', 'gif', 'webp', 'webm', 'mp4'], sound: ['mp3', 'wav', 'ogg'] };
 
 const bad = (code = 'bad_request') => Object.assign(new Error(code), { status: 400, code });
 
 fs.mkdirSync(UPLOADS_DIR, { recursive: true });
-let saved = load();
+let saved = store.load(FILE);
 if ((saved.version ?? 1) < VERSION) {
   // v1 -> v2: an uploaded sound always played; now soundMode picks the sound, so keep those playing.
   for (const a of Object.values(saved.alerts ?? {})) if (a?.sound && !a.soundMode) a.soundMode = 'custom';
@@ -76,21 +128,8 @@ if ((saved.version ?? 1) < VERSION) {
   persist();
 }
 
-function load() {
-  try {
-    return JSON.parse(fs.readFileSync(FILE, 'utf8'));
-  } catch (err) {
-    if (err.code !== 'ENOENT') {
-      console.warn(`settings.json unreadable (${err.message}), moved aside and starting fresh`);
-      fs.renameSync(FILE, `${FILE}.broken-${Date.now()}`);
-    }
-    return {};
-  }
-}
-
 function persist() {
-  fs.writeFileSync(`${FILE}.tmp`, JSON.stringify(saved, null, 2));
-  fs.renameSync(`${FILE}.tmp`, FILE); // atomic: a crash mid-write never leaves a half-written settings file
+  store.save(FILE, saved);
 }
 
 function get() {
@@ -98,10 +137,19 @@ function get() {
   return {
     ...Object.fromEntries(globals),
     alerts: Object.fromEntries(TYPES.map((t) => [t, { ...DEFAULTS[t], ...saved.alerts?.[t] }])),
+    goals: Object.fromEntries(GOAL_IDS.map((id) => [id, goal(id)])),
   };
 }
 
+// A goal = its style's look + the goal's defaults + the user's changes.
+function goal(id) {
+  const o = saved.goals?.[id] ?? {};
+  const style = o.style in GOAL_STYLES ? o.style : GOAL_DEFAULTS[id].style;
+  return { ...GOAL_STYLES[style], ...GOAL_DEFAULTS[id], ...o, style };
+}
+
 const overrides = (type) => ((saved.alerts ??= {})[type] ??= {});
+const goalOverrides = (id) => ((saved.goals ??= {})[id] ??= {});
 
 function update(patch) {
   if (!patch || typeof patch !== 'object') throw bad();
@@ -111,8 +159,18 @@ function update(patch) {
     if (!TYPES.includes(type) || !fields || typeof fields !== 'object') throw bad();
     for (const [k, v] of Object.entries(fields)) if (!RULES[k] || !(k in DEFAULTS[type]) || !RULES[k](v)) throw bad();
   }
+  const goals = Object.entries(patch.goals ?? {});
+  for (const [id, fields] of goals) {
+    if (!GOAL_IDS.includes(id) || !fields || typeof fields !== 'object') throw bad();
+    for (const [k, v] of Object.entries(fields)) if (!GOAL_RULES[k] || !GOAL_RULES[k](v)) throw bad();
+  }
   for (const k in GLOBAL) if (k in patch) saved[k] = patch[k];
   for (const [type, fields] of alerts) Object.assign(overrides(type), fields);
+  for (const [id, fields] of goals) {
+    const o = goalOverrides(id);
+    if ('style' in fields) for (const k of GOAL_LOOK) delete o[k]; // a new style starts from its own look
+    Object.assign(o, fields);
+  }
   persist();
   return get();
 }
@@ -136,25 +194,49 @@ function removeFile(entry) {
   if (entry?.file) fs.rmSync(path.join(UPLOADS_DIR, path.basename(entry.file)), { force: true });
 }
 
-function saveUpload(type, kind, buf, name) {
-  if (!TYPES.includes(type) || !ALLOWED[kind] || !Buffer.isBuffer(buf)) throw bad();
+// Keep an uploaded file on o[kind]. Uploading a sound also selects it (o[modeKey] = 'custom').
+function keepUpload(o, prefix, kind, buf, name, modeKey) {
+  if (!Buffer.isBuffer(buf)) throw bad();
   const ext = sniff(buf);
   if (!ALLOWED[kind].includes(ext)) throw bad('bad_type');
-  removeFile(saved.alerts?.[type]?.[kind]);
-  const file = `${type}-${kind}-${Date.now()}.${ext}`;
+  removeFile(o[kind]);
+  const file = `${prefix}-${Date.now()}.${ext}`;
   fs.writeFileSync(path.join(UPLOADS_DIR, file), buf);
-  overrides(type)[kind] = { file, name: String(name || file).slice(0, 120) };
-  if (kind === 'sound') overrides(type).soundMode = 'custom'; // uploading a sound means "use it"
+  o[kind] = { file, name: String(name || file).slice(0, 120) };
+  if (kind === 'sound') o[modeKey] = 'custom';
   persist();
   return get();
 }
 
-function removeUpload(type, kind) {
-  if (!TYPES.includes(type) || !ALLOWED[kind]) throw bad();
-  const o = saved.alerts?.[type];
+function dropUpload(o, kind, modeKey) {
   removeFile(o?.[kind]);
   delete o?.[kind];
-  if (kind === 'sound' && o?.soundMode === 'custom') delete o.soundMode; // back to the theme sound
+  if (kind === 'sound' && o?.[modeKey] === 'custom') delete o[modeKey]; // back to the theme sound
+  persist();
+  return get();
+}
+
+function saveUpload(type, kind, buf, name) {
+  if (!TYPES.includes(type) || !ALLOWED[kind]) throw bad();
+  return keepUpload(overrides(type), `${type}-${kind}`, kind, buf, name, 'soundMode');
+}
+function removeUpload(type, kind) {
+  if (!TYPES.includes(type) || !ALLOWED[kind]) throw bad();
+  return dropUpload(saved.alerts?.[type], kind, 'soundMode');
+}
+function saveGoalSound(id, buf, name) {
+  if (!GOAL_IDS.includes(id)) throw bad();
+  return keepUpload(goalOverrides(id), `goal-${id}-sound`, 'sound', buf, name, 'celebrateSound');
+}
+function removeGoalSound(id) {
+  if (!GOAL_IDS.includes(id)) throw bad();
+  return dropUpload(saved.goals?.[id], 'sound', 'celebrateSound');
+}
+
+// Back to the selected style's look; title, target, count and celebration settings stay.
+function resetGoalStyle(id) {
+  if (!GOAL_IDS.includes(id)) throw bad();
+  for (const k of GOAL_LOOK) delete saved.goals?.[id]?.[k];
   persist();
   return get();
 }
@@ -167,9 +249,12 @@ function reset(type) {
     removeFile(saved.alerts?.[t]?.sound);
     delete saved.alerts?.[t];
   }
-  if (!type) saved = { version: VERSION };
+  if (!type) {
+    for (const id of GOAL_IDS) removeFile(saved.goals?.[id]?.sound);
+    saved = { version: VERSION };
+  }
   persist();
   return get();
 }
 
-module.exports = { get, update, saveUpload, removeUpload, reset };
+module.exports = { get, update, saveUpload, removeUpload, reset, saveGoalSound, removeGoalSound, resetGoalStyle, GOAL_IDS, GOAL_STYLES, FONTS };

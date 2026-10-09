@@ -1,15 +1,18 @@
 // Settings panel. All visible text comes from /i18n/en.json.
 // Layout: left column lists items in groups (GROUPS below); the right side shows the editor for the selected item.
-// The preview is the real overlay (/widgets/alerts/?preview) in a scaled iframe, driven by postMessage.
+// Previews are the real overlays in scaled iframes: alerts are driven by postMessage, the goal by its own live socket.
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
-let S, settings, samples;
-let view = 'alert', cur = 'follow'; // what's selected: an alert type, or the theme / settings view
+let S, settings, samples, goalData; // goalData = { state, styles, fonts } from /api/goals; state then follows the socket
+let view = 'alert', cur = 'follow', curGoal = 'subs'; // what's selected: an alert, a goal, or the theme / settings view
 
 const pct = (v) => `${Math.round(v * 100)}%`;
 const px = (v) => `${v}px`;
-const FORMAT = { volume: pct, frameOpacity: pct, frameRadius: px, fontSize: px };
+const FORMAT = { volume: pct, frameOpacity: pct, frameRadius: px, fontSize: px, bgOpacity: pct, borderWidth: px, radius: px, scale: pct };
+const GOAL_STEP = { subs: 1, kicks: 100 }; // what "Test", "+" and "−" add
+const GOAL_SAMPLE = { subs: { current: 32, target: 50 }, kicks: { current: 640, target: 1000 } }; // numbers on style thumbnails
 const isVideo = (file) => /\.(webm|mp4)$/.test(file ?? '');
+const valueOf = (inp) => (inp.type === 'checkbox' ? inp.checked : ['number', 'range'].includes(inp.type) ? Number(inp.value) : inp.value);
 const el = (tag, props = {}, ...kids) => {
   const e = Object.assign(document.createElement(tag), props);
   e.append(...kids);
@@ -17,11 +20,11 @@ const el = (tag, props = {}, ...kids) => {
 };
 
 // Left column groups. Each item opens `view` (a <section data-view>) for its key.
-// A new group, e.g. { title: 'Widgets', items: [{ view: 'goal', key: 'goal', label: 'Goal' }] }, needs only a matching section.
-// An item can bring its own `content` instead of the default dot + label.
+// An item can bring its own `content` instead of the default dot + label, and a `toggle(on)` for its switch.
 const GROUPS = () => [
   { title: S.panel.groupTheme, items: [{ view: 'theme', key: 'theme', content: themeRow }] },
-  { title: S.panel.groupAlerts, items: Object.keys(settings.alerts).map((t) => ({ view: 'alert', key: t, label: S.types[t], toggle: true })) },
+  { title: S.panel.groupAlerts, items: Object.keys(settings.alerts).map((t) => ({ view: 'alert', key: t, label: S.types[t], toggle: (on) => patchAlert(t, { enabled: on }) })) },
+  { title: S.panel.groupWidgets, items: Object.keys(settings.goals).map((id) => ({ view: 'goal', key: id, label: S.goals[id].name, toggle: (on) => patchGoal(id, { enabled: on }) })) },
 ];
 
 // THEME row: current theme + "Change", and a strip with every theme's swatch (render() outlines the current one).
@@ -72,8 +75,19 @@ async function send(method, url, body, headers) {
   render();
 }
 const patchAlert = (type, fields) => send('PATCH', '/api/settings', { alerts: { [type]: fields } });
+const patchGoal = (id, fields) => send('PATCH', '/api/settings', { goals: { [id]: fields } });
 
-// ---------- Preview ----------
+// Change the selected goal's count: { add: n } or { set: n }.
+async function goalCount(body) {
+  try {
+    goalData.state = await api('PATCH', `/api/goals/${curGoal}`, body);
+  } catch (err) {
+    toast(err.message, true);
+  }
+  render();
+}
+
+// ---------- Previews ----------
 const sample = (type, amount) => ({ ...samples[type], type, platform: $('#testAs').value, test: true, ...(amount !== undefined && { amount }) });
 const previewAmount = () => (samples[cur].amount > 0 ? Number($('#previewAmount').value) || 0 : undefined);
 
@@ -89,9 +103,19 @@ function playTile(frame, muted = true) {
   post(frame, { theme: frame.dataset.theme, alerts: { sub } }, sample('sub'), muted, true);
 }
 
-// Scale each 1920x1080 iframe down to its box.
+// Style thumbnails: each style's own look with this goal's title and sample numbers.
+function drawThumbs() {
+  const g = settings.goals[curGoal];
+  const { current, target } = GOAL_SAMPLE[curGoal];
+  for (const f of $$('.style-tile iframe')) {
+    const style = f.dataset.style;
+    f.contentWindow?.postMessage({ cfg: { ...goalData.styles[style], style, title: g.title, target, enabled: true }, state: { current, reached: false } }, location.origin);
+  }
+}
+
+// Scale each iframe (1920x1080 alerts, 1000x400 goals) down to its box.
 const fit = new ResizeObserver((entries) => {
-  for (const e of entries) e.target.style.setProperty('--k', e.contentRect.width / 1920);
+  for (const e of entries) e.target.style.setProperty('--k', e.contentRect.width / e.target.querySelector('iframe').offsetWidth);
 });
 
 function select(v, key) {
@@ -100,10 +124,27 @@ function select(v, key) {
     cur = key;
     $('#previewAmount').value = samples[key].amount;
   }
+  if (v === 'goal') {
+    curGoal = key;
+    const src = `/widgets/goal/${key}?preview`;
+    if ($('#goalPreview').getAttribute('src') !== src) $('#goalPreview').src = src;
+  }
   $$('main .view').forEach((s) => (s.hidden = s.dataset.view !== v));
   render();
   preview();
   if (v === 'theme') $$('.theme-tile iframe').forEach((f) => playTile(f));
+}
+
+// Upload / remove buttons of a .file row.
+function wireFile(row, upload, remove) {
+  const input = $('input', row);
+  $('.upload', row).onclick = () => input.click();
+  input.onchange = () => {
+    const f = input.files[0];
+    input.value = '';
+    if (f) send('POST', upload(), f, { 'content-type': f.type || 'application/octet-stream', 'x-filename': encodeURIComponent(f.name) });
+  };
+  $('.remove', row).onclick = () => send('DELETE', remove());
 }
 
 // ---------- Build once ----------
@@ -121,7 +162,7 @@ function build() {
       const content = it.content ? it.content() : [el('span', { className: 'dot' }), el('span', { textContent: it.label }), el('span', { className: 'swatch mini', hidden: true })];
       row.append(el('button', { className: 'nav-btn', onclick: () => select(it.view, it.key) }, ...content));
       if (it.toggle) {
-        const sw = el('input', { type: 'checkbox', onchange: () => patchAlert(it.key, { enabled: sw.checked }) });
+        const sw = el('input', { type: 'checkbox', onchange: () => it.toggle(sw.checked) });
         sw.setAttribute('aria-label', it.label);
         row.append(el('label', { className: 'switch' }, sw, el('span')));
       }
@@ -147,6 +188,17 @@ function build() {
     tile.dataset.theme = id;
     $('#themeGrid').append(tile);
   }
+
+  // Goal style picker: a live thumbnail per style; clicking one starts the goal from that style's look.
+  for (const [id, name] of Object.entries(S.goalStyles)) {
+    const frame = el('iframe', { src: '/widgets/goal/subs?thumb', title: name, tabIndex: -1, onload: drawThumbs });
+    frame.dataset.style = id;
+    frame.setAttribute('aria-hidden', 'true');
+    const tile = el('button', { className: 'style-tile', onclick: () => patchGoal(curGoal, { style: id }) },
+      el('div', { className: 'preview' }, frame), el('span', { className: 'tile-name', textContent: name }));
+    tile.dataset.style = id;
+    $('#styleGrid').append(tile);
+  }
   $$('.preview').forEach((p) => fit.observe(p));
 
   // Top bar: OBS link.
@@ -157,32 +209,39 @@ function build() {
 
   // Alert editor: every [data-f] input saves its field for the selected alert.
   const editor = $('main [data-view=alert]');
-  $$('[data-f]', editor).forEach((inp) => inp.addEventListener('change', () => {
-    const v = inp.type === 'checkbox' ? inp.checked : ['text', 'radio', 'color'].includes(inp.type) ? inp.value : Number(inp.value);
-    patchAlert(cur, { [inp.dataset.f]: v });
-  }));
+  $$('[data-f]', editor).forEach((inp) => inp.addEventListener('change', () => patchAlert(cur, { [inp.dataset.f]: valueOf(inp) })));
   $$('input[type=range]', editor).forEach((inp) => inp.addEventListener('input', () => showRange(inp)));
-  $$('[name=textColorMode]').forEach((r) => (r.onchange = () => patchAlert(cur, { textColor: r.value === 'custom' ? $('[data-f=textColor]').value : null })));
+  $$('[name=textColorMode]').forEach((r) => (r.onchange = () => patchAlert(cur, { textColor: r.value === 'custom' ? $('[data-f=textColor]', editor).value : null })));
   // Per-alert theme: "" = same as the main theme.
   $('#alertTheme').append(new Option('', ''), ...Object.entries(S.themes).map(([id, name]) => new Option(name, id)));
   $('#alertTheme').onchange = (e) => patchAlert(cur, { theme: e.target.value || null });
-  $$('.file', editor).forEach((row) => {
-    const kind = row.dataset.kind;
-    const input = $('input', row);
-    $('.upload', row).onclick = () => input.click();
-    input.onchange = () => {
-      const f = input.files[0];
-      input.value = '';
-      if (f) send('POST', `/api/upload/${cur}/${kind}`, f, { 'content-type': f.type || 'application/octet-stream', 'x-filename': encodeURIComponent(f.name) });
-    };
-    $('.remove', row).onclick = () => send('DELETE', `/api/upload/${cur}/${kind}`);
-  });
+  $$('.file', editor).forEach((row) => wireFile(row, () => `/api/upload/${cur}/${row.dataset.kind}`, () => `/api/upload/${cur}/${row.dataset.kind}`));
   $('#play').onclick = () => preview();
   $('#previewAmount').onchange = () => preview();
   $('#test').onclick = () => api('POST', `/api/test/${cur}`, { platform: $('#testAs').value, amount: previewAmount() })
     .then(() => toast(S.panel.testSent), (err) => toast(err.message, true));
   $('#reset').onclick = () => send('POST', `/api/reset/${cur}`);
   $('#preview').onload = () => preview();
+
+  // Goal editor: [data-f] inputs save the selected goal's settings; the count has its own buttons.
+  const goalEd = $('main [data-view=goal]');
+  $('#goalFont').append(...goalData.fonts.map((f) => new Option(f, f)));
+  $$('[data-f]', goalEd).forEach((inp) => inp.addEventListener('change', () => patchGoal(curGoal, { [inp.dataset.f]: valueOf(inp) })));
+  $$('input[type=range]', goalEd).forEach((inp) => inp.addEventListener('input', () => showRange(inp)));
+  wireFile($('.file', goalEd), () => `/api/goals/${curGoal}/sound`, () => `/api/goals/${curGoal}/sound`);
+  $('#goalTest').onclick = () => goalCount({ add: GOAL_STEP[curGoal] });
+  $('#goalPlus').onclick = () => goalCount({ add: GOAL_STEP[curGoal] });
+  $('#goalMinus').onclick = () => goalCount({ add: -GOAL_STEP[curGoal] });
+  $('#goalCurrent').onchange = (e) => goalCount({ set: Math.max(0, Math.round(Number(e.target.value) || 0)) });
+  $('#goalZero').onclick = () => goalCount({ set: 0 });
+  $('#goalResetStyle').onclick = () => send('POST', `/api/goals/${curGoal}/reset-style`);
+  $('#goalCopy').title = S.panel.goalCopyHint;
+  $('#goalCopy').onclick = () => navigator.clipboard.writeText(`${location.origin}/widgets/goal/${curGoal}`).then(() => toast(S.panel.goalCopied));
+  // Counts also move from events (test alerts, later Kick/Twitch), so follow them live.
+  io().on('goals', (state) => {
+    goalData.state = state;
+    render();
+  });
 
   // Settings
   $('#showBadge').onchange = (e) => send('PATCH', '/api/settings', { showBadge: e.target.checked });
@@ -206,18 +265,34 @@ function build() {
   $$('[data-i18n]').forEach((e) => (e.textContent = S.panel[e.dataset.i18n]));
 }
 
-// Range sliders: filled track + value label.
+// Range sliders: filled track + value label (labels are per editor: both editors have e.g. "volume").
 function showRange(inp) {
   inp.style.setProperty('--fill', `${((inp.value - inp.min) / (inp.max - inp.min)) * 100}%`);
-  const out = $(`[data-out="${inp.dataset.f}"]`);
+  const out = $(`[data-out="${inp.dataset.f}"]`, inp.closest('.view'));
   if (out) out.textContent = FORMAT[inp.dataset.f](inp.value);
+}
+
+// Put a config's values into an editor's [data-f] inputs.
+function fill(root, cfg) {
+  $$('[data-f]', root).forEach((inp) => {
+    const val = cfg[inp.dataset.f];
+    if (inp.type === 'checkbox') inp.checked = val;
+    else if (inp.type === 'radio') inp.checked = inp.value === val;
+    else if (inp.type === 'color') inp.value = val ?? '#ffffff';
+    else if (inp !== document.activeElement || !['text', 'number'].includes(inp.type)) inp.value = val ?? ''; // never under the cursor
+    if (inp.type === 'range') showRange(inp);
+  });
 }
 
 // ---------- Sync UI from settings ----------
 function render() {
   $$('.nav-row').forEach((row) => {
     const { view: v, key } = row.dataset;
-    row.classList.toggle('active', v === view && (v !== 'alert' || key === cur));
+    row.classList.toggle('active', v === view && (v === 'alert' ? key === cur : v === 'goal' ? key === curGoal : true));
+    if (v === 'goal') {
+      row.classList.toggle('off', !settings.goals[key].enabled);
+      $('input', row).checked = settings.goals[key].enabled;
+    }
     if (v !== 'alert') return;
     const a = settings.alerts[key];
     row.classList.toggle('off', !a.enabled);
@@ -238,20 +313,16 @@ function render() {
 
   $('#showBadge').checked = settings.showBadge;
   $('#connectedList').textContent = settings.connected.map((p) => S.platforms[p]).join(', ') || S.panel.connectedNone;
-  if (view !== 'alert') return;
+  if (view === 'alert') renderAlert();
+  if (view === 'goal') renderGoal();
+}
 
+function renderAlert() {
   const editor = $('main [data-view=alert]');
   const cfg = settings.alerts[cur];
   editor.dataset.key = cur;
   $('.name', editor).textContent = S.types[cur];
-  $$('[data-f]', editor).forEach((inp) => {
-    const val = cfg[inp.dataset.f];
-    if (inp.type === 'checkbox') inp.checked = val;
-    else if (inp.type === 'radio') inp.checked = inp.value === val;
-    else if (inp.type === 'color') inp.value = val ?? '#ffffff';
-    else inp.value = val ?? '';
-    if (inp.type === 'range') showRange(inp);
-  });
+  fill(editor, cfg);
   $$('[name=textColorMode]').forEach((r) => (r.checked = (r.value === 'custom') === (cfg.textColor !== null)));
   $('#alertTheme').options[0].textContent = S.panel.sameAsMain.replace('{theme}', S.themes[settings.theme]);
   $('#alertTheme').value = cfg.theme ?? '';
@@ -276,10 +347,38 @@ function render() {
   });
 }
 
+function renderGoal() {
+  const ed = $('main [data-view=goal]');
+  const g = settings.goals[curGoal];
+  ed.dataset.key = curGoal;
+  $('.name', ed).textContent = S.goals[curGoal].name;
+  $('#goalCounts').textContent = S.goals[curGoal].counts;
+  $('#goalTest span').textContent = S.goals[curGoal].test;
+  fill(ed, g);
+  if (document.activeElement !== $('#goalCurrent')) $('#goalCurrent').value = goalData.state[curGoal].current;
+  $('#goalPlus').title = `+${GOAL_STEP[curGoal]}`;
+  $('#goalMinus').title = `−${GOAL_STEP[curGoal]}`;
+  $$('.style-tile').forEach((t) => t.classList.toggle('selected', t.dataset.style === g.style));
+  drawThumbs();
+
+  const show = {
+    off: !g.enabled,
+    bgColor: g.bg === 'color',
+    box: g.bg !== 'off',
+    borderOn: g.bg !== 'off' && g.border,
+    goalCustomSound: g.celebrateSound === 'custom',
+  };
+  $$('[data-only]', ed).forEach((e) => (e.hidden = !show[e.dataset.only]));
+  const fname = $('.file .fname', ed);
+  fname.textContent = g.sound ? g.sound.name : S.panel.soundNoFile;
+  fname.classList.toggle('default', !g.sound);
+  $('.file .remove', ed).hidden = !g.sound;
+}
+
 (async () => {
   S = await (await fetch('/i18n/en.json')).json();
   try {
-    [settings, samples] = await Promise.all([api('GET', '/api/settings'), api('GET', '/api/samples')]);
+    [settings, samples, goalData] = await Promise.all([api('GET', '/api/settings'), api('GET', '/api/samples'), api('GET', '/api/goals')]);
   } catch (err) {
     return toast(err.message, true);
   }

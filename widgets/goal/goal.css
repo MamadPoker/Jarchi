@@ -1,0 +1,111 @@
+/* Goal widget: transparent page, goal in the middle. The style-* class picks the layout;
+   colors and sizes come from CSS variables set in goal.js, so every option works with every style.
+   Runs in OBS's built-in Chromium: stick to well-supported CSS. */
+html, body { margin: 0; height: 100%; overflow: hidden; background: transparent; }
+body { display: grid; place-items: center; font-family: "Segoe UI", system-ui, sans-serif; }
+body.thumb .goal { transform: scale(1.5); }
+
+.goal {
+  --fill: 0;
+  --bar-h: 12px;
+  position: relative;
+  box-sizing: border-box;
+  display: grid;
+  justify-items: center;
+  gap: calc(12px * var(--scale));
+  width: calc(560px * var(--scale));
+  padding: calc(18px * var(--scale)) calc(24px * var(--scale));
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: calc(var(--fs) * var(--scale));
+  text-align: center;
+}
+.goal[hidden] { display: none; }
+.goal.bordered { border: calc(var(--bw) * var(--scale)) solid var(--bd); }
+.goal.bg-transparent { background: transparent; }
+.goal.bg-off { padding: 0; border: 0; background: none; }
+
+/* Title + numbers + percentage on one centered line. */
+.label { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: center; gap: 0 0.5em; font-weight: 800; line-height: 1.2; }
+.nums { font-variant-numeric: tabular-nums; }
+.pct { opacity: 0.85; }
+.no-title .title, .no-nums .nums, .no-pct .pct, .no-pct .ring-pct { display: none; }
+.full.style-text .label { color: var(--full); }
+
+/* Bar (classic, pill, neon) */
+.track { position: relative; width: 100%; height: calc(var(--bar-h) * var(--scale)); overflow: hidden; border-radius: var(--radius); background: var(--bar-bg); }
+.fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: calc(var(--fill) * 100%);
+  border-radius: inherit;
+  background: var(--bar);
+  transition: width 0.9s cubic-bezier(0.2, 0.8, 0.2, 1), background-color 0.4s;
+}
+.full .fill { background: var(--full); }
+/* Text inside the bar / blocks / ring */
+.track > .label, .blocks > .label, .ring > .label { position: absolute; inset: 0; z-index: 1; align-items: center; padding: 0 0.8em; }
+
+.style-classic { --bar-h: 12px; }
+
+.style-pill { --bar-h: 58px; }
+.style-pill .track { box-shadow: inset 0 3px 8px rgba(0, 0, 0, 0.35); }
+.style-pill .label { text-shadow: 0 2px 4px rgba(0, 0, 0, 0.45); }
+
+.style-neon { --bar-h: 16px; }
+.style-neon.bordered { box-shadow: 0 0 14px var(--bd), inset 0 0 14px var(--bd); }
+.style-neon .track { overflow: visible; }
+.style-neon .fill { box-shadow: 0 0 12px var(--bar), 0 0 28px var(--bar); }
+.style-neon.full .fill { box-shadow: 0 0 12px var(--full), 0 0 28px var(--full); }
+.style-neon .label { text-shadow: 0 0 10px var(--bar); }
+
+/* Ring (circle): percentage inside, title + numbers under it */
+.style-circle { width: auto; min-width: calc(240px * var(--scale)); }
+.ring { position: relative; width: calc(180px * var(--scale)); height: calc(180px * var(--scale)); }
+.ring svg { display: block; width: 100%; height: 100%; transform: rotate(-90deg); }
+.ring circle { fill: none; stroke-width: 10; }
+.ring-bg { stroke: var(--bar-bg); }
+.ring-fill {
+  stroke: var(--bar);
+  stroke-linecap: round;
+  stroke-dasharray: 100px;
+  stroke-dashoffset: calc((1 - var(--fill)) * 100px);
+  transition: stroke-dashoffset 0.9s cubic-bezier(0.2, 0.8, 0.2, 1), stroke 0.4s;
+}
+.full .ring-fill { stroke: var(--full); }
+.ring-pct { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 1.5em; font-weight: 800; }
+.spot-inside .ring-pct, .style-circle:not(.spot-inside) .label .pct { display: none; }
+
+.style-text { width: auto; }
+
+/* Retro: pixel look, a bar of 10 blocks */
+.style-retro { --bar-h: 26px; }
+.style-retro .label { text-transform: uppercase; letter-spacing: 0.06em; text-shadow: 3px 3px 0 rgba(0, 0, 0, 0.55); }
+.blocks { position: relative; display: grid; grid-template-columns: repeat(10, 1fr); gap: calc(5px * var(--scale)); width: 100%; height: calc(var(--bar-h) * var(--scale)); }
+.blocks i { border-radius: var(--radius); background: var(--bar-bg); transition: background-color 0.2s calc(var(--i) * 60ms); }
+.blocks i.on { background: var(--bar); }
+.full .blocks i.on { background: var(--full); }
+
+/* Celebration: a glow that follows the goal's shape + confetti */
+.celebrate { animation: goal-glow 0.7s ease-in-out 4 alternate; }
+@keyframes goal-glow { to { filter: drop-shadow(0 0 14px var(--full)) drop-shadow(0 0 4px var(--full)); } }
+.fx { position: absolute; top: 0; left: 0; right: 0; height: 0; pointer-events: none; }
+.fx i {
+  position: absolute;
+  top: 0;
+  left: var(--x);
+  width: 10px;
+  height: 14px;
+  border-radius: 2px;
+  background: var(--c);
+  opacity: 0;
+  animation: goal-confetti var(--d) ease-in var(--delay) both;
+}
+@keyframes goal-confetti {
+  from { opacity: 1; transform: translateY(-20px) rotate(0deg); }
+  to { opacity: 0; transform: translateY(240px) rotate(var(--r)); }
+}

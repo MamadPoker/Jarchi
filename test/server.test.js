@@ -16,7 +16,10 @@ fs.writeFileSync(path.join(dataDir, 'settings.json'), JSON.stringify({
 process.env.JARCHI_DATA_DIR = dataDir;
 process.env.JARCHI_PORT = '3999';
 const { server, io } = require('../server');
-const { bus, setConnected } = require('../core/events');
+const { bus, setConnected, emitEvent } = require('../core/events');
+const goals = require('../core/goals');
+
+test.after(() => io.close());
 
 const base = 'http://127.0.0.1:3999';
 const call = (method, url, body, headers = {}) => fetch(base + url, {
@@ -27,8 +30,7 @@ const call = (method, url, body, headers = {}) => fetch(base + url, {
 const upload = (type, kind, buf) => call('POST', `/api/upload/${type}/${kind}`, buf, { 'content-type': 'application/octet-stream', 'x-filename': 'party.gif' });
 const patch = (fields) => call('PATCH', '/api/settings', { alerts: { follow: fields } });
 
-test('migration, settings, uploads, reset, events', async (t) => {
-  t.after(() => io.close());
+test('migration, settings, uploads, reset, events', async () => {
   if (!server.listening) await new Promise((r) => server.once('listening', r));
 
   // v1 -> v2: old custom sound keeps playing, old values kept, file still served.
@@ -113,4 +115,65 @@ test('migration, settings, uploads, reset, events', async (t) => {
   assert.equal((await call('POST', '/api/test/kicks', { platform: 'kick', amount: 2500 })).status, 200);
   const ev = await got;
   assert.deepEqual([ev.platform, ev.type, ev.amount, ev.test], ['kick', 'kicks', 2500, true]);
+});
+
+test('goals: count from events, latch when reached, saved, styles', async () => {
+  const goalsNow = async () => (await (await call('GET', '/api/goals')).json()).state;
+  const count = async (id, body) => (await call('PATCH', `/api/goals/${id}`, body)).json();
+  for (const id of ['subs', 'kicks']) await count(id, { set: 0 });
+
+  // From the event bus: subs/resubs +1 and each gifted sub +1 on both platforms; Kicks only from Kick.
+  emitEvent({ platform: 'twitch', type: 'sub', user: 'a' });
+  emitEvent({ platform: 'kick', type: 'resub', user: 'a', months: 3 });
+  emitEvent({ platform: 'kick', type: 'gift_sub', user: 'a', amount: 5 });
+  emitEvent({ platform: 'twitch', type: 'kicks', user: 'a', amount: 100 });
+  emitEvent({ platform: 'kick', type: 'kicks', user: 'a', amount: 250 });
+  emitEvent({ platform: 'twitch', type: 'bits', user: 'a', amount: 500 });
+  let st = await goalsNow();
+  assert.deepEqual([st.subs.current, st.kicks.current], [7, 250]);
+
+  // Reaching the target latches "reached" and announces it once.
+  await call('PATCH', '/api/settings', { goals: { subs: { target: 10 } } });
+  const announced = new Promise((r) => goals.events.once('change', r));
+  st = await count('subs', { add: 3 });
+  assert.equal(await announced, 'subs');
+  assert.deepEqual([st.subs.current, st.subs.reached], [10, true]);
+  st = await count('subs', { add: 3 });
+  assert.equal(st.subs.current, 13, 'counts past the target');
+  st = await count('subs', { add: -8 });
+  assert.deepEqual([st.subs.current, st.subs.reached], [5, true], 'stays full until reset or a new target');
+  await call('PATCH', '/api/settings', { goals: { subs: { target: 50 } } });
+  assert.equal((await goalsNow()).subs.reached, false, 'a new target clears it');
+  await call('PATCH', '/api/settings', { goals: { subs: { target: 5 } } });
+  assert.equal((await goalsNow()).subs.reached, true, 'a target at or below the count is reached right away');
+  st = await count('subs', { set: 0 });
+  assert.deepEqual([st.subs.current, st.subs.reached], [0, false], 'Reset to 0 clears it');
+  assert.equal((await call('PATCH', '/api/goals/subs', { add: 'x' })).status, 400);
+  assert.equal((await call('PATCH', '/api/goals/nope', { add: 1 })).status, 400);
+
+  // Counts are saved (goals.json), separate from settings.
+  await count('kicks', { set: 640 });
+  assert.equal(JSON.parse(fs.readFileSync(path.join(dataDir, 'goals.json'))).kicks.current, 640);
+
+  // A style is a starting point: options apply on top, a new style brings its own look, Reset style keeps title/target.
+  let s = await (await call('PATCH', '/api/settings', { goals: { kicks: { barColor: '#123456', title: 'K', target: 2000 } } })).json();
+  assert.equal(s.goals.kicks.barColor, '#123456');
+  s = await (await call('PATCH', '/api/settings', { goals: { kicks: { style: 'neon' } } })).json();
+  assert.deepEqual([s.goals.kicks.barColor, s.goals.kicks.title], ['#00f0ff', 'K']);
+  await call('PATCH', '/api/settings', { goals: { kicks: { bg: 'off', radius: 3, enabled: false } } });
+  s = await (await call('POST', '/api/goals/kicks/reset-style')).json();
+  const k = s.goals.kicks;
+  assert.deepEqual([k.style, k.bg, k.radius, k.title, k.target, k.enabled], ['neon', 'color', 16, 'K', 2000, false]);
+  for (const bad of [{ style: 'fancy' }, { target: 0 }, { titlePos: 'left' }, { font: 'Wingdings' }, { barColor: 'red' }, { scale: 9 }]) {
+    assert.equal((await call('PATCH', '/api/settings', { goals: { kicks: bad } })).status, 400, JSON.stringify(bad));
+  }
+
+  // Celebration sound upload selects it.
+  s = await (await call('POST', '/api/goals/kicks/sound', Buffer.from('RIFF\0\0\0\0WAVE', 'latin1'), { 'content-type': 'audio/wav', 'x-filename': 'yay.wav' })).json();
+  assert.deepEqual([s.goals.kicks.celebrateSound, s.goals.kicks.sound.name], ['custom', 'yay.wav']);
+
+  // One OBS page per goal.
+  assert.equal((await fetch(`${base}/widgets/goal/subs`)).status, 200);
+  assert.equal((await fetch(`${base}/widgets/goal/kicks/`)).status, 200);
+  assert.equal((await fetch(`${base}/widgets/goal/nope`)).status, 404);
 });
