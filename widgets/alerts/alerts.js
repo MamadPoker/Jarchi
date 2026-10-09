@@ -41,7 +41,6 @@ function applySettings(s) {
 }
 
 if (params.has('preview')) {
-  if (params.get('preview') === 'tile') document.body.classList.add('tile');
   addEventListener('message', (e) => {
     if (e.origin !== location.origin || !e.data?.event) return;
     applyStrings(e.data.strings);

@@ -17,7 +17,6 @@ body { font-family: "Segoe UI", system-ui, sans-serif; }
   align-items: flex-start;
   padding-top: 110px;
 }
-.tile #stage { align-items: center; padding-top: 0; transform: scale(1.8); } /* theme picker thumbnails */
 
 /* ---------- Layout ---------- */
 .alert {

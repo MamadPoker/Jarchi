@@ -18,14 +18,20 @@ Optional: copy `.env.example` to `.env` to change the port or the data folder.
 ## Add the alerts to OBS
 
 1. In OBS, go to **Sources → + → Browser**, name it e.g. "Jarchi Alerts".
-2. URL: `http://127.0.0.1:3000/widgets/alerts` (the panel has a Copy button).
+2. URL: `http://127.0.0.1:3000/widgets/alerts` (the panel's **Copy OBS link** button).
 3. Width **1920**, height **1080**.
 4. Tick **Control audio via OBS** so alert sounds show up in the OBS mixer.
-5. Click OK, then press **Test** in the panel to check it.
+5. Click OK, then pick an alert in the panel and press **Test in OBS**.
 
 Jarchi must be running before OBS loads the source. If you started OBS first, right-click the source and choose **Refresh**. Once loaded, the overlay reconnects by itself if Jarchi restarts.
 
-## Settings
+## The panel
+
+- **Top bar**: Theme dropdown and **Copy OBS link**.
+- **Left column**: the alerts, each with an on/off switch; **Settings** at the bottom (badge switch, test platform, reset everything).
+- **Right side**: the selected alert: live preview with Play, then image/GIF/video, sound and text; **More options** opens frame, colors, font size, text position, duration, volume, minimum amount and video sound.
+
+## Alerts
 
 - **Theme**: Neon, Minimal, Fun, Retro, Glass, Fire, Ice, Galaxy or Comic. Each has its own animations, particles and soft synthesized sounds. All of it is CSS and Web Audio, with no image or sound files.
 - **Live preview**: the panel plays each alert exactly as OBS will show it, and replays it whenever you change something.
@@ -35,7 +41,7 @@ Jarchi must be running before OBS loads the source. If you started OBS first, ri
   - sound: theme default, your own mp3/wav/ogg, or none, plus volume
   - frame: theme style, custom (background, opacity, border, roundness) or off; text above/below/on top of the media; font size and text color
 - **Bigger events feel bigger**: follow is small and quick; sub is bigger; gift subs, Kicks and bits grow with the amount (gift subs at 5/20, Kicks and bits at 100/1000) and play longer; raid is the biggest.
-- **Kick/Twitch badge**: only appears when both accounts are connected; it can be switched off at the top of the Alerts section.
+- **Kick/Twitch badge**: only appears when both accounts are connected; it can be switched off in Settings.
 - Uploads are checked by their real file type and are limited to 20 MB.
 - **Reset to default** per alert, or **Reset everything**.
 

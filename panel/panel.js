@@ -1,13 +1,26 @@
 // Settings panel. All visible text comes from /i18n/en.json.
-// The preview and the theme tiles are the real overlay (/widgets/alerts/?preview) in scaled iframes, driven by postMessage.
+// Layout: left column lists items in groups (GROUPS below); the right side shows the editor for the selected item.
+// The preview is the real overlay (/widgets/alerts/?preview) in a scaled iframe, driven by postMessage.
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
-let S, settings, samples, cur = 'follow';
+let S, settings, samples;
+let view = 'alert', cur = 'follow'; // what's selected: an alert type, or the settings view
 
 const pct = (v) => `${Math.round(v * 100)}%`;
 const px = (v) => `${v}px`;
 const FORMAT = { volume: pct, frameOpacity: pct, frameRadius: px, fontSize: px };
 const isVideo = (file) => /\.(webm|mp4)$/.test(file ?? '');
+const el = (tag, props = {}, ...kids) => {
+  const e = Object.assign(document.createElement(tag), props);
+  e.append(...kids);
+  return e;
+};
+
+// Left column groups. Each item opens `view` (a <section data-view>) for its key.
+// A new group, e.g. { title: 'Widgets', items: [{ view: 'goal', key: 'goal', label: 'Goal' }] }, needs only a matching section.
+const GROUPS = () => [
+  { title: S.panel.groupAlerts, items: Object.keys(settings.alerts).map((t) => ({ view: 'alert', key: t, label: S.types[t], toggle: true })) },
+];
 
 async function api(method, url, body, headers = {}) {
   const isFile = body instanceof Blob;
@@ -46,76 +59,91 @@ async function send(method, url, body, headers) {
   }
   render();
 }
-const patch = (fields) => send('PATCH', '/api/settings', { alerts: { [cur]: fields } });
+const patchAlert = (type, fields) => send('PATCH', '/api/settings', { alerts: { [type]: fields } });
 
 // ---------- Preview ----------
 const sample = (type, amount) => ({ ...samples[type], type, platform: $('#testAs').value, test: true, ...(amount !== undefined && { amount }) });
-const post = (frame, s, event, muted) => frame.contentWindow?.postMessage({ strings: S, settings: s, event, muted }, location.origin);
 const previewAmount = () => (samples[cur].amount > 0 ? Number($('#previewAmount').value) || 0 : undefined);
 
-function preview() {
-  post($('#preview'), settings, sample(cur, previewAmount()), !$('#previewSound').checked);
+function preview(s = settings, muted = !$('#previewSound').checked) {
+  if (view !== 'alert') return;
+  $('#preview').contentWindow?.postMessage({ strings: S, settings: s, event: sample(cur, previewAmount()), muted }, location.origin);
 }
 
-// Theme tiles loop the sub alert in their own theme: no custom media, muted, short.
-function playTile(frame) {
-  const sub = { ...settings.alerts.sub, image: null, frame: 'theme', textColor: null, textPos: 'below', duration: 2.6 };
-  post(frame, { theme: frame.dataset.theme, alerts: { sub } }, sample('sub'), true);
-}
+// Scale the 1920x1080 iframe down to its box.
+new ResizeObserver(([e]) => e.target.style.setProperty('--k', e.contentRect.width / 1920)).observe($('.preview'));
 
-// Scale each 1920x1080 iframe down to its box.
-const fit = new ResizeObserver((entries) => {
-  for (const e of entries) e.target.style.setProperty('--k', e.contentRect.width / 1920);
-});
+function select(v, key) {
+  view = v;
+  if (v === 'alert') {
+    cur = key;
+    $('#previewAmount').value = samples[key].amount;
+  }
+  $$('main .view').forEach((s) => (s.hidden = s.dataset.view !== v));
+  render();
+  preview();
+}
 
 // ---------- Build once ----------
 function build() {
   document.documentElement.lang = S.lang;
   document.documentElement.dir = S.dir;
-  $('#obsUrl').value = `${location.origin}/widgets/alerts`;
-  $('#copy').onclick = () => navigator.clipboard.writeText($('#obsUrl').value).then(() => toast(S.panel.copied));
 
+  // Left column
+  for (const g of GROUPS()) {
+    const list = el('ul', { className: 'nav' });
+    for (const it of g.items) {
+      const row = el('li', { className: 'nav-row' });
+      Object.assign(row.dataset, { view: it.view, key: it.key });
+      row.append(el('button', { className: 'nav-btn', onclick: () => select(it.view, it.key) }, el('span', { className: 'dot' }), el('span', { textContent: it.label })));
+      if (it.toggle) {
+        const sw = el('input', { type: 'checkbox', onchange: () => patchAlert(it.key, { enabled: sw.checked }) });
+        sw.setAttribute('aria-label', it.label);
+        row.append(el('label', { className: 'switch' }, sw, el('span')));
+      }
+      list.append(row);
+    }
+    $('#groups').append(el('h2', { className: 'group-title', textContent: g.title }), list);
+  }
+  $('.side-foot .nav-btn').onclick = () => select('settings');
+
+  // Top bar: theme dropdown (hovering an option previews it, muted) and the OBS link.
+  const menu = $('#themeMenu');
+  const close = () => {
+    $('#themeList').hidden = true;
+    $('#themeBtn').setAttribute('aria-expanded', 'false');
+  };
   for (const [id, name] of Object.entries(S.themes)) {
-    const frame = Object.assign(document.createElement('iframe'), { src: '/widgets/alerts/?preview=tile', title: name, tabIndex: -1 });
-    frame.dataset.theme = id;
-    frame.setAttribute('aria-hidden', 'true');
-    frame.onload = () => playTile(frame);
-    const box = Object.assign(document.createElement('div'), { className: 'preview' });
-    box.append(frame);
-    const b = Object.assign(document.createElement('button'), { className: 'theme' });
-    b.dataset.theme = id;
-    b.append(box, name);
-    b.onclick = () => send('PATCH', '/api/settings', { theme: id });
-    $('#themes').append(b);
+    const opt = el('button', { className: 'dd-opt', onclick: () => { close(); send('PATCH', '/api/settings', { theme: id }); } },
+      el('span', { className: `swatch sw-${id}` }), name);
+    opt.setAttribute('role', 'option');
+    opt.dataset.theme = id;
+    opt.onmouseenter = opt.onfocus = () => preview({ ...settings, theme: id }, true);
+    $('#themeList').append(el('li', {}, opt));
   }
-  setInterval(() => $$('.theme iframe').forEach(playTile), 4000);
+  $('#themeBtn').onclick = () => {
+    const open = $('#themeList').hidden;
+    $('#themeList').hidden = !open;
+    $('#themeBtn').setAttribute('aria-expanded', String(open));
+    if (open) $('.dd-opt[aria-selected=true]')?.focus();
+  };
+  document.addEventListener('click', (e) => { if (!menu.contains(e.target)) close(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
 
-  for (const [id, name] of Object.entries(S.platforms)) $('#testAs').append(new Option(name, id));
-  $('#badgeToggle').title = S.panel.badgeHint;
-  $('#showBadge').onchange = (e) => send('PATCH', '/api/settings', { showBadge: e.target.checked });
+  const obsUrl = `${location.origin}/widgets/alerts`;
+  $('#obsUrl').value = obsUrl;
+  $('#copy').title = S.panel.copyObsHint;
+  $('#copy').onclick = () => navigator.clipboard.writeText(obsUrl).then(() => toast(S.panel.copied));
 
-  for (const type of Object.keys(settings.alerts)) {
-    const tab = Object.assign(document.createElement('button'), { textContent: S.types[type] });
-    tab.dataset.type = type;
-    tab.setAttribute('role', 'tab');
-    tab.onclick = () => {
-      cur = type;
-      $('#previewAmount').value = samples[type].amount;
-      render();
-      preview();
-    };
-    $('#tabs').append(tab);
-  }
-  $('#previewAmount').value = samples[cur].amount;
-
-  $$('#editor [data-f]').forEach((inp) => inp.addEventListener('change', () => {
+  // Alert editor: every [data-f] input saves its field for the selected alert.
+  const editor = $('main [data-view=alert]');
+  $$('[data-f]', editor).forEach((inp) => inp.addEventListener('change', () => {
     const v = inp.type === 'checkbox' ? inp.checked : ['text', 'radio', 'color'].includes(inp.type) ? inp.value : Number(inp.value);
-    patch({ [inp.dataset.f]: v });
+    patchAlert(cur, { [inp.dataset.f]: v });
   }));
-  $$('#editor input[type=range]').forEach((inp) => inp.addEventListener('input', () => showRange(inp)));
-  $$('[name=textColorMode]').forEach((r) => (r.onchange = () => patch({ textColor: r.value === 'custom' ? $('[data-f=textColor]').value : null })));
-
-  $$('#editor .file').forEach((row) => {
+  $$('input[type=range]', editor).forEach((inp) => inp.addEventListener('input', () => showRange(inp)));
+  $$('[name=textColorMode]').forEach((r) => (r.onchange = () => patchAlert(cur, { textColor: r.value === 'custom' ? $('[data-f=textColor]').value : null })));
+  $$('.file', editor).forEach((row) => {
     const kind = row.dataset.kind;
     const input = $('input', row);
     $('.upload', row).onclick = () => input.click();
@@ -126,13 +154,16 @@ function build() {
     };
     $('.remove', row).onclick = () => send('DELETE', `/api/upload/${cur}/${kind}`);
   });
-
-  $('#play').onclick = preview;
-  $('#previewAmount').onchange = preview;
+  $('#play').onclick = () => preview();
+  $('#previewAmount').onchange = () => preview();
   $('#test').onclick = () => api('POST', `/api/test/${cur}`, { platform: $('#testAs').value, amount: previewAmount() })
     .then(() => toast(S.panel.testSent), (err) => toast(err.message, true));
   $('#reset').onclick = () => send('POST', `/api/reset/${cur}`);
+  $('#preview').onload = () => preview();
 
+  // Settings
+  $('#showBadge').onchange = (e) => send('PATCH', '/api/settings', { showBadge: e.target.checked });
+  for (const [id, name] of Object.entries(S.platforms)) $('#testAs').append(new Option(name, id));
   // Two-click confirm instead of confirm(): no blocking dialog.
   const resetAll = $('#resetAll');
   let armed;
@@ -149,9 +180,7 @@ function build() {
     resetAll.textContent = S.panel.confirmResetAll;
   };
 
-  $$('.preview').forEach((el) => fit.observe(el));
-  $('#preview').onload = preview;
-  $$('[data-i18n]').forEach((el) => (el.textContent = S.panel[el.dataset.i18n]));
+  $$('[data-i18n]').forEach((e) => (e.textContent = S.panel[e.dataset.i18n]));
 }
 
 // Range sliders: filled track + value label.
@@ -163,18 +192,27 @@ function showRange(inp) {
 
 // ---------- Sync UI from settings ----------
 function render() {
-  const cfg = settings.alerts[cur];
-  $$('.theme').forEach((b) => b.classList.toggle('active', b.dataset.theme === settings.theme));
-  $('#showBadge').checked = settings.showBadge;
-  $$('#tabs button').forEach((t) => {
-    t.classList.toggle('active', t.dataset.type === cur);
-    t.classList.toggle('off', !settings.alerts[t.dataset.type].enabled);
-    t.setAttribute('aria-selected', t.dataset.type === cur);
+  $$('.nav-row').forEach((row) => {
+    const { view: v, key } = row.dataset;
+    row.classList.toggle('active', v === view && (v !== 'alert' || key === cur));
+    if (v !== 'alert') return;
+    row.classList.toggle('off', !settings.alerts[key].enabled);
+    $('input', row).checked = settings.alerts[key].enabled;
   });
-  $('#editor .name').textContent = S.types[cur];
-  $('#editor').classList.toggle('off', !cfg.enabled);
 
-  $$('#editor [data-f]').forEach((inp) => {
+  $('#themeBtn .swatch').className = `swatch sw-${settings.theme}`;
+  $('#themeBtn .dd-name').textContent = S.themes[settings.theme];
+  $$('.dd-opt').forEach((o) => o.setAttribute('aria-selected', String(o.dataset.theme === settings.theme)));
+
+  $('#showBadge').checked = settings.showBadge;
+  $('#connectedList').textContent = settings.connected.map((p) => S.platforms[p]).join(', ') || S.panel.connectedNone;
+  if (view !== 'alert') return;
+
+  const editor = $('main [data-view=alert]');
+  const cfg = settings.alerts[cur];
+  editor.dataset.key = cur;
+  $('.name', editor).textContent = S.types[cur];
+  $$('[data-f]', editor).forEach((inp) => {
     const val = cfg[inp.dataset.f];
     if (inp.type === 'checkbox') inp.checked = val;
     else if (inp.type === 'radio') inp.checked = inp.value === val;
@@ -185,6 +223,7 @@ function render() {
   $$('[name=textColorMode]').forEach((r) => (r.checked = (r.value === 'custom') === (cfg.textColor !== null)));
 
   const show = {
+    off: !cfg.enabled,
     minAmount: 'minAmount' in cfg,
     video: isVideo(cfg.image?.file),
     customSound: cfg.soundMode === 'custom',
@@ -192,9 +231,8 @@ function render() {
     customColor: cfg.textColor !== null,
     amount: samples[cur].amount > 0,
   };
-  $$('[data-only]').forEach((el) => (el.hidden = !show[el.dataset.only]));
-
-  $$('#editor .file').forEach((row) => {
+  $$('[data-only]', editor).forEach((e) => (e.hidden = !show[e.dataset.only]));
+  $$('.file', editor).forEach((row) => {
     const f = cfg[row.dataset.kind];
     const fname = $('.fname', row);
     fname.textContent = f ? f.name : row.dataset.kind === 'image' ? S.panel.mediaDefault : S.panel.soundNoFile;
@@ -211,5 +249,5 @@ function render() {
     return toast(err.message, true);
   }
   build();
-  render();
+  select('alert', cur);
 })();
