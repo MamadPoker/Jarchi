@@ -9,14 +9,6 @@
 <body>
   <header class="topbar">
     <div class="brand"><div class="logo" aria-hidden="true">J</div><span data-i18n="title"></span></div>
-    <div class="dropdown" id="themeMenu">
-      <span class="label" data-i18n="theme"></span>
-      <button id="themeBtn" aria-haspopup="listbox" aria-expanded="false">
-        <span class="swatch"></span><span class="dd-name"></span>
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
-      </button>
-      <ul id="themeList" role="listbox" hidden></ul>
-    </div>
     <button id="copy" class="primary">
       <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h8"/></svg>
       <span data-i18n="copyObs"></span>
@@ -163,6 +155,15 @@
             </div>
           </div>
         </details>
+      </section>
+
+      <!-- ===== Theme ===== -->
+      <section class="view" data-view="theme" hidden>
+        <div class="stack">
+          <h1 class="title" data-i18n="themeTitle"></h1>
+          <small data-i18n="themeHint"></small>
+        </div>
+        <div id="themeGrid" class="theme-grid"></div>
       </section>
 
       <!-- ===== Settings ===== -->

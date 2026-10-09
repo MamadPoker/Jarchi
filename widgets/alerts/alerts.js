@@ -1,6 +1,7 @@
 // Alerts overlay.
 // Live (OBS): events arrive over Socket.IO and play one at a time. Socket.IO reconnects on its own.
-// Preview (?preview, inside the panel): the panel posts { strings, settings, event, muted }; each post replays at once.
+// Preview (?preview, inside the panel): the panel posts { strings, settings, event, muted, hold }; each post replays at once.
+// ?preview=tile centers and enlarges the alert for small theme cards; hold keeps it on screen until the next post.
 const params = new URLSearchParams(location.search);
 const stage = document.getElementById('stage');
 const queue = [];
@@ -41,12 +42,13 @@ function applySettings(s) {
 }
 
 if (params.has('preview')) {
+  if (params.get('preview') === 'tile') document.body.classList.add('tile');
   addEventListener('message', (e) => {
     if (e.origin !== location.origin || !e.data?.event) return;
     applyStrings(e.data.strings);
     applySettings(e.data.settings);
     stopAll();
-    show(e.data.event, e.data.muted).catch(console.error);
+    show(e.data.event, e.data.muted, e.data.hold).catch(console.error);
   });
 } else {
   const socket = io();
@@ -78,7 +80,7 @@ function stopAll() {
   stage.replaceChildren();
 }
 
-async function show(ev, muted = false) {
+async function show(ev, muted = false, hold = false) {
   const my = gen;
   const cfg = settings.alerts[ev.type];
   const tier = tierOf(ev);
@@ -118,6 +120,7 @@ async function show(ev, muted = false) {
       video.play().catch(() => {});
     });
   }
+  if (hold) return; // stays until stopAll() on the next preview
 
   await sleep((cfg.duration + (grows ? (tier - 1) * 1.5 : 0)) * 1000);
   if (my !== gen) return;

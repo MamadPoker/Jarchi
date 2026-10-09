@@ -4,7 +4,7 @@
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
 let S, settings, samples;
-let view = 'alert', cur = 'follow'; // what's selected: an alert type, or the settings view
+let view = 'alert', cur = 'follow'; // what's selected: an alert type, or the theme / settings view
 
 const pct = (v) => `${Math.round(v * 100)}%`;
 const px = (v) => `${v}px`;
@@ -18,8 +18,20 @@ const el = (tag, props = {}, ...kids) => {
 
 // Left column groups. Each item opens `view` (a <section data-view>) for its key.
 // A new group, e.g. { title: 'Widgets', items: [{ view: 'goal', key: 'goal', label: 'Goal' }] }, needs only a matching section.
+// An item can bring its own `content` instead of the default dot + label.
 const GROUPS = () => [
+  { title: S.panel.groupTheme, items: [{ view: 'theme', key: 'theme', content: themeRow }] },
   { title: S.panel.groupAlerts, items: Object.keys(settings.alerts).map((t) => ({ view: 'alert', key: t, label: S.types[t], toggle: true })) },
+];
+
+// THEME row: current theme + "Change", and a strip with every theme's swatch (render() outlines the current one).
+const themeRow = () => [
+  el('span', { className: 'theme-now' }, el('span', { className: 'swatch' }), el('span', { className: 'theme-name' }), el('span', { className: 'change', textContent: S.panel.change })),
+  el('span', { className: 'swatches' }, ...Object.entries(S.themes).map(([id, name]) => {
+    const sw = el('span', { className: `swatch sw-${id}`, title: name });
+    sw.dataset.theme = id;
+    return sw;
+  })),
 ];
 
 async function api(method, url, body, headers = {}) {
@@ -65,13 +77,22 @@ const patchAlert = (type, fields) => send('PATCH', '/api/settings', { alerts: { 
 const sample = (type, amount) => ({ ...samples[type], type, platform: $('#testAs').value, test: true, ...(amount !== undefined && { amount }) });
 const previewAmount = () => (samples[cur].amount > 0 ? Number($('#previewAmount').value) || 0 : undefined);
 
-function preview(s = settings, muted = !$('#previewSound').checked) {
-  if (view !== 'alert') return;
-  $('#preview').contentWindow?.postMessage({ strings: S, settings: s, event: sample(cur, previewAmount()), muted }, location.origin);
+const post = (frame, s, event, muted, hold = false) => frame.contentWindow?.postMessage({ strings: S, settings: s, event, muted, hold }, location.origin);
+
+function preview() {
+  if (view === 'alert') post($('#preview'), settings, sample(cur, previewAmount()), !$('#previewSound').checked);
 }
 
-// Scale the 1920x1080 iframe down to its box.
-new ResizeObserver(([e]) => e.target.style.setProperty('--k', e.contentRect.width / 1920)).observe($('.preview'));
+// Theme cards: the sub alert in that theme with its own look and sound; it stays on the card (hold) until the next play.
+function playTile(frame, muted = true) {
+  const sub = { ...settings.alerts.sub, image: null, soundMode: 'theme', frame: 'theme', textColor: null, textPos: 'below' };
+  post(frame, { theme: frame.dataset.theme, alerts: { sub } }, sample('sub'), muted, true);
+}
+
+// Scale each 1920x1080 iframe down to its box.
+const fit = new ResizeObserver((entries) => {
+  for (const e of entries) e.target.style.setProperty('--k', e.contentRect.width / 1920);
+});
 
 function select(v, key) {
   view = v;
@@ -82,6 +103,7 @@ function select(v, key) {
   $$('main .view').forEach((s) => (s.hidden = s.dataset.view !== v));
   render();
   preview();
+  if (v === 'theme') $$('.theme-tile iframe').forEach((f) => playTile(f));
 }
 
 // ---------- Build once ----------
@@ -93,9 +115,10 @@ function build() {
   for (const g of GROUPS()) {
     const list = el('ul', { className: 'nav' });
     for (const it of g.items) {
-      const row = el('li', { className: 'nav-row' });
+      const row = el('li', { className: `nav-row row-${it.view}` });
       Object.assign(row.dataset, { view: it.view, key: it.key });
-      row.append(el('button', { className: 'nav-btn', onclick: () => select(it.view, it.key) }, el('span', { className: 'dot' }), el('span', { textContent: it.label })));
+      const content = it.content ? it.content() : [el('span', { className: 'dot' }), el('span', { textContent: it.label })];
+      row.append(el('button', { className: 'nav-btn', onclick: () => select(it.view, it.key) }, ...content));
       if (it.toggle) {
         const sw = el('input', { type: 'checkbox', onchange: () => patchAlert(it.key, { enabled: sw.checked }) });
         sw.setAttribute('aria-label', it.label);
@@ -107,29 +130,25 @@ function build() {
   }
   $('.side-foot .nav-btn').onclick = () => select('settings');
 
-  // Top bar: theme dropdown (hovering an option previews it, muted) and the OBS link.
-  const menu = $('#themeMenu');
-  const close = () => {
-    $('#themeList').hidden = true;
-    $('#themeBtn').setAttribute('aria-expanded', 'false');
-  };
+  // Theme page: a card per theme. Hover (or focus) previews it muted; click selects it and plays it with sound.
   for (const [id, name] of Object.entries(S.themes)) {
-    const opt = el('button', { className: 'dd-opt', onclick: () => { close(); send('PATCH', '/api/settings', { theme: id }); } },
-      el('span', { className: `swatch sw-${id}` }), name);
-    opt.setAttribute('role', 'option');
-    opt.dataset.theme = id;
-    opt.onmouseenter = opt.onfocus = () => preview({ ...settings, theme: id }, true);
-    $('#themeList').append(el('li', {}, opt));
+    const frame = el('iframe', { src: '/widgets/alerts/?preview=tile', title: name, tabIndex: -1, onload: () => playTile(frame) });
+    frame.dataset.theme = id;
+    frame.setAttribute('aria-hidden', 'true');
+    const tile = el('button', {
+      className: 'theme-tile',
+      onclick: () => { send('PATCH', '/api/settings', { theme: id }); playTile(frame, false); },
+      onmouseenter: () => playTile(frame),
+      onfocus: () => playTile(frame),
+    },
+    el('div', { className: 'preview' }, frame),
+    el('div', { className: 'tile-foot' }, el('span', { className: `swatch sw-${id}` }), el('span', { className: 'tile-name', textContent: name }), el('span', { className: 'selected-label', textContent: S.panel.selected })));
+    tile.dataset.theme = id;
+    $('#themeGrid').append(tile);
   }
-  $('#themeBtn').onclick = () => {
-    const open = $('#themeList').hidden;
-    $('#themeList').hidden = !open;
-    $('#themeBtn').setAttribute('aria-expanded', String(open));
-    if (open) $('.dd-opt[aria-selected=true]')?.focus();
-  };
-  document.addEventListener('click', (e) => { if (!menu.contains(e.target)) close(); });
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
+  $$('.preview').forEach((p) => fit.observe(p));
 
+  // Top bar: OBS link.
   const obsUrl = `${location.origin}/widgets/alerts`;
   $('#obsUrl').value = obsUrl;
   $('#copy').title = S.panel.copyObsHint;
@@ -200,9 +219,13 @@ function render() {
     $('input', row).checked = settings.alerts[key].enabled;
   });
 
-  $('#themeBtn .swatch').className = `swatch sw-${settings.theme}`;
-  $('#themeBtn .dd-name').textContent = S.themes[settings.theme];
-  $$('.dd-opt').forEach((o) => o.setAttribute('aria-selected', String(o.dataset.theme === settings.theme)));
+  $('.theme-now .swatch').className = `swatch sw-${settings.theme}`;
+  $('.theme-now .theme-name').textContent = S.themes[settings.theme];
+  $$('.swatches .swatch').forEach((s) => s.classList.toggle('current', s.dataset.theme === settings.theme));
+  $$('.theme-tile').forEach((t) => {
+    t.classList.toggle('selected', t.dataset.theme === settings.theme);
+    t.setAttribute('aria-pressed', String(t.dataset.theme === settings.theme));
+  });
 
   $('#showBadge').checked = settings.showBadge;
   $('#connectedList').textContent = settings.connected.map((p) => S.platforms[p]).join(', ') || S.panel.connectedNone;
