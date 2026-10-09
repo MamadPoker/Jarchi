@@ -35,6 +35,7 @@ app.post('/api/upload/:type/:kind', express.raw({ type: () => true, limit: '20mb
 app.delete('/api/upload/:type/:kind', (req, res) => res.json(changed(settings.removeUpload(req.params.type, req.params.kind))));
 app.post('/api/reset{/:type}', (req, res) => res.json(changed(settings.reset(req.params.type))));
 
+// Sample events for the Test button and the panel's live preview.
 const FAKE = {
   follow: {},
   sub: { months: 1 },
@@ -44,11 +45,15 @@ const FAKE = {
   bits: { amount: 500, message: strings.test.message },
   raid: { amount: 42 },
 };
+const SAMPLES = Object.fromEntries(TYPES.map((t) => [t, { user: strings.test.user, amount: 0, months: 0, message: '', ...FAKE[t] }]));
+app.get('/api/samples', (req, res) => res.json(SAMPLES));
+
 app.post('/api/test/:type', (req, res) => {
   const { type } = req.params;
   if (!TYPES.includes(type)) return res.status(400).json({ error: 'bad_request' });
   const platform = PLATFORMS.includes(req.body?.platform) ? req.body.platform : 'test';
-  res.json(emitEvent({ platform, type, user: strings.test.user, ...FAKE[type], test: true }));
+  const amount = Number.isFinite(req.body?.amount) && req.body.amount >= 0 ? req.body.amount : SAMPLES[type].amount;
+  res.json(emitEvent({ ...SAMPLES[type], amount, platform, type, test: true }));
 });
 
 app.use('/uploads', express.static(UPLOADS_DIR, { setHeaders: (res) => res.set('X-Content-Type-Options', 'nosniff') }));

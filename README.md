@@ -27,9 +27,15 @@ Jarchi must be running before OBS loads the source. If you started OBS first, ri
 
 ## Settings
 
-- **Theme**: Neon, Minimal or Fun. It changes the animation and sound of every alert that has no custom image or sound.
-- **Per alert**: on/off, text with `{user}` `{amount}` `{months}` `{platform}`, duration, volume, minimum amount (Kicks, bits, gift subs), custom image/GIF/WebM, custom sound (mp3/wav/ogg).
-- Uploads are checked by their real file type and are limited to 20 MB. WebM videos play muted; use the sound upload for audio.
+- **Theme**: Neon, Minimal, Fun, Retro, Glass, Fire, Ice, Galaxy or Comic. Each has its own animations, particles and synthesized sounds. All of it is CSS and Web Audio, with no image or sound files.
+- **Live preview**: the panel plays each alert exactly as OBS will show it, and replays it whenever you change something.
+- **Per alert**:
+  - on/off, text with `{user}` `{amount}` `{months}` `{platform}`, duration, minimum amount (Kicks, bits, gift subs)
+  - image/GIF/WebM/MP4 (only WebM keeps a transparent background), with an option to play the video's own sound
+  - sound: theme default, your own mp3/wav/ogg, or none, plus volume
+  - frame: theme style, custom (background, opacity, border, roundness) or off; text above/below/on top of the media; font size and text color
+- **Bigger events feel bigger**: follow is small and quick; sub is bigger; gift subs, Kicks and bits grow with the amount (gift subs at 5/20, Kicks and bits at 100/1000) and play longer; raid is the biggest.
+- Uploads are checked by their real file type and are limited to 20 MB.
 - **Reset to default** per alert, or **Reset everything**.
 
 Settings and uploads live in `data/` (gitignored). Delete that folder to start fresh.

@@ -12,6 +12,11 @@
   "engines": {
     "node": ">=20.12"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MamadPoker/Jarchi.git"
+  },
+  "homepage": "https://github.com/MamadPoker/Jarchi",
   "dependencies": {
     "express": "^5.2.1",
     "socket.io": "^4.8.4"

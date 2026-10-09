@@ -6,30 +6,68 @@ const { TYPES } = require('./events');
 const strings = require('../i18n/en.json');
 
 const FILE = path.join(DATA_DIR, 'settings.json');
-const THEMES = ['neon', 'minimal', 'fun'];
-const MIN_AMOUNT_TYPES = ['gift_sub', 'kicks', 'bits'];
+const VERSION = 2;
+const THEMES = ['neon', 'minimal', 'fun', 'retro', 'glass', 'fire', 'ice', 'galaxy', 'comic'];
+// Follow is small and quick, raid is the big one. minAmount only where an amount makes sense.
+const PER_TYPE = {
+  follow: { duration: 4, fontSize: 38 },
+  sub: { duration: 6, fontSize: 46 },
+  resub: { duration: 6, fontSize: 46 },
+  gift_sub: { duration: 6, fontSize: 46, minAmount: 0 },
+  kicks: { duration: 6, fontSize: 46, minAmount: 0 },
+  bits: { duration: 6, fontSize: 46, minAmount: 0 },
+  raid: { duration: 9, fontSize: 54 },
+};
 const DEFAULTS = Object.fromEntries(TYPES.map((t) => [t, {
   enabled: true,
-  image: null, // { file, name } once uploaded
-  sound: null,
-  volume: 0.7,
-  duration: 6,
   template: strings.templates[t],
-  ...(MIN_AMOUNT_TYPES.includes(t) && { minAmount: 0 }),
+  volume: 0.7,
+  image: null, // { file, name } once uploaded
+  videoSound: 'off',
+  sound: null,
+  soundMode: 'theme',
+  frame: 'theme',
+  frameBg: '#14141c',
+  frameOpacity: 0.85,
+  frameBorder: '#8b5cf6',
+  frameRadius: 16,
+  textPos: 'below',
+  textColor: null, // null = the theme's color
+  ...PER_TYPE[t],
 }]));
+
+const num = (min, max) => (v) => typeof v === 'number' && v >= min && v <= max;
+const oneOf = (...list) => (v) => list.includes(v);
+const hex = (v) => typeof v === 'string' && /^#[0-9a-f]{6}$/i.test(v);
 const RULES = {
   enabled: (v) => typeof v === 'boolean',
-  volume: (v) => typeof v === 'number' && v >= 0 && v <= 1,
-  duration: (v) => typeof v === 'number' && v >= 1 && v <= 60,
   template: (v) => typeof v === 'string' && v.length <= 200,
+  duration: num(1, 60),
+  volume: num(0, 1),
   minAmount: (v) => Number.isInteger(v) && v >= 0,
+  videoSound: oneOf('off', 'video', 'both'),
+  soundMode: oneOf('theme', 'custom', 'none'),
+  frame: oneOf('theme', 'custom', 'off'),
+  frameBg: hex,
+  frameOpacity: num(0, 1),
+  frameBorder: hex,
+  frameRadius: num(0, 60),
+  textPos: oneOf('above', 'below', 'over'),
+  fontSize: num(12, 120),
+  textColor: (v) => v === null || hex(v),
 };
-const ALLOWED = { image: ['png', 'jpg', 'gif', 'webp', 'webm'], sound: ['mp3', 'wav', 'ogg'] };
+const ALLOWED = { image: ['png', 'jpg', 'gif', 'webp', 'webm', 'mp4'], sound: ['mp3', 'wav', 'ogg'] };
 
 const bad = (code = 'bad_request') => Object.assign(new Error(code), { status: 400, code });
 
 fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 let saved = load();
+if ((saved.version ?? 1) < VERSION) {
+  // v1 -> v2: an uploaded sound always played; now soundMode picks the sound, so keep those playing.
+  for (const a of Object.values(saved.alerts ?? {})) if (a?.sound && !a.soundMode) a.soundMode = 'custom';
+  saved.version = VERSION;
+  persist();
+}
 
 function load() {
   try {
@@ -50,7 +88,7 @@ function persist() {
 
 function get() {
   return {
-    theme: saved.theme ?? 'neon',
+    theme: THEMES.includes(saved.theme) ? saved.theme : 'neon',
     alerts: Object.fromEntries(TYPES.map((t) => [t, { ...DEFAULTS[t], ...saved.alerts?.[t] }])),
   };
 }
@@ -73,14 +111,15 @@ function update(patch) {
 
 // Real file type from magic bytes, whatever the filename claims.
 function sniff(b) {
-  const hex = b.subarray(0, 4).toString('hex');
+  const hex4 = b.subarray(0, 4).toString('hex');
   const ascii = b.subarray(0, 12).toString('latin1');
-  if (hex === '89504e47') return 'png';
-  if (hex.startsWith('ffd8ff')) return 'jpg';
+  if (hex4 === '89504e47') return 'png';
+  if (hex4.startsWith('ffd8ff')) return 'jpg';
   if (ascii.startsWith('GIF8')) return 'gif';
   if (ascii.startsWith('RIFF') && ascii.slice(8) === 'WEBP') return 'webp';
   if (ascii.startsWith('RIFF') && ascii.slice(8) === 'WAVE') return 'wav';
-  if (hex === '1a45dfa3') return 'webm';
+  if (hex4 === '1a45dfa3') return 'webm';
+  if (ascii.slice(4, 8) === 'ftyp' && !/^(M4A|M4B|qt)/.test(ascii.slice(8))) return 'mp4'; // not audio-only m4a or QuickTime
   if (ascii.startsWith('OggS')) return 'ogg';
   if (ascii.startsWith('ID3') || (b[0] === 0xff && (b[1] & 0xe0) === 0xe0)) return 'mp3';
 }
@@ -97,14 +136,17 @@ function saveUpload(type, kind, buf, name) {
   const file = `${type}-${kind}-${Date.now()}.${ext}`;
   fs.writeFileSync(path.join(UPLOADS_DIR, file), buf);
   overrides(type)[kind] = { file, name: String(name || file).slice(0, 120) };
+  if (kind === 'sound') overrides(type).soundMode = 'custom'; // uploading a sound means "use it"
   persist();
   return get();
 }
 
 function removeUpload(type, kind) {
   if (!TYPES.includes(type) || !ALLOWED[kind]) throw bad();
-  removeFile(saved.alerts?.[type]?.[kind]);
-  delete saved.alerts?.[type]?.[kind];
+  const o = saved.alerts?.[type];
+  removeFile(o?.[kind]);
+  delete o?.[kind];
+  if (kind === 'sound' && o?.soundMode === 'custom') delete o.soundMode; // back to the theme sound
   persist();
   return get();
 }
@@ -117,7 +159,7 @@ function reset(type) {
     removeFile(saved.alerts?.[t]?.sound);
     delete saved.alerts?.[t];
   }
-  if (!type) saved = {};
+  if (!type) saved = { version: VERSION };
   persist();
   return get();
 }
