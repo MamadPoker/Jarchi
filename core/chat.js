@@ -108,14 +108,14 @@ bus.on('chatClear', (c) => {
 const T = strings.chatTest;
 const PLATFORMS = ['twitch', 'kick'];
 const SUB_MONTHS = [1, 2, 3, 6, 9, 12, 18, 24, 36];
-const GIFTS = [1, 5, 10, 25, 50, 100];
+const GIFTS = [1, 5, 10, 25, 50, 100, 250, 500, 1000];
 const COLORS = ['#1e90ff', '#ff4500', '#9acd32', '#ff69b4', '#daa520', '#00ff7f', '#8a2be2', '#5f9ea0', '#d2691e', '#53fc18', '#ff7f50', null];
 // Twitch: IRC badge sets. Kick: chat identity badge types. [] = no badges.
 const COMBOS = {
   twitch: [['broadcaster'], ['moderator'], ['vip'], ['subscriber'], ['subscriber'], ['moderator', 'subscriber'], ['vip', 'subscriber'],
     ['founder'], ['subscriber', 'sub-gifter'], ['premium'], ['sub-gifter', 'premium'], [], []],
   kick: [['broadcaster'], ['moderator'], ['vip'], ['subscriber'], ['subscriber'], ['moderator', 'subscriber'], ['vip', 'subscriber'],
-    ['og'], ['founder'], ['subscriber', 'sub_gifter'], ['og', 'subscriber'], [], []],
+    ['og'], ['founder'], ['subscriber', 'sub_gifter'], ['og', 'subscriber'], ['verified', 'subscriber'], ['staff'], [], []],
 };
 // One of Kick's image badges (badges_v2), as seen in real chat.
 const KICK_IMAGE_BADGE = { name: 'level', image_url: 'https://ext.cdn.kick.com/chat/badges/25_f055d38e-8e80-4a99-8419-467bad3eb1ab.png' };

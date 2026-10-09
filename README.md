@@ -73,7 +73,7 @@ Kick and Twitch chat in one box: `http://127.0.0.1:3000/widgets/chat` (transpare
 - 10 styles (Classic box, Bubbles, Floating, Neon, Terminal, Retro, Glass, Pop-in, Side column, Ticker). A style is a starting point: every option works with every style, **Reset style** brings the style's own look back.
 - Messages deleted by a moderator, and everything from banned / timed-out users, disappear from the overlay too.
 - Emotes: Kick, Twitch and 7TV (the channel's set + global, refreshed every 5 minutes), animated or still.
-- Badges and logos come from the platforms: Twitch's own badge images, Kick's badge images and the channel's own sub badges. Kick's mod / VIP / OG / host badges have no public image, so they show as small text tags.
+- Badges and logos come from the platforms: Twitch's own badge images; on Kick, Kick's own badge icons (host, mod, VIP, OG, founder, verified, staff, sub gifter tiers, default subscriber; taken unmodified from kick.com's web app, see `assets/kick-badges/README.md`), the channel's own sub badges and Kick's image badges.
 - Chat also goes through the event bus (`chat`, `chatClear`), so other widgets can use it later.
 
 How it reads chat, and what needs a key:
@@ -93,7 +93,7 @@ core/store.js        JSON files in the data folder
 core/chat.js         runs the chat connectors, adds 7TV emotes, test messages
 core/seventv.js      7TV emote sets (cached)
 connectors/          Kick and Twitch chat readers (+ Twitch badge images)
-assets/              official platform logos (assets/platform-logos)
+assets/              official platform logos (platform-logos) and Kick badge icons (kick-badges)
 widgets/<name>/      each widget is a folder, served at /widgets/<name>
 panel/               settings panel (served at /)
 i18n/en.json         every UI string, panel and overlay

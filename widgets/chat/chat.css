@@ -48,11 +48,11 @@ body.preview, body.thumb { display: grid; place-items: center; }
 .shadow .msg { text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9), 0 0 2px rgba(0, 0, 0, 0.8); }
 .line { display: block; }
 .meta { margin-right: 0.3em; font-size: var(--ns); font-weight: 700; } /* the space before the message, with or without a colon */
-.meta > * { vertical-align: middle; }
 .meta time { margin-right: 0.35em; font-weight: 400; opacity: 0.7; font-size: 0.85em; }
-.platform { width: 1em; height: 1em; margin-right: 0.3em; }
+/* Name, time and colon stay on the message's baseline; icons are as tall as the name and centered on its letters. */
+.platform { width: 1em; height: 1em; margin-right: 0.3em; vertical-align: middle; }
 .badges { margin-right: 0.3em; }
-.badge { height: 1.1em; margin-right: 0.18em; vertical-align: middle; }
+.badge { height: 1em; margin-right: 0.18em; vertical-align: middle; }
 .badge-text { display: inline-block; margin-right: 0.25em; padding: 0.1em 0.35em; border-radius: 0.3em; background: rgba(255, 255, 255, 0.18); font-size: 0.62em; font-weight: 800; letter-spacing: 0.04em; line-height: 1.3; vertical-align: middle; text-shadow: none; }
 .bt-broadcaster { background: #e5484d; color: #fff; }
 .bt-moderator { background: #2fbf71; color: #fff; }

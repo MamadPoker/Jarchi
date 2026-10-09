@@ -8,6 +8,10 @@ const PUSHER = 'wss://ws-us2.pusher.com/app/32cbd69e4b950bf97679?protocol=7&clie
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36';
 const EMOTE = /\[emote:(\d+):([^\]]*)\]/g;
 const ROLE = { broadcaster: 'broadcaster', moderator: 'moderator', vip: 'vip', subscriber: 'subscriber' };
+// Kick's own badge icons (see assets/kick-badges/README.md). Sub gifter: the highest tier up to the gift count, like kick.com.
+const BADGES = '/assets/kick-badges';
+const ICONS = new Set(['broadcaster', 'moderator', 'vip', 'og', 'founder', 'subscriber', 'verified', 'staff', 'bot', 'sidekick', 'trainwreckstv']);
+const GIFT_TIERS = [1, 5, 10, 25, 50, ...Array.from({ length: 18 }, (_, i) => 100 + 50 * i), 1000, 2000, 3000, 4000, 5000].reverse();
 const QUIET_MS = 150 * 1000; // we ping every minute; silence longer than this means the socket is dead
 
 const fill = (tpl, v) => tpl.replace(/\{(\w+)\}/g, (m, k) => v[k] ?? m);
@@ -65,13 +69,18 @@ function kickParts(content) {
   return parts;
 }
 
-// Role badges (no public image except the channel's sub badges: those show as text tags) + Kick's image badges (badges_v2).
+// A Kick badge's image: the channel's own sub badge for the viewer's months (else Kick's default), Kick's icon for the
+// other types, null (a text tag) for a type Kick added after these icons were taken.
+function badgeImage(b, subBadges) {
+  if (b.type === 'subscriber') return subBadges.find((s) => (b.count || 1) >= s.months)?.src ?? `${BADGES}/subscriber.svg`;
+  if (b.type === 'sub_gifter') return `${BADGES}/sub_gifter-${GIFT_TIERS.find((n) => (b.count || 1) >= n)}.svg`;
+  return ICONS.has(b.type) ? `${BADGES}/${b.type}.svg` : null;
+}
+
+// Badges (identity.badges) + Kick's image badges (badges_v2).
 function kickBadges(identity, subBadges) {
   const out = [];
-  for (const b of identity?.badges ?? []) {
-    const img = b.type === 'subscriber' ? subBadges.find((s) => (b.count ?? 0) >= s.months)?.src ?? null : null;
-    out.push({ type: ROLE[b.type] ?? 'other', name: b.type, img, title: b.text || b.type });
-  }
+  for (const b of identity?.badges ?? []) out.push({ type: ROLE[b.type] ?? 'other', name: b.type, img: badgeImage(b, subBadges), title: b.text || b.type });
   for (const b of identity?.badges_v2 ?? []) if (b.image_url) out.push({ type: 'other', name: b.name, img: b.image_url, title: b.name });
   return out;
 }

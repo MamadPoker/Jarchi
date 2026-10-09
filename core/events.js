@@ -29,6 +29,7 @@ function emitEvent(e) {
 //   user: { id, login, name, color, avatar, badges: [{ type: 'broadcaster'|'moderator'|'vip'|'subscriber'|'other', name, img, title }] },
 //   parts: [{ t: 'text', v } | { t: 'emote', name, src, still, provider: 'twitch'|'kick'|'7tv' }] }
 const https = (v) => typeof v === 'string' && v.startsWith('https://');
+const badgeImg = (v) => https(v) || /^\/assets\/kick-badges\/[\w-]+\.svg$/.test(v); // remote, or Kick's own icons shipped here
 function emitChat(m) {
   const msg = chatMessage(m);
   bus.emit('chat', msg);
@@ -55,7 +56,7 @@ function chatMessage(m) {
       name: String(u.name ?? u.login ?? '').slice(0, 64),
       color: /^#[0-9a-f]{6}$/i.test(u.color) ? u.color : null,
       avatar: https(u.avatar) ? u.avatar : null,
-      badges: (u.badges ?? []).slice(0, 8).map((b) => ({ type: b.type, name: String(b.name ?? ''), img: https(b.img) ? b.img : null, title: String(b.title ?? b.name ?? '') })),
+      badges: (u.badges ?? []).slice(0, 8).map((b) => ({ type: b.type, name: String(b.name ?? ''), img: badgeImg(b.img) ? b.img : null, title: String(b.title ?? b.name ?? '') })),
     },
     parts: (m.parts ?? [{ t: 'text', v: m.text ?? '' }]).filter((p) => (p.t === 'emote' ? https(p.src) : p.t === 'text')).slice(0, 300),
   };

@@ -60,7 +60,17 @@ test('Kick Pusher events -> messages, badges, removals', () => {
   assert.equal(m.text, 'gg POLICE nice');
   assert.deepEqual(m.parts.map((p) => p.t === 'emote' ? `[${p.name}]` : p.v), ['gg ', '[POLICE]', ' nice']);
   assert.equal(m.parts[1].src, 'https://files.kick.com/emotes/37230/fullsize');
-  assert.deepEqual(m.user.badges.map((b) => [b.type, b.img]), [['moderator', null], ['subscriber', 'https://files.kick.com/sub6.png'], ['other', 'https://ext.cdn.kick.com/chat/badges/33.png']]);
+  assert.deepEqual(m.user.badges.map((b) => [b.type, b.img]), [['moderator', '/assets/kick-badges/moderator.svg'], ['subscriber', 'https://files.kick.com/sub6.png'], ['other', 'https://ext.cdn.kick.com/chat/badges/33.png']]);
+  const img = (badges, subs = []) => kick.kickBadges({ badges }, subs).map((b) => b.img);
+  assert.deepEqual(img([{ type: 'subscriber', count: 3 }]), ['/assets/kick-badges/subscriber.svg'], 'no channel sub badges: Kick\'s default');
+  assert.deepEqual(img([{ type: 'subscriber' }], info.subBadges), ['https://files.kick.com/sub1.png']);
+  assert.deepEqual(img([{ type: 'sub_gifter', count: 1 }, { type: 'sub_gifter', count: 24 }, { type: 'sub_gifter', count: 120 }, { type: 'sub_gifter', count: 999 }, { type: 'sub_gifter', count: 9000 }]),
+    [1, 10, 100, 950, 5000].map((n) => `/assets/kick-badges/sub_gifter-${n}.svg`), 'gifter: the tier up to the count');
+  assert.deepEqual(img([{ type: 'og' }, { type: 'founder' }, { type: 'verified' }, { type: 'staff' }, { type: 'brand_new_badge' }]),
+    ['/assets/kick-badges/og.svg', '/assets/kick-badges/founder.svg', '/assets/kick-badges/verified.svg', '/assets/kick-badges/staff.svg', null], 'unknown type: text tag');
+  const tiers = new Set(img(Array.from({ length: 6000 }, (_, i) => ({ type: 'sub_gifter', count: i + 1 }))));
+  assert.equal(tiers.size, 28);
+  for (const f of tiers) assert.ok(fs.existsSync(path.join(__dirname, '..', f)), f);
 
   kick.handle('App\\Events\\MessageDeletedEvent', { id: 'x', message: { id: 'k-1' } }, 'xqc', info, cb);
   kick.handle('App\\Events\\UserBannedEvent', { user: { id: 56477090, username: 'Ali' } }, 'xqc', info, cb);
@@ -136,7 +146,9 @@ test('test messages: random viewers with real badge images and the Kick channel\
   for (const n of ['broadcaster', 'moderator', 'vip', 'subscriber', 'og', 'founder', 'sub_gifter']) assert.ok(names('kick').has(n), `kick ${n}`);
   const all = msgs.flatMap((m) => m.user.badges.map((b) => ({ ...b, platform: m.platform })));
   assert.ok(all.filter((b) => b.platform === 'twitch').every((b) => b.img.startsWith('https://static-cdn.jtvnw.net/badges/v1/')), 'Twitch: Twitch\'s images');
-  assert.ok(all.filter((b) => b.platform === 'kick' && ['og', 'founder', 'sub_gifter', 'moderator'].includes(b.name)).every((b) => b.img === null), 'Kick roles: text tags');
+  const kickIcons = new Set(all.filter((b) => b.platform === 'kick' && b.img?.startsWith('/assets/')).map((b) => b.img));
+  assert.ok(all.filter((b) => b.platform === 'kick' && b.name !== 'subscriber' && b.name !== 'level').every((b) => b.img?.startsWith('/assets/kick-badges/')), 'Kick: Kick\'s icons');
+  for (const icon of kickIcons) assert.equal((await fetch(base + icon)).status, 200, icon);
   const kickSubs = all.filter((b) => b.platform === 'kick' && b.name === 'subscriber');
   assert.ok(kickSubs.every((b) => b.img === SUB1 || b.img === SUB6) && kickSubs.some((b) => b.img === SUB1) && kickSubs.some((b) => b.img === SUB6), 'Kick subs: the channel\'s badge for their months');
   assert.ok(msgs.filter((m) => m.user.badges.length).length > msgs.length * 0.6, 'most viewers have badges');
