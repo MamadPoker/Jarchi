@@ -38,7 +38,6 @@ function applyStrings(s) {
 }
 function applySettings(s) {
   settings = s;
-  document.body.dataset.theme = s.theme;
 }
 
 if (params.has('preview')) {
@@ -83,13 +82,14 @@ function stopAll() {
 async function show(ev, muted = false, hold = false) {
   const my = gen;
   const cfg = settings.alerts[ev.type];
+  const theme = cfg.theme || settings.theme; // an alert can override the main theme
   const tier = tierOf(ev);
   const grows = ev.type in STEPS;
   const v = { user: ev.user, amount: ev.amount.toLocaleString(), months: ev.months, platform: S.platforms[ev.platform] };
 
   const media = mediaEl(cfg, fill(S.emblems[ev.type], v));
   const video = media.querySelector('video');
-  media.append(particles(tier));
+  media.append(particles(tier, theme));
   for (let i = 0; i < RINGS[tier]; i++) media.append(h('b', { className: 'ring', style: `--delay:${0.1 + i * 0.22}s` }));
   if (tier >= 2) media.append(h('b', { className: 'glow' }));
 
@@ -98,8 +98,11 @@ async function show(ev, muted = false, hold = false) {
   if (ev.message) box.append(h('div', { className: 'msg', textContent: ev.message }));
   if (tier === 4) box.append(h('b', { className: 'sweep' }));
 
-  const el = h('div', { className: `alert tier-${tier} type-${ev.type} plat-${ev.platform} pos-${cfg.textPos} frame-${cfg.frame}${cfg.textColor ? ' tc' : ''}` },
+  const el = h('div', { className: `alert tier-${tier} type-${ev.type} plat-${ev.platform} pos-${cfg.textPos} align-${cfg.textAlign} frame-${cfg.frame}${cfg.textColor ? ' tc' : ''}` },
     h('div', { className: 'inner' }, media, box));
+  // The theme CSS keys off [data-theme] on an ancestor, so each alert gets its own (layout-neutral) theme wrapper.
+  const scope = h('div', { className: 'theme-scope' }, el);
+  scope.dataset.theme = theme;
   el.style.setProperty('--s', SCALE[tier]);
   el.style.setProperty('--fs', `${cfg.fontSize * (grows ? 1 + (tier - 1) * 0.1 : 1)}px`);
   if (cfg.textColor) el.style.setProperty('--tc', cfg.textColor);
@@ -109,8 +112,8 @@ async function show(ev, muted = false, hold = false) {
     el.style.setProperty('--frad', `${cfg.frameRadius}px`);
   }
 
-  stage.append(el);
-  const sound = muted ? null : playSound(cfg, ev.type, tier, !!video);
+  stage.append(scope);
+  const sound = muted ? null : playSound(cfg, ev.type, tier, !!video, theme);
   if (video) {
     video.muted = muted || cfg.videoSound === 'off';
     video.volume = cfg.volume;
@@ -128,7 +131,7 @@ async function show(ev, muted = false, hold = false) {
   await sleep(600);
   sound?.pause();
   sounds.delete(sound);
-  el.remove();
+  scope.remove();
   await sleep(300);
 }
 
@@ -157,7 +160,7 @@ function text(tpl, v) {
   return el;
 }
 
-function playSound(cfg, type, tier, hasVideo) {
+function playSound(cfg, type, tier, hasVideo, theme) {
   if (cfg.soundMode === 'none' || (hasVideo && cfg.videoSound === 'video')) return null;
   let s;
   if (cfg.soundMode === 'custom' && cfg.sound) {
@@ -165,17 +168,17 @@ function playSound(cfg, type, tier, hasVideo) {
     s.volume = cfg.volume;
     s.play().catch(() => {});
   } else {
-    s = JarchiSounds.play(settings.theme, type, tier, cfg.volume);
+    s = JarchiSounds.play(theme, type, tier, cfg.volume);
   }
   sounds.add(s);
   return s;
 }
 
 // Particles start/end positions (px, relative to the media center); each theme styles their look.
-function particles(tier) {
+function particles(tier, theme) {
   const fx = h('div', { className: 'fx' });
-  const motion = MOTION[settings.theme] ?? 'burst';
-  const count = PARTICLES[tier] * (settings.theme === 'minimal' ? 0.4 : 1);
+  const motion = MOTION[theme] ?? 'burst';
+  const count = PARTICLES[tier] * (theme === 'minimal' ? 0.4 : 1);
   const r = (a, b) => a + Math.random() * (b - a);
   for (let i = 0; i < count; i++) {
     let sx = 0, sy = 0, ex, ey;

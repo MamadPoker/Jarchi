@@ -59,7 +59,15 @@ test('migration, settings, uploads, reset, events', async (t) => {
   assert.deepEqual([s.alerts.follow.volume, s.alerts.follow.frame, s.alerts.follow.frameBg, s.alerts.follow.textPos], [0.3, 'custom', '#112233', 'over']);
   assert.equal((await (await patch({ textColor: null })).json()).alerts.follow.textColor, null);
 
-  for (const bad of [{ volume: 5 }, { minAmount: 5 }, { frameBg: 'red' }, { soundMode: 'loud' }, { textPos: 'left' }, { fontSize: 500 }]) {
+  // Per-alert theme (null = main theme) and text alignment (default center, also for old files without it).
+  assert.equal(s.alerts.follow.theme, null);
+  assert.equal(s.alerts.sub.textAlign, 'center', 'migrated v1 alert gets the center default');
+  s = await (await patch({ theme: 'fire', textAlign: 'left' })).json();
+  assert.deepEqual([s.alerts.follow.theme, s.alerts.follow.textAlign, s.theme], ['fire', 'left', 'galaxy']);
+  assert.equal((await (await patch({ theme: null })).json()).alerts.follow.theme, null);
+  await patch({ theme: 'ice' });
+
+  for (const bad of [{ volume: 5 }, { minAmount: 5 }, { frameBg: 'red' }, { soundMode: 'loud' }, { textPos: 'left' }, { fontSize: 500 }, { theme: 'casino' }, { textAlign: 'justify' }]) {
     assert.equal((await patch(bad)).status, 400, JSON.stringify(bad));
   }
   assert.equal((await call('PATCH', '/api/settings', { theme: 'casino' })).status, 400);
@@ -89,6 +97,8 @@ test('migration, settings, uploads, reset, events', async (t) => {
   assert.equal(s.alerts.follow.image, null);
   assert.equal(s.alerts.follow.volume, 0.7);
   assert.equal(s.alerts.follow.frame, 'theme');
+  assert.equal(s.alerts.follow.theme, null, 'reset goes back to the main theme');
+  assert.equal(s.alerts.follow.textAlign, 'center');
   assert.equal(s.theme, 'galaxy', 'per-type reset keeps the theme');
   assert.ok(!fs.existsSync(path.join(dataDir, 'uploads', file)));
 

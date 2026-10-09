@@ -52,6 +52,13 @@
           </div>
         </div>
 
+        <div class="box theme-pick">
+          <h2 data-i18n="alertTheme"></h2>
+          <span class="swatch" id="alertThemeSwatch"></span>
+          <select id="alertTheme" aria-label="Theme"></select>
+          <small data-i18n="alertThemeHint"></small>
+        </div>
+
         <div class="basics">
           <div class="box">
             <h2 data-i18n="mediaTitle"></h2>
@@ -113,12 +120,22 @@
                 <label class="field"><span><span data-i18n="frameOpacity"></span> <b data-out="frameOpacity"></b></span><input type="range" data-f="frameOpacity" min="0" max="1" step="0.05"></label>
                 <label class="field"><span><span data-i18n="frameRadius"></span> <b data-out="frameRadius"></b></span><input type="range" data-f="frameRadius" min="0" max="60" step="1"></label>
               </div>
-              <div class="field">
-                <span data-i18n="textPos"></span>
-                <div class="seg">
-                  <label><input type="radio" name="textPos" data-f="textPos" value="above"><span data-i18n="posAbove"></span></label>
-                  <label><input type="radio" name="textPos" data-f="textPos" value="below"><span data-i18n="posBelow"></span></label>
-                  <label><input type="radio" name="textPos" data-f="textPos" value="over"><span data-i18n="posOver"></span></label>
+              <div class="row align-start">
+                <div class="field">
+                  <span data-i18n="textPos"></span>
+                  <div class="seg">
+                    <label><input type="radio" name="textPos" data-f="textPos" value="above"><span data-i18n="posAbove"></span></label>
+                    <label><input type="radio" name="textPos" data-f="textPos" value="below"><span data-i18n="posBelow"></span></label>
+                    <label><input type="radio" name="textPos" data-f="textPos" value="over"><span data-i18n="posOver"></span></label>
+                  </div>
+                </div>
+                <div class="field">
+                  <span data-i18n="textAlign"></span>
+                  <div class="seg">
+                    <label><input type="radio" name="textAlign" data-f="textAlign" value="left"><span data-i18n="alignLeft"></span></label>
+                    <label><input type="radio" name="textAlign" data-f="textAlign" value="center"><span data-i18n="alignCenter"></span></label>
+                    <label><input type="radio" name="textAlign" data-f="textAlign" value="right"><span data-i18n="alignRight"></span></label>
+                  </div>
                 </div>
               </div>
               <div class="cols">

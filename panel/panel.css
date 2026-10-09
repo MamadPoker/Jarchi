@@ -238,6 +238,15 @@ main { padding: 24px 28px 64px; }
 }
 .pill-ctrl input[type="number"] { width: 80px; padding: 3px 8px; }
 
+/* Per-alert theme picker: one slim row above the three basic boxes. */
+.theme-pick { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 12px 16px; }
+.theme-pick h2 { margin-right: 4px; }
+.theme-pick .swatch { width: 20px; height: 20px; }
+.theme-pick select { min-width: 220px; }
+.theme-pick small { margin-left: auto; }
+.swatch.mini { width: 11px; height: 11px; border-radius: 3px; }
+.row.align-start { align-items: flex-start; gap: 16px; }
+
 .basics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
 
 .more { border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }

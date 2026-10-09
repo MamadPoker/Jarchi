@@ -35,7 +35,9 @@ const DEFAULTS = Object.fromEntries(TYPES.map((t) => [t, {
   frameBorder: '#8b5cf6',
   frameRadius: 16,
   textPos: 'below',
+  textAlign: 'center',
   textColor: null, // null = the theme's color
+  theme: null, // null = the main theme
   ...PER_TYPE[t],
 }]));
 
@@ -56,6 +58,8 @@ const RULES = {
   frameBorder: hex,
   frameRadius: num(0, 60),
   textPos: oneOf('above', 'below', 'over'),
+  textAlign: oneOf('left', 'center', 'right'),
+  theme: (v) => v === null || THEMES.includes(v),
   fontSize: num(12, 120),
   textColor: (v) => v === null || hex(v),
 };

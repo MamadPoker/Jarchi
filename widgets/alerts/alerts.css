@@ -36,6 +36,16 @@ body { font-family: "Segoe UI", system-ui, sans-serif; }
 .pos-over .inner { display: grid; place-items: center; }
 .pos-over .inner > * { grid-area: 1 / 1; }
 .tier-3 .inner, .tier-4 .inner { animation: shake 0.7s 0.35s both; }
+.theme-scope { display: contents; } /* per-alert [data-theme] wrapper; adds no box of its own */
+
+/* Text alignment. Center (default) centers the text in its box and the box under/over the media;
+   Left/Right align the text and line the media and box up on that side. */
+.align-left .inner { text-align: left; }
+.align-right .inner { text-align: right; }
+.align-left:not(.pos-over) .inner { align-items: flex-start; }
+.align-right:not(.pos-over) .inner { align-items: flex-end; }
+.align-left.pos-over .inner { justify-items: start; }
+.align-right.pos-over .inner { justify-items: end; }
 
 .media { position: relative; display: grid; place-items: center; animation: var(--idle); }
 .media img, .media video { display: block; max-width: 600px; max-height: 460px; }
@@ -236,6 +246,7 @@ body { font-family: "Segoe UI", system-ui, sans-serif; }
 }
 [data-theme="minimal"] .alert.out { animation: min-out 0.45s ease-in both; }
 [data-theme="minimal"] .box {
+  padding-left: 40px; /* balances the 6px left bar so the text sits in the true center */
   color: #111;
   background: rgba(255, 255, 255, 0.97);
   border-left: 6px solid #111;
@@ -740,6 +751,7 @@ body { font-family: "Segoe UI", system-ui, sans-serif; }
 }
 .alert.frame-off .box::before, .alert.frame-off .box::after, .alert.frame-off .sweep { display: none; }
 .alert.frame-custom .box {
+  padding: 20px 46px; /* even padding: themes with one-sided borders adjust theirs */
   background: var(--fbg);
   border: 3px solid var(--fbd);
   border-radius: var(--frad);

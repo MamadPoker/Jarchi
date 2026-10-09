@@ -29,7 +29,7 @@ Jarchi must be running before OBS loads the source. If you started OBS first, ri
 
 - **Top bar**: **Copy OBS link**.
 - **Left column**: **Theme** at the top (opens a page with a live card per theme; click one to use it), then the alerts, each with an on/off switch; **Settings** at the bottom (badge switch, test platform, reset everything).
-- **Right side**: the selected alert: live preview with Play, then image/GIF/video, sound and text; **More options** opens frame, colors, font size, text position, duration, volume, minimum amount and video sound.
+- **Right side**: the selected alert: live preview with Play, its own theme (or the main one), then image/GIF/video, sound and text; **More options** opens frame, colors, font size, text position, text alignment (left/center/right), duration, volume, minimum amount and video sound.
 
 ## Alerts
 

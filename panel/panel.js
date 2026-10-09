@@ -85,7 +85,7 @@ function preview() {
 
 // Theme cards: the sub alert in that theme with its own look and sound; it stays on the card (hold) until the next play.
 function playTile(frame, muted = true) {
-  const sub = { ...settings.alerts.sub, image: null, soundMode: 'theme', frame: 'theme', textColor: null, textPos: 'below' };
+  const sub = { ...settings.alerts.sub, theme: null, image: null, soundMode: 'theme', frame: 'theme', textColor: null, textPos: 'below', textAlign: 'center' };
   post(frame, { theme: frame.dataset.theme, alerts: { sub } }, sample('sub'), muted, true);
 }
 
@@ -117,7 +117,8 @@ function build() {
     for (const it of g.items) {
       const row = el('li', { className: `nav-row row-${it.view}` });
       Object.assign(row.dataset, { view: it.view, key: it.key });
-      const content = it.content ? it.content() : [el('span', { className: 'dot' }), el('span', { textContent: it.label })];
+      // Default row: dot, label, and a swatch that render() shows when an alert has its own theme.
+      const content = it.content ? it.content() : [el('span', { className: 'dot' }), el('span', { textContent: it.label }), el('span', { className: 'swatch mini', hidden: true })];
       row.append(el('button', { className: 'nav-btn', onclick: () => select(it.view, it.key) }, ...content));
       if (it.toggle) {
         const sw = el('input', { type: 'checkbox', onchange: () => patchAlert(it.key, { enabled: sw.checked }) });
@@ -162,6 +163,9 @@ function build() {
   }));
   $$('input[type=range]', editor).forEach((inp) => inp.addEventListener('input', () => showRange(inp)));
   $$('[name=textColorMode]').forEach((r) => (r.onchange = () => patchAlert(cur, { textColor: r.value === 'custom' ? $('[data-f=textColor]').value : null })));
+  // Per-alert theme: "" = same as the main theme.
+  $('#alertTheme').append(new Option('', ''), ...Object.entries(S.themes).map(([id, name]) => new Option(name, id)));
+  $('#alertTheme').onchange = (e) => patchAlert(cur, { theme: e.target.value || null });
   $$('.file', editor).forEach((row) => {
     const kind = row.dataset.kind;
     const input = $('input', row);
@@ -215,8 +219,13 @@ function render() {
     const { view: v, key } = row.dataset;
     row.classList.toggle('active', v === view && (v !== 'alert' || key === cur));
     if (v !== 'alert') return;
-    row.classList.toggle('off', !settings.alerts[key].enabled);
-    $('input', row).checked = settings.alerts[key].enabled;
+    const a = settings.alerts[key];
+    row.classList.toggle('off', !a.enabled);
+    $('input', row).checked = a.enabled;
+    const own = $('.swatch.mini', row);
+    own.hidden = !a.theme;
+    own.className = `swatch mini sw-${a.theme}`;
+    own.title = a.theme ? S.themes[a.theme] : '';
   });
 
   $('.theme-now .swatch').className = `swatch sw-${settings.theme}`;
@@ -244,6 +253,9 @@ function render() {
     if (inp.type === 'range') showRange(inp);
   });
   $$('[name=textColorMode]').forEach((r) => (r.checked = (r.value === 'custom') === (cfg.textColor !== null)));
+  $('#alertTheme').options[0].textContent = S.panel.sameAsMain.replace('{theme}', S.themes[settings.theme]);
+  $('#alertTheme').value = cfg.theme ?? '';
+  $('#alertThemeSwatch').className = `swatch sw-${cfg.theme ?? settings.theme}`;
 
   const show = {
     off: !cfg.enabled,
