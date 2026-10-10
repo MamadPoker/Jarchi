@@ -61,6 +61,8 @@ app.get('/api/alerts/queue', (req, res) => res.json(alertQueue.state()));
 app.post('/api/alerts/skip', (req, res) => res.json(alertQueue.skip()));
 app.post('/api/alerts/clear', (req, res) => res.json(alertQueue.clear()));
 app.post('/api/alerts/pause', (req, res) => res.json(alertQueue.pause(req.body?.paused === true)));
+app.delete('/api/alerts/queue/:id', (req, res) => res.json(alertQueue.remove(req.params.id)));
+app.post('/api/alerts/replay/:id', (req, res) => res.json(alertQueue.replay(req.params.id)));
 
 // Proxy: "Test connection" (Kick, Twitch, 7TV), and which proxy is in use right now.
 app.post('/api/net/test', async (req, res) => res.json(await chat.check()));

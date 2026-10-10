@@ -225,6 +225,7 @@ test('alert queue: one at a time to every overlay, survives refreshes and OBS cl
 
   fire('A'); fire('B', 'sub'); fire('C');
   assert.deepEqual([plays, queue.state().waiting], [[], 3], 'no overlay open: they wait');
+  assert.deepEqual(queue.state().list.map((a) => [a.user, a.type]), [['A', 'follow'], ['B', 'sub'], ['C', 'follow']], 'the waiting list, in order');
   overlay('obs')();
   assert.deepEqual(plays, ['A']);
   tick(5.1);
@@ -232,6 +233,8 @@ test('alert queue: one at a time to every overlay, survives refreshes and OBS cl
   tick(2);
   overlay('second')(); // a second overlay opens in the middle of B: it gets B with the time left, flagged late (no sound)
   assert.deepEqual(late, [['second', 'B', true, 4]]);
+  const { user, ms, left } = queue.state().now;
+  assert.deepEqual([user, ms, left], ['B', 6000, 4000], 'now playing, with its length and time left (progress bar)');
   queue.leave(); overlay('obs')(); // OBS refreshes one overlay: same thing, B isn't replayed
   tick(4.6 + 0.5);
   assert.deepEqual(plays, ['A', 'B', 'C'], 'same order, each once');
@@ -239,6 +242,7 @@ test('alert queue: one at a time to every overlay, survives refreshes and OBS cl
   assert.equal(skips.length, 1);
   tick(1.1);
   assert.deepEqual([queue.state().now, queue.state().waiting], [null, 0]);
+  assert.deepEqual(queue.state().history.map((a) => a.user), ['C', 'B', 'A'], 'last played, newest first; a skipped one counts');
 
   // OBS closes while D plays: D comes back when OBS is back.
   fire('D');
@@ -252,7 +256,7 @@ test('alert queue: one at a time to every overlay, survives refreshes and OBS cl
   assert.deepEqual(plays.slice(-2), ['D', 'D'], 'D plays again once OBS is back');
   tick(5.1);
 
-  // Pause holds new alerts; resume plays them. Clear empties the waiting list.
+  // Pause holds new alerts; resume plays them. × removes one waiting alert, Clear all of them.
   queue.pause(true);
   fire('E');
   tick(10);
@@ -260,12 +264,24 @@ test('alert queue: one at a time to every overlay, survives refreshes and OBS cl
   queue.pause(false);
   assert.equal(plays.at(-1), 'E');
   queue.pause(true);
-  fire('F'); fire('G');
-  assert.equal(queue.state().waiting, 2);
+  fire('F'); fire('G'); fire('H');
+  const g = queue.state().list.find((a) => a.user === 'G');
+  assert.deepEqual(queue.remove(g.id).list.map((a) => a.user), ['F', 'H']);
   queue.clear();
   assert.equal(queue.state().waiting, 0);
   queue.pause(false);
   tick(10);
+
+  // Replay one of the last played: it plays again, but it's not a new event (goals don't count it twice).
+  const busEvents = [];
+  const onEvent = (e) => busEvents.push(e);
+  bus.on('event', onEvent);
+  const a = queue.state().history.find((h) => h.user === 'A');
+  queue.replay(a.id);
+  bus.off('event', onEvent);
+  assert.deepEqual([plays.at(-1), busEvents.length], ['A', 0]);
+  assert.ok(queue.state().history.length <= 10);
+  tick(5.1);
 
   // Real (not test) events follow the alert's on/off and minimum amount; the gap setting is used.
   const settings = require('../core/settings');

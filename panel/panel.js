@@ -244,20 +244,93 @@ function select(v, key) {
   }
 }
 
-// ---------- Alert queue (top bar) ----------
+// ---------- Alert queue (right column) ----------
+// One line icon per alert type, in the type's own color (the --dot colors).
+const TYPE_ICON = {
+  follow: 'M15 19v-1a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v1M8.5 10a3 3 0 1 0 0-6 3 3 0 0 0 0 6M19 8v6M22 11h-6',
+  sub: 'M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z',
+  resub: 'M20 12a8 8 0 1 1-2.3-5.7M20 4v5h-5',
+  gift_sub: 'M4 11h16v9H4zM3 7h18v4H3zM12 7v13M12 7c-1-3-5-3-5-1s3 1 5 1zM12 7c1-3 5-3 5-1s-3 1-5 1z',
+  kicks: 'M13 2L4 14h7l-1 8 9-12h-7z',
+  bits: 'M12 2l8 5v10l-8 5-8-5V7z',
+  raid: 'M17 19v-1a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v1M10 10a3 3 0 1 0 0-6 3 3 0 0 0 0 6M21 19v-1a4 4 0 0 0-3-3.9M16 4.1a3 3 0 0 1 0 5.8',
+};
+function typeIcon(type) {
+  const i = el('span', { className: 'q-icon', title: S.types[type] });
+  i.dataset.key = type;
+  i.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${TYPE_ICON[type]}"/></svg>`; // fixed paths, no user text
+  return i;
+}
+// "Rich · Gifted subs · 10": icon, name, type, and the amount (or a resub's months).
+function alertRow(a, action) {
+  const amount = a.type === 'resub' && a.months ? tpl(S.panel.qMonths, { n: a.months }) : a.amount ? a.amount.toLocaleString() : '';
+  return el('li', { className: 'q-item' }, typeIcon(a.type),
+    el('span', { className: 'q-who' }, el('b', { textContent: a.user, title: a.user }), el('small', { textContent: S.types[a.type] })),
+    el('span', { className: 'q-amt', textContent: amount }), action ?? '');
+}
+
 function renderQueue() {
   const q = queue, n = q.now;
-  const bar = $('.queue');
-  bar.dataset.state = q.paused ? 'paused' : n ? 'playing' : 'idle';
-  $('#qNow').textContent = n ? tpl(S.panel.qPlaying, { type: S.types[n.type], user: n.user }) + (n.amount ? ` · ${n.amount.toLocaleString()}` : '')
-    : q.paused ? S.panel.qPausedLabel : S.panel.qIdle;
-  $('#qWaiting').textContent = tpl(S.panel.qWaiting, { n: q.waiting });
-  $('#qNoObs').hidden = q.overlays > 0;
-  $('#qPause span').textContent = $('#qPause').title = q.paused ? S.panel.qResume : S.panel.qPause;
+  for (const c of $$('#qCount, #qStripCount, #qFabCount')) c.textContent = q.waiting;
+  $('#qPaused').hidden = !q.paused;
+  $('#queue').dataset.state = q.paused ? 'paused' : n ? 'playing' : 'idle';
+  $('#qNow').replaceChildren(n ? alertRow(n) : el('p', { className: 'q-empty', textContent: S.panel.qIdle }));
+  // Progress bar: from where the alert is now to the end, in the time it has left.
+  const bar = $('#qBar');
+  bar.style.transition = 'none';
+  bar.style.width = n ? `${(1 - n.left / n.ms) * 100}%` : '0';
+  if (n) {
+    bar.getBoundingClientRect(); // start the transition from that width
+    bar.style.transition = `width ${n.left}ms linear`;
+    bar.style.width = '100%';
+  }
+  $('#qPause span').textContent = q.paused ? S.panel.qResume : S.panel.qPause;
+  $('#qPause').title = q.paused ? S.panel.qResumeHint : S.panel.qPauseHint;
   $('#qSkip').disabled = !n;
   $('#qClear').disabled = !q.waiting;
+  $('#qList').replaceChildren(...q.list.map((a) => alertRow(a, el('button', {
+    className: 'x', textContent: '×', title: S.panel.qRemove, ariaLabel: S.panel.qRemove, onclick: () => queueCall('DELETE', `queue/${encodeURIComponent(a.id)}`),
+  }))));
+  $('#qEmpty').hidden = q.list.length > 0;
+  $('#qHistory').replaceChildren(...q.history.map((a) => alertRow(a, el('button', {
+    className: 'replay', textContent: S.panel.qReplay, onclick: () => queueCall('POST', `replay/${encodeURIComponent(a.id)}`).then((r) => r && toast(S.panel.qReplayed)),
+  }))));
+  $('#qNoHistory').hidden = q.history.length > 0;
+  $('#qNoObs').hidden = q.overlays > 0;
 }
-const queueCall = (what, body) => api('POST', `/api/alerts/${what}`, body).then((q) => { queue = q; renderQueue(); return q; }, (err) => toast(err.message, true));
+const queueCall = (method, what, body) => api(method, `/api/alerts/${what}`, body).then((q) => { queue = q; renderQueue(); return q; }, (err) => toast(err.message, true));
+
+// Collapsed to a strip (remembered in this browser), or, on narrow windows, a drawer.
+const remember = {
+  get: (k) => { try { return localStorage.getItem(k); } catch { return null; } },
+  set: (k, v) => { try { localStorage.setItem(k, v); } catch {} },
+};
+const narrow = matchMedia('(max-width: 1180px)');
+function setCollapsed(on) {
+  document.body.classList.toggle('q-collapsed', on);
+  remember.set('jarchi.queueCollapsed', on ? '1' : '');
+}
+function setDrawer(open) {
+  document.body.classList.toggle('q-open', open);
+  $('#qBackdrop').hidden = !open;
+}
+
+// Two clicks instead of confirm(): no blocking dialog. The first click arms the button for 3 seconds.
+function twoClick(btn, label, idle, confirm, action) {
+  let armed;
+  const disarm = () => {
+    clearTimeout(armed);
+    armed = null;
+    label.textContent = idle;
+    btn.classList.remove('armed');
+  };
+  btn.onclick = () => {
+    if (armed) return disarm(), action();
+    armed = setTimeout(disarm, 3000);
+    btn.classList.add('armed');
+    label.textContent = confirm;
+  };
+}
 
 // ---------- Media by amount: one card per tier, rebuilt only when the tiers change ----------
 let tiersDrawn = '';
@@ -440,11 +513,16 @@ function build() {
     queue = q;
     renderQueue();
   });
-  $('#qSkip').title = S.panel.qSkip;
-  $('#qClear').title = S.panel.qClear;
-  $('#qPause').onclick = () => queueCall('pause', { paused: !queue.paused });
-  $('#qSkip').onclick = () => queueCall('skip');
-  $('#qClear').onclick = () => queueCall('clear').then((q) => q && toast(S.panel.qCleared));
+  $('#qPause').onclick = () => queueCall('POST', 'pause', { paused: !queue.paused });
+  $('#qSkip').onclick = () => queueCall('POST', 'skip');
+  twoClick($('#qClear'), $('#qClear span'), S.panel.qClear, S.panel.qConfirmClear, () => queueCall('POST', 'clear').then((q) => q && toast(S.panel.qCleared)));
+  setCollapsed(remember.get('jarchi.queueCollapsed') === '1');
+  $('#qExpand').onclick = () => setCollapsed(false);
+  $('#qCollapse').onclick = () => (narrow.matches ? setDrawer(false) : setCollapsed(true));
+  $('#queueFab').onclick = () => setDrawer(true);
+  $('#qBackdrop').onclick = () => setDrawer(false);
+  addEventListener('keydown', (e) => { if (e.key === 'Escape') setDrawer(false); });
+  narrow.addEventListener('change', () => setDrawer(false));
   $('#addTier').onclick = () => send('POST', `/api/tiers/${cur}`);
 
   // Chat editor
@@ -509,23 +587,10 @@ function build() {
     }
     btn.disabled = false;
   };
-  // Two-click confirm instead of confirm(): no blocking dialog.
-  const resetAll = $('#resetAll');
-  let armed;
-  const disarm = () => {
-    clearTimeout(armed);
-    armed = null;
-    resetAll.textContent = S.panel.resetAll;
-    resetAll.classList.remove('armed');
-  };
-  resetAll.onclick = () => {
-    if (armed) return disarm(), send('POST', '/api/reset');
-    armed = setTimeout(disarm, 3000);
-    resetAll.classList.add('armed');
-    resetAll.textContent = S.panel.confirmResetAll;
-  };
+  twoClick($('#resetAll'), $('#resetAll'), S.panel.resetAll, S.panel.confirmResetAll, () => send('POST', '/api/reset'));
 
   $$('[data-i18n]').forEach((e) => (e.textContent = S.panel[e.dataset.i18n]));
+  $$('[data-title]').forEach((e) => e.setAttribute('aria-label', (e.title = S.panel[e.dataset.title])));
 }
 
 // Range sliders: filled track + value label (labels are per editor: both editors have e.g. "volume").

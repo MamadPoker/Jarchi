@@ -140,18 +140,6 @@ input[type="color"]::-webkit-color-swatch { border: 0; border-radius: 7px; }
   background: linear-gradient(135deg, var(--accent), var(--accent-2));
 }
 
-/* Alert queue in the top bar: state dot + what's playing, waiting count, controls. */
-.queue { display: flex; align-items: center; gap: 8px; min-width: 0; }
-.queue button { padding: 6px 10px; font-size: 13px; }
-.queue button:disabled { opacity: 0.4; cursor: default; }
-.q-state { display: flex; align-items: center; gap: 8px; min-width: 0; max-width: 360px; font-size: 13px; font-weight: 600; white-space: nowrap; }
-#qNow { overflow: hidden; text-overflow: ellipsis; }
-.q-dot { width: 8px; height: 8px; flex: none; border-radius: 50%; background: var(--muted); }
-.queue[data-state="playing"] .q-dot { background: #22c55e; box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.2); }
-.queue[data-state="paused"] .q-dot { background: #f59e0b; }
-.queue[data-state="paused"] .i-pause, .queue:not([data-state="paused"]) .i-play { display: none; }
-.pill.warn { border-color: rgba(245, 158, 11, 0.45); color: #fbbf24; white-space: nowrap; }
-
 /* Theme swatches: a hint of each theme's colors. */
 .swatch { width: 16px; height: 16px; flex: none; border-radius: 5px; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18); }
 .sw-neon { background: linear-gradient(135deg, #00f0ff, #ff2bd6); }
@@ -164,8 +152,9 @@ input[type="color"]::-webkit-color-swatch { border: 0; border-radius: 7px; }
 .sw-galaxy { background: radial-gradient(circle at 35% 30%, #ffd1f5, #b18cff 40%, #2a1660); }
 .sw-comic { background: radial-gradient(circle, #ff2e2e 32%, #ffe600 34%); }
 
-/* ---------- Two columns: list + editor ---------- */
-.layout { display: grid; grid-template-columns: 300px minmax(0, 1fr); min-height: calc(100vh - 60px); }
+/* ---------- Three columns: list + editor + alert queue (a 44px strip when collapsed) ---------- */
+.layout { display: grid; grid-template-columns: 300px minmax(0, 1fr) 280px; min-height: calc(100vh - 60px); }
+.q-collapsed .layout { grid-template-columns: 300px minmax(0, 1fr) 44px; }
 .side {
   position: sticky;
   top: 60px;
@@ -198,7 +187,7 @@ input[type="color"]::-webkit-color-swatch { border: 0; border-radius: 7px; }
 [data-key="bits"] { --dot: #a970ff; }
 [data-key="raid"] { --dot: #f59e0b; }
 
-main { padding: 24px 28px 64px; }
+main { padding: 24px 28px 64px; container-type: inline-size; } /* editor rules below follow its own width, not the window's */
 .view { display: grid; gap: 18px; max-width: 1100px; margin: 0 auto; }
 .view.narrow { max-width: 720px; }
 .title { display: flex; align-items: center; gap: 10px; font-size: 22px; }
@@ -262,6 +251,7 @@ main { padding: 24px 28px 64px; }
 .row.align-start { align-items: flex-start; gap: 16px; }
 
 .basics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.basics .seg span { padding-inline: 7px; } /* "Theme default / My sound / No sound" stays on one line next to the queue column */
 
 .more { border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
 .more summary { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; font-weight: 700; cursor: pointer; list-style: none; }
@@ -378,11 +368,110 @@ input.num { width: 110px; }
 .net-results .bad::before { content: "!"; color: var(--danger); }
 .net-results .bad { color: #fecdd3; }
 
-/* ---------- Narrower screens ---------- */
-@media (max-width: 1360px) {
-  .queue button span { display: none; } /* icons only; the title says what they do */
+/* ---------- Alert queue column (right) ---------- */
+.queue-col {
+  position: sticky;
+  top: 60px;
+  height: calc(100vh - 60px);
+  border-left: 1px solid var(--line);
+  background: var(--surface);
 }
-@media (max-width: 1200px) {
+.q-panel { display: flex; flex-direction: column; height: 100%; }
+.q-strip { display: none; }
+.q-collapsed .q-panel { display: none; }
+.q-collapsed .q-strip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  height: 100%;
+  padding: 16px 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  color: var(--muted);
+}
+.q-strip:hover { background: var(--surface-2); color: var(--text); }
+.q-head { display: flex; align-items: center; gap: 8px; padding: 14px 12px 10px 16px; border-bottom: 1px solid var(--line); }
+.q-head h2 { margin-right: auto; }
+.icon-btn { padding: 6px; border-color: transparent; }
+.q-scroll { flex: 1; display: grid; align-content: start; gap: 16px; overflow-y: auto; padding: 14px 12px 18px; }
+.q-sec { display: grid; gap: 8px; }
+.q-sec h3 { display: flex; align-items: center; gap: 8px; }
+.q-count { min-width: 22px; padding: 1px 7px; border-radius: 99px; background: var(--surface-2); color: var(--text); font-size: 12px; font-weight: 700; text-align: center; }
+.q-strip .q-count { background: var(--accent); color: #fff; }
+
+/* Now playing: the alert, then a bar that fills up over the time it has left. */
+.q-now .q-item { padding: 10px; border: 1px solid var(--line); border-radius: 12px; background: var(--bg); }
+.queue-col[data-state="playing"] .q-now .q-item { border-color: rgba(139, 92, 246, 0.55); }
+.q-bar { height: 4px; overflow: hidden; border-radius: 99px; background: var(--line); }
+.q-bar i { display: block; width: 0; height: 100%; border-radius: inherit; background: var(--accent); }
+.queue-col:not([data-state="playing"]) .q-bar { visibility: hidden; }
+
+.q-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.q-buttons button { justify-content: center; padding: 7px 8px; font-size: 13px; }
+.q-buttons button:disabled { opacity: 0.4; cursor: default; }
+#qClear { grid-column: 1 / -1; }
+#qClear.armed { border-color: transparent; background: var(--danger); color: #fff; }
+.queue-col[data-state="paused"] .i-pause, .queue-col:not([data-state="paused"]) .i-play { display: none; }
+.queue-col[data-state="paused"] #qPause { border-color: rgba(245, 158, 11, 0.5); color: #fbbf24; }
+#qPaused { border-color: rgba(245, 158, 11, 0.45); color: #fbbf24; }
+
+/* One alert: type icon, name over type, amount, and a small action (× or Replay). */
+.q-list { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
+.q-item { display: flex; align-items: center; gap: 9px; min-width: 0; padding: 6px 6px 6px 4px; border-radius: 10px; }
+.q-list .q-item:hover { background: var(--surface-2); }
+.q-icon { display: grid; place-items: center; width: 28px; height: 28px; flex: none; border-radius: 8px; background: rgba(255, 255, 255, 0.06); color: var(--dot, var(--muted)); }
+.q-icon svg { width: 15px; height: 15px; }
+.q-who { display: grid; flex: 1; min-width: 0; line-height: 1.25; }
+.q-who b { overflow: hidden; font-size: 14px; white-space: nowrap; text-overflow: ellipsis; }
+.q-who small { font-size: 12px; }
+.q-amt { flex: none; color: var(--text); font-size: 13px; font-weight: 700; }
+.q-item .x { padding: 0 8px; border: 0; background: none; color: var(--muted); font-size: 17px; line-height: 1.5; }
+.q-item .x:hover { background: var(--line); color: var(--text); }
+.q-item .replay { padding: 3px 9px; font-size: 12px; }
+.q-empty { margin: 0; color: var(--muted); font-size: 13px; font-style: italic; }
+.q-notice { margin: 0; padding: 10px 14px; border-top: 1px solid rgba(245, 158, 11, 0.35); background: rgba(245, 158, 11, 0.08); color: #fbbf24; font-size: 13px; }
+
+/* Narrow windows: no column; a round button (with the waiting count) opens the queue as a drawer. */
+.queue-fab { display: none; }
+.q-backdrop { position: fixed; inset: 60px 0 0; z-index: 25; background: rgba(0, 0, 0, 0.5); }
+
+/* ---------- Narrower screens ---------- */
+@media (max-width: 1180px) { /* same width as `narrow` in panel.js */
+  .layout, .q-collapsed .layout { grid-template-columns: 300px minmax(0, 1fr); }
+  .queue-col {
+    position: fixed;
+    top: 60px;
+    right: 0;
+    bottom: 0;
+    z-index: 30;
+    width: min(320px, 90vw);
+    height: auto;
+    box-shadow: -12px 0 32px rgba(0, 0, 0, 0.45);
+    transform: translateX(105%);
+    transition: transform 0.2s ease;
+  }
+  .q-open .queue-col { transform: none; }
+  .q-collapsed .q-panel { display: flex; } /* the strip is for wide windows only */
+  .q-collapsed .q-strip { display: none; }
+  .queue-fab {
+    position: fixed;
+    right: 18px;
+    bottom: 18px;
+    z-index: 20;
+    display: flex;
+    padding: 12px 14px;
+    border-radius: 99px;
+    background: var(--accent);
+    color: #fff;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+  }
+  .queue-fab:hover { background: #7c4df0; }
+  .queue-fab .q-count { background: #fff; color: #111; }
+}
+@container (max-width: 844px) { /* the editor as narrow as it was in a 1200px window before the queue column */
   .basics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .proxy-manual { grid-template-columns: 1fr 1fr; }
   .tier-files { grid-template-columns: 1fr; gap: 4px; }
@@ -396,7 +485,7 @@ input.num { width: 110px; }
   .basics, .cols { grid-template-columns: 1fr; }
   main { padding: 18px 16px 48px; }
   .topbar { padding: 0 16px; }
-  .brand span, #copy span, #qWaiting, .q-state { display: none; }
+  .brand span, #copy span { display: none; }
   .theme-grid { grid-template-columns: 1fr 1fr; }
   .stage-ctrl { position: static; justify-content: flex-end; }
   .fx-hint { position: static; max-width: none; }

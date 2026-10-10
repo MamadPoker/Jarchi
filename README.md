@@ -27,7 +27,8 @@ Jarchi must be running before OBS loads the source. If you started OBS first, ri
 
 ## The panel
 
-- **Top bar**: the alert queue (what's playing, how many wait, **Pause / Resume alerts**, **Skip current alert**, **Clear queue**, and a warning when no OBS alerts overlay is open), and **Copy OBS link**.
+- **Top bar**: **Copy OBS link**.
+- **Right column, on every page: Alert queue**. Now playing (with a bar for the time left), **Pause / Resume**, **Skip**, **Clear queue** (click twice), the waiting alerts in order (× removes one), the last 10 played (each with **Replay**), and a notice when no OBS alerts overlay is open. The arrow collapses it to a thin strip with the waiting count (remembered); on narrow windows it opens as a drawer from the round button at the bottom right.
 - **Left column**: **Theme** at the top (opens a page with a live card per theme; click one to use it), then the alerts, each with an on/off switch; **Settings** at the bottom (badge switch, test platform, gap between alerts, connection / proxy, reset everything).
 - **Right side**: the selected alert: live preview with Play, its own theme (or the main one), then image/GIF/video, sound and text, **Different media by amount** (Kicks, gifted subs, bits, raid); **More options** opens frame, colors, font size, text position, text alignment (left/center/right), duration, volume, minimum amount and video sound.
 
@@ -70,7 +71,7 @@ Alerts play one after another from Jarchi itself, not from the OBS page:
 - If OBS is closed, alerts wait; when OBS opens the overlay again they continue in order. An alert that was playing when OBS closed plays again.
 - If the overlay refreshes, it picks up the alert that's on now with the time it has left (no sound again), so nothing replays.
 - Several alerts overlays (e.g. two scenes) each play every alert once, in the same order, at the same time.
-- **Settings → Gap between alerts** (seconds). Top bar: **Pause / Resume**, **Skip current alert**, **Clear queue**.
+- **Settings → Gap between alerts** (seconds). The panel's right column shows the queue and has **Pause / Resume**, **Skip**, **Clear queue**, × per waiting alert and **Replay** for the last 10.
 
 ## Connection (proxy)
 

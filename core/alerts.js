@@ -2,18 +2,20 @@
 // - every overlay shows the same alert at the same time, in the same order, each alert once;
 // - a refreshed overlay gets the alert that's playing now with the time it has left, so nothing replays;
 // - while no overlay is open (OBS closed) alerts wait; an alert that ends with no overlay open goes back to the front.
-// The panel can skip the current alert, clear the waiting ones, and pause / resume.
+// The panel can skip the current alert, clear or remove waiting ones, pause / resume, and replay one of the last played.
 const { EventEmitter } = require('node:events');
+const { randomUUID } = require('node:crypto');
 const { bus } = require('./events');
 const settings = require('./settings');
 
 const STEPS = { gift_sub: [5, 20], kicks: [100, 1000], bits: [100, 1000] }; // as in widgets/alerts/alerts.js: bigger amounts play longer
 const OUT_MS = 600; // the overlay's exit animation
 const GRACE_MS = 3000; // the last overlay left less than this before the end: a refresh, the alert counts as seen
-const MAX_WAITING = 200;
+const MAX_WAITING = 200, HISTORY = 10;
 
 const alerts = new EventEmitter(); // 'play' ({ id, ev, seed, left }), 'skip' (id), 'state' (state())
 const queue = []; // { id, ev, seed } — seed: one random number, so every overlay picks the same file from a tier
+const history = []; // the last played, newest first: { id, ev }
 let playing = null; // { id, ev, seed, ms, started }
 let busy = false; // an alert is playing, or it's the gap after one
 let paused = false, overlays = 0, goneAt = 0, timer;
@@ -25,14 +27,23 @@ function onScreenMs(ev) {
   return (settings.get().alerts[ev.type].duration + (steps ? (tier - 1) * 1.5 : 0)) * 1000;
 }
 
+// What the panel shows: the alert on now (with its length and time left, for the progress bar), the waiting ones
+// in order, and the last played.
+const brief = ({ id, ev }) => ({ id, type: ev.type, user: ev.user, amount: ev.amount, months: ev.months, platform: ev.platform });
+const current = () => playing && { id: playing.id, ev: playing.ev, seed: playing.seed, left: playing.ms - (Date.now() - playing.started) };
 const state = () => ({
   paused,
   overlays,
   waiting: queue.length,
-  now: playing && { type: playing.ev.type, user: playing.ev.user, amount: playing.ev.amount, platform: playing.ev.platform },
+  list: queue.map(brief),
+  history: history.map(brief),
+  now: playing && { ...brief(playing), ms: playing.ms, left: Math.max(0, current().left) },
 });
 const changed = () => alerts.emit('state', state());
-const current = () => playing && { id: playing.id, ev: playing.ev, seed: playing.seed, left: playing.ms - (Date.now() - playing.started) };
+const played = ({ id, ev }) => {
+  history.unshift({ id, ev });
+  history.length = Math.min(history.length, HISTORY);
+};
 
 bus.on('event', (ev) => {
   const cfg = settings.get().alerts[ev.type];
@@ -56,6 +67,7 @@ function next() {
 function ended() {
   const { id, ev, seed } = playing;
   if (!overlays && Date.now() - goneAt > GRACE_MS) queue.unshift({ id, ev, seed }); // OBS was closed: play it again when it's back
+  else played(playing);
   playing = null;
   rest(0);
 }
@@ -83,6 +95,7 @@ function skip() {
   if (playing) {
     clearTimeout(timer);
     alerts.emit('skip', playing.id);
+    played(playing);
     playing = null;
     rest(OUT_MS); // let the exit animation finish
   }
@@ -93,10 +106,24 @@ function clear() {
   changed();
   return state();
 }
+// One waiting alert out of the queue.
+function remove(id) {
+  const i = queue.findIndex((it) => it.id === id);
+  if (i >= 0) queue.splice(i, 1);
+  changed();
+  return state();
+}
+// One of the last played, again, at the end of the queue. Not a new event: goals don't count it twice.
+function replay(id) {
+  const it = history.find((h) => h.id === id);
+  if (it) queue.push({ id: randomUUID(), ev: it.ev, seed: Math.random() });
+  next();
+  return state();
+}
 function pause(on) {
   paused = !!on;
   next();
   return state();
 }
 
-module.exports = { join, leave, skip, clear, pause, state, events: alerts };
+module.exports = { join, leave, skip, clear, remove, replay, pause, state, events: alerts };
