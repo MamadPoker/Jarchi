@@ -6,9 +6,19 @@ const TYPES = ['follow', 'sub', 'resub', 'gift_sub', 'kicks', 'bits', 'raid'];
 const PLATFORMS = ['kick', 'twitch', 'test'];
 
 const bus = new EventEmitter();
+const DEDUPE_MS = 6 * 60 * 60 * 1000; // about a stream: a viewer shares a resub once, a host with the same viewer count is the same host
+const seen = new Map(); // key -> when (oldest first)
 
+// e.key (optional): connectors give one to events that can reach them twice (the same Kick event on two of its
+// sockets, a reconnect). An event whose key was seen in the last 6 hours is dropped: returns null.
 function emitEvent(e) {
   if (!PLATFORMS.includes(e.platform) || !TYPES.includes(e.type)) throw new Error(`bad event: ${e.platform}/${e.type}`);
+  if (e.key) {
+    const now = Date.now();
+    for (const [k, t] of seen) { if (now - t < DEDUPE_MS && seen.size < 5000) break; seen.delete(k); }
+    if (seen.has(e.key)) return null;
+    seen.set(e.key, now);
+  }
   const ev = {
     id: randomUUID(),
     time: Date.now(),

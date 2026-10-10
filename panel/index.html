@@ -9,6 +9,25 @@
 <body>
   <header class="topbar">
     <div class="brand"><div class="logo" aria-hidden="true">J</div><span data-i18n="title"></span></div>
+    <!-- Alert queue (core/alerts.js): what's playing, how many wait, and its controls. -->
+    <div class="queue" aria-live="polite">
+      <span class="q-state"><span class="q-dot"></span><span id="qNow"></span></span>
+      <span id="qWaiting" class="pill"></span>
+      <span id="qNoObs" class="pill warn" data-i18n="qNoObs" hidden></span>
+      <button id="qPause" class="ghost">
+        <svg class="i-pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5v14M15 5v14"/></svg>
+        <svg class="i-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5l11 7-11 7z"/></svg>
+        <span></span>
+      </button>
+      <button id="qSkip" class="ghost">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5l10 7-10 7zM19 5v14"/></svg>
+        <span data-i18n="qSkip"></span>
+      </button>
+      <button id="qClear" class="ghost">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>
+        <span data-i18n="qClear"></span>
+      </button>
+    </div>
     <button id="copy" class="primary">
       <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h8"/></svg>
       <span data-i18n="copyObs"></span>
@@ -95,6 +114,22 @@
             <h2 data-i18n="textTitle"></h2>
             <input type="text" data-f="template" maxlength="200" aria-label="Text">
             <small data-i18n="templateHint"></small>
+          </div>
+        </div>
+
+        <!-- Media by amount (Kicks, gifted subs, bits, raid): tiers built in panel.js (renderTiers). -->
+        <div class="box" data-only="tiers">
+          <label class="row between toggle-row">
+            <span class="stack"><b data-i18n="tiersTitle"></b><small data-i18n="tiersHint"></small></span>
+            <span class="switch"><input type="checkbox" data-f="tiersOn"><span></span></span>
+          </label>
+          <div id="tiers" class="tiers" data-only="tiersOn"></div>
+          <div class="row" data-only="tiersOn">
+            <button id="addTier">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+              <span data-i18n="addTier"></span>
+            </button>
+            <small data-i18n="tiersRule"></small>
           </div>
         </div>
 
@@ -386,6 +421,40 @@
         <div class="box">
           <h2 data-i18n="testTitle"></h2>
           <label class="row between toggle-row"><span data-i18n="testAs"></span><select id="testAs"></select></label>
+        </div>
+        <div class="box">
+          <h2 data-i18n="queueTitle"></h2>
+          <label class="row between toggle-row"><span data-i18n="alertGap"></span><input type="number" id="alertGap" class="num" min="0" max="60" step="0.5"></label>
+          <small data-i18n="queueHint"></small>
+        </div>
+        <div class="box">
+          <h2 data-i18n="proxyTitle"></h2>
+          <small data-i18n="proxyHint"></small>
+          <div class="seg">
+            <label><input type="radio" name="proxyMode" value="off"><span data-i18n="proxyOff"></span></label>
+            <label><input type="radio" name="proxyMode" value="system"><span data-i18n="proxySystem"></span></label>
+            <label><input type="radio" name="proxyMode" value="manual"><span data-i18n="proxyManual"></span></label>
+          </div>
+          <small id="proxyNow" data-only="proxySystem"></small>
+          <div class="proxy-manual" data-only="proxyManual">
+            <div class="field">
+              <span data-i18n="proxyType"></span>
+              <div class="seg">
+                <label><input type="radio" name="proxyType" value="http"><span>HTTP</span></label>
+                <label><input type="radio" name="proxyType" value="socks5"><span>SOCKS5</span></label>
+              </div>
+            </div>
+            <label class="field"><span data-i18n="proxyHost"></span><input type="text" id="proxyHost" maxlength="253" placeholder="127.0.0.1"></label>
+            <label class="field"><span data-i18n="proxyPort"></span><input type="number" id="proxyPort" min="1" max="65535" step="1" placeholder="10808"></label>
+          </div>
+          <div class="row">
+            <button id="netTest">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5a10 10 0 0 1 14 0M8.5 16a5 5 0 0 1 7 0M12 19.5h.01M2 9a14 14 0 0 1 20 0"/></svg>
+              <span data-i18n="netTest"></span>
+            </button>
+            <small id="netUsing"></small>
+          </div>
+          <ul id="netResults" class="net-results"></ul>
         </div>
         <div class="box">
           <h2 data-i18n="obsTitle"></h2>

@@ -1,6 +1,7 @@
 // Settings = defaults + whatever the user changed. Only the changes are stored, so "reset" is just deleting them.
 const fs = require('node:fs');
 const path = require('node:path');
+const { randomUUID } = require('node:crypto');
 const { DATA_DIR, UPLOADS_DIR } = require('./config');
 const { TYPES } = require('./events');
 const store = require('./store');
@@ -10,18 +11,31 @@ const FILE = path.join(DATA_DIR, 'settings.json');
 const VERSION = 2;
 const THEMES = ['neon', 'minimal', 'fun', 'retro', 'glass', 'fire', 'ice', 'galaxy', 'comic'];
 // App-wide settings (not per alert). showBadge: platform badge on alerts; it still needs both Kick and Twitch connected.
-const GLOBAL = { theme: 'neon', showBadge: true };
-const GLOBAL_RULES = { theme: (v) => THEMES.includes(v), showBadge: (v) => typeof v === 'boolean' };
+// alertGap: seconds between two alerts. proxy*: how Jarchi reaches Kick, Twitch and 7TV (core/net.js).
+const GLOBAL = { theme: 'neon', showBadge: true, alertGap: 0.5, proxyMode: 'system', proxyType: 'http', proxyHost: '', proxyPort: 0 };
+const GLOBAL_RULES = {
+  theme: (v) => THEMES.includes(v),
+  showBadge: (v) => typeof v === 'boolean',
+  alertGap: (v) => typeof v === 'number' && v >= 0 && v <= 60,
+  proxyMode: (v) => ['off', 'system', 'manual'].includes(v),
+  proxyType: (v) => ['http', 'socks5'].includes(v),
+  proxyHost: (v) => typeof v === 'string' && /^[a-z0-9.:[\]_-]{0,253}$/i.test(v),
+  proxyPort: (v) => Number.isInteger(v) && v >= 0 && v <= 65535,
+};
 // Follow is small and quick, raid is the big one. minAmount only where an amount makes sense.
+// Media by amount (tiersOn + tiers) for the types with an amount: [{ min, images: [{ file, name }], sounds: [...] }], sorted by min.
+const TIERED = { tiersOn: false, tiers: [] };
 const PER_TYPE = {
   follow: { duration: 4, fontSize: 38 },
   sub: { duration: 6, fontSize: 46 },
   resub: { duration: 6, fontSize: 46 },
-  gift_sub: { duration: 6, fontSize: 46, minAmount: 0 },
-  kicks: { duration: 6, fontSize: 46, minAmount: 0 },
-  bits: { duration: 6, fontSize: 46, minAmount: 0 },
-  raid: { duration: 9, fontSize: 54 },
+  gift_sub: { duration: 6, fontSize: 46, minAmount: 0, ...TIERED },
+  kicks: { duration: 6, fontSize: 46, minAmount: 0, ...TIERED },
+  bits: { duration: 6, fontSize: 46, minAmount: 0, ...TIERED },
+  raid: { duration: 9, fontSize: 54, ...TIERED },
 };
+const TIER_TYPES = Object.keys(PER_TYPE).filter((t) => 'tiers' in PER_TYPE[t]);
+const MAX_TIERS = 10, MAX_TIER_FILES = 10;
 const DEFAULTS = Object.fromEntries(TYPES.map((t) => [t, {
   enabled: true,
   template: strings.templates[t],
@@ -51,6 +65,7 @@ const RULES = {
   duration: num(1, 60),
   volume: num(0, 1),
   minAmount: (v) => Number.isInteger(v) && v >= 0,
+  tiersOn: (v) => typeof v === 'boolean',
   videoSound: oneOf('off', 'video', 'both'),
   soundMode: oneOf('theme', 'custom', 'none'),
   frame: oneOf('theme', 'custom', 'off'),
@@ -290,15 +305,21 @@ function removeFile(entry) {
   if (entry?.file) fs.rmSync(path.join(UPLOADS_DIR, path.basename(entry.file)), { force: true });
 }
 
-// Keep an uploaded file on o[kind]. Uploading a sound also selects it (o[modeKey] = 'custom').
-function keepUpload(o, prefix, kind, buf, name, modeKey) {
+// Check an upload's real type and write it -> { file, name }.
+function writeUpload(prefix, kind, buf, name) {
   if (!Buffer.isBuffer(buf)) throw bad();
   const ext = sniff(buf);
   if (!ALLOWED[kind].includes(ext)) throw bad('bad_type');
-  removeFile(o[kind]);
   const file = `${prefix}-${Date.now()}.${ext}`;
   fs.writeFileSync(path.join(UPLOADS_DIR, file), buf);
-  o[kind] = { file, name: String(name || file).slice(0, 120) };
+  return { file, name: String(name || file).slice(0, 120) };
+}
+
+// Keep an uploaded file on o[kind]. Uploading a sound also selects it (o[modeKey] = 'custom').
+function keepUpload(o, prefix, kind, buf, name, modeKey) {
+  const entry = writeUpload(prefix, kind, buf, name);
+  removeFile(o[kind]);
+  o[kind] = entry;
   if (kind === 'sound') o[modeKey] = 'custom';
   persist();
   return get();
@@ -329,6 +350,53 @@ function removeGoalSound(id) {
   return dropUpload(saved.goals?.[id], 'sound', 'celebrateSound');
 }
 
+// ---------- Media by amount (tiers) ----------
+// The panel edits tiers one action at a time; each returns the new settings. i = the tier's place in the sorted list.
+const TIER_KIND = { image: 'images', sound: 'sounds' };
+function tiersOf(type) {
+  if (!TIER_TYPES.includes(type)) throw bad();
+  return (overrides(type).tiers ??= []);
+}
+function tierAt(type, i) {
+  const t = tiersOf(type)[i];
+  if (!Number.isInteger(i) || !t) throw bad();
+  return t;
+}
+const done = () => { persist(); return get(); };
+
+// A new tier starts 10x above the highest one (1, 10, 100...).
+function addTier(type) {
+  const list = tiersOf(type);
+  if (list.length >= MAX_TIERS) throw bad();
+  list.push({ min: list.length ? Math.min(1e9, list[list.length - 1].min * 10) : 1, images: [], sounds: [] });
+  return done();
+}
+function setTierMin(type, i, min) {
+  if (!Number.isInteger(min) || min < 1 || min > 1e9) throw bad();
+  tierAt(type, i).min = min;
+  tiersOf(type).sort((a, b) => a.min - b.min);
+  return done();
+}
+function removeTier(type, i) {
+  const t = tierAt(type, i);
+  [...t.images, ...t.sounds].forEach(removeFile);
+  tiersOf(type).splice(i, 1);
+  return done();
+}
+function addTierFile(type, i, kind, buf, name) {
+  const list = tierAt(type, i)[TIER_KIND[kind]];
+  if (!list || list.length >= MAX_TIER_FILES) throw bad();
+  list.push(writeUpload(`${type}-tier-${kind}-${randomUUID().slice(0, 8)}`, kind, buf, name));
+  return done();
+}
+function removeTierFile(type, i, kind, n) {
+  const list = tierAt(type, i)[TIER_KIND[kind]];
+  if (!list?.[n]) throw bad();
+  removeFile(list[n]);
+  list.splice(n, 1);
+  return done();
+}
+
 // Back to the selected style's look; title, target, count and celebration settings stay.
 function resetGoalStyle(id) {
   if (!GOAL_IDS.includes(id)) throw bad();
@@ -350,6 +418,7 @@ function reset(type) {
   for (const t of type ? [type] : TYPES) {
     removeFile(saved.alerts?.[t]?.image);
     removeFile(saved.alerts?.[t]?.sound);
+    for (const tier of saved.alerts?.[t]?.tiers ?? []) [...tier.images, ...tier.sounds].forEach(removeFile);
     delete saved.alerts?.[t];
   }
   if (!type) {
@@ -360,4 +429,8 @@ function reset(type) {
   return get();
 }
 
-module.exports = { get, update, saveUpload, removeUpload, reset, saveGoalSound, removeGoalSound, resetGoalStyle, resetChatStyle, GOAL_IDS, GOAL_STYLES, CHAT_STYLES, CHAT_FONTS, FONTS };
+module.exports = {
+  get, update, saveUpload, removeUpload, reset, saveGoalSound, removeGoalSound, resetGoalStyle, resetChatStyle,
+  addTier, setTierMin, removeTier, addTierFile, removeTierFile, sniff,
+  GOAL_IDS, GOAL_STYLES, CHAT_STYLES, CHAT_FONTS, FONTS, TIER_TYPES,
+};

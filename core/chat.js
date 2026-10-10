@@ -2,8 +2,9 @@
 // pictures, keeps the last messages for widgets that (re)connect, and makes test messages.
 // Everything goes through the event bus: 'chat', 'chatClear', 'chatAvatar'.
 const { EventEmitter } = require('node:events');
-const { bus, emitChat, chatMessage, emitChatClear } = require('./events');
+const { bus, emitChat, chatMessage, emitChatClear, emitEvent } = require('./events');
 const settings = require('./settings');
+const net = require('./net');
 const seventv = require('./seventv');
 const strings = require('../i18n/en.json');
 const kick = require('../connectors/kick-chat');
@@ -25,10 +26,11 @@ function setStatus(platform, state, detail = '') {
 }
 
 // Start/stop connectors to match the settings. Called at startup and whenever chat settings change.
+// They run whenever a channel is set, also with the chat widget off (that only hides it): Kick alerts come from here.
 function sync() {
   const c = settings.get().chat;
   for (const platform of ['kick', 'twitch']) {
-    const want = c.enabled ? c[`${platform}Channel`].toLowerCase() : '';
+    const want = c[`${platform}Channel`].toLowerCase();
     if (running[platform]?.channel === want) continue;
     running[platform]?.conn.stop();
     running[platform] = null;
@@ -43,6 +45,7 @@ function sync() {
         onStatus: (state, detail) => setStatus(platform, state, detail),
         onMessage: publish,
         onClear: emitChatClear,
+        onAlert: (a) => emitEvent({ ...a, platform }),
         onChannel: ({ userId, subBadges }) => {
           seventv.loadChannel(platform, userId);
           if (platform === 'twitch') twitchBadges.loadChannel(userId);
@@ -51,6 +54,39 @@ function sync() {
       }),
     };
   }
+}
+
+// ---------- "Test connection": can we reach each service (through the proxy setting)? ----------
+// Each service = what Jarchi talks to (API, chat socket) + where its emotes / badges / pictures come from.
+const CHECKS = {
+  kick: async () => {
+    const { status } = await kick.kickGet(`/api/v2/channels/${encodeURIComponent(settings.get().chat.kickChannel || 'kick')}`);
+    if (status === 403) throw net.fail('blocked');
+    if (status !== 200 && status !== 404) throw net.fail('network');
+    await Promise.all([new URL(kick.PUSHER).hostname, 'files.kick.com'].map(net.reach));
+  },
+  twitch: () => Promise.all(['irc-ws.chat.twitch.tv', 'static-cdn.jtvnw.net'].map(net.reach)),
+  sevenTv: async () => {
+    const res = await fetch('https://7tv.io/v3/emote-sets/global', { signal: AbortSignal.timeout(10000) });
+    await res.arrayBuffer();
+    if (!res.ok) throw net.fail(res.status === 403 ? 'blocked' : 'network');
+    await net.reach('cdn.7tv.app');
+  },
+};
+// -> { mode, proxy: { type, host, port } | null, results: { kick | twitch | sevenTv: 'ok' | net.why() code } }
+async function check() {
+  const out = await Promise.all(Object.entries(CHECKS).map(([id, fn]) => fn().then(() => [id, 'ok'], (err) => [id, net.why(err)])));
+  return { mode: settings.get().proxyMode, proxy: await net.current(), results: Object.fromEntries(out) };
+}
+
+// Reconnect everything (the proxy setting changed).
+function restart() {
+  for (const platform in running) {
+    running[platform]?.conn.stop();
+    running[platform] = null;
+  }
+  sync();
+  if (globalRequested) seventv.loadGlobal();
 }
 
 // A connector's message -> 7TV emotes added -> the bus.
@@ -227,4 +263,4 @@ function thumbs() {
   return [plain.twitch(viewer), fx.sub(), fx.first(), fx.vip(), fx.mention()].map((m) => chatMessage({ ...m, test: true }));
 }
 
-module.exports = { sync, test, thumbs, status: () => status, recent: () => recent, events: chat };
+module.exports = { sync, restart, check, test, thumbs, status: () => status, recent: () => recent, events: chat };

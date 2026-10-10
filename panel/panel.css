@@ -140,6 +140,18 @@ input[type="color"]::-webkit-color-swatch { border: 0; border-radius: 7px; }
   background: linear-gradient(135deg, var(--accent), var(--accent-2));
 }
 
+/* Alert queue in the top bar: state dot + what's playing, waiting count, controls. */
+.queue { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.queue button { padding: 6px 10px; font-size: 13px; }
+.queue button:disabled { opacity: 0.4; cursor: default; }
+.q-state { display: flex; align-items: center; gap: 8px; min-width: 0; max-width: 360px; font-size: 13px; font-weight: 600; white-space: nowrap; }
+#qNow { overflow: hidden; text-overflow: ellipsis; }
+.q-dot { width: 8px; height: 8px; flex: none; border-radius: 50%; background: var(--muted); }
+.queue[data-state="playing"] .q-dot { background: #22c55e; box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.2); }
+.queue[data-state="paused"] .q-dot { background: #f59e0b; }
+.queue[data-state="paused"] .i-pause, .queue:not([data-state="paused"]) .i-play { display: none; }
+.pill.warn { border-color: rgba(245, 158, 11, 0.45); color: #fbbf24; white-space: nowrap; }
+
 /* Theme swatches: a hint of each theme's colors. */
 .swatch { width: 16px; height: 16px; flex: none; border-radius: 5px; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18); }
 .sw-neon { background: linear-gradient(135deg, #00f0ff, #ff2bd6); }
@@ -338,9 +350,42 @@ main { padding: 24px 28px 64px; }
 .style-grid.five { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 .style-grid .grid-head { grid-column: 1 / -1; margin: 6px 0 0; }
 
+/* ---------- Media by amount (tiers) ---------- */
+.tiers { display: grid; gap: 10px; }
+.tiers:empty { display: none; }
+.tier { display: grid; gap: 10px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--bg); }
+.tier-head { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.tier-min { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; }
+.tier-min input { width: 110px; }
+.tier-range { margin-right: auto; font-weight: 700; }
+.tier-files { display: grid; grid-template-columns: 150px minmax(0, 1fr); align-items: center; gap: 10px; }
+.tier-label { color: var(--muted); font-size: 13px; }
+.chips { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-width: 0; }
+.chip { display: inline-flex; align-items: center; gap: 4px; max-width: 240px; padding: 3px 4px 3px 10px; border: 1px solid var(--line); border-radius: 99px; background: var(--surface-2); font-size: 13px; }
+.chip .x { padding: 0 7px; border: 0; border-radius: 99px; background: none; color: var(--muted); font-size: 15px; line-height: 1.4; }
+.chip .x:hover { background: var(--line); color: var(--text); }
+.chips .add { padding: 4px 10px; font-size: 13px; }
+.chips .fname.default { font-size: 13px; }
+
+/* ---------- Settings: queue gap, proxy ---------- */
+input.num { width: 110px; }
+.proxy-manual { display: grid; grid-template-columns: auto minmax(0, 1fr) 130px; gap: 12px; align-items: end; }
+.net-results { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; font-size: 14px; }
+.net-results:empty { display: none; }
+.net-results li { display: flex; gap: 8px; }
+.net-results li::before { flex: none; width: 18px; font-weight: 800; text-align: center; }
+.net-results .ok::before { content: "\2713"; color: #22c55e; }
+.net-results .bad::before { content: "!"; color: var(--danger); }
+.net-results .bad { color: #fecdd3; }
+
 /* ---------- Narrower screens ---------- */
+@media (max-width: 1360px) {
+  .queue button span { display: none; } /* icons only; the title says what they do */
+}
 @media (max-width: 1200px) {
   .basics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .proxy-manual { grid-template-columns: 1fr 1fr; }
+  .tier-files { grid-template-columns: 1fr; gap: 4px; }
   .more-grid, .more-grid.three { grid-template-columns: 1fr; }
   .style-grid, .style-grid.five { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .cols4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -351,7 +396,7 @@ main { padding: 24px 28px 64px; }
   .basics, .cols { grid-template-columns: 1fr; }
   main { padding: 18px 16px 48px; }
   .topbar { padding: 0 16px; }
-  .brand span, #copy span { display: none; }
+  .brand span, #copy span, #qWaiting, .q-state { display: none; }
   .theme-grid { grid-template-columns: 1fr 1fr; }
   .stage-ctrl { position: static; justify-content: flex-end; }
   .fx-hint { position: static; max-width: none; }

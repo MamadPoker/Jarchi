@@ -1,10 +1,10 @@
 # Jarchi
 
-Stream alerts for OBS that run locally on your own PC. No account, no central server. Kick and Twitch connections are coming later. For now every alert can be fired with the **Test** buttons.
+Stream alerts for OBS that run locally on your own PC. No account, no central server. Real Kick alerts come from your Kick channel's public chat (just the channel name, no login); Twitch alerts come later. Every alert can also be fired with the **Test** buttons.
 
 ## Setup
 
-Requires [Node.js](https://nodejs.org/) 20.12 or newer (22 LTS recommended).
+Requires [Node.js](https://nodejs.org/) 20.18.1 or newer (22 LTS recommended).
 
 ```sh
 npm install
@@ -27,9 +27,9 @@ Jarchi must be running before OBS loads the source. If you started OBS first, ri
 
 ## The panel
 
-- **Top bar**: **Copy OBS link**.
-- **Left column**: **Theme** at the top (opens a page with a live card per theme; click one to use it), then the alerts, each with an on/off switch; **Settings** at the bottom (badge switch, test platform, reset everything).
-- **Right side**: the selected alert: live preview with Play, its own theme (or the main one), then image/GIF/video, sound and text; **More options** opens frame, colors, font size, text position, text alignment (left/center/right), duration, volume, minimum amount and video sound.
+- **Top bar**: the alert queue (what's playing, how many wait, **Pause / Resume alerts**, **Skip current alert**, **Clear queue**, and a warning when no OBS alerts overlay is open), and **Copy OBS link**.
+- **Left column**: **Theme** at the top (opens a page with a live card per theme; click one to use it), then the alerts, each with an on/off switch; **Settings** at the bottom (badge switch, test platform, gap between alerts, connection / proxy, reset everything).
+- **Right side**: the selected alert: live preview with Play, its own theme (or the main one), then image/GIF/video, sound and text, **Different media by amount** (Kicks, gifted subs, bits, raid); **More options** opens frame, colors, font size, text position, text alignment (left/center/right), duration, volume, minimum amount and video sound.
 
 ## Alerts
 
@@ -42,8 +42,45 @@ Jarchi must be running before OBS loads the source. If you started OBS first, ri
   - frame: theme style, custom (background, opacity, border, roundness) or off; text above/below/on top of the media; font size and text color
 - **Bigger events feel bigger**: follow is small and quick; sub is bigger; gift subs, Kicks and bits grow with the amount (gift subs at 5/20, Kicks and bits at 100/1000) and play longer; raid is the biggest.
 - **Kick/Twitch badge**: only appears when both accounts are connected; it can be switched off in Settings.
+- **Different media by amount** (Kicks, gifted subs, bits, raid; off by default): add tiers, each with a minimum amount and its own images/GIFs/videos and sounds (none = the theme's). The highest tier the amount reaches plays; with several files one is picked at random (every open overlay picks the same one). Below the first tier the normal media is used. Each tier has a **Test** button.
 - Uploads are checked by their real file type and are limited to 20 MB.
 - **Reset to default** per alert, or **Reset everything**.
+
+### Real Kick alerts (no login)
+
+The Kick channel you type in **Widgets → Chat** also brings real alerts, read from Kick's public chat socket. This works with the chat widget switched off too (the switch only hides the chat).
+
+| Kick event | Alert | How |
+|---|---|---|
+| New sub | Sub | announced in chat |
+| Resub (manual) | Resub, with months | announced in chat |
+| Resub (automatic renewal) | Resub, with months | Kick only says "subscribed" on the channel socket; Jarchi waits 10 s, then looks up the months |
+| Resub shared in chat ("celebration") | Resub, with the viewer's message | the shared message |
+| Gifted subs | **One** Gifted subs alert, amount = number of subs | Kick's gift event; a big gift sent in chunks is still one alert |
+| Kicks | Kicks, with amount and message | Kick's Kicks event |
+| Host (Kick's raid) | Raid, amount = viewers | Kick's host event |
+| Follow | not available | Kick's public socket only sends the follower count, not who followed |
+
+Every Kick event has a key (Kick's own id where there is one), so an event that arrives twice (Kick sends some on several sockets) fires once. Sub and Kicks goals count these real events. Twitch alerts aren't connected yet.
+
+### Alert queue
+
+Alerts play one after another from Jarchi itself, not from the OBS page:
+
+- If OBS is closed, alerts wait; when OBS opens the overlay again they continue in order. An alert that was playing when OBS closed plays again.
+- If the overlay refreshes, it picks up the alert that's on now with the time it has left (no sound again), so nothing replays.
+- Several alerts overlays (e.g. two scenes) each play every alert once, in the same order, at the same time.
+- **Settings → Gap between alerts** (seconds). Top bar: **Pause / Resume**, **Skip current alert**, **Clear queue**.
+
+## Connection (proxy)
+
+For VPN users and filtered networks: **Settings → Connection (proxy)**.
+
+- **Use Windows system proxy** (default): whatever Windows (or your VPN app) has set under Settings → Network → Proxy. No proxy set = direct.
+- **Manual**: an HTTP or SOCKS5 proxy at an address and port (e.g. the local port of v2rayN or Clash).
+- **Off**: always direct.
+
+Everything Jarchi reaches online goes through it: Kick, Twitch, 7TV, and the emotes, badges and profile pictures in chat (OBS loads those through Jarchi). **Test connection** checks Kick, Twitch and 7TV and says in plain words what works and what doesn't. Not supported: proxy login (username/password) and Windows PAC scripts.
 
 ## Goals
 
@@ -87,7 +124,9 @@ How it reads chat, and what needs a key:
 server/index.js      HTTP + Socket.IO server, API routes
 core/config.js       port and data folder (the one place to change them)
 core/events.js       event bus + the normalized event shape
-core/settings.js     defaults, user changes, uploads (alerts and goal looks)
+core/settings.js     defaults, user changes, uploads (alerts, tiers and goal looks)
+core/alerts.js       the alert queue: what plays when, for every overlay
+core/net.js          proxy: every outgoing connection goes through it
 core/goals.js        goal counters, fed by the event bus
 core/store.js        JSON files in the data folder
 core/chat.js         runs the chat connectors, adds 7TV emotes, test messages
@@ -106,7 +145,7 @@ Every event, whatever its source, looks like this:
 // type: follow | sub | resub | gift_sub | kicks | bits | raid
 ```
 
-Connectors only call `emitEvent()`. Widgets only listen on the socket: `event`, `settings`, `goals` and (chat) `chat` / `chatClear`.
+Connectors only call `emitEvent()` (with an optional `key`: a repeat of the same key within 6 hours is dropped). Widgets only listen on the socket: `event`, `settings`, `goals` and (chat) `chat` / `chatClear`. The alerts overlay sends `alertsJoin` and then gets `alert` / `alertSkip` from the queue.
 
 ## Tests
 

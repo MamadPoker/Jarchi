@@ -5,8 +5,10 @@ const { Server } = require('socket.io');
 const { HOST, PORT, UPLOADS_DIR } = require('../core/config');
 const { bus, emitEvent, connectedPlatforms, TYPES, PLATFORMS } = require('../core/events');
 const settings = require('../core/settings');
+const net = require('../core/net'); // first: every outgoing connection after this goes through the proxy setting
 const goals = require('../core/goals');
 const chat = require('../core/chat');
+const alertQueue = require('../core/alerts');
 const strings = require('../i18n/en.json');
 
 const ROOT = path.join(__dirname, '..');
@@ -36,15 +38,33 @@ app.get('/api/settings', (req, res) => res.json(view()));
 app.patch('/api/settings', (req, res) => {
   const s = settings.update(req.body);
   for (const [id, fields] of Object.entries(req.body.goals ?? {})) if ('target' in fields) goals.retarget(id);
-  if (req.body.chat) chat.sync(); // channel names or on/off may have changed
+  if (Object.keys(req.body).some((k) => k.startsWith('proxy'))) chat.restart(); // reconnect through the new proxy
+  else if (req.body.chat) chat.sync(); // channel names may have changed
   res.json(changed(s));
 });
 
-app.post('/api/upload/:type/:kind', express.raw({ type: () => true, limit: '20mb' }), (req, res) => {
-  let name = '';
-  try { name = decodeURIComponent(req.get('x-filename') || ''); } catch {}
-  res.json(changed(settings.saveUpload(req.params.type, req.params.kind, req.body, name)));
-});
+const fileName = (req) => {
+  try { return decodeURIComponent(req.get('x-filename') || ''); } catch { return ''; }
+};
+const raw = express.raw({ type: () => true, limit: '20mb' });
+app.post('/api/upload/:type/:kind', raw, (req, res) => res.json(changed(settings.saveUpload(req.params.type, req.params.kind, req.body, fileName(req)))));
+
+// Media by amount: tiers of one alert type. :i = the tier's place in the list, :n = a file's place in the tier.
+app.post('/api/tiers/:type', (req, res) => res.json(changed(settings.addTier(req.params.type))));
+app.patch('/api/tiers/:type/:i', (req, res) => res.json(changed(settings.setTierMin(req.params.type, Number(req.params.i), req.body?.min))));
+app.delete('/api/tiers/:type/:i', (req, res) => res.json(changed(settings.removeTier(req.params.type, Number(req.params.i)))));
+app.post('/api/tiers/:type/:i/:kind', raw, (req, res) => res.json(changed(settings.addTierFile(req.params.type, Number(req.params.i), req.params.kind, req.body, fileName(req)))));
+app.delete('/api/tiers/:type/:i/:kind/:n', (req, res) => res.json(changed(settings.removeTierFile(req.params.type, Number(req.params.i), req.params.kind, Number(req.params.n)))));
+
+// Alert queue (core/alerts): what's playing, how many wait, and the panel's controls.
+app.get('/api/alerts/queue', (req, res) => res.json(alertQueue.state()));
+app.post('/api/alerts/skip', (req, res) => res.json(alertQueue.skip()));
+app.post('/api/alerts/clear', (req, res) => res.json(alertQueue.clear()));
+app.post('/api/alerts/pause', (req, res) => res.json(alertQueue.pause(req.body?.paused === true)));
+
+// Proxy: "Test connection" (Kick, Twitch, 7TV), and which proxy is in use right now.
+app.post('/api/net/test', async (req, res) => res.json(await chat.check()));
+app.get('/api/net/proxy', async (req, res) => res.json({ mode: settings.get().proxyMode, proxy: await net.current() }));
 app.delete('/api/upload/:type/:kind', (req, res) => res.json(changed(settings.removeUpload(req.params.type, req.params.kind))));
 app.post('/api/reset{/:type}', (req, res) => {
   const s = settings.reset(req.params.type);
@@ -66,11 +86,7 @@ app.post('/api/chat/reset-style', (req, res) => res.json(changed(settings.resetC
 app.get('/api/goals', (req, res) => res.json({ state: goals.all(), styles: settings.GOAL_STYLES, fonts: settings.FONTS }));
 app.patch('/api/goals/:id', (req, res) => res.json(goals.change(req.params.id, req.body)));
 app.post('/api/goals/:id/reset-style', (req, res) => res.json(changed(settings.resetGoalStyle(req.params.id))));
-app.post('/api/goals/:id/sound', express.raw({ type: () => true, limit: '20mb' }), (req, res) => {
-  let name = '';
-  try { name = decodeURIComponent(req.get('x-filename') || ''); } catch {}
-  res.json(changed(settings.saveGoalSound(req.params.id, req.body, name)));
-});
+app.post('/api/goals/:id/sound', raw, (req, res) => res.json(changed(settings.saveGoalSound(req.params.id, req.body, fileName(req)))));
 app.delete('/api/goals/:id/sound', (req, res) => res.json(changed(settings.removeGoalSound(req.params.id))));
 
 // Sample events for the Test button and the panel's live preview.
@@ -92,6 +108,25 @@ app.post('/api/test/:type', (req, res) => {
   const platform = PLATFORMS.includes(req.body?.platform) ? req.body.platform : 'test';
   const amount = Number.isFinite(req.body?.amount) && req.body.amount >= 0 ? req.body.amount : SAMPLES[type].amount;
   res.json(emitEvent({ ...SAMPLES[type], amount, platform, type, test: true }));
+});
+
+// Emotes, badges and profile pictures for widgets, fetched here so they go through the proxy setting too.
+// Only images (by their real bytes: Kick's CDN says "binary/octet-stream"), only from the platforms' own sites.
+const REMOTE_HOSTS = /(^|\.)(kick\.com|jtvnw\.net|7tv\.app|7tv\.io)$/;
+const IMAGE = { png: 'image/png', jpg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp' };
+app.get('/remote', async (req, res) => {
+  let url;
+  try { url = new URL(String(req.query.u)); } catch {}
+  if (url?.protocol !== 'https:' || !REMOTE_HOSTS.test(url.hostname)) return res.status(400).end();
+  try {
+    const r = await fetch(url, { headers: { 'user-agent': 'Mozilla/5.0 Jarchi' }, signal: AbortSignal.timeout(15000) });
+    const body = Buffer.from(await r.arrayBuffer());
+    const type = IMAGE[settings.sniff(body)];
+    if (!r.ok || !type) return res.status(502).end();
+    res.set({ 'content-type': type, 'cache-control': 'public, max-age=86400', 'x-content-type-options': 'nosniff' }).send(body);
+  } catch {
+    res.status(502).end();
+  }
 });
 
 app.use('/uploads', express.static(UPLOADS_DIR, { setHeaders: (res) => res.set('X-Content-Type-Options', 'nosniff') }));
@@ -117,7 +152,17 @@ io.on('connection', (socket) => {
   socket.emit('goals', goals.all());
   socket.emit('chatStatus', chat.status());
   socket.emit('chatHistory', chat.recent());
+  socket.emit('alertQueue', alertQueue.state());
+  // The alerts overlay joins to get alerts from the queue (the panel's previews don't).
+  socket.once('alertsJoin', () => {
+    socket.join('alerts');
+    alertQueue.join((now) => socket.emit('alert', now));
+    socket.once('disconnect', alertQueue.leave);
+  });
 });
+alertQueue.events.on('play', (a) => io.to('alerts').emit('alert', a));
+alertQueue.events.on('skip', (id) => io.to('alerts').emit('alertSkip', id));
+alertQueue.events.on('state', (st) => io.emit('alertQueue', st));
 // Every count change goes to widgets and the panel; the second argument names a goal that just hit its target.
 goals.events.on('change', (reached) => io.emit('goals', goals.all(), reached));
 bus.on('event', (ev) => io.emit('event', ev));

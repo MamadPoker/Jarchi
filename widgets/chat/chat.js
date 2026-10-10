@@ -27,6 +27,8 @@ let seeded = false; // preview: showing sample messages until real ones arrive
 let filling = false; // ticker: drawing the recent messages as if the bar had been running
 let loopTimer, loopAt = 0; // ticker: looping the recent messages when chat is quiet
 
+// Emotes, badges and pictures come through Jarchi (/remote), so they follow its proxy setting.
+const remote = (u) => (u?.startsWith('https://') ? `/remote?u=${encodeURIComponent(u)}` : u);
 const h = (tag, props, ...kids) => {
   const el = Object.assign(document.createElement(tag), props);
   el.append(...kids.filter((k) => k !== null && k !== undefined && k !== false));
@@ -182,14 +184,14 @@ function nameColor(m) {
 }
 
 function avatarEl(m) {
-  if (m.user.avatar) return h('img', { className: 'avatar', src: m.user.avatar, alt: '' });
+  if (m.user.avatar) return h('img', { className: 'avatar', src: remote(m.user.avatar), alt: '' });
   return h('span', { className: 'avatar letter', textContent: (m.user.name || '?').slice(0, 1).toUpperCase(), style: `background:${nameColor(m)}` });
 }
 
 function badgesEl(m) {
   if (!cfg.showBadges) return null;
   const out = m.user.badges.filter((b) => cfg[BADGE_KEY[b.type] ?? 'badgeOther']).map((b) => (b.img
-    ? h('img', { className: 'badge', src: b.img, alt: b.title, title: b.title })
+    ? h('img', { className: 'badge', src: remote(b.img), alt: b.title, title: b.title })
     : h('span', { className: `badge-text bt-${b.type}`, textContent: S.chatText.badges[b.name] ?? b.title })));
   return out.length ? h('span', { className: 'badges' }, ...out) : null;
 }
@@ -199,7 +201,7 @@ function bodyEl(m) {
   const body = h('span', { className: `body${big ? ' big' : ''}`, dir: cfg.textDir });
   for (const p of m.parts) {
     if (p.t === 'text') body.append(p.v);
-    else if (emoteOn(p)) body.append(h('img', { className: 'emote', src: cfg.emotesAnimated ? p.src : p.still || p.src, alt: p.name, title: p.name }));
+    else if (emoteOn(p)) body.append(h('img', { className: 'emote', src: remote(cfg.emotesAnimated ? p.src : p.still || p.src), alt: p.name, title: p.name }));
     else body.append(p.name);
   }
   return body;

@@ -7,6 +7,7 @@ let S, settings, samples, goalData; // goalData = { state, styles, fonts } from 
 let chatStyles, chatFonts, chatStatus; // chat style looks and fonts (/api/chat/styles), connection status (follows the socket)
 let chatThumbs; // sample messages for the chat style thumbnails (/api/chat/thumbs: random viewers and badges each visit)
 let view = 'alert', cur = 'follow', curGoal = 'subs'; // what's selected: an alert, a goal, or the theme / settings view
+let queue = { paused: false, overlays: 0, waiting: 0, now: null }; // the alert queue (follows the socket)
 
 const pct = (v) => `${Math.round(v * 100)}%`;
 const px = (v) => `${v}px`;
@@ -18,6 +19,8 @@ const FORMAT = {
 const GOAL_STEP = { subs: 1, kicks: 100 }; // what "Test", "+" and "−" add
 const GOAL_SAMPLE = { subs: { current: 32, target: 50 }, kicks: { current: 640, target: 1000 } }; // numbers on style thumbnails
 const isVideo = (file) => /\.(webm|mp4)$/.test(file ?? '');
+const tpl = (s, v) => s.replace(/\{(\w+)\}/g, (m, k) => v[k] ?? m);
+const ACCEPT = { image: 'image/png,image/jpeg,image/gif,image/webp,video/webm,video/mp4,.webm,.mp4', sound: 'audio/mpeg,audio/wav,audio/ogg,.mp3,.wav,.ogg' };
 const valueOf = (inp) => (inp.type === 'checkbox' ? inp.checked : ['number', 'range'].includes(inp.type) ? Number(inp.value) : inp.value);
 const el = (tag, props = {}, ...kids) => {
   const e = Object.assign(document.createElement(tag), props);
@@ -230,6 +233,7 @@ function select(v, key) {
     if ($('#goalPreview').getAttribute('src') !== src) $('#goalPreview').src = src;
   }
   if (v === 'chat' && !$('#chatPreview').getAttribute('src')) $('#chatPreview').src = '/widgets/chat?preview';
+  if (v === 'settings') showProxyNow();
   $$('main .view').forEach((s) => (s.hidden = s.dataset.view !== v));
   render();
   preview();
@@ -238,6 +242,86 @@ function select(v, key) {
     fitChat();
     api('GET', '/api/chat/thumbs').then((m) => { chatThumbs = m; drawChatThumbs(); }, () => {});
   }
+}
+
+// ---------- Alert queue (top bar) ----------
+function renderQueue() {
+  const q = queue, n = q.now;
+  const bar = $('.queue');
+  bar.dataset.state = q.paused ? 'paused' : n ? 'playing' : 'idle';
+  $('#qNow').textContent = n ? tpl(S.panel.qPlaying, { type: S.types[n.type], user: n.user }) + (n.amount ? ` · ${n.amount.toLocaleString()}` : '')
+    : q.paused ? S.panel.qPausedLabel : S.panel.qIdle;
+  $('#qWaiting').textContent = tpl(S.panel.qWaiting, { n: q.waiting });
+  $('#qNoObs').hidden = q.overlays > 0;
+  $('#qPause span').textContent = $('#qPause').title = q.paused ? S.panel.qResume : S.panel.qPause;
+  $('#qSkip').disabled = !n;
+  $('#qClear').disabled = !q.waiting;
+}
+const queueCall = (what, body) => api('POST', `/api/alerts/${what}`, body).then((q) => { queue = q; renderQueue(); return q; }, (err) => toast(err.message, true));
+
+// ---------- Media by amount: one card per tier, rebuilt only when the tiers change ----------
+let tiersDrawn = '';
+function renderTiers(cfg) {
+  const key = JSON.stringify([cur, cfg.tiers]);
+  if (key === tiersDrawn) return;
+  tiersDrawn = key;
+  const unit = S.panel.tierUnit[cur];
+  $('#tiers').replaceChildren(...cfg.tiers.map((t, i) => {
+    const next = cfg.tiers[i + 1];
+    const range = next && next.min > t.min
+      ? tpl(S.panel.tierRange, { from: t.min.toLocaleString(), to: (next.min - 1).toLocaleString(), unit })
+      : tpl(S.panel.tierRangeUp, { from: t.min.toLocaleString(), unit });
+    const min = el('input', { type: 'number', min: 1, step: 1, value: t.min, onchange: () => send('PATCH', `/api/tiers/${cur}/${i}`, { min: Math.round(Number(min.value)) }) });
+    return el('div', { className: 'tier' },
+      el('div', { className: 'tier-head' },
+        el('label', { className: 'tier-min' }, el('span', { textContent: S.panel.tierFrom }), min),
+        el('span', { className: 'tier-range', textContent: range }),
+        el('button', { textContent: S.panel.tierTest, onclick: () => testTier(t.min) }),
+        el('button', { className: 'ghost', textContent: S.panel.tierRemove, onclick: () => send('DELETE', `/api/tiers/${cur}/${i}`) })),
+      tierFiles(i, 'image', t.images), tierFiles(i, 'sound', t.sounds));
+  }));
+}
+
+// A tier's images or sounds: a chip per file (× removes it), "+ Add" uploads one or more.
+function tierFiles(i, kind, list) {
+  const input = el('input', { type: 'file', hidden: true, multiple: true, accept: ACCEPT[kind] });
+  input.onchange = async () => {
+    const files = [...input.files];
+    input.value = '';
+    for (const f of files) await send('POST', `/api/tiers/${cur}/${i}/${kind}`, f, { 'content-type': f.type || 'application/octet-stream', 'x-filename': encodeURIComponent(f.name) });
+  };
+  const chips = list.length
+    ? list.map((f, n) => el('span', { className: 'chip' }, el('span', { className: 'fname', textContent: f.name, title: f.name }),
+      el('button', { className: 'x', textContent: '×', title: S.panel.remove, onclick: () => send('DELETE', `/api/tiers/${cur}/${i}/${kind}/${n}`) })))
+    : [el('span', { className: 'fname default', textContent: S.panel[kind === 'image' ? 'tierNoImages' : 'tierNoSounds'] })];
+  return el('div', { className: 'tier-files' },
+    el('span', { className: 'tier-label', textContent: S.panel[kind === 'image' ? 'tierImages' : 'tierSounds'] }),
+    el('div', { className: 'chips' }, ...chips, list.length < 10 ? el('button', { className: 'ghost add', textContent: `+ ${S.panel.tierAdd}`, title: S.panel.tierManyHint, onclick: () => input.click() }) : '', input));
+}
+
+// A tier's Test: plays it here in the preview and sends it to OBS, with the tier's lowest amount.
+function testTier(amount) {
+  $('#previewAmount').value = amount;
+  preview();
+  api('POST', `/api/test/${cur}`, { platform: $('#testAs').value, amount }).then(() => toast(S.panel.testSent), (err) => toast(err.message, true));
+}
+
+// ---------- Settings: proxy ----------
+const proxyLabel = (p) => `${p.host}:${p.port} (${p.type === 'socks5' ? 'SOCKS5' : 'HTTP'})`;
+function showProxyNow() {
+  api('GET', '/api/net/proxy').then(({ proxy }) => {
+    $('#proxyNow').textContent = proxy ? tpl(S.net.systemNow, { proxy: proxyLabel(proxy) }) : S.net.systemNone;
+  }, () => {});
+}
+function renderNet({ proxy, results }) {
+  const p = proxy && proxyLabel(proxy);
+  $('#netUsing').textContent = p ? tpl(S.net.using, { proxy: p }) : S.net.direct;
+  const lines = new Map(); // text -> ok; a dead proxy is one line, not one per service
+  for (const [id, code] of Object.entries(results)) {
+    const key = code !== 'ok' && p && (code === 'timeout' || code === 'network') ? 'viaProxy' : code;
+    lines.set(tpl(S.net[key] ?? S.net.network, { name: S.net.names[id], proxy: p }), code === 'ok');
+  }
+  $('#netResults').replaceChildren(...[...lines].map(([text, ok]) => el('li', { className: ok ? 'ok' : 'bad', textContent: text })));
 }
 
 // Upload / remove buttons of a .file row.
@@ -352,6 +436,16 @@ function build() {
     chatStatus = st;
     renderStatus();
   });
+  socket.on('alertQueue', (q) => {
+    queue = q;
+    renderQueue();
+  });
+  $('#qSkip').title = S.panel.qSkip;
+  $('#qClear').title = S.panel.qClear;
+  $('#qPause').onclick = () => queueCall('pause', { paused: !queue.paused });
+  $('#qSkip').onclick = () => queueCall('skip');
+  $('#qClear').onclick = () => queueCall('clear').then((q) => q && toast(S.panel.qCleared));
+  $('#addTier').onclick = () => send('POST', `/api/tiers/${cur}`);
 
   // Chat editor
   for (const [title, controls] of CHAT_GROUPS()) {
@@ -392,6 +486,29 @@ function build() {
   // Settings
   $('#showBadge').onchange = (e) => send('PATCH', '/api/settings', { showBadge: e.target.checked });
   for (const [id, name] of Object.entries(S.platforms)) $('#testAs').append(new Option(name, id));
+  const patchGlobal = (fields) => send('PATCH', '/api/settings', fields);
+  $('#alertGap').onchange = (e) => patchGlobal({ alertGap: Number(e.target.value) });
+  $$('[name=proxyMode]').forEach((r) => (r.onchange = () => patchGlobal({ proxyMode: r.value }).then(() => {
+    showProxyNow();
+    $('#netResults').replaceChildren();
+    $('#netUsing').textContent = '';
+  })));
+  $$('[name=proxyType]').forEach((r) => (r.onchange = () => patchGlobal({ proxyType: r.value })));
+  $('#proxyHost').onchange = (e) => patchGlobal({ proxyHost: e.target.value.trim() });
+  $('#proxyPort').onchange = (e) => patchGlobal({ proxyPort: Math.round(Number(e.target.value)) || 0 });
+  $('#netTest').onclick = async () => {
+    const btn = $('#netTest');
+    btn.disabled = true;
+    $('#netUsing').textContent = S.panel.netTesting;
+    $('#netResults').replaceChildren();
+    try {
+      renderNet(await api('POST', '/api/net/test'));
+    } catch (err) {
+      $('#netUsing').textContent = '';
+      toast(err.message, true);
+    }
+    btn.disabled = false;
+  };
   // Two-click confirm instead of confirm(): no blocking dialog.
   const resetAll = $('#resetAll');
   let armed;
@@ -460,9 +577,22 @@ function render() {
 
   $('#showBadge').checked = settings.showBadge;
   $('#connectedList').textContent = settings.connected.map((p) => S.platforms[p]).join(', ') || S.panel.connectedNone;
+  if (view === 'settings') renderSettings();
   if (view === 'alert') renderAlert();
   if (view === 'goal') renderGoal();
   if (view === 'chat') renderChat();
+}
+
+function renderSettings() {
+  const ed = $('main [data-view=settings]');
+  const keep = (inp, v) => { if (inp !== document.activeElement) inp.value = v; }; // never under the cursor
+  keep($('#alertGap'), settings.alertGap);
+  keep($('#proxyHost'), settings.proxyHost);
+  keep($('#proxyPort'), settings.proxyPort || '');
+  $$('[name=proxyMode]').forEach((r) => (r.checked = r.value === settings.proxyMode));
+  $$('[name=proxyType]').forEach((r) => (r.checked = r.value === settings.proxyType));
+  const show = { proxySystem: settings.proxyMode === 'system', proxyManual: settings.proxyMode === 'manual' };
+  $$('[data-only]', ed).forEach((e) => (e.hidden = !show[e.dataset.only]));
 }
 
 function renderChat() {
@@ -497,8 +627,11 @@ function renderAlert() {
     customFrame: cfg.frame === 'custom',
     customColor: cfg.textColor !== null,
     amount: samples[cur].amount > 0,
+    tiers: 'tiersOn' in cfg,
+    tiersOn: cfg.tiersOn,
   };
   $$('[data-only]', editor).forEach((e) => (e.hidden = !show[e.dataset.only]));
+  if (show.tiers) renderTiers(cfg);
   $$('.file', editor).forEach((row) => {
     const f = cfg[row.dataset.kind];
     const fname = $('.fname', row);
