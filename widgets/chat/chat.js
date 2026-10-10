@@ -14,8 +14,8 @@ const LINK = /(https?:\/\/|www\.)\S+|\b[\w-]+\.(com|net|org|tv|gg|io|me|ly|be|co
 const PALETTE = ['#ff6b6b', '#ffa94d', '#ffd43b', '#69db7c', '#38d9a9', '#4dabf7', '#748ffc', '#da77f2', '#f783ac'];
 const BADGE_KEY = { broadcaster: 'badgeBroadcaster', moderator: 'badgeMod', vip: 'badgeVip', subscriber: 'badgeSub', other: 'badgeOther' };
 // Per style: name colors for "Style colors", and colors that messages take turns with (null = the box color option).
-const STYLE_NAMES = { cyberpunk: ['#fcee0a', '#00f0ff'], comic: ['#e63946', '#1d4ed8', '#059669', '#9333ea', '#ea580c'], galaxy: ['#c9a8ff', '#8fb8ff', '#ff9ad5'], persian: ['#e9c46a', '#2ec4b6'] };
-const STYLE_TURNS = { comic: [null, '#ffe14d', '#a5e4ff'], sticky: [null, '#ffb3c7', '#b8f2d0', '#a9d8ff', '#ffd59e'], pastel: [null, '#ffc6e0', '#bff0d8', '#ffd9b3', '#c5dcff'], popin: ['#ff4d9d', '#3ee8ff', '#ffd54d', '#7cff6b'] };
+const STYLE_NAMES = { cyberpunk: ['#fcee0a', '#00f0ff'], comic: ['#e63946', '#1d4ed8', '#059669', '#9333ea', '#ea580c'], galaxy: ['#c9a8ff', '#8fb8ff', '#ff9ad5'], persian: ['#e9c46a', '#2ec4b6'], led: ['#ffb000', '#ff8c1a', '#ffd34d'] };
+const STYLE_TURNS = { comic: [null, '#ffe14d', '#a5e4ff'], sticky: [null, '#ffb3c7', '#b8f2d0', '#a9d8ff', '#ffd59e'], pastel: [null, '#ffc6e0', '#bff0d8', '#ffd9b3', '#c5dcff'], popin: ['#ff4d9d', '#3ee8ff', '#ffd54d', '#7cff6b'], candy: ['#dccbff', '#ffc6e0', '#bff0d8', '#fff1a8'] };
 const SEPARATOR = { pastel: ' ·' }; // instead of the colon
 const RTL = /[֐-ࣿיִ-﷿ﹰ-﻿]/;
 let S, cfg, mainSettings, look = '', f = {};
@@ -24,6 +24,8 @@ let rows = []; // on screen: { el, msg, timer, exiting, combo, count, at }
 let tickerReady = 0; // ticker: when the next message may start (ms, performance.now())
 let seq = 0; // message order, for styles whose messages take turns with colors
 let seeded = false; // preview: showing sample messages until real ones arrive
+let filling = false; // ticker: drawing the recent messages as if the bar had been running
+let loopTimer, loopAt = 0; // ticker: looping the recent messages when chat is quiet
 
 const h = (tag, props, ...kids) => {
   const el = Object.assign(document.createElement(tag), props);
@@ -46,7 +48,9 @@ if (params.has('thumb')) {
     S = e.data.strings;
     cfg = e.data.cfg;
     recent.splice(0, recent.length, ...e.data.messages);
-    apply(true);
+    // Vertical thumbnails are still; horizontal ones scroll and loop, like the real bar.
+    if (cfg.layout === 'horizontal') cfg = { ...cfg, tickerLoop: true };
+    apply(cfg.layout !== 'horizontal');
   });
 } else {
   if (params.has('preview')) document.body.classList.add('preview');
@@ -109,7 +113,8 @@ function apply(still = false) {
     '--emote': `${cfg.emoteSize}px`, '--emote-big': `${cfg.bigEmoteSize}px`, '--fade': `${cfg.fadeZone}px`, '--blur': `${cfg.blur}px`,
   };
   for (const [k, v] of Object.entries(vars)) root.style.setProperty(k, v);
-  root.querySelector('.bar-title').textContent = S.chatText.windowTitle;
+  root.querySelector('.bar-title').textContent = S.chatText[cfg.style === 'news' ? 'liveLabel' : 'windowTitle'];
+  document.body.classList.toggle('bar-bottom', cfg.layout === 'horizontal' && cfg.tickerPos === 'bottom' && !params.has('preview') && !params.has('thumb'));
   f = {
     bots: new Set(words(cfg.bots)), hidden: new Set(words(cfg.hiddenUsers)), blocked: words(cfg.blockedWords), rainbow: new Set(words(cfg.rainbowUsers)),
     streamer: [mainSettings?.chat?.kickChannel ?? cfg.kickChannel, mainSettings?.chat?.twitchChannel ?? cfg.twitchChannel].filter(Boolean).map((n) => n.toLowerCase()),
@@ -122,10 +127,15 @@ function rebuild(still = false) {
   typing?.finish();
   for (const r of rows) clearTimeout(r.timer);
   rows = [];
-  tickerReady = 0;
+  clearTimeout(loopTimer);
+  loopAt = 0;
   list.replaceChildren();
   const keep = recent.filter(shown).slice(-cfg.maxMessages);
+  // Ticker: the oldest kept message starts at the far edge, so the bar is already full instead of starting empty.
+  tickerReady = vertical() || still ? 0 : performance.now() - (viewport.clientWidth / cfg.tickerSpeed) * 1000;
+  filling = true;
   for (const m of keep) add(m, false, still);
+  filling = false;
 }
 
 // ---------- Filters ----------
@@ -233,7 +243,7 @@ function add(m, animate, still = false) {
 function combo(m) {
   const key = comboKey(m);
   const last = rows[rows.length - 1];
-  if (!key || !last || last.exiting || last.combo !== key || Date.now() - last.at > 20000) return false;
+  if (!key || !last || last.exiting || last.repeat || last.combo !== key || Date.now() - last.at > 20000) return false;
   last.count++;
   last.at = Date.now();
   let badge = last.el.querySelector('.combo');
@@ -384,26 +394,62 @@ function prune() {
 }
 
 // Ticker: each message slides across; the next one starts when there is room, so they never overlap.
-function addTick(m, still) {
+// repeat: a looped message (no arrival effects). Returns false when skipped.
+// Messages wait for their images (emotes, badges) before they're measured, so a late image never makes one wider
+// than the space it was given; they still go in order.
+let tickChain = Promise.resolve();
+function addTick(m, still, repeat = false) {
   const el = h('div', { className: 'tick' }, msgEl(m));
-  const r = { el, msg: m, combo: comboKey(m), count: 1, at: Date.now() };
+  const r = { el, msg: m, combo: comboKey(m), count: 1, at: Date.now(), repeat };
   if (still) { // thumbnail: lay them side by side
     el.style.left = `${rows.reduce((x, o) => x + o.el.offsetWidth + cfg.gap + 24, 0)}px`;
     list.append(el);
     rows.push(r);
-    return;
+    return true;
   }
-  const now = performance.now();
-  if (tickerReady - now > 8000 || rows.length >= cfg.maxMessages) return; // chat is faster than the ticker: skip
+  if (rows.length >= cfg.maxMessages) return false;
+  el.style.visibility = 'hidden';
   list.append(el);
   rows.push(r);
+  const fill = filling;
+  tickChain = tickChain.then(() => imagesReady(el)).then(() => place(r, fill));
+  return true;
+}
+const imagesReady = (el) => Promise.race([
+  Promise.all([...el.querySelectorAll('img')].map((i) => (i.complete ? null : new Promise((ok) => { i.onload = i.onerror = ok; })))),
+  new Promise((ok) => setTimeout(ok, 1500)),
+]);
+
+// Give a message its slot: it starts when the one before has moved past by the gap.
+function place(r, fill) {
+  const { el, msg: m } = r;
+  if (!el.isConnected) return; // redrawn meanwhile
+  const now = performance.now();
+  // Chat faster than the ticker: skip, so it stays close to live (test messages may wait longer: they show every effect).
+  if (!fill && tickerReady - now > (m.test ? 60000 : 8000)) return drop(r);
   const W = viewport.clientWidth, w = el.offsetWidth, v = cfg.tickerSpeed;
-  const start = Math.max(now, tickerReady);
+  const start = fill ? tickerReady : Math.max(now, tickerReady); // when filling, it may have started already
+  const duration = ((W + w) / v) * 1000;
   tickerReady = start + ((w + cfg.gap + 24) / v) * 1000;
+  if (start + duration <= now) return drop(r); // would already be gone
   const [from, to] = cfg.tickerDir === 'rtl' ? [W, -w] : [-w, W];
-  el.animate([{ transform: `translateX(${from}px)` }, { transform: `translateX(${to}px)` }], { duration: ((W + w) / v) * 1000, delay: start - now, fill: 'both' }).onfinish = () => drop(r);
-  setTimeout(() => {
-    el.classList.add('arrive');
-    if (cfg.typewriter && el.isConnected) typeOut(el.firstChild);
-  }, start - now);
+  el.animate([{ transform: `translateX(${from}px)` }, { transform: `translateX(${to}px)` }], { duration, delay: start - now, fill: 'both' }).onfinish = () => drop(r);
+  el.style.visibility = '';
+  if (!fill && !r.repeat) {
+    setTimeout(() => {
+      el.classList.add('arrive');
+      if (cfg.typewriter && el.isConnected) typeOut(el.firstChild);
+    }, start - now);
+  }
+  scheduleLoop();
+}
+
+// Keep looping: when the bar has room and no new message is waiting, the recent messages come around again.
+function scheduleLoop() {
+  clearTimeout(loopTimer);
+  if (!cfg.tickerLoop || vertical()) return;
+  loopTimer = setTimeout(() => {
+    const pool = recent.filter(shown).slice(-cfg.maxMessages);
+    if (pool.length && !addTick(pool[loopAt++ % pool.length], false, true)) loopTimer = setTimeout(scheduleLoop, 500);
+  }, Math.max(0, tickerReady - performance.now()));
 }

@@ -150,46 +150,81 @@ function viewers() {
 }
 
 const twitchEmote = (id, name) => ({ t: 'emote', name, provider: 'twitch', src: `https://static-cdn.jtvnw.net/emoticons/v2/${id}/default/dark/2.0`, still: `https://static-cdn.jtvnw.net/emoticons/v2/${id}/static/dark/2.0` });
+// Twitch's default profile pictures (what Twitch shows for viewers without their own), for the profile picture test.
+const AVATARS = ['215b7342-def9-11e9-9a66-784f43822e80', '13e5fa74-defa-11e9-809c-784f43822e80', '998f01ae-def8-11e9-b95c-784f43822e80', 'ce57700a-def9-11e9-842d-784f43822e80',
+  'de130ab0-def7-11e9-b668-784f43822e80', 'dbdc9198-def8-11e9-8681-784f43822e80', 'ebe4cd89-b4f4-4cd9-adac-2f30151b4209', '294c98b5-e34d-42cd-a8f0-140b72fba9b0']
+  .map((id) => `https://static-cdn.jtvnw.net/user-default-pictures-uv/${id}-profile_image-70x70.png`);
 
-// One of each effect: emotes, a sub, a first message, a mention.
-function samples() {
+// Plain messages with emotes.
+const plain = {
+  twitch: (viewer) => ({ platform: 'twitch', user: viewer('twitch'), text: T.mod, parts: [twitchEmote(25, 'Kappa'), { t: 'text', v: T.mod.slice(5, -7) }, twitchEmote(30259, 'HeyGuys')] }),
+  kick: (viewer) => ({ platform: 'kick', user: viewer('kick'), text: T.kick.replace(/\[emote:\d+:([^\]]*)\]/g, '$1'), parts: kick.kickParts(T.kick) }),
+};
+
+// Messages that trigger each fancy effect: key -> () => a message, or a run of messages (combo). The widget shows an
+// effect only when it's on in the settings; the panel says which ones are off.
+function effects(viewer) {
   const c = settings.get().chat;
   const streamer = c.twitchChannel || c.kickChannel || 'streamer';
   const seven = seventv.someGlobal(1)[0];
+  const text = (v) => [{ t: 'text', v }];
+  return {
+    sub: () => {
+      const months = pick(SUB_MONTHS.slice(1));
+      const fan = viewer('twitch', ['subscriber'], months);
+      return { platform: 'twitch', kind: 'sub', user: fan, system: T.subSystem.replace('{user}', fan.name).replace('{months}', months), text: T.subText, parts: text(T.subText) };
+    },
+    first: () => ({ platform: 'twitch', first: true, user: viewer('twitch', pick([[], ['premium']])), text: T.first,
+      parts: [...text(`${T.first} `), ...(seven ? [{ t: 'emote', name: seven.name, src: seven.src, still: seven.still, provider: '7tv' }] : [])] }),
+    vip: () => {
+      const platform = pick(PLATFORMS);
+      return { platform, user: viewer(platform, pick([['vip'], ['vip', 'subscriber']])), text: T.vip, parts: text(T.vip) };
+    },
+    mention: () => {
+      const platform = pick(PLATFORMS), v = T.mention.replace('{streamer}', streamer);
+      return { platform, user: viewer(platform), text: v, parts: text(v) };
+    },
+    avatar: () => ({ platform: 'twitch', user: { ...viewer('twitch'), avatar: pick(AVATARS) }, text: T.avatar, parts: text(T.avatar) }),
+    // Several viewers send the same single emote in a row: the widget counts them on one message ("x5").
+    combo: () => {
+      const emote = seven ? { t: 'emote', name: seven.name, src: seven.src, still: seven.still, provider: '7tv' } : twitchEmote(25, 'Kappa');
+      return Array.from({ length: 4 + Math.floor(Math.random() * 3) }, () => {
+        const platform = seven ? pick(PLATFORMS) : 'twitch'; // a 7TV emote works on both platforms
+        return { platform, user: viewer(platform), text: emote.name, parts: [emote] };
+      });
+    },
+  };
+}
+const EFFECTS = ['sub', 'first', 'vip', 'mention', 'avatar', 'combo'];
+
+// "Send test message": emotes and 3 random effects. "Send 10 messages": 10 messages, 2 of them (or a combo run) effects.
+// "Show all effects": every effect in a row. A combo run stays together.
+function build(kind) {
   const viewer = viewers();
-  const months = pick(SUB_MONTHS.slice(1));
-  const fan = viewer('twitch', ['subscriber'], months);
-  const mentionFrom = pick(PLATFORMS);
-  const mention = T.mention.replace('{streamer}', streamer);
-  return [
-    { platform: 'twitch', user: viewer('twitch'), text: T.mod, parts: [twitchEmote(25, 'Kappa'), { t: 'text', v: T.mod.slice(5, -7) }, twitchEmote(30259, 'HeyGuys')] },
-    { platform: 'kick', user: viewer('kick'), text: T.kick.replace(/\[emote:\d+:([^\]]*)\]/g, '$1'), parts: kick.kickParts(T.kick) },
-    { platform: 'twitch', kind: 'sub', user: fan, system: T.subSystem.replace('{user}', fan.name).replace('{months}', months), text: T.subText, parts: [{ t: 'text', v: T.subText }] },
-    { platform: 'twitch', first: true, user: viewer('twitch', pick([[], ['premium']])), text: T.first,
-      parts: [{ t: 'text', v: `${T.first} ` }, ...(seven ? [{ t: 'emote', name: seven.name, src: seven.src, still: seven.still, provider: '7tv' }] : [])] },
-    { platform: mentionFrom, user: viewer(mentionFrom), text: mention, parts: [{ t: 'text', v: mention }] },
-  ];
+  const fx = effects(viewer);
+  const picked = kind === 'all' ? EFFECTS : shuffled(EFFECTS).slice(0, kind === 'burst' ? 2 : 3);
+  const runs = picked.map((k) => [].concat(fx[k]()));
+  if (kind === 'all') return { list: runs.flat(), effects: picked };
+  const fill = kind === 'burst'
+    ? shuffled(T.burst).slice(0, 10 - runs.flat().length).map((v) => { const platform = pick(PLATFORMS); return [{ platform, user: viewer(platform), text: v, parts: [{ t: 'text', v }] }]; })
+    : [[plain.twitch(viewer)], [plain.kick(viewer)]];
+  return { list: shuffled([...runs, ...fill]).flat(), effects: picked };
 }
 
-// 10 quick messages from Kick and Twitch viewers.
-function burst() {
-  const viewer = viewers();
-  return T.burst.map((text) => {
-    const platform = pick(PLATFORMS);
-    return { platform, user: viewer(platform), text, parts: [{ t: 'text', v: text }] };
-  });
-}
-
-// kind 'sample': one of each effect. kind 'burst': 10 quick messages to see them move up and fade.
+// kind 'sample' | 'burst' | 'all' -> { sent, effects }.
 function test(kind) {
   if (!globalRequested) { globalRequested = true; seventv.loadGlobal(); }
-  const list = kind === 'burst' ? burst() : samples();
+  const { list, effects: used } = build(kind);
   const c = settings.get().chat;
   list.forEach((m, i) => setTimeout(() => emitChat({ ...m, test: true, channel: m.platform === 'kick' ? c.kickChannel : c.twitchChannel }), i * (kind === 'burst' ? 180 : 450)));
-  return list.length;
+  return { sent: list.length, effects: used };
 }
 
-// The panel's style thumbnails: the same sample messages, not sent anywhere.
-const thumbs = () => samples().map((m) => chatMessage({ ...m, test: true }));
+// The panel's style thumbnails (and the preview before any message): emotes and the effects that fit a still picture.
+function thumbs() {
+  const viewer = viewers();
+  const fx = effects(viewer);
+  return [plain.twitch(viewer), fx.sub(), fx.first(), fx.vip(), fx.mention()].map((m) => chatMessage({ ...m, test: true }));
+}
 
 module.exports = { sync, test, thumbs, status: () => status, recent: () => recent, events: chat };

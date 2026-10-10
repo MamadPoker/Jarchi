@@ -108,13 +108,32 @@ test('chat settings, Reset style, test messages, OBS page and logos', async () =
   const seen = [];
   const onChat = (m) => seen.push(m);
   bus.on('chat', onChat);
-  assert.equal((await (await call('POST', '/api/chat/test', { kind: 'sample' })).json()).sent, 5);
-  assert.equal((await (await call('POST', '/api/chat/test', { kind: 'burst' })).json()).sent, 10);
-  await new Promise((r) => setTimeout(r, 2600));
+  const wait = (n) => new Promise((r) => setTimeout(r, n * 450 + 400));
+  // "Show all effects": one message per effect, in order, then a combo run of one emote from several viewers.
+  const all = await (await call('POST', '/api/chat/test', { kind: 'all' })).json();
+  assert.deepEqual(all.effects, ['sub', 'first', 'vip', 'mention', 'avatar', 'combo']);
+  await wait(all.sent);
+  assert.equal(seen.length, all.sent);
+  assert.ok(seen[0].kind === 'sub' && seen[0].system, 'sub');
+  assert.ok(seen[1].first, 'first message');
+  assert.ok(seen[2].user.badges.some((b) => b.type === 'vip'), 'VIP');
+  assert.match(seen[3].text, /@streamer\b/, 'mention');
+  assert.match(seen[4].user.avatar, /^https:\/\/static-cdn\.jtvnw\.net\/user-default-pictures-uv\//, 'profile picture');
+  const run = seen.slice(5);
+  assert.ok(run.length >= 4 && new Set(run.map((m) => m.user.name)).size === run.length, 'combo: several viewers');
+  assert.ok(run.every((m) => m.parts.length === 1 && m.parts[0].t === 'emote' && m.parts[0].name === run[0].parts[0].name), 'combo: the same emote');
+  // "Send test message" (emotes + 3 effects) and "Send 10 messages" (10, 2 of them effects)
+  seen.length = 0;
+  const sample = await (await call('POST', '/api/chat/test', { kind: 'sample' })).json();
+  const burst = await (await call('POST', '/api/chat/test', { kind: 'burst' })).json();
+  assert.equal(sample.effects.length, 3);
+  assert.ok(sample.sent >= 5);
+  assert.deepEqual([burst.sent, burst.effects.length], [10, 2]);
+  await wait(sample.sent);
   bus.off('chat', onChat);
-  assert.equal(seen.length, 15);
+  assert.equal(seen.length, sample.sent + burst.sent);
   assert.ok(seen.every((m) => m.test));
-  assert.ok(seen.some((m) => m.kind === 'sub') && seen.some((m) => m.first) && seen.some((m) => m.parts.some((p) => p.t === 'emote')));
+  assert.ok(seen.some((m) => m.parts.some((p) => p.t === 'emote')));
 
   assert.equal((await fetch(`${base}/widgets/chat/`)).status, 200);
   for (const logo of ['kick', 'twitch']) assert.equal((await fetch(`${base}/assets/platform-logos/${logo}.svg`)).status, 200);
@@ -159,10 +178,19 @@ test('test messages: random viewers with real badge images and the Kick channel\
   kick.connect = realConnect;
 });
 
-test('chat styles: all 18 can be picked, new options validate, bundled fonts are served', async () => {
+test('chat styles: all 26 can be picked, new options validate, bundled fonts are served', async () => {
   if (!server.listening) await new Promise((r) => server.once('listening', r));
   const { styles, fonts } = await (await call('GET', '/api/chat/styles')).json();
-  assert.equal(Object.keys(styles).length, 18);
+  assert.equal(Object.keys(styles).length, 26);
+  const bars = Object.keys(styles).filter((id) => styles[id].layout === 'horizontal');
+  assert.deepEqual(bars, ['ticker', 'news', 'neonstrip', 'pills', 'minimal', 'led', 'cyberbar', 'candy', 'glassbar']);
+  assert.ok(bars.every((id) => styles[id].tickerLoop === (id !== 'ticker')), 'the new bars loop; Ticker stays as it was');
+  for (const bad of [{ tickerPos: 'middle' }, { tickerLoop: 1 }]) assert.equal((await call('PATCH', '/api/settings', { chat: bad })).status, 400, JSON.stringify(bad));
+  await call('PATCH', '/api/settings', { chat: { tickerPos: 'bottom' } });
+  await call('PATCH', '/api/settings', { chat: { style: 'news' } });
+  await call('POST', '/api/chat/reset-style');
+  assert.equal((await (await call('GET', '/api/settings')).json()).chat.tickerPos, 'bottom', 'bar position stays when the style changes or is reset');
+  await call('PATCH', '/api/settings', { chat: { tickerPos: 'top' } });
   for (const id of Object.keys(styles)) {
     const s = await (await call('PATCH', '/api/settings', { chat: { style: id } })).json();
     assert.equal(s.chat.style, id);

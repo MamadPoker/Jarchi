@@ -288,3 +288,77 @@ body.preview, body.thumb { display: grid; place-items: center; }
 }
 .chat.style-persian .msg[data-dir="rtl"] { direction: rtl; text-align: right; }
 .style-persian .name { text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5); }
+
+/* ---------- Fancy effects in every style ---------- */
+/* A box per message: the sub glow and the mention show as rings, so they don't fight the style's own shadow. */
+.chat.bubbles .msg.glow { outline: 2px solid #ffd54d; outline-offset: 2px; }
+.chat.bubbles .msg.mention { outline: 2px solid #ff4d6d; outline-offset: 2px; }
+/* Cut-corner styles clip rings: tint the message instead */
+.chat.style-cyberpunk .msg.glow { background-image: linear-gradient(90deg, rgba(255, 213, 77, 0.35), transparent 70%); }
+.chat.style-cyberpunk .msg.mention { background: #ff2bd6; color: #0b0b0b; }
+.chat.style-cyberpunk.new-bottom .row:last-child .combo, .chat.style-cyberpunk.new-top .row:first-child .combo, .chat.style-cyberpunk .tick:last-child .combo { color: #0b0b0b; }
+.style-cyberbar .tag-sub { background: #0b0b0b; color: #fcee0a; }
+/* Light boxes: a darker rainbow and combo counter, so they stay readable */
+.light .name.rainbow { background-image: linear-gradient(90deg, #e03131, #e8590c, #c99700, #2b8a3e, #1971c2, #6741d9, #c2255c, #e03131); }
+.light .combo { color: #e8590c; }
+/* One line (bars): the combo counter sits on the emote, so the message doesn't get wider while it scrolls */
+.tick .msg { position: relative; }
+.tick .combo { position: absolute; top: -0.35em; right: -0.5em; margin: 0; font-size: 0.8em; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8); }
+.tick .msg.glow { padding: 0.25em 0.6em; }
+
+/* ---------- Horizontal (bar) styles ---------- */
+/* OBS source taller than the bar: put the bar at the bottom */
+body.bar-bottom { display: flex; flex-direction: column; justify-content: flex-end; }
+
+/* News ticker: a red LIVE CHAT label with a pulsing dot, a white bar, thin dividers */
+.chat.style-news.layout-horizontal { flex-direction: row; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3); }
+.style-news .bar {
+  display: flex; flex: none; align-items: center; gap: 0.55em; padding: 0 1.4em 0 1em; background: #d61f26; color: #fff;
+  font-weight: 900; font-size: 0.85em; letter-spacing: 0.1em; white-space: nowrap; clip-path: polygon(0 0, 100% 0, calc(100% - 12px) 100%, 0 100%);
+}
+.style-news .bar i { width: 0.6em; height: 0.6em; border-radius: 50%; background: #fff; animation: live-pulse 1.4s ease-in-out infinite; }
+.style-news .bar i + i { display: none; }
+.style-news .bar-title { flex: none; margin: 0; font-size: inherit; opacity: 1; text-align: left; }
+@keyframes live-pulse { 50% { opacity: 0.35; transform: scale(0.7); } }
+.style-news .tick { padding-left: 18px; }
+.style-news .tick::before { content: ""; position: absolute; left: 0; top: 26%; bottom: 26%; width: 1px; background: rgba(0, 0, 0, 0.25); }
+
+/* Neon strip: pink line on top, cyan line below, glowing names */
+.chat.style-neonstrip.layout-horizontal { box-shadow: inset 0 2px 0 var(--bd), inset 0 -2px 0 #00f0ff, 0 -4px 14px -4px var(--bd), 0 4px 14px -4px #00f0ff; }
+.style-neonstrip .name { text-shadow: 0 0 6px currentColor, 0 0 12px currentColor; }
+
+/* Pills: no bar, each message its own floating pill */
+.chat.style-pills.bubbles .tick .msg { padding: calc(var(--pad) * 0.7) calc(var(--pad) * 1.6); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35); }
+
+/* Minimal: no background, big text, strong shadow */
+.chat.style-minimal.shadow .msg { text-shadow: 0 2px 2px rgba(0, 0, 0, 0.95), 0 0 3px #000, 0 0 10px rgba(0, 0, 0, 0.75); }
+.style-minimal .body { font-weight: 600; }
+
+/* LED board: dot-matrix black bar, amber uppercase glowing text */
+.chat.style-led.boxed {
+  background-image: radial-gradient(rgba(255, 176, 0, 0.12) 1px, transparent 1.4px); background-size: 4px 4px;
+  box-shadow: inset 0 0 0 2px #1c1c1c, inset 0 0 18px rgba(0, 0, 0, 0.9);
+}
+.style-led .msg { text-transform: uppercase; letter-spacing: 0.08em; text-shadow: 0 0 4px currentColor, 0 0 10px rgba(255, 150, 0, 0.55); }
+.style-led .name { text-shadow: 0 0 6px currentColor, 0 0 12px currentColor; }
+
+/* Cyberpunk bar: black bar with a yellow bottom line; every message a yellow tag with slanted ends */
+.chat.style-cyberbar.boxed.bordered { border: 0; box-shadow: inset 0 calc(var(--bw) * -1) 0 var(--bd), 0 6px 16px -8px var(--bd); }
+/* the slanted tag is drawn behind the message, so the combo counter on top isn't cut off */
+.style-cyberbar .tick .msg { padding: 0.3em 1.2em; z-index: 0; }
+.style-cyberbar .tick .msg::before { content: ""; position: absolute; inset: 0; z-index: -1; background: var(--bd); clip-path: polygon(10px 0, 100% 0, calc(100% - 10px) 100%, 0 100%); }
+.chat.style-cyberbar .tick .msg.glow, .chat.style-cyberbar .tick .msg.first { background: none; box-shadow: none; animation: none; }
+.style-cyberbar .tick .msg.glow::before { background: linear-gradient(90deg, #ffd54d, var(--bd)); }
+.style-cyberbar .tick .msg.mention::before { background: #ff2bd6; }
+.style-cyberbar .name { text-transform: uppercase; letter-spacing: 0.06em; font-weight: 900; }
+
+/* Pastel candy: a white rounded bar with soft pastel pills */
+.chat.style-candy.boxed { box-shadow: 0 4px 14px rgba(90, 60, 160, 0.25); }
+.style-candy .tick .msg { padding: 0.25em 0.9em; border-radius: 999px; background: var(--turn); }
+.style-candy .body { font-weight: 500; }
+
+/* Glass bar: a frosted strip with a thin white border; messages fade at both edges */
+.chat.style-glassbar.boxed {
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0.06));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 8px 24px rgba(0, 0, 0, 0.25);
+}

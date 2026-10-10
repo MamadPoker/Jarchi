@@ -54,6 +54,7 @@ const CHAT_GROUPS = () => [
     ['range', 'height', { min: 40, max: 1080, step: 10, label: 'chatHeight' }]]],
   ['chatMotion', [['seg', 'layout', { options: [['vertical', 'layoutVertical'], ['horizontal', 'layoutHorizontal']] }],
     ['seg', 'tickerDir', { options: [['rtl', 'dirRtlArrow'], ['ltr', 'dirLtrArrow']], only: 'ticker' }], ['range', 'tickerSpeed', { min: 20, max: 600, step: 10, only: 'ticker' }],
+    ['toggle', 'tickerLoop', { only: 'ticker' }], ['seg', 'tickerPos', { options: [['top', 'posTop'], ['bottom', 'posBottom']], only: 'ticker' }],
     ['seg', 'newAt', { options: [['bottom', 'newBottom'], ['top', 'newTop']], only: 'vertical' }], ['range', 'maxMessages', { min: 1, max: 100 }],
     ['range', 'hideAfter', { min: 0, max: 600, step: 5 }], ['select', 'enterAnim', { options: [['slide', 'animSlide'], ['fade', 'animFade'], ['pop', 'animPop'], ['float', 'animFloat'], ['bounce', 'animBounce'], ['drop', 'animDrop'], ['none', 'animNone']] }],
     ['select', 'exitAnim', { options: [['fade', 'animFade'], ['slide', 'animSlide'], ['none', 'animNone']] }], ['range', 'animSpeed', { min: 0.25, max: 3, step: 0.25 }],
@@ -100,7 +101,7 @@ function drawChatThumbs() {
   if (!chatThumbs) return;
   for (const f of $$('.chat-tile iframe')) {
     const style = f.dataset.style;
-    const ticker = style === 'ticker';
+    const ticker = chatStyles[style].layout === 'horizontal';
     const cfg = { ...settings.chat, ...chatStyles[style], style, enabled: true, width: ticker ? 440 : 400, height: ticker ? 64 : 290, maxMessages: 6,
       hideCommands: false, hideBots: false, hiddenUsers: '', blockedWords: '', hideLinks: false, source: 'both', avatars: false, fxMention: false };
     f.contentWindow?.postMessage({ strings: S, cfg, messages: chatThumbs }, location.origin);
@@ -356,22 +357,32 @@ function build() {
   for (const [title, controls] of CHAT_GROUPS()) {
     $('#chatMore').append(el('div', { className: 'box' }, el('h3', { textContent: S.panel[title] }), ...controls.map(([kind, f, o = {}]) => chatControl(kind, f, o))));
   }
-  for (const [id, name] of Object.entries(S.chatStyles)) {
-    const frame = el('iframe', { src: '/widgets/chat?thumb', title: name, tabIndex: -1, onload: drawChatThumbs });
-    frame.dataset.style = id;
-    frame.setAttribute('aria-hidden', 'true');
-    const tile = el('button', { className: 'style-tile chat-tile', onclick: () => patchChat({ style: id }) },
-      el('div', { className: 'preview' }, frame), el('span', { className: 'tile-name', textContent: name }));
-    tile.dataset.style = id;
-    $('#chatStyleGrid').append(tile);
-    fit.observe(tile.querySelector('.preview'));
+  for (const layout of ['vertical', 'horizontal']) { // the style picker, in two groups
+    $('#chatStyleGrid').append(el('h3', { className: 'grid-head', textContent: S.panel[layout === 'vertical' ? 'stylesVertical' : 'stylesHorizontal'] }));
+    for (const [id, name] of Object.entries(S.chatStyles).filter(([id]) => chatStyles[id]?.layout === layout)) {
+      const frame = el('iframe', { src: '/widgets/chat?thumb', title: name, tabIndex: -1, onload: drawChatThumbs });
+      frame.dataset.style = id;
+      frame.setAttribute('aria-hidden', 'true');
+      const tile = el('button', { className: 'style-tile chat-tile', onclick: () => patchChat({ style: id }) },
+        el('div', { className: 'preview' }, frame), el('span', { className: 'tile-name', textContent: name }));
+      tile.dataset.style = id;
+      $('#chatStyleGrid').append(tile);
+      fit.observe(tile.querySelector('.preview'));
+    }
   }
   const chatEd = $('main [data-view=chat]');
   $$('[data-f]', chatEd).forEach((inp) => inp.addEventListener('change', () => patchChat({ [inp.dataset.f]: valueOf(inp) })));
   $$('input[type=range]', chatEd).forEach((inp) => inp.addEventListener('input', () => showRange(inp)));
   $$('[data-placeholder]').forEach((e) => (e.placeholder = S.panel[e.dataset.placeholder]));
-  $('#chatTest').onclick = () => api('POST', '/api/chat/test', { kind: 'sample' }).then(() => toast(S.panel.chatTestSent), (err) => toast(err.message, true));
-  $('#chatBurst').onclick = () => api('POST', '/api/chat/test', { kind: 'burst' }).then(() => toast(S.panel.chatTestSent), (err) => toast(err.message, true));
+  // Test messages. Effects that are off still get their message, just without the effect: say which ones.
+  const FX_SETTING = { sub: 'fxSubGlow', first: 'fxFirst', vip: 'fxRainbowVip', mention: 'fxMention', combo: 'fxCombo', avatar: 'avatars' };
+  const sendTest = (kind) => api('POST', '/api/chat/test', { kind }).then((r) => {
+    $('#chatFxHint').textContent = r.effects.map((k) => FX_SETTING[k]).filter((f) => !settings.chat[f]).map((f) => S.panel.fxOff[f]).join(' · ');
+    toast(S.panel.chatTestSent);
+  }, (err) => toast(err.message, true));
+  $('#chatTest').onclick = () => sendTest('sample');
+  $('#chatBurst').onclick = () => sendTest('burst');
+  $('#chatAllFx').onclick = () => sendTest('all');
   $('#chatResetStyle').onclick = () => send('POST', '/api/chat/reset-style');
   $('#chatCopy').title = S.panel.chatCopyHint;
   $('#chatCopy').onclick = () => navigator.clipboard.writeText(`${location.origin}/widgets/chat`).then(() => toast(S.panel.chatCopied));

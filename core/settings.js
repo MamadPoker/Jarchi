@@ -124,7 +124,10 @@ const CHAT_BASE = {
   bg: 'color', bgColor: '#14141c', bgOpacity: 0.6, bubbles: false, border: false, borderColor: '#8b5cf6', borderWidth: 2, radius: 12, padding: 12, gap: 6, width: 420, height: 600,
   layout: 'vertical', tickerDir: 'rtl', tickerSpeed: 120, newAt: 'bottom', maxMessages: 30, hideAfter: 0, enterAnim: 'slide', exitAnim: 'fade', animSpeed: 1, fadeZone: 80, fade: true,
   fxSubGlow: true, fxFirst: true, fxRainbowVip: true, fxMention: true, fxCombo: true, avatars: false, blur: 0, typewriter: false, typeSound: false,
+  tickerLoop: false,
 };
+// What the horizontal styles share: a 1920-wide bar that keeps looping the recent messages when chat is quiet.
+const BAR = { layout: 'horizontal', width: 1920, height: 64, radius: 0, padding: 10, maxMessages: 15, fadeZone: 120, tickerLoop: true };
 // The chat style's look values. The style-<id> CSS class adds what options can't (tails, tape, scanlines, frames...).
 const CHAT_STYLES = Object.fromEntries(Object.entries({
   classic: { bgColor: '#121218', bgOpacity: 0.78, radius: 14, padding: 14 },
@@ -144,6 +147,15 @@ const CHAT_STYLES = Object.fromEntries(Object.entries({
   pastel: { bubbles: true, bgColor: '#dccbff', bgOpacity: 1, textColor: '#3b3355', textShadow: false, nameColorMode: 'custom', nameColor: '#2d2546', font: 'Fredoka', fontSize: 17, nameSize: 17, radius: 40, padding: 9, gap: 8, enterAnim: 'bounce' },
   galaxy: { bgColor: '#0b0920', bgOpacity: 0.88, radius: 18, padding: 16, textColor: '#ece8ff', nameColorMode: 'style', enterAnim: 'float' },
   rpg: { bubbles: true, bgColor: '#13207a', bgOpacity: 0.94, border: true, borderColor: '#ffffff', borderWidth: 3, radius: 6, padding: 12, gap: 24, font: 'Press Start 2P', fontSize: 12, nameSize: 10, textColor: '#ffffff', textShadow: false, namePos: 'above', nameColorMode: 'custom', nameColor: '#ffe066', emoteSize: 24, enterAnim: 'fade', typewriter: true },
+  // Horizontal (ticker) styles
+  news: { ...BAR, bgColor: '#ffffff', bgOpacity: 1, height: 56, textColor: '#1a1a1a', textShadow: false, padding: 10, fadeZone: 60, tickerSpeed: 110 },
+  neonstrip: { ...BAR, bgColor: '#07031a', bgOpacity: 0.9, borderColor: '#ff2bd6', textColor: '#f2e9ff' },
+  pills: { ...BAR, bubbles: true, bgColor: '#16161f', bgOpacity: 0.88, radius: 40, padding: 8, gap: 18, fadeZone: 100 },
+  minimal: { ...BAR, bg: 'off', height: 72, fontSize: 26, nameSize: 26, padding: 0, tickerSpeed: 70 },
+  led: { ...BAR, bgColor: '#050505', bgOpacity: 0.95, radius: 4, font: 'Consolas', fontSize: 22, nameSize: 22, textColor: '#ffb000', textShadow: false, nameColorMode: 'style', fadeZone: 80 },
+  cyberbar: { ...BAR, bgColor: '#0a0a0c', bgOpacity: 0.92, border: true, borderColor: '#fcee0a', borderWidth: 3, textColor: '#0b0b0b', textShadow: false, nameColorMode: 'custom', nameColor: '#0b0b0b', fontSize: 17, nameSize: 16, fadeZone: 80 },
+  candy: { ...BAR, bgColor: '#ffffff', bgOpacity: 1, radius: 40, padding: 8, font: 'Fredoka', fontSize: 18, nameSize: 18, textColor: '#3b3355', textShadow: false, nameColorMode: 'custom', nameColor: '#2d2546', tickerDir: 'ltr', fadeZone: 60 },
+  glassbar: { ...BAR, bgColor: '#ffffff', bgOpacity: 0.16, border: true, borderColor: '#ffffff', borderWidth: 1, radius: 32, blur: 12, fadeZone: 160 },
   persian: { bgColor: '#0d1b3d', bgOpacity: 0.92, border: true, borderColor: '#d4af37', borderWidth: 8, radius: 6, padding: 20, font: 'Vazirmatn', fontSize: 18, nameSize: 17, textColor: '#f3ead3', nameColorMode: 'style' },
 }).map(([id, change]) => [id, { ...CHAT_BASE, ...change }]));
 // The chat can also use these bundled fonts (assets/fonts).
@@ -157,6 +169,7 @@ const CHAT_DEFAULTS = {
   emotesKick: true, emotesTwitch: true, emotes7tv: true,
   hideCommands: true, hideBots: true, bots: 'botrix, kickbot', hiddenUsers: '', blockedWords: '', hideLinks: false, source: 'both',
   rainbowUsers: '',
+  tickerPos: 'top', // where a bar sits in the OBS source: kept when the style changes
 };
 const words = (v) => typeof v === 'string' && v.length <= 1000;
 const CHAT_RULES = {
@@ -177,6 +190,7 @@ const CHAT_RULES = {
   maxMessages: (v) => Number.isInteger(v) && v >= 1 && v <= 100, hideAfter: num(0, 600),
   enterAnim: oneOf('slide', 'fade', 'pop', 'float', 'bounce', 'drop', 'none'), exitAnim: oneOf('fade', 'slide', 'none'), animSpeed: num(0.25, 3), fadeZone: num(0, 400), fade: bool,
   fxSubGlow: bool, fxFirst: bool, fxRainbowVip: bool, fxMention: bool, fxCombo: bool, avatars: bool, blur: num(0, 40), typewriter: bool, typeSound: bool,
+  tickerLoop: bool, tickerPos: oneOf('top', 'bottom'),
 };
 
 const ALLOWED = { image: ['png', 'jpg', 'gif', 'webp', 'webm', 'mp4'], sound: ['mp3', 'wav', 'ogg'] };
