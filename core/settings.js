@@ -123,20 +123,31 @@ const CHAT_BASE = {
   font: 'Segoe UI', fontSize: 18, nameSize: 18, nameColorMode: 'user', nameColor: '#8b5cf6', textColor: '#ffffff', namePos: 'inline', textShadow: true, textDir: 'auto',
   bg: 'color', bgColor: '#14141c', bgOpacity: 0.6, bubbles: false, border: false, borderColor: '#8b5cf6', borderWidth: 2, radius: 12, padding: 12, gap: 6, width: 420, height: 600,
   layout: 'vertical', tickerDir: 'rtl', tickerSpeed: 120, newAt: 'bottom', maxMessages: 30, hideAfter: 0, enterAnim: 'slide', exitAnim: 'fade', animSpeed: 1, fadeZone: 80, fade: true,
-  fxSubGlow: true, fxFirst: true, fxRainbowVip: true, fxMention: true, fxCombo: true, avatars: false, blur: 0,
+  fxSubGlow: true, fxFirst: true, fxRainbowVip: true, fxMention: true, fxCombo: true, avatars: false, blur: 0, typewriter: false, typeSound: false,
 };
+// The chat style's look values. The style-<id> CSS class adds what options can't (tails, tape, scanlines, frames...).
 const CHAT_STYLES = Object.fromEntries(Object.entries({
-  classic: {},
-  bubbles: { bubbles: true, bgColor: '#1d2029', bgOpacity: 0.85, radius: 16, gap: 8, padding: 10 },
-  floating: { bg: 'off', padding: 0, gap: 8 },
-  neon: { bgColor: '#0a0620', bgOpacity: 0.75, border: true, borderColor: '#00f0ff', borderWidth: 2, radius: 14, textColor: '#e8fbff' },
+  classic: { bgColor: '#121218', bgOpacity: 0.78, radius: 14, padding: 14 },
+  bubbles: { bubbles: true, bgColor: '#ffffff', bgOpacity: 1, textColor: '#1f2330', textShadow: false, namePos: 'above', fontSize: 16, nameSize: 13, radius: 18, padding: 10, gap: 12, enterAnim: 'float' },
+  floating: { bg: 'off', padding: 0, gap: 10, fontSize: 22, nameSize: 22, fadeZone: 240, enterAnim: 'fade' },
+  neon: { bgColor: '#07031a', bgOpacity: 0.82, border: true, borderColor: '#00f0ff', borderWidth: 2, radius: 14, textColor: '#e8fbff' },
   terminal: { font: 'Consolas', fontSize: 16, nameSize: 16, bgColor: '#0c0c0c', bgOpacity: 0.92, border: true, borderColor: '#3a3a3a', borderWidth: 1, radius: 8, textColor: '#c8ffc8', showTime: true, textShadow: false, emoteSize: 24, enterAnim: 'fade' },
-  retro: { font: 'Consolas', fontSize: 16, nameSize: 16, bgColor: '#1b1b3a', bgOpacity: 0.95, border: true, borderColor: '#ffffff', borderWidth: 4, radius: 0, textShadow: false },
-  glass: { bgColor: '#ffffff', bgOpacity: 0.12, border: true, borderColor: '#ffffff', borderWidth: 1, radius: 18, blur: 14 },
-  popin: { bubbles: true, bgColor: '#1d2029', bgOpacity: 0.9, radius: 18, gap: 8, padding: 10, enterAnim: 'pop' },
-  side: { width: 300, height: 900, namePos: 'above', gap: 10 },
+  retro: { font: 'Press Start 2P', fontSize: 12, nameSize: 12, bgColor: '#1b1b3a', bgOpacity: 0.95, border: true, borderColor: '#ffffff', borderWidth: 4, radius: 0, padding: 16, gap: 10, textShadow: false, emoteSize: 24 },
+  glass: { bgColor: '#ffffff', bgOpacity: 0.16, border: true, borderColor: '#ffffff', borderWidth: 1, radius: 20, blur: 14 },
+  popin: { bubbles: true, bgColor: '#20232e', bgOpacity: 0.92, radius: 22, padding: 10, gap: 8, enterAnim: 'pop', animSpeed: 0.9 },
+  side: { bg: 'off', border: true, borderColor: '#8b5cf6', borderWidth: 3, width: 300, height: 900, namePos: 'above', nameSize: 15, gap: 14, padding: 0 },
   ticker: { layout: 'horizontal', width: 1920, height: 64, bgOpacity: 0.85, radius: 0, padding: 10, maxMessages: 15, fadeZone: 120 },
+  cyberpunk: { bubbles: true, bgColor: '#0a0a0c', bgOpacity: 0.92, border: true, borderColor: '#fcee0a', borderWidth: 3, radius: 0, padding: 9, gap: 8, textColor: '#e9e9e9', textShadow: false, nameColorMode: 'style', fontSize: 17, nameSize: 16, enterAnim: 'fade' },
+  comic: { bubbles: true, bgColor: '#ffffff', bgOpacity: 1, border: true, borderColor: '#111111', borderWidth: 3, radius: 16, padding: 10, gap: 8, textColor: '#111111', textShadow: false, nameColorMode: 'style', namePos: 'above', fontSize: 16, nameSize: 21, showColon: false, enterAnim: 'pop' },
+  hud: { bgColor: '#04121c', bgOpacity: 0.6, borderColor: '#00e5ff', radius: 2, padding: 18, textColor: '#d8f6ff', nameColorMode: 'custom', nameColor: '#5ff3ff', nameSize: 15, showColon: false },
+  sticky: { bubbles: true, bgColor: '#fff27a', bgOpacity: 1, textColor: '#2b2b2b', textShadow: false, nameColorMode: 'custom', nameColor: '#1f1f1f', namePos: 'above', fontSize: 16, nameSize: 15, radius: 3, padding: 12, gap: 16, enterAnim: 'drop' },
+  pastel: { bubbles: true, bgColor: '#dccbff', bgOpacity: 1, textColor: '#3b3355', textShadow: false, nameColorMode: 'custom', nameColor: '#2d2546', font: 'Fredoka', fontSize: 17, nameSize: 17, radius: 40, padding: 9, gap: 8, enterAnim: 'bounce' },
+  galaxy: { bgColor: '#0b0920', bgOpacity: 0.88, radius: 18, padding: 16, textColor: '#ece8ff', nameColorMode: 'style', enterAnim: 'float' },
+  rpg: { bubbles: true, bgColor: '#13207a', bgOpacity: 0.94, border: true, borderColor: '#ffffff', borderWidth: 3, radius: 6, padding: 12, gap: 24, font: 'Press Start 2P', fontSize: 12, nameSize: 10, textColor: '#ffffff', textShadow: false, namePos: 'above', nameColorMode: 'custom', nameColor: '#ffe066', emoteSize: 24, enterAnim: 'fade', typewriter: true },
+  persian: { bgColor: '#0d1b3d', bgOpacity: 0.92, border: true, borderColor: '#d4af37', borderWidth: 8, radius: 6, padding: 20, font: 'Vazirmatn', fontSize: 18, nameSize: 17, textColor: '#f3ead3', nameColorMode: 'style' },
 }).map(([id, change]) => [id, { ...CHAT_BASE, ...change }]));
+// The chat can also use these bundled fonts (assets/fonts).
+const CHAT_FONTS = [...FONTS, 'Press Start 2P', 'Bangers', 'Fredoka', 'Vazirmatn'];
 const CHAT_LOOK = Object.keys(CHAT_BASE); // the fields a style sets
 const CHAT_DEFAULTS = {
   enabled: true,
@@ -158,14 +169,14 @@ const CHAT_RULES = {
   rainbowUsers: words,
   showPlatform: bool, showBadges: bool, badgeBroadcaster: bool, badgeMod: bool, badgeVip: bool, badgeSub: bool, badgeOther: bool, showTime: bool, showColon: bool,
   emotesAnimated: bool, emoteSize: num(12, 112), bigEmotes: bool, bigEmoteSize: num(16, 160),
-  font: oneOf(...FONTS), fontSize: num(10, 72), nameSize: num(10, 72), nameColorMode: oneOf('user', 'custom'), nameColor: hex, textColor: hex,
+  font: oneOf(...CHAT_FONTS), fontSize: num(10, 72), nameSize: num(10, 72), nameColorMode: oneOf('user', 'custom', 'style'), nameColor: hex, textColor: hex,
   namePos: oneOf('inline', 'above'), textShadow: bool, textDir: oneOf('auto', 'ltr', 'rtl'),
   bg: oneOf('color', 'transparent', 'off'), bgColor: hex, bgOpacity: num(0, 1), bubbles: bool, border: bool, borderColor: hex, borderWidth: num(1, 12),
   radius: num(0, 40), padding: num(0, 60), gap: num(0, 40), width: num(200, 1920), height: num(40, 1080),
   layout: oneOf('vertical', 'horizontal'), tickerDir: oneOf('rtl', 'ltr'), tickerSpeed: num(20, 600), newAt: oneOf('bottom', 'top'),
   maxMessages: (v) => Number.isInteger(v) && v >= 1 && v <= 100, hideAfter: num(0, 600),
-  enterAnim: oneOf('slide', 'fade', 'pop', 'none'), exitAnim: oneOf('fade', 'slide', 'none'), animSpeed: num(0.25, 3), fadeZone: num(0, 400), fade: bool,
-  fxSubGlow: bool, fxFirst: bool, fxRainbowVip: bool, fxMention: bool, fxCombo: bool, avatars: bool, blur: num(0, 40),
+  enterAnim: oneOf('slide', 'fade', 'pop', 'float', 'bounce', 'drop', 'none'), exitAnim: oneOf('fade', 'slide', 'none'), animSpeed: num(0.25, 3), fadeZone: num(0, 400), fade: bool,
+  fxSubGlow: bool, fxFirst: bool, fxRainbowVip: bool, fxMention: bool, fxCombo: bool, avatars: bool, blur: num(0, 40), typewriter: bool, typeSound: bool,
 };
 
 const ALLOWED = { image: ['png', 'jpg', 'gif', 'webp', 'webm', 'mp4'], sound: ['mp3', 'wav', 'ogg'] };
@@ -335,4 +346,4 @@ function reset(type) {
   return get();
 }
 
-module.exports = { get, update, saveUpload, removeUpload, reset, saveGoalSound, removeGoalSound, resetGoalStyle, resetChatStyle, GOAL_IDS, GOAL_STYLES, CHAT_STYLES, FONTS };
+module.exports = { get, update, saveUpload, removeUpload, reset, saveGoalSound, removeGoalSound, resetGoalStyle, resetChatStyle, GOAL_IDS, GOAL_STYLES, CHAT_STYLES, CHAT_FONTS, FONTS };

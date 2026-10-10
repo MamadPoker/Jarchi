@@ -70,7 +70,7 @@ Kick and Twitch chat in one box: `http://127.0.0.1:3000/widgets/chat` (transpare
 2. In OBS: **Sources → + → Browser**, paste the link from **Copy chat OBS link**. Make the source at least as big as the chat's width × height (More options → Box & messages); the chat sits in the top-left corner.
 3. **Send test message** shows every effect (badges, emotes, a sub, a first message, a mention); **Send 10 messages** shows the move-up-and-fade.
 
-- 10 styles (Classic box, Bubbles, Floating, Neon, Terminal, Retro, Glass, Pop-in, Side column, Ticker). A style is a starting point: every option works with every style, **Reset style** brings the style's own look back.
+- 18 styles: Classic box, Bubbles, Floating, Neon, Terminal, Retro, Glass, Pop-in, Side column, Ticker, Cyberpunk, Comic, Gamer HUD, Sticky notes, Pastel, Galaxy, RPG dialog (types out the newest message; optional typing sound), Persian tile (Vazirmatn font, Persian lines right-aligned). A style is a starting point: every option works with every style, **Reset style** brings the style's own look back. Fonts are bundled in `assets/fonts` (free, SIL Open Font License), so they work offline.
 - Messages deleted by a moderator, and everything from banned / timed-out users, disappear from the overlay too.
 - Emotes: Kick, Twitch and 7TV (the channel's set + global, refreshed every 5 minutes), animated or still.
 - Badges and logos come from the platforms: Twitch's own badge images; on Kick, Kick's own badge icons (host, mod, VIP, OG, founder, verified, staff, sub gifter tiers, default subscriber; taken unmodified from kick.com's web app, see `assets/kick-badges/README.md`), the channel's own sub badges and Kick's image badges.
@@ -93,7 +93,7 @@ core/store.js        JSON files in the data folder
 core/chat.js         runs the chat connectors, adds 7TV emotes, test messages
 core/seventv.js      7TV emote sets (cached)
 connectors/          Kick and Twitch chat readers (+ Twitch badge images)
-assets/              official platform logos (platform-logos) and Kick badge icons (kick-badges)
+assets/              official platform logos (platform-logos), Kick badge icons (kick-badges), bundled fonts (fonts)
 widgets/<name>/      each widget is a folder, served at /widgets/<name>
 panel/               settings panel (served at /)
 i18n/en.json         every UI string, panel and overlay

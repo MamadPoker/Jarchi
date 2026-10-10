@@ -158,3 +158,24 @@ test('test messages: random viewers with real badge images and the Kick channel\
   await call('PATCH', '/api/settings', { chat: { kickChannel: '' } });
   kick.connect = realConnect;
 });
+
+test('chat styles: all 18 can be picked, new options validate, bundled fonts are served', async () => {
+  if (!server.listening) await new Promise((r) => server.once('listening', r));
+  const { styles, fonts } = await (await call('GET', '/api/chat/styles')).json();
+  assert.equal(Object.keys(styles).length, 18);
+  for (const id of Object.keys(styles)) {
+    const s = await (await call('PATCH', '/api/settings', { chat: { style: id } })).json();
+    assert.equal(s.chat.style, id);
+    assert.ok(fonts.includes(s.chat.font), `${id}: font ${s.chat.font}`);
+  }
+  assert.equal((await call('PATCH', '/api/settings', { chat: { style: 'rpg' } })).status, 200);
+  assert.equal((await (await call('GET', '/api/settings')).json()).chat.typewriter, true, 'RPG dialog types out');
+  for (const ok of [{ nameColorMode: 'style' }, { enterAnim: 'drop' }, { typeSound: true }, { font: 'Vazirmatn' }]) assert.equal((await call('PATCH', '/api/settings', { chat: ok })).status, 200, JSON.stringify(ok));
+  for (const bad of [{ nameColorMode: 'rainbow' }, { enterAnim: 'spin' }, { typewriter: 'yes' }, { font: 'Comic Sans' }]) assert.equal((await call('PATCH', '/api/settings', { chat: bad })).status, 400, JSON.stringify(bad));
+  for (const file of ['press-start-2p/PressStart2P-Regular.ttf', 'bangers/Bangers-Regular.ttf', 'fredoka/Fredoka-Variable.ttf', 'vazirmatn/Vazirmatn-Variable.ttf']) {
+    assert.equal((await fetch(`${base}/assets/fonts/${file}`)).status, 200, file);
+    assert.ok(fs.existsSync(path.join(__dirname, '..', 'assets/fonts', path.dirname(file), 'OFL.txt')), `${file} license`);
+  }
+  await call('POST', '/api/chat/reset-style');
+  await call('PATCH', '/api/settings', { chat: { style: 'classic' } });
+});

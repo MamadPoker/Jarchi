@@ -1,0 +1,12 @@
+# Fonts
+
+Fonts bundled with Jarchi, so they work offline (and in the desktop app later). All are free under the SIL Open Font License 1.1; each folder keeps its `OFL.txt`. Files are unmodified, from Google Fonts' repository (https://github.com/google/fonts, `ofl/`).
+
+| Folder | Font | Used by (chat styles) |
+| --- | --- | --- |
+| `press-start-2p/` | Press Start 2P | Retro, RPG dialog |
+| `bangers/` | Bangers | Comic |
+| `fredoka/` | Fredoka (variable) | Pastel |
+| `vazirmatn/` | Vazirmatn (variable) | Persian tile (Persian and English) |
+
+They are loaded with `@font-face` in `widgets/chat/chat.css` and can be picked as the chat font in any style.

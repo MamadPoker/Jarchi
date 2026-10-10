@@ -13,10 +13,17 @@ const KEEP = 100; // messages kept in memory
 const LINK = /(https?:\/\/|www\.)\S+|\b[\w-]+\.(com|net|org|tv|gg|io|me|ly|be|co|app|xyz|ir)\b/i;
 const PALETTE = ['#ff6b6b', '#ffa94d', '#ffd43b', '#69db7c', '#38d9a9', '#4dabf7', '#748ffc', '#da77f2', '#f783ac'];
 const BADGE_KEY = { broadcaster: 'badgeBroadcaster', moderator: 'badgeMod', vip: 'badgeVip', subscriber: 'badgeSub', other: 'badgeOther' };
+// Per style: name colors for "Style colors", and colors that messages take turns with (null = the box color option).
+const STYLE_NAMES = { cyberpunk: ['#fcee0a', '#00f0ff'], comic: ['#e63946', '#1d4ed8', '#059669', '#9333ea', '#ea580c'], galaxy: ['#c9a8ff', '#8fb8ff', '#ff9ad5'], persian: ['#e9c46a', '#2ec4b6'] };
+const STYLE_TURNS = { comic: [null, '#ffe14d', '#a5e4ff'], sticky: [null, '#ffb3c7', '#b8f2d0', '#a9d8ff', '#ffd59e'], pastel: [null, '#ffc6e0', '#bff0d8', '#ffd9b3', '#c5dcff'], popin: ['#ff4d9d', '#3ee8ff', '#ffd54d', '#7cff6b'] };
+const SEPARATOR = { pastel: ' ·' }; // instead of the colon
+const RTL = /[֐-ࣿיִ-﷿ﹰ-﻿]/;
 let S, cfg, mainSettings, look = '', f = {};
 const recent = []; // known messages, newest last (to rebuild when the look changes)
 let rows = []; // on screen: { el, msg, timer, exiting, combo, count, at }
 let tickerReady = 0; // ticker: when the next message may start (ms, performance.now())
+let seq = 0; // message order, for styles whose messages take turns with colors
+let seeded = false; // preview: showing sample messages until real ones arrive
 
 const h = (tag, props, ...kids) => {
   const el = Object.assign(document.createElement(tag), props);
@@ -52,11 +59,21 @@ if (params.has('thumb')) {
     cfg = s.chat;
     apply();
   });
-  socket.on('chatHistory', (msgs) => {
+  socket.on('chatHistory', async (msgs) => {
+    // The panel preview always shows the style: sample messages until real or test ones come in.
+    if (!msgs.length && params.has('preview')) {
+      msgs = await fetch('/api/chat/thumbs').then((r) => r.json()).catch(() => []);
+      seeded = true;
+    }
     recent.splice(0, recent.length, ...msgs.slice(-KEEP));
     if (cfg) rebuild();
   });
   socket.on('chat', (m) => {
+    if (seeded) {
+      seeded = false;
+      recent.length = 0;
+      if (cfg) rebuild();
+    }
     recent.push(m);
     if (recent.length > KEEP) recent.shift();
     if (cfg && S && shown(m)) add(m, true);
@@ -77,10 +94,13 @@ function apply(still = false) {
   if (!cfg || !S) return;
   root.hidden = !cfg.enabled && !params.has('preview') && !params.has('thumb');
   const boxed = cfg.bg !== 'off' && !cfg.bubbles;
+  const n = parseInt(cfg.bgColor.slice(1), 16);
+  const light = cfg.bg === 'color' && cfg.bgOpacity >= 0.5 && (0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) / 255 > 0.6;
   root.className = [
     'chat', `style-${cfg.style}`, `layout-${cfg.layout}`, `new-${cfg.newAt}`, `bg-${cfg.bg}`,
     cfg.bubbles && 'bubbles', boxed && 'boxed', cfg.border && 'bordered', cfg.fade && cfg.fadeZone > 0 && 'fade',
     cfg.textShadow && 'shadow', cfg.namePos === 'above' && 'name-above', still && 'still',
+    light && 'light', cfg.nameColorMode === 'user' && 'names-own', // light boxes darken viewers' own name colors to stay readable
   ].filter(Boolean).join(' ');
   const vars = {
     '--w': `${cfg.width}px`, '--h': `${cfg.height}px`, '--font': `"${cfg.font}", "Segoe UI", system-ui, sans-serif`,
@@ -99,6 +119,7 @@ function apply(still = false) {
 
 // Redraw from memory, without animation (look changed, or (re)connected).
 function rebuild(still = false) {
+  typing?.finish();
   for (const r of rows) clearTimeout(r.timer);
   rows = [];
   tickerReady = 0;
@@ -136,12 +157,18 @@ function comboKey(m) {
   return names.size === 1 ? [...names][0] : null;
 }
 
+const hash = (s) => {
+  let n = 0;
+  for (const c of s) n = (n * 31 + c.charCodeAt(0)) >>> 0;
+  return n;
+};
 function nameColor(m) {
   if (cfg.nameColorMode === 'custom') return cfg.nameColor;
-  if (m.user.color) return m.user.color;
-  let n = 0;
-  for (const c of m.user.login) n = (n * 31 + c.charCodeAt(0)) >>> 0;
-  return PALETTE[n % PALETTE.length];
+  if (cfg.nameColorMode === 'style') {
+    const colors = STYLE_NAMES[cfg.style] ?? PALETTE;
+    return colors[hash(m.user.login) % colors.length];
+  }
+  return m.user.color ?? PALETTE[hash(m.user.login) % PALETTE.length];
 }
 
 function avatarEl(m) {
@@ -181,12 +208,18 @@ function msgEl(m) {
     cfg.showPlatform && h('img', { className: 'platform', src: `/assets/platform-logos/${m.platform}.svg`, alt: m.platform }),
     badgesEl(m),
     h('span', { className: `name${rainbow ? ' rainbow' : ''}`, textContent: m.user.name, style: `color:${nameColor(m)}` }),
-    cfg.showColon && m.kind === 'message' && !m.action && h('span', { className: 'colon', textContent: ':' }));
+    cfg.showColon && m.kind === 'message' && !m.action && h('span', { className: 'colon', textContent: SEPARATOR[cfg.style] ?? ':' }));
   const hasText = m.parts.some((p) => p.t === 'emote' || p.v.trim());
   const el = h('div', { className: ['msg', m.kind === 'sub' && 'kind-sub', glow && 'glow', first && 'first', mention && 'mention', m.action && 'action'].filter(Boolean).join(' ') },
     tags.length ? h('div', { className: 'tags' }, ...tags) : null,
     m.kind === 'sub' && m.system ? h('div', { className: 'system', dir: cfg.textDir, textContent: m.system }) : null,
     m.kind === 'message' || hasText ? h('div', { className: 'line' }, cfg.avatars && avatarEl(m), meta, bodyEl(m)) : null);
+  // For the styles: the message's turn color, a small tilt (same each time it's drawn) and its text direction.
+  m.seq ??= ++seq;
+  const turns = STYLE_TURNS[cfg.style];
+  if (turns) el.style.setProperty('--turn', rgba(turns[m.seq % turns.length] ?? cfg.bgColor, cfg.bgOpacity));
+  el.style.setProperty('--tilt', `${(hash(m.id) % 61) / 10 - 3}deg`);
+  el.dataset.dir = cfg.textDir !== 'auto' ? cfg.textDir : RTL.test(m.text.match(/\p{L}/u)?.[0] ?? '') ? 'rtl' : 'ltr';
   return el;
 }
 
@@ -210,15 +243,87 @@ function combo(m) {
   return true;
 }
 
+const SMOOTH = 'cubic-bezier(.2,.8,.2,1)';
+// Enter animations: [keyframes, duration (ms), easing].
 const ENTER = {
-  slide: [{ opacity: 0, transform: 'translateX(-28px)' }, { opacity: 1, transform: 'none' }],
-  fade: [{ opacity: 0 }, { opacity: 1 }],
-  pop: [{ opacity: 0, transform: 'scale(.55)' }, { opacity: 1, transform: 'scale(1.06)', offset: 0.7 }, { opacity: 1, transform: 'none' }],
+  slide: [[{ opacity: 0, transform: 'translateX(-28px)' }, { opacity: 1, transform: 'none' }], 380],
+  fade: [[{ opacity: 0 }, { opacity: 1 }], 380],
+  pop: [[{ opacity: 0, transform: 'scale(.5)' }, { opacity: 1, transform: 'scale(1.08)', offset: 0.6 }, { transform: 'scale(.97)', offset: 0.82 }, { opacity: 1, transform: 'none' }], 560, 'ease-out'],
+  float: [[{ opacity: 0, transform: 'translateY(16px)' }, { opacity: 1, transform: 'none' }], 750, 'cubic-bezier(.2,.7,.3,1)'],
+  bounce: [[{ opacity: 0, transform: 'translateY(18px) scale(.92)' }, { opacity: 1, transform: 'translateY(-5px) scale(1.02)', offset: 0.55 }, { transform: 'translateY(2px)', offset: 0.8 }, { opacity: 1, transform: 'none' }], 650, 'ease-out'],
+  drop: [[{ opacity: 0, transform: 'translateY(-46px) rotate(-7deg) scale(1.08)' }, { opacity: 1, transform: 'translateY(3px) scale(.97, 1.02)', offset: 0.6 }, { transform: 'scale(1.01, .99)', offset: 0.8 }, { opacity: 1, transform: 'none' }], 560, 'cubic-bezier(.3,.9,.4,1)'],
 };
 const EXIT = {
   fade: [{ opacity: 1 }, { opacity: 0 }],
   slide: [{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'translateX(-40px)' }],
 };
+
+// Animate a message that may have its own CSS transform (a tilted sticky note): the motion goes on top of it.
+function animate(el, frames, opts) {
+  const own = getComputedStyle(el).transform;
+  if (own !== 'none') frames = frames.map((k) => (k.transform ? { ...k, transform: k.transform === 'none' ? own : `${k.transform} ${own}` } : k));
+  return el.animate(frames, opts);
+}
+
+// A new message arrives: its enter animation, the style's arrival effect (CSS: .arrive), the typewriter.
+function arrive(el, msg) {
+  const enter = ENTER[cfg.enterAnim];
+  if (enter) animate(msg, enter[0], { duration: ms(enter[1]), easing: enter[2] ?? SMOOTH });
+  el.classList.add('arrive');
+  if (cfg.typewriter) typeOut(msg);
+}
+
+// Typewriter: the newest message's text appears letter by letter. The rest is already laid out (invisible), so the
+// message never changes size while it types. A newer message finishes the previous one at once.
+let typing = null;
+function typeOut(msg) {
+  typing?.finish();
+  const body = msg.querySelector('.body');
+  if (!body?.firstChild) return;
+  const shown = h('span'), rest = h('span', { className: 'unshown' }, ...body.childNodes);
+  body.replaceChildren(shown, rest);
+  msg.classList.add('typing');
+  const total = rest.textContent.length + rest.querySelectorAll('img').length;
+  const perTick = Math.ceil(total / 80); // long messages type faster: at most ~80 steps
+  let ticks = 0;
+  const timer = setInterval(() => {
+    for (let i = 0; i < perTick && rest.firstChild; i++) {
+      const node = rest.firstChild;
+      if (node.nodeType === Node.TEXT_NODE && node.data.length > 1) {
+        const ch = String.fromCodePoint(node.data.codePointAt(0));
+        node.data = node.data.slice(ch.length);
+        if (shown.lastChild?.nodeType === Node.TEXT_NODE) shown.lastChild.appendData(ch);
+        else shown.append(ch);
+      } else shown.append(node); // an emote, or the last letter of a text
+    }
+    if (cfg.typeSound && ticks++ % 2 === 0) blip();
+    if (!rest.firstChild) finish();
+  }, ms(32));
+  function finish() {
+    clearInterval(timer);
+    shown.append(...rest.childNodes);
+    rest.remove();
+    msg.classList.remove('typing');
+    typing = null;
+  }
+  typing = { finish };
+}
+
+// A soft blip for the typewriter (off by default).
+let audio;
+function blip() {
+  try {
+    audio ??= new AudioContext();
+    const t = audio.currentTime, osc = audio.createOscillator(), gain = audio.createGain();
+    osc.type = 'triangle';
+    osc.frequency.value = 520 + Math.random() * 60;
+    gain.gain.setValueAtTime(0.05, t);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.05);
+    osc.connect(gain).connect(audio.destination);
+    osc.start(t);
+    osc.stop(t + 0.06);
+  } catch {}
+}
 
 // A row's gap is its padding, so it grows and closes together with the height (rows are border-box).
 const collapsed = { height: '0px', paddingTop: '0px', paddingBottom: '0px' };
@@ -236,8 +341,9 @@ function addRow(m, animate) {
   if (animate) {
     // Grow the new row from 0 to its height: the older rows glide away instead of jumping.
     el.style.overflow = 'hidden';
-    el.animate([collapsed, fullSize(el)], { duration: ms(320), easing: 'cubic-bezier(.2,.8,.2,1)' }).onfinish = () => (el.style.overflow = '');
-    if (ENTER[cfg.enterAnim]) el.firstChild.animate(ENTER[cfg.enterAnim], { duration: ms(cfg.enterAnim === 'pop' ? 520 : 380), easing: cfg.enterAnim === 'pop' ? 'cubic-bezier(.3,1.5,.5,1)' : 'cubic-bezier(.2,.8,.2,1)' });
+    const size = fullSize(el); // taller messages (a sub, a big note) grow a little longer, so nothing moves too fast
+    el.animate([collapsed, size], { duration: ms(Math.min(650, 280 + parseFloat(size.height) * 1.5)), easing: SMOOTH }).onfinish = () => (el.style.overflow = '');
+    arrive(el, el.firstChild);
   }
   if (cfg.hideAfter > 0) r.timer = setTimeout(() => leave(r), cfg.hideAfter * 1000);
   const live = rows.filter((x) => !x.exiting);
@@ -258,7 +364,7 @@ function leave(r) {
     r.el.style.overflow = 'hidden';
     r.el.animate([fullSize(r.el), collapsed], { duration: ms(260), easing: 'ease-in', fill: 'forwards' }).onfinish = () => drop(r);
   };
-  const out = EXIT[cfg.exitAnim] && r.el.firstChild.animate(EXIT[cfg.exitAnim], { duration: ms(360), easing: 'ease-in', fill: 'forwards' });
+  const out = EXIT[cfg.exitAnim] && animate(r.el.firstChild, EXIT[cfg.exitAnim], { duration: ms(360), easing: 'ease-in', fill: 'forwards' });
   if (out) out.onfinish = close;
   else close();
 }
@@ -296,4 +402,8 @@ function addTick(m, still) {
   tickerReady = start + ((w + cfg.gap + 24) / v) * 1000;
   const [from, to] = cfg.tickerDir === 'rtl' ? [W, -w] : [-w, W];
   el.animate([{ transform: `translateX(${from}px)` }, { transform: `translateX(${to}px)` }], { duration: ((W + w) / v) * 1000, delay: start - now, fill: 'both' }).onfinish = () => drop(r);
+  setTimeout(() => {
+    el.classList.add('arrive');
+    if (cfg.typewriter && el.isConnected) typeOut(el.firstChild);
+  }, start - now);
 }

@@ -57,7 +57,7 @@ app.post('/api/reset{/:type}', (req, res) => {
 
 // Chat: connectors run in core/chat; the look is a regular setting.
 app.get('/api/chat/status', (req, res) => res.json(chat.status()));
-app.get('/api/chat/styles', (req, res) => res.json(settings.CHAT_STYLES));
+app.get('/api/chat/styles', (req, res) => res.json({ styles: settings.CHAT_STYLES, fonts: settings.CHAT_FONTS }));
 app.post('/api/chat/test', (req, res) => res.json({ sent: chat.test(req.body?.kind === 'burst' ? 'burst' : 'sample') }));
 app.get('/api/chat/thumbs', (req, res) => res.json(chat.thumbs()));
 app.post('/api/chat/reset-style', (req, res) => res.json(changed(settings.resetChatStyle())));
