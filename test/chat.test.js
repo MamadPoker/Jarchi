@@ -19,7 +19,10 @@ const collect = () => {
   const out = { messages: [], clears: [], channels: [] };
   return { out, cb: { onMessage: (m) => out.messages.push(m), onClear: (c) => out.clears.push(c), onChannel: (c) => out.channels.push(c), onStatus() {} } };
 };
-test.after(() => io.close());
+test.after(() => {
+  io.close();
+  server.closeAllConnections(); // a fetch whose body wasn't read keeps its connection open, and close() would wait for it
+});
 
 test('Twitch IRC lines -> messages, removals, room id', () => {
   const { out, cb } = collect();
