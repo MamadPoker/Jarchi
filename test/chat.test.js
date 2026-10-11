@@ -93,7 +93,8 @@ test('7TV names become emotes; channel set wins over global', () => {
 test('chat settings, Reset style, test messages, OBS page and logos', async () => {
   if (!server.listening) await new Promise((r) => server.once('listening', r));
   let s = await (await call('GET', '/api/settings')).json();
-  assert.deepEqual([s.chat.style, s.chat.layout, s.chat.bots, s.chat.kickChannel], ['classic', 'vertical', 'botrix, kickbot', '']);
+  assert.deepEqual([s.chat.style, s.chat.layout, s.chat.bots, s.chat.kickChannel], ['kick', 'vertical', 'botrix, kickbot', ''], 'new users start with Kick default');
+  assert.deepEqual([s.chat.font, s.chat.width, s.chat.bgColor, s.chat.nameColorMode, s.chat.showColon], ['Inter', 340, '#181b1f', 'user', true], "Kick's chat: Inter, 340px, Kick's dark surface, names in their own color");
   const st = await (await call('GET', '/api/chat/status')).json();
   assert.deepEqual([st.kick.state, st.twitch.state], ['off', 'off']);
 
@@ -178,10 +179,12 @@ test('test messages: random viewers with real badge images and the Kick channel\
   kick.connect = realConnect;
 });
 
-test('chat styles: all 26 can be picked, new options validate, bundled fonts are served', async () => {
+test('chat styles: all 27 can be picked (Kick default first), new options validate, bundled fonts are served', async () => {
   if (!server.listening) await new Promise((r) => server.once('listening', r));
   const { styles, fonts } = await (await call('GET', '/api/chat/styles')).json();
-  assert.equal(Object.keys(styles).length, 26);
+  assert.equal(Object.keys(styles).length, 27);
+  assert.equal(Object.keys(styles)[0], 'kick');
+  assert.equal(Object.keys(JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'i18n', 'en.json'))).chatStyles)[0], 'kick', 'first in the picker');
   const bars = Object.keys(styles).filter((id) => styles[id].layout === 'horizontal');
   assert.deepEqual(bars, ['ticker', 'news', 'neonstrip', 'pills', 'minimal', 'led', 'cyberbar', 'candy', 'glassbar']);
   assert.ok(bars.every((id) => styles[id].tickerLoop === (id !== 'ticker')), 'the new bars loop; Ticker stays as it was');
@@ -200,7 +203,7 @@ test('chat styles: all 26 can be picked, new options validate, bundled fonts are
   assert.equal((await (await call('GET', '/api/settings')).json()).chat.typewriter, true, 'RPG dialog types out');
   for (const ok of [{ nameColorMode: 'style' }, { enterAnim: 'drop' }, { typeSound: true }, { font: 'Vazirmatn' }]) assert.equal((await call('PATCH', '/api/settings', { chat: ok })).status, 200, JSON.stringify(ok));
   for (const bad of [{ nameColorMode: 'rainbow' }, { enterAnim: 'spin' }, { typewriter: 'yes' }, { font: 'Comic Sans' }]) assert.equal((await call('PATCH', '/api/settings', { chat: bad })).status, 400, JSON.stringify(bad));
-  for (const file of ['press-start-2p/PressStart2P-Regular.ttf', 'bangers/Bangers-Regular.ttf', 'fredoka/Fredoka-Variable.ttf', 'vazirmatn/Vazirmatn-Variable.ttf']) {
+  for (const file of ['press-start-2p/PressStart2P-Regular.ttf', 'bangers/Bangers-Regular.ttf', 'fredoka/Fredoka-Variable.ttf', 'vazirmatn/Vazirmatn-Variable.ttf', 'inter/Inter-Variable.ttf']) {
     assert.equal((await fetch(`${base}/assets/fonts/${file}`)).status, 200, file);
     assert.ok(fs.existsSync(path.join(__dirname, '..', 'assets/fonts', path.dirname(file), 'OFL.txt')), `${file} license`);
   }

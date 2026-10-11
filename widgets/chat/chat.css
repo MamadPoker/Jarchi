@@ -6,6 +6,7 @@
 @font-face { font-family: "Bangers"; src: url("/assets/fonts/bangers/Bangers-Regular.ttf") format("truetype"); font-display: swap; }
 @font-face { font-family: "Fredoka"; src: url("/assets/fonts/fredoka/Fredoka-Variable.ttf") format("truetype"); font-weight: 300 700; font-display: swap; }
 @font-face { font-family: "Vazirmatn"; src: url("/assets/fonts/vazirmatn/Vazirmatn-Variable.ttf") format("truetype"); font-weight: 100 900; font-display: swap; }
+@font-face { font-family: "Inter"; src: url("/assets/fonts/inter/Inter-Variable.ttf") format("truetype"); font-weight: 100 900; font-display: swap; }
 html, body { margin: 0; height: 100%; overflow: hidden; background: transparent; }
 body.preview, body.thumb { display: grid; place-items: center; }
 
@@ -131,6 +132,17 @@ body.preview, body.thumb { display: grid; place-items: center; }
 /* Messages that fit their text: speech bubbles, cards, notes, pills */
 .chat.style-bubbles.bubbles .msg, .chat.style-popin.bubbles .msg, .chat.style-comic.bubbles .msg,
 .chat.style-sticky.bubbles .msg, .chat.style-pastel.bubbles .msg { width: -webkit-fit-content; width: fit-content; max-width: 100%; box-sizing: border-box; }
+
+/* Kick default: Kick's own chat. Plain lines with Kick's spacing (badges 16px before the name, a colon, the message,
+   emotes in the line); Kick's green (#53fc18) for mentions, subs, first messages and combos instead of the usual colors. */
+.style-kick .msg { padding: 4px 6px; border-radius: 4px; line-height: 1.5; }
+.style-kick .badge { height: 1.15em; margin-right: 4px; }
+.style-kick .badges { margin-right: 2px; }
+.chat.style-kick .msg.mention { padding-left: 9px; background: rgba(83, 252, 24, 0.12); box-shadow: inset 3px 0 0 #53fc18; }
+.chat.style-kick .msg.glow { padding: 6px 8px; background: rgba(83, 252, 24, 0.1); box-shadow: 0 0 0 1px rgba(83, 252, 24, 0.7); animation: none; }
+.chat.style-kick .msg.first { box-shadow: inset 3px 0 0 #53fc18; padding-left: 9px; }
+.style-kick .tag-sub, .style-kick .tag-first { background: #53fc18; color: #0b0e0f; animation: none; }
+.style-kick .combo { color: #53fc18; }
 
 /* Classic box: one box, plain lines */
 .chat.style-classic.boxed { box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28); }

@@ -20,6 +20,9 @@ const GOAL_STEP = { subs: 1, kicks: 100 }; // what "Test", "+" and "−" add
 const GOAL_SAMPLE = { subs: { current: 32, target: 50 }, kicks: { current: 640, target: 1000 } }; // numbers on style thumbnails
 const isVideo = (file) => /\.(webm|mp4)$/.test(file ?? '');
 const tpl = (s, v) => s.replace(/\{(\w+)\}/g, (m, k) => v[k] ?? m);
+const kickLook = (type, cfg) => type === 'kicks' && cfg.look === 'kick';
+// What plays when there's no file: the theme's, or (Kicks in its Kick look) Kick's gift and the Kick chime.
+const defaultMedia = (kind, kick) => S.panel[kind === 'image' ? (kick ? 'mediaKickGift' : 'mediaDefault') : (kick ? 'soundKickDefault' : 'tierNoSound')];
 const ACCEPT = { image: 'image/png,image/jpeg,image/gif,image/webp,video/webm,video/mp4,.webm,.mp4', sound: 'audio/mpeg,audio/wav,audio/ogg,.mp3,.wav,.ogg' };
 const valueOf = (inp) => (inp.type === 'checkbox' ? inp.checked : ['number', 'range'].includes(inp.type) ? Number(inp.value) : inp.value);
 const el = (tag, props = {}, ...kids) => {
@@ -335,7 +338,7 @@ function twoClick(btn, label, idle, confirm, action) {
 // ---------- Media by amount: one card per fixed tier, rebuilt only when the tiers change ----------
 let tiersDrawn = '';
 function renderTiers(cfg) {
-  const key = JSON.stringify([cur, cfg.tiers]);
+  const key = JSON.stringify([cur, cfg.tiers, cfg.look]);
   if (key === tiersDrawn) return;
   tiersDrawn = key;
   $('#tiers').replaceChildren(...cfg.tiers.map((t) => {
@@ -343,7 +346,7 @@ function renderTiers(cfg) {
     on.setAttribute('aria-label', S.panel.tierOn);
     const amount = tpl(S.panel.tierAmount[cur][t.amount === 1 ? 'one' : 'many'], { n: t.amount.toLocaleString() });
     const name = t.gift // Kicks: Kick's own gift, its icon and name
-      ? [el('img', { className: 'gift-icon', alt: '', src: `/remote?u=${encodeURIComponent(`https://files.kick.com/kicks/gifts/${t.gift.icon}.webp`)}` }),
+      ? [el('img', { className: 'gift-icon', alt: '', src: `/assets/kick-gifts/${t.gift.id}.webp` }),
         el('b', { textContent: S.kickGifts[t.gift.id] ?? t.gift.id }), el('small', { textContent: amount })]
       : [el('b', { textContent: amount })];
     return el('div', { className: `tier${t.on ? '' : ' off'}` },
@@ -351,17 +354,17 @@ function renderTiers(cfg) {
         el('label', { className: 'switch' }, on, el('span')),
         el('span', { className: 'tier-name' }, ...name),
         el('button', { textContent: S.panel.tierTest, onclick: () => testTier(t.amount) })),
-      tierFile(t, 'image'), tierFile(t, 'sound'));
+      tierFile(t, 'image', kickLook(cur, cfg)), tierFile(t, 'sound', kickLook(cur, cfg)));
   }));
 }
 
 // A tier's image or sound: the file's name (or the theme's), Upload (replaces it), Remove. Wired like the alert's own .file rows.
-function tierFile(t, kind) {
+function tierFile(t, kind, kick) {
   const f = t[kind];
   const row = el('div', { className: 'tier-files' },
     el('span', { className: 'tier-label', textContent: S.panel[kind === 'image' ? 'mediaTitle' : 'soundTitle'] }),
     el('div', { className: 'chips' },
-      el('span', { className: `fname${f ? '' : ' default'}`, textContent: f ? f.name : S.panel[kind === 'image' ? 'mediaDefault' : 'tierNoSound'], title: f?.name ?? '' }),
+      el('span', { className: `fname${f ? '' : ' default'}`, textContent: f ? f.name : defaultMedia(kind, kick), title: f?.name ?? '' }),
       el('button', { className: 'ghost add upload', textContent: S.panel.upload }),
       el('button', { className: 'ghost add remove', textContent: S.panel.remove, hidden: !f }),
       el('input', { type: 'file', hidden: true, accept: ACCEPT[kind] })));
@@ -691,13 +694,17 @@ function renderAlert() {
     amount: samples[cur].amount > 0,
     tiers: 'tiersOn' in cfg,
     tiersOn: cfg.tiersOn,
+    look: 'look' in cfg,
+    kickLook: kickLook(cur, cfg),
+    themed: !kickLook(cur, cfg),
   };
   $$('[data-only]', editor).forEach((e) => (e.hidden = !show[e.dataset.only]));
   if (show.tiers) renderTiers(cfg);
+  $('[name=soundMode][value=theme] + span', editor).textContent = S.panel[show.kickLook ? 'soundKick' : 'soundTheme']; // in the Kick look, the default sound is the Kick chime
   $$('.file', editor).forEach((row) => {
     const f = cfg[row.dataset.kind];
     const fname = $('.fname', row);
-    fname.textContent = f ? f.name : row.dataset.kind === 'image' ? S.panel.mediaDefault : S.panel.soundNoFile;
+    fname.textContent = f ? f.name : row.dataset.kind === 'image' ? defaultMedia('image', kickLook(cur, cfg)) : S.panel[kickLook(cur, cfg) ? 'soundNoFileKick' : 'soundNoFile'];
     fname.classList.toggle('default', !f);
     $('.remove', row).hidden = !f;
   });

@@ -18,6 +18,7 @@ window.JarchiSounds = (() => {
     ice: { root: 659.25, wave: 'sine', cutoff: 3200, partial: 3.01, len: 1.1, step: 0.11, echo: 0.2, gain: 0.35, sparkle: true },
     galaxy: { root: 196, wave: 'sawtooth', cutoff: 520, detune: 8, attack: 0.18, len: 1.3, step: 0.16, echo: 0.28, gain: 0.77, sweep: true },
     comic: { root: 330, wave: 'triangle', cutoff: 2200, slide: 0.7, len: 0.24, step: 0.1, gain: 0.93, bloop: true },
+    kick: { root: 783.99, wave: 'sine', cutoff: 2600, partial: 2, len: 0.5, step: 0.075, echo: 0.12, gain: 0.5 }, // the Kicks alert's Kick look
   };
 
   // Short major-key phrases (semitones above the root). Tier 0..4 adds a note or two for bigger events.
@@ -29,6 +30,7 @@ window.JarchiSounds = (() => {
     kicks: (t) => [0, 7, 12, 16, 19].slice(0, 2 + t),
     bits: (t) => [12, 9, 7, 4, 7, 12].slice(0, 2 + t),
     raid: () => [0, 4, 7, 12, 16],
+    kick_gift: () => [0, 7, 12], // short and soft: a quick rising chime
   };
   const hz = (v, semi) => v.root * 2 ** (semi / 12);
 

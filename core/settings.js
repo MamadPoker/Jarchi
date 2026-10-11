@@ -7,7 +7,7 @@ const store = require('./store');
 const strings = require('../i18n/en.json');
 
 const FILE = path.join(DATA_DIR, 'settings.json');
-const VERSION = 3;
+const VERSION = 4;
 const THEMES = ['neon', 'minimal', 'fun', 'retro', 'glass', 'fire', 'ice', 'galaxy', 'comic'];
 // App-wide settings (not per alert). showBadge: platform badge on alerts; it still needs both Kick and Twitch connected.
 // alertGap: seconds between two alerts. proxy*: how Jarchi reaches Kick, Twitch and 7TV (core/net.js).
@@ -24,13 +24,11 @@ const GLOBAL_RULES = {
 // Follow is small and quick, raid is the big one. minAmount only where an amount makes sense.
 // Media by amount (tiersOn + tiers): fixed, ready-made tiers. Saved as tiers: { [amount]: { on, image, sound } };
 // get() lists every tier: [{ amount, on, image, sound }], lowest first.
-// Kick's own Kicks gifts (web.kick.com/api/v1/kicks/gifts; the same table is in kick.com's web app, with these icons).
-// If Kick adds a gift, add it here and its name in i18n kickGifts.
+// Kick's own Kicks gifts (web.kick.com/api/v1/kicks/gifts; the same table is in kick.com's web app). Their images are
+// in assets/kick-gifts/<id>.webp. If Kick adds a gift: add it here, its image there and its name in i18n kickGifts.
 const KICK_GIFTS = [
-  { amount: 1, id: 'hell_yeah', icon: 'hell-yeah' }, { amount: 10, id: 'hype', icon: 'hype' }, { amount: 50, id: 'skull_emoji', icon: 'skull-emoji' },
-  { amount: 100, id: 'full_send', icon: 'full-send' }, { amount: 500, id: 'rage_quit', icon: 'rage-quit-static' },
-  { amount: 1000, id: 'pack_it_up', icon: 'pack-it-up-static' }, { amount: 2000, id: 'yap', icon: 'yap-static' }, { amount: 5000, id: 'stomp', icon: 'stomp-static' },
-  { amount: 10000, id: 'flex', icon: 'flex-static' }, { amount: 50000, id: 'boooom', icon: 'boom-static' },
+  { amount: 1, id: 'hell_yeah' }, { amount: 10, id: 'hype' }, { amount: 50, id: 'skull_emoji' }, { amount: 100, id: 'full_send' }, { amount: 500, id: 'rage_quit' },
+  { amount: 1000, id: 'pack_it_up' }, { amount: 2000, id: 'yap' }, { amount: 5000, id: 'stomp' }, { amount: 10000, id: 'flex' }, { amount: 50000, id: 'boooom' },
 ];
 const TIER_AMOUNTS = { gift_sub: [1, 5, 10, 20, 50, 100], kicks: KICK_GIFTS.map((g) => g.amount), bits: [100, 500, 1000, 5000, 10000] };
 const TIERED = { tiersOn: false, tiers: {} };
@@ -39,7 +37,8 @@ const PER_TYPE = {
   sub: { duration: 6, fontSize: 46 },
   resub: { duration: 6, fontSize: 46 },
   gift_sub: { duration: 6, fontSize: 46, minAmount: 0, ...TIERED },
-  kicks: { duration: 6, fontSize: 46, minAmount: 10, ...TIERED }, // 1-Kick taps come in floods; goals still count them
+  // 1-Kick taps come in floods (goals still count them). look 'kick': the gift that was sent, Kick-style text, no theme.
+  kicks: { duration: 6, fontSize: 46, minAmount: 10, look: 'kick', ...TIERED },
   bits: { duration: 6, fontSize: 46, minAmount: 0, ...TIERED },
   raid: { duration: 9, fontSize: 54 },
 };
@@ -73,6 +72,7 @@ const RULES = {
   volume: num(0, 1),
   minAmount: (v) => Number.isInteger(v) && v >= 0,
   tiersOn: (v) => typeof v === 'boolean',
+  look: oneOf('kick', 'theme'),
   videoSound: oneOf('off', 'video', 'both'),
   soundMode: oneOf('theme', 'custom', 'none'),
   frame: oneOf('theme', 'custom', 'off'),
@@ -152,6 +152,9 @@ const CHAT_BASE = {
 const BAR = { layout: 'horizontal', width: 1920, height: 64, radius: 0, padding: 10, maxMessages: 15, fadeZone: 120, tickerLoop: true };
 // The chat style's look values. The style-<id> CSS class adds what options can't (tails, tape, scanlines, frames...).
 const CHAT_STYLES = Object.fromEntries(Object.entries({
+  // Kick's own chat: its panel width (340), font (Inter 14px), dark surface (#181b1f), plain lines, no motion.
+  kick: { font: 'Inter', fontSize: 14, nameSize: 14, bgColor: '#181b1f', bgOpacity: 0.95, radius: 4, padding: 8, gap: 0, width: 340, textShadow: false,
+    showPlatform: false, bigEmotes: false, enterAnim: 'none', exitAnim: 'none', fade: false },
   classic: { bgColor: '#121218', bgOpacity: 0.78, radius: 14, padding: 14 },
   bubbles: { bubbles: true, bgColor: '#ffffff', bgOpacity: 1, textColor: '#1f2330', textShadow: false, namePos: 'above', fontSize: 16, nameSize: 13, radius: 18, padding: 10, gap: 12, enterAnim: 'float' },
   floating: { bg: 'off', padding: 0, gap: 10, fontSize: 22, nameSize: 22, fadeZone: 240, enterAnim: 'fade' },
@@ -181,13 +184,13 @@ const CHAT_STYLES = Object.fromEntries(Object.entries({
   persian: { bgColor: '#0d1b3d', bgOpacity: 0.92, border: true, borderColor: '#d4af37', borderWidth: 8, radius: 6, padding: 20, font: 'Vazirmatn', fontSize: 18, nameSize: 17, textColor: '#f3ead3' },
 }).map(([id, change]) => [id, { ...CHAT_BASE, ...change }]));
 // The chat can also use these bundled fonts (assets/fonts).
-const CHAT_FONTS = [...FONTS, 'Press Start 2P', 'Bangers', 'Fredoka', 'Vazirmatn'];
+const CHAT_FONTS = [...FONTS, 'Press Start 2P', 'Bangers', 'Fredoka', 'Vazirmatn', 'Inter'];
 const CHAT_LOOK = Object.keys(CHAT_BASE); // the fields a style sets
 const CHAT_DEFAULTS = {
   enabled: true,
   kickChannel: '',
   twitchChannel: '',
-  style: 'classic',
+  style: 'kick', // new users; earlier users keep the style they had (see the v3 -> v4 migration)
   emotesKick: true, emotesTwitch: true, emotes7tv: true,
   hideCommands: true, hideBots: true, bots: 'botrix, kickbot', hiddenUsers: '', blockedWords: '', hideLinks: false, source: 'both',
   rainbowUsers: '',
@@ -239,6 +242,11 @@ if (from < 3) {
     }
     o.tiers = fixed;
   }
+}
+if (from < 4 && Object.keys(saved).length) {
+  // v3 -> v4: "Kick default" became the chat style for new users. Someone who already used Jarchi without picking a
+  // style had Classic: keep it.
+  (saved.chat ??= {}).style ??= 'classic';
 }
 if (from < VERSION) {
   saved.version = VERSION;

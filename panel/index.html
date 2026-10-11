@@ -53,10 +53,17 @@
         </div>
 
         <div class="box theme-pick">
-          <h2 data-i18n="alertTheme"></h2>
-          <span class="swatch" id="alertThemeSwatch"></span>
-          <select id="alertTheme" aria-label="Theme"></select>
-          <small data-i18n="alertThemeHint"></small>
+          <!-- Kicks only: its own Kick look, or the theme's -->
+          <h2 data-only="look" data-i18n="alertLook"></h2>
+          <div class="seg" data-only="look">
+            <label><input type="radio" name="look" data-f="look" value="kick"><span data-i18n="lookKick"></span></label>
+            <label><input type="radio" name="look" data-f="look" value="theme"><span data-i18n="lookTheme"></span></label>
+          </div>
+          <small data-only="kickLook" data-i18n="lookKickHint"></small>
+          <h2 data-only="themed" data-i18n="alertTheme"></h2>
+          <span class="swatch" id="alertThemeSwatch" data-only="themed"></span>
+          <select id="alertTheme" aria-label="Theme" data-only="themed"></select>
+          <small data-only="themed" data-i18n="alertThemeHint"></small>
         </div>
 
         <div class="basics">

@@ -91,34 +91,11 @@ async function show(ev, { muted = false, hold = false, ms, id } = {}) {
   const grows = ev.type in STEPS;
   const v = { user: ev.user, amount: ev.amount.toLocaleString(), months: ev.months, platform: S.platforms[ev.platform] };
   const files = mediaFor(cfg, ev);
-
-  const media = mediaEl(files.image, fill(S.emblems[ev.type], v));
-  const video = media.querySelector('video');
-  media.append(particles(tier, theme));
-  for (let i = 0; i < RINGS[tier]; i++) media.append(h('b', { className: 'ring', style: `--delay:${0.1 + i * 0.22}s` }));
-  if (tier >= 2) media.append(h('b', { className: 'glow' }));
-
-  const box = h('div', { className: 'box' }, text(cfg.template, v));
-  if (badgeVisible()) box.prepend(h('span', { className: 'badge', textContent: v.platform }));
-  if (ev.message) box.append(h('div', { className: 'msg', textContent: ev.message }));
-  if (tier === 4) box.append(h('b', { className: 'sweep' }));
-
-  const el = h('div', { className: `alert tier-${tier} type-${ev.type} plat-${ev.platform} pos-${cfg.textPos} align-${cfg.textAlign} frame-${cfg.frame}${cfg.textColor ? ' tc' : ''}` },
-    h('div', { className: 'inner' }, media, box));
-  // The theme CSS keys off [data-theme] on an ancestor, so each alert gets its own (layout-neutral) theme wrapper.
-  const scope = h('div', { className: 'theme-scope' }, el);
-  scope.dataset.theme = theme;
-  el.style.setProperty('--s', SCALE[tier]);
-  el.style.setProperty('--fs', `${cfg.fontSize * (grows ? 1 + (tier - 1) * 0.1 : 1)}px`);
-  if (cfg.textColor) el.style.setProperty('--tc', cfg.textColor);
-  if (cfg.frame === 'custom') {
-    el.style.setProperty('--fbg', rgba(cfg.frameBg, cfg.frameOpacity));
-    el.style.setProperty('--fbd', cfg.frameBorder);
-    el.style.setProperty('--frad', `${cfg.frameRadius}px`);
-  }
+  const kickLook = ev.type === 'kicks' && cfg.look === 'kick';
+  const { el, scope, video } = kickLook ? kickAlert(cfg, ev, v, files) : themed(cfg, ev, v, files, theme, tier, grows);
 
   stage.append(scope);
-  const sound = muted ? null : playSound(cfg, files.sound, ev.type, tier, !!video, theme);
+  const sound = muted ? null : kickLook ? playSound(cfg, files.sound, 'kick_gift', 0, !!video, 'kick') : playSound(cfg, files.sound, ev.type, tier, !!video, theme);
   if (video) {
     video.muted = muted || cfg.videoSound === 'off';
     video.volume = cfg.volume;
@@ -145,6 +122,50 @@ async function show(ev, { muted = false, hold = false, ms, id } = {}) {
   scope.remove();
 }
 
+// The theme look: media with the theme's particles, rings and glow, the text box, all inside a theme wrapper.
+function themed(cfg, ev, v, files, theme, tier, grows) {
+  const media = mediaEl(files.image, fill(S.emblems[ev.type], v));
+  const video = media.querySelector('video');
+  media.append(particles(tier, theme));
+  for (let i = 0; i < RINGS[tier]; i++) media.append(h('b', { className: 'ring', style: `--delay:${0.1 + i * 0.22}s` }));
+  if (tier >= 2) media.append(h('b', { className: 'glow' }));
+
+  const box = h('div', { className: 'box' }, text(cfg.template, v));
+  if (badgeVisible()) box.prepend(h('span', { className: 'badge', textContent: v.platform }));
+  if (ev.message) box.append(h('div', { className: 'msg', textContent: ev.message }));
+  if (tier === 4) box.append(h('b', { className: 'sweep' }));
+
+  const el = h('div', { className: `alert tier-${tier} type-${ev.type} plat-${ev.platform} pos-${cfg.textPos} align-${cfg.textAlign} frame-${cfg.frame}${cfg.textColor ? ' tc' : ''}` },
+    h('div', { className: 'inner' }, media, box));
+  // The theme CSS keys off [data-theme] on an ancestor, so each alert gets its own (layout-neutral) theme wrapper.
+  const scope = h('div', { className: 'theme-scope' }, el);
+  scope.dataset.theme = theme;
+  el.style.setProperty('--s', SCALE[tier]);
+  el.style.setProperty('--fs', `${cfg.fontSize * (grows ? 1 + (tier - 1) * 0.1 : 1)}px`);
+  if (cfg.textColor) el.style.setProperty('--tc', cfg.textColor);
+  if (cfg.frame === 'custom') {
+    el.style.setProperty('--fbg', rgba(cfg.frameBg, cfg.frameOpacity));
+    el.style.setProperty('--fbd', cfg.frameBorder);
+    el.style.setProperty('--frad', `${cfg.frameRadius}px`);
+  }
+  return { el, scope, video };
+}
+
+// The Kicks alert's own look (look: 'kick', the default): the gift that was sent, big (an uploaded file instead, if
+// there is one), and "{user} sent {amount} Kicks" with the amount and the word after it in Kick's green. No theme,
+// box or effects: alerts.css .kick-alert.
+function kickAlert(cfg, ev, v, files) {
+  const gift = [...cfg.tiers].reverse().find((t) => t.amount <= ev.amount)?.gift ?? cfg.tiers[0].gift; // Kick's gifts, by amount
+  const media = files.image ? mediaEl(files.image) : h('div', { className: 'media' }, h('img', { src: `/assets/kick-gifts/${gift.id}.webp`, alt: '' }));
+  const words = text(cfg.template, v);
+  const amount = words.querySelector('[data-k=amount]');
+  amount?.classList.add('green');
+  if (amount?.nextElementSibling && !amount.nextElementSibling.classList.contains('hl')) amount.nextElementSibling.classList.add('green');
+  const el = h('div', { className: 'kick-alert' }, media, h('div', { className: 'kick-text' }, words, ev.message ? h('div', { className: 'msg', textContent: ev.message }) : ''));
+  el.style.setProperty('--fs', `${cfg.fontSize}px`);
+  return { el, scope: el, video: media.querySelector('video') };
+}
+
 // Custom image/GIF/video, or the theme's CSS-only emblem (e1/e2 are spare layers the themes decorate).
 function mediaEl(image, label) {
   if (!image) {
@@ -164,7 +185,11 @@ function text(tpl, v) {
     if (!part) continue;
     const k = part.slice(1, -1);
     if (!part.trim()) el.append(' ');
-    else if (part.startsWith('{') && k in v) el.append(h('span', { className: 'w hl', textContent: v[k], style: `--i:${i++}` }));
+    else if (part.startsWith('{') && k in v) {
+      const w = h('span', { className: 'w hl', textContent: v[k], style: `--i:${i++}` });
+      w.dataset.k = k;
+      el.append(w);
+    }
     else el.append(h('span', { className: 'w', textContent: part, style: `--i:${i++}` }));
   }
   return el;

@@ -46,7 +46,7 @@ test("media by amount: fixed tiers (Kick's gift amounts), on/off and files; old 
 
   // Migration (v2 -> v3): the old free Kicks tiers moved to the fixed tier at or below their minimum, turned on;
   // a second file in one tier went. Raid's old tiers are ignored (and their file left alone).
-  assert.equal(JSON.parse(fs.readFileSync(path.join(dataDir, 'settings.json'))).version, 3);
+  assert.equal(JSON.parse(fs.readFileSync(path.join(dataDir, 'settings.json'))).version, 4);
   const k = s.alerts.kicks;
   assert.deepEqual(k.tiers.map((t) => t.amount), [1, 10, 50, 100, 500, 1000, 2000, 5000, 10000, 50000], "Kick's own gift amounts");
   assert.deepEqual(k.tiers.map((t) => t.gift.id).slice(0, 4), ['hell_yeah', 'hype', 'skull_emoji', 'full_send']);
@@ -60,6 +60,21 @@ test("media by amount: fixed tiers (Kick's gift amounts), on/off and files; old 
   assert.ok(!('tiers' in s.alerts.raid) && !('tiersOn' in s.alerts.raid), 'raid: no media by amount');
   assert.ok(fs.existsSync(file('raid-tier-image-old.gif')), "raid's old file is left alone");
   assert.equal(k.minAmount, 10, 'Kicks: small taps stay out of the queue by default');
+
+  // Kicks' own look by default (Kick's gift image, Kick-style text, no theme); "Use theme" switches back.
+  assert.equal(k.look, 'kick');
+  assert.ok(!('look' in s.alerts.bits), 'only Kicks has it');
+  assert.equal((await (await call('PATCH', '/api/settings', { alerts: { kicks: { look: 'theme' } } })).json()).alerts.kicks.look, 'theme');
+  assert.equal((await call('PATCH', '/api/settings', { alerts: { kicks: { look: 'fancy' } } })).status, 400);
+  await call('PATCH', '/api/settings', { alerts: { kicks: { look: 'kick' } } });
+  // Every Kick gift has its image here (offline) and a name in the i18n file.
+  const names = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'i18n', 'en.json'))).kickGifts;
+  for (const { gift } of k.tiers) {
+    const img = await fetch(`${base}/assets/kick-gifts/${gift.id}.webp`);
+    assert.equal(img.status, 200, gift.id);
+    assert.equal(Buffer.from(await img.arrayBuffer()).toString('latin1', 8, 12), 'WEBP', gift.id);
+    assert.ok(names[gift.id], gift.id);
+  }
   assert.deepEqual([s.alerts.gift_sub.tiers.map((t) => t.amount), s.alerts.bits.tiers.map((t) => t.amount)], [[1, 5, 10, 20, 50, 100], [100, 500, 1000, 5000, 10000]]);
 
   // On/off, a file per kind (uploading turns the tier on and replaces the old file), remove.
