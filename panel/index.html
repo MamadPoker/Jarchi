@@ -9,6 +9,9 @@
 <body>
   <header class="topbar">
     <div class="brand"><div class="logo" aria-hidden="true">J</div><span data-i18n="title"></span></div>
+    <div class="lang" role="group" data-aria="language">
+      <button data-lang="fa" lang="fa">فا</button><button data-lang="en" lang="en">EN</button>
+    </div>
     <button id="copy" class="primary">
       <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h8"/></svg>
       <span data-i18n="copyObs"></span>
@@ -20,6 +23,12 @@
     <aside class="side">
       <div id="groups" class="side-scroll"></div>
       <div class="side-foot">
+        <div class="nav-row row-guide" data-view="guide">
+          <button class="nav-btn">
+            <svg class="guide-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3M12 17h.01"/></svg>
+            <span data-i18n="guide"></span>
+          </button>
+        </div>
         <div class="nav-row" data-view="settings">
           <button class="nav-btn">
             <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M2 12h3M19 12h3M4.9 19.1L7 17M17 7l2.1-2.1"/></svg>
@@ -41,7 +50,7 @@
         </div>
 
         <div class="stage">
-          <div class="preview"><iframe id="preview" src="/widgets/alerts/?preview" title="Alert preview" allow="autoplay"></iframe></div>
+          <div class="preview"><iframe id="preview" src="/widgets/alerts/?preview" data-title="alertPreview" allow="autoplay"></iframe></div>
           <div class="stage-ctrl">
             <label class="pill-ctrl" data-only="amount"><span data-i18n="previewAmount"></span><input type="number" id="previewAmount" min="0" step="1"></label>
             <label class="pill-ctrl"><input type="checkbox" id="previewSound" checked><span data-i18n="previewSound"></span></label>
@@ -54,21 +63,21 @@
 
         <div class="box theme-pick">
           <!-- Kicks only: its own Kick look, or the theme's -->
-          <h2 data-only="look" data-i18n="alertLook"></h2>
+          <h2 data-only="look" data-i18n="alertLook" data-help="alert.look"></h2>
           <div class="seg" data-only="look">
             <label><input type="radio" name="look" data-f="look" value="kick"><span data-i18n="lookKick"></span></label>
             <label><input type="radio" name="look" data-f="look" value="theme"><span data-i18n="lookTheme"></span></label>
           </div>
           <small data-only="kickLook" data-i18n="lookKickHint"></small>
-          <h2 data-only="themed" data-i18n="alertTheme"></h2>
+          <h2 data-only="themed" data-i18n="alertTheme" data-help="alert.theme"></h2>
           <span class="swatch" id="alertThemeSwatch" data-only="themed"></span>
-          <select id="alertTheme" aria-label="Theme" data-only="themed"></select>
+          <select id="alertTheme" data-aria="alertTheme" data-only="themed"></select>
           <small data-only="themed" data-i18n="alertThemeHint"></small>
         </div>
 
         <div class="basics">
           <div class="box">
-            <h2 data-i18n="mediaTitle"></h2>
+            <h2 data-i18n="mediaTitle" data-help="alert.media"></h2>
             <div class="file" data-kind="image">
               <span class="fname"></span>
               <div class="row">
@@ -81,7 +90,7 @@
           </div>
 
           <div class="box">
-            <h2 data-i18n="soundTitle"></h2>
+            <h2 data-i18n="soundTitle" data-help="alert.sound"></h2>
             <div class="seg">
               <label><input type="radio" name="soundMode" data-f="soundMode" value="theme"><span data-i18n="soundTheme"></span></label>
               <label><input type="radio" name="soundMode" data-f="soundMode" value="custom"><span data-i18n="soundCustom"></span></label>
@@ -99,8 +108,8 @@
           </div>
 
           <div class="box">
-            <h2 data-i18n="textTitle"></h2>
-            <input type="text" data-f="template" maxlength="200" aria-label="Text">
+            <h2 data-i18n="textTitle" data-help="alert.template"></h2>
+            <input type="text" data-f="template" maxlength="200" data-aria="textTitle">
             <small data-i18n="templateHint"></small>
           </div>
         </div>
@@ -108,7 +117,7 @@
         <!-- Media by amount (Kicks, gifted subs, bits): fixed tiers, built in panel.js (renderTiers). -->
         <div class="box" data-only="tiers">
           <label class="row between toggle-row">
-            <span class="stack"><b data-i18n="tiersTitle"></b><small data-i18n="tiersHint"></small></span>
+            <span class="stack"><b data-i18n="tiersTitle" data-help="alert.tiers"></b><small data-i18n="tiersHint"></small></span>
             <span class="switch"><input type="checkbox" data-f="tiersOn"><span></span></span>
           </label>
           <small data-only="tiersOn" data-i18n="tiersRule"></small>
@@ -124,7 +133,7 @@
             <div class="box">
               <h3 data-i18n="lookTitle"></h3>
               <div class="field">
-                <span data-i18n="frame"></span>
+                <span data-i18n="frame" data-help="alert.frame"></span>
                 <div class="seg">
                   <label><input type="radio" name="frame" data-f="frame" value="theme"><span data-i18n="frameTheme"></span></label>
                   <label><input type="radio" name="frame" data-f="frame" value="custom"><span data-i18n="frameCustom"></span></label>
@@ -132,14 +141,14 @@
                 </div>
               </div>
               <div class="cols" data-only="customFrame">
-                <label class="field"><span data-i18n="frameBg"></span><input type="color" data-f="frameBg"></label>
-                <label class="field"><span data-i18n="frameBorder"></span><input type="color" data-f="frameBorder"></label>
-                <label class="field"><span><span data-i18n="frameOpacity"></span> <b data-out="frameOpacity"></b></span><input type="range" data-f="frameOpacity" min="0" max="1" step="0.05"></label>
-                <label class="field"><span><span data-i18n="frameRadius"></span> <b data-out="frameRadius"></b></span><input type="range" data-f="frameRadius" min="0" max="60" step="1"></label>
+                <label class="field"><span data-i18n="frameBg" data-help="alert.frameBg"></span><input type="color" data-f="frameBg"></label>
+                <label class="field"><span data-i18n="frameBorder" data-help="alert.frameBorder"></span><input type="color" data-f="frameBorder"></label>
+                <label class="field"><span data-help="alert.frameOpacity"><span data-i18n="frameOpacity"></span> <b data-out="frameOpacity"></b></span><input type="range" data-f="frameOpacity" min="0" max="1" step="0.05"></label>
+                <label class="field"><span data-help="alert.frameRadius"><span data-i18n="frameRadius"></span> <b data-out="frameRadius"></b></span><input type="range" data-f="frameRadius" min="0" max="60" step="1"></label>
               </div>
               <div class="row align-start">
                 <div class="field">
-                  <span data-i18n="textPos"></span>
+                  <span data-i18n="textPos" data-help="alert.textPos"></span>
                   <div class="seg">
                     <label><input type="radio" name="textPos" data-f="textPos" value="above"><span data-i18n="posAbove"></span></label>
                     <label><input type="radio" name="textPos" data-f="textPos" value="below"><span data-i18n="posBelow"></span></label>
@@ -147,8 +156,8 @@
                   </div>
                 </div>
                 <div class="field">
-                  <span data-i18n="textAlign"></span>
-                  <div class="seg">
+                  <span data-i18n="textAlign" data-help="alert.textAlign"></span>
+                  <div class="seg" dir="ltr">
                     <label><input type="radio" name="textAlign" data-f="textAlign" value="left"><span data-i18n="alignLeft"></span></label>
                     <label><input type="radio" name="textAlign" data-f="textAlign" value="center"><span data-i18n="alignCenter"></span></label>
                     <label><input type="radio" name="textAlign" data-f="textAlign" value="right"><span data-i18n="alignRight"></span></label>
@@ -156,15 +165,15 @@
                 </div>
               </div>
               <div class="cols">
-                <label class="field"><span><span data-i18n="fontSize"></span> <b data-out="fontSize"></b></span><input type="range" data-f="fontSize" min="16" max="120" step="1"></label>
+                <label class="field"><span data-help="alert.fontSize"><span data-i18n="fontSize"></span> <b data-out="fontSize"></b></span><input type="range" data-f="fontSize" min="16" max="120" step="1"></label>
                 <div class="field">
-                  <span data-i18n="textColor"></span>
+                  <span data-i18n="textColor" data-help="alert.textColor"></span>
                   <div class="row">
                     <div class="seg">
                       <label><input type="radio" name="textColorMode" value="theme"><span data-i18n="colorTheme"></span></label>
                       <label><input type="radio" name="textColorMode" value="custom"><span data-i18n="colorCustom"></span></label>
                     </div>
-                    <input type="color" class="swatch-input" data-f="textColor" data-only="customColor" aria-label="Text color">
+                    <input type="color" class="swatch-input" data-f="textColor" data-only="customColor" data-aria="textColor">
                   </div>
                 </div>
               </div>
@@ -173,13 +182,13 @@
             <div class="box">
               <h3 data-i18n="playbackTitle"></h3>
               <div class="cols">
-                <label class="field"><span data-i18n="duration"></span><input type="number" data-f="duration" min="1" max="60" step="0.5"></label>
-                <label class="field"><span><span data-i18n="volume"></span> <b data-out="volume"></b></span><input type="range" data-f="volume" min="0" max="1" step="0.05"></label>
-                <label class="field" data-only="minAmount"><span data-i18n="minAmount"></span><input type="number" data-f="minAmount" min="0" step="1"></label>
+                <label class="field"><span data-i18n="duration" data-help="alert.duration"></span><input type="number" data-f="duration" min="1" max="60" step="0.5"></label>
+                <label class="field"><span data-help="alert.volume"><span data-i18n="volume"></span> <b data-out="volume"></b></span><input type="range" data-f="volume" min="0" max="1" step="0.05"></label>
+                <label class="field" data-only="minAmount"><span data-i18n="minAmount" data-help="alert.minAmount"></span><input type="number" data-f="minAmount" min="0" step="1"></label>
               </div>
               <small data-only="minAmount" data-i18n="scaleHint"></small>
               <div class="field" data-only="video">
-                <span data-i18n="videoSound"></span>
+                <span data-i18n="videoSound" data-help="alert.videoSound"></span>
                 <div class="seg">
                   <label><input type="radio" name="videoSound" data-f="videoSound" value="off"><span data-i18n="videoSoundOff"></span></label>
                   <label><input type="radio" name="videoSound" data-f="videoSound" value="video"><span data-i18n="videoSoundVideo"></span></label>
@@ -206,7 +215,7 @@
         <small><span id="goalCounts"></span> <span data-i18n="goalOffHint"></span></small>
 
         <div class="stage">
-          <div class="preview goal-preview"><iframe id="goalPreview" title="Goal preview" allow="autoplay"></iframe></div>
+          <div class="preview goal-preview"><iframe id="goalPreview" data-title="goalPreview" allow="autoplay"></iframe></div>
           <div class="stage-ctrl">
             <button id="goalTest" class="primary">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
@@ -217,18 +226,18 @@
 
         <div class="basics">
           <div class="box">
-            <h2 data-i18n="goalTitle"></h2>
-            <input type="text" data-f="title" maxlength="60" aria-label="Title">
+            <h2 data-i18n="goalTitle" data-help="goal.title"></h2>
+            <input type="text" data-f="title" maxlength="60" data-aria="goalTitle" dir="auto">
           </div>
           <div class="box">
-            <h2 data-i18n="goalTarget"></h2>
-            <input type="number" data-f="target" min="1" step="1" aria-label="Target">
+            <h2 data-i18n="goalTarget" data-help="goal.target"></h2>
+            <input type="number" data-f="target" min="1" step="1" data-aria="goalTarget">
           </div>
           <div class="box">
-            <h2 data-i18n="goalCurrent"></h2>
+            <h2 data-i18n="goalCurrent" data-help="goal.current"></h2>
             <div class="stepper">
               <button id="goalMinus" aria-label="−">−</button>
-              <input type="number" id="goalCurrent" min="0" step="1" aria-label="Current">
+              <input type="number" id="goalCurrent" min="0" step="1" data-aria="goalCurrent">
               <button id="goalPlus" aria-label="+">+</button>
             </div>
             <div><button id="goalZero" class="ghost" data-i18n="goalZero"></button></div>
@@ -236,17 +245,17 @@
         </div>
 
         <div class="box">
-          <div class="row between"><h2 data-i18n="goalStyle"></h2><small data-i18n="goalStyleHint"></small></div>
+          <div class="row between"><h2 data-i18n="goalStyle" data-help="goal.style"></h2><small data-i18n="goalStyleHint"></small></div>
           <div id="styleGrid" class="style-grid"></div>
         </div>
 
         <div class="box">
           <h2 data-i18n="goalColors"></h2>
           <div class="cols4">
-            <label class="field"><span data-i18n="barColor"></span><input type="color" data-f="barColor"></label>
-            <label class="field"><span data-i18n="barBg"></span><input type="color" data-f="barBg"></label>
-            <label class="field"><span data-i18n="goalText"></span><input type="color" data-f="textColor"></label>
-            <label class="field"><span data-i18n="fullColor"></span><input type="color" data-f="fullColor"></label>
+            <label class="field"><span data-i18n="barColor" data-help="goal.barColor"></span><input type="color" data-f="barColor"></label>
+            <label class="field"><span data-i18n="barBg" data-help="goal.barBg"></span><input type="color" data-f="barBg"></label>
+            <label class="field"><span data-i18n="goalText" data-help="goal.textColor"></span><input type="color" data-f="textColor"></label>
+            <label class="field"><span data-i18n="fullColor" data-help="goal.fullColor"></span><input type="color" data-f="fullColor"></label>
           </div>
         </div>
 
@@ -259,7 +268,7 @@
             <div class="box">
               <h3 data-i18n="goalBox"></h3>
               <div class="field">
-                <span data-i18n="bgMode"></span>
+                <span data-i18n="bgMode" data-help="goal.bg"></span>
                 <div class="seg">
                   <label><input type="radio" name="goalBg" data-f="bg" value="color"><span data-i18n="bgColor"></span></label>
                   <label><input type="radio" name="goalBg" data-f="bg" value="transparent"><span data-i18n="bgTransparent"></span></label>
@@ -267,28 +276,28 @@
                 </div>
               </div>
               <div class="cols" data-only="bgColor">
-                <label class="field"><span data-i18n="bgColor"></span><input type="color" data-f="bgColor"></label>
-                <label class="field"><span><span data-i18n="bgOpacity"></span> <b data-out="bgOpacity"></b></span><input type="range" data-f="bgOpacity" min="0" max="1" step="0.05"></label>
+                <label class="field"><span data-i18n="bgColor" data-help="goal.bgColor"></span><input type="color" data-f="bgColor"></label>
+                <label class="field"><span data-help="goal.bgOpacity"><span data-i18n="bgOpacity"></span> <b data-out="bgOpacity"></b></span><input type="range" data-f="bgOpacity" min="0" max="1" step="0.05"></label>
               </div>
               <div class="stack" data-only="box">
-                <label class="row between toggle-row"><span data-i18n="border"></span><span class="switch"><input type="checkbox" data-f="border"><span></span></span></label>
+                <label class="row between toggle-row"><span data-i18n="border" data-help="goal.border"></span><span class="switch"><input type="checkbox" data-f="border"><span></span></span></label>
                 <div class="cols" data-only="borderOn">
-                  <label class="field"><span data-i18n="borderColor"></span><input type="color" data-f="borderColor"></label>
-                  <label class="field"><span><span data-i18n="borderWidth"></span> <b data-out="borderWidth"></b></span><input type="range" data-f="borderWidth" min="1" max="12" step="1"></label>
+                  <label class="field"><span data-i18n="borderColor" data-help="goal.borderColor"></span><input type="color" data-f="borderColor"></label>
+                  <label class="field"><span data-help="goal.borderWidth"><span data-i18n="borderWidth"></span> <b data-out="borderWidth"></b></span><input type="range" data-f="borderWidth" min="1" max="12" step="1"></label>
                 </div>
               </div>
-              <label class="field"><span><span data-i18n="radius"></span> <b data-out="radius"></b></span><input type="range" data-f="radius" min="0" max="60" step="1"></label>
+              <label class="field"><span data-help="goal.radius"><span data-i18n="radius"></span> <b data-out="radius"></b></span><input type="range" data-f="radius" min="0" max="60" step="1"></label>
             </div>
 
             <div class="box">
               <h3 data-i18n="goalLook"></h3>
               <div class="cols">
-                <label class="field"><span><span data-i18n="scale"></span> <b data-out="scale"></b></span><input type="range" data-f="scale" min="0.5" max="3" step="0.05"></label>
-                <label class="field"><span><span data-i18n="fontSize"></span> <b data-out="fontSize"></b></span><input type="range" data-f="fontSize" min="12" max="120" step="1"></label>
+                <label class="field"><span data-help="goal.scale"><span data-i18n="scale"></span> <b data-out="scale"></b></span><input type="range" data-f="scale" min="0.5" max="3" step="0.05"></label>
+                <label class="field"><span data-help="goal.fontSize"><span data-i18n="fontSize"></span> <b data-out="fontSize"></b></span><input type="range" data-f="fontSize" min="12" max="120" step="1"></label>
               </div>
-              <label class="field"><span data-i18n="font"></span><select id="goalFont" data-f="font"></select></label>
+              <label class="field"><span data-i18n="font" data-help="goal.font"></span><select id="goalFont" data-f="font"></select></label>
               <div class="field">
-                <span data-i18n="titlePos"></span>
+                <span data-i18n="titlePos" data-help="goal.titlePos"></span>
                 <div class="seg">
                   <label><input type="radio" name="goalTitlePos" data-f="titlePos" value="above"><span data-i18n="tpAbove"></span></label>
                   <label><input type="radio" name="goalTitlePos" data-f="titlePos" value="below"><span data-i18n="tpBelow"></span></label>
@@ -296,15 +305,15 @@
                   <label><input type="radio" name="goalTitlePos" data-f="titlePos" value="hidden"><span data-i18n="tpHidden"></span></label>
                 </div>
               </div>
-              <label class="row between toggle-row"><span data-i18n="showPercent"></span><span class="switch"><input type="checkbox" data-f="showPercent"><span></span></span></label>
-              <label class="row between toggle-row"><span data-i18n="showNumbers"></span><span class="switch"><input type="checkbox" data-f="showNumbers"><span></span></span></label>
+              <label class="row between toggle-row"><span data-i18n="showPercent" data-help="goal.showPercent"></span><span class="switch"><input type="checkbox" data-f="showPercent"><span></span></span></label>
+              <label class="row between toggle-row"><span data-i18n="showNumbers" data-help="goal.showNumbers"></span><span class="switch"><input type="checkbox" data-f="showNumbers"><span></span></span></label>
             </div>
 
             <div class="box">
               <h3 data-i18n="celebration"></h3>
-              <label class="row between toggle-row"><span data-i18n="celebrate"></span><span class="switch"><input type="checkbox" data-f="celebrate"><span></span></span></label>
+              <label class="row between toggle-row"><span data-i18n="celebrate" data-help="goal.celebrate"></span><span class="switch"><input type="checkbox" data-f="celebrate"><span></span></span></label>
               <div class="field">
-                <span data-i18n="celebrateSound"></span>
+                <span data-i18n="celebrateSound" data-help="goal.celebrateSound"></span>
                 <div class="seg">
                   <label><input type="radio" name="goalSound" data-f="celebrateSound" value="theme"><span data-i18n="soundTheme"></span></label>
                   <label><input type="radio" name="goalSound" data-f="celebrateSound" value="custom"><span data-i18n="soundCustom"></span></label>
@@ -320,7 +329,7 @@
                 <input type="file" hidden accept="audio/mpeg,audio/wav,audio/ogg,.mp3,.wav,.ogg">
                 <small data-i18n="soundHint"></small>
               </div>
-              <label class="field"><span><span data-i18n="volume"></span> <b data-out="volume"></b></span><input type="range" data-f="volume" min="0" max="1" step="0.05"></label>
+              <label class="field"><span data-help="goal.volume"><span data-i18n="volume"></span> <b data-out="volume"></b></span><input type="range" data-f="volume" min="0" max="1" step="0.05"></label>
             </div>
           </div>
         </details>
@@ -342,19 +351,19 @@
 
         <div class="basics two">
           <div class="box">
-            <h2 class="row"><img class="plat-logo" src="/assets/platform-logos/kick.svg" alt=""><span data-i18n="kickChannel"></span></h2>
-            <input type="text" data-f="kickChannel" maxlength="40" aria-label="Kick channel" data-placeholder="channelPlaceholder">
+            <h2 class="row" data-help="chat.kickChannel"><img class="plat-logo" src="/assets/platform-logos/kick.svg" alt=""><span data-i18n="kickChannel"></span></h2>
+            <input type="text" data-f="kickChannel" maxlength="40" data-aria="kickChannel" data-placeholder="channelPlaceholder">
             <span class="status" id="kickStatus"></span>
           </div>
           <div class="box">
-            <h2 class="row"><img class="plat-logo" src="/assets/platform-logos/twitch.svg" alt=""><span data-i18n="twitchChannel"></span></h2>
-            <input type="text" data-f="twitchChannel" maxlength="25" aria-label="Twitch channel" data-placeholder="channelPlaceholder">
+            <h2 class="row" data-help="chat.twitchChannel"><img class="plat-logo" src="/assets/platform-logos/twitch.svg" alt=""><span data-i18n="twitchChannel"></span></h2>
+            <input type="text" data-f="twitchChannel" maxlength="25" data-aria="twitchChannel" data-placeholder="channelPlaceholder">
             <span class="status" id="twitchStatus"></span>
           </div>
         </div>
 
         <div class="stage chat-stage">
-          <div class="chat-preview"><iframe id="chatPreview" title="Chat preview"></iframe></div>
+          <div class="chat-preview"><iframe id="chatPreview" data-title="chatPreview"></iframe></div>
           <p id="chatFxHint" class="fx-hint" aria-live="polite"></p>
           <div class="stage-ctrl">
             <button id="chatAllFx" data-i18n="chatAllFx"></button>
@@ -367,7 +376,7 @@
         </div>
 
         <div class="box">
-          <div class="row between"><h2 data-i18n="chatStyle"></h2><small data-i18n="chatStyleHint"></small></div>
+          <div class="row between"><h2 data-i18n="chatStyle" data-help="chat.style"></h2><small data-i18n="chatStyleHint"></small></div>
           <div id="chatStyleGrid" class="style-grid five"></div>
         </div>
 
@@ -383,7 +392,7 @@
       <!-- ===== Theme ===== -->
       <section class="view" data-view="theme" hidden>
         <div class="stack">
-          <h1 class="title" data-i18n="themeTitle"></h1>
+          <h1 class="title" data-i18n="themeTitle" data-help="theme.main"></h1>
           <small data-i18n="themeHint"></small>
         </div>
         <div id="themeGrid" class="theme-grid"></div>
@@ -395,22 +404,22 @@
         <div class="box">
           <h2 data-i18n="badgeTitle"></h2>
           <label class="row between toggle-row">
-            <span data-i18n="badgeLabel"></span>
+            <span data-i18n="badgeLabel" data-help="settings.showBadge"></span>
             <span class="switch"><input type="checkbox" id="showBadge"><span></span></span>
           </label>
           <small><span data-i18n="badgeHint"></span> <span data-i18n="connected"></span> <b id="connectedList"></b></small>
         </div>
         <div class="box">
           <h2 data-i18n="testTitle"></h2>
-          <label class="row between toggle-row"><span data-i18n="testAs"></span><select id="testAs"></select></label>
+          <label class="row between toggle-row"><span data-i18n="testAs" data-help="settings.testAs"></span><select id="testAs"></select></label>
         </div>
         <div class="box">
           <h2 data-i18n="queueTitle"></h2>
-          <label class="row between toggle-row"><span data-i18n="alertGap"></span><input type="number" id="alertGap" class="num" min="0" max="60" step="0.5"></label>
+          <label class="row between toggle-row"><span data-i18n="alertGap" data-help="settings.alertGap"></span><input type="number" id="alertGap" class="num" min="0" max="60" step="0.5"></label>
           <small data-i18n="queueHint"></small>
         </div>
         <div class="box">
-          <h2 data-i18n="proxyTitle"></h2>
+          <h2 data-i18n="proxyTitle" data-help="settings.proxyMode"></h2>
           <small data-i18n="proxyHint"></small>
           <div class="seg">
             <label><input type="radio" name="proxyMode" value="off"><span data-i18n="proxyOff"></span></label>
@@ -420,14 +429,14 @@
           <small id="proxyNow" data-only="proxySystem"></small>
           <div class="proxy-manual" data-only="proxyManual">
             <div class="field">
-              <span data-i18n="proxyType"></span>
+              <span data-i18n="proxyType" data-help="settings.proxyType"></span>
               <div class="seg">
                 <label><input type="radio" name="proxyType" value="http"><span>HTTP</span></label>
                 <label><input type="radio" name="proxyType" value="socks5"><span>SOCKS5</span></label>
               </div>
             </div>
-            <label class="field"><span data-i18n="proxyHost"></span><input type="text" id="proxyHost" maxlength="253" placeholder="127.0.0.1"></label>
-            <label class="field"><span data-i18n="proxyPort"></span><input type="number" id="proxyPort" min="1" max="65535" step="1" placeholder="10808"></label>
+            <label class="field"><span data-i18n="proxyHost" data-help="settings.proxyHost"></span><input type="text" id="proxyHost" maxlength="253" placeholder="127.0.0.1"></label>
+            <label class="field"><span data-i18n="proxyPort" data-help="settings.proxyPort"></span><input type="number" id="proxyPort" min="1" max="65535" step="1" placeholder="10808"></label>
           </div>
           <div class="row">
             <button id="netTest">
@@ -439,14 +448,23 @@
           <ul id="netResults" class="net-results"></ul>
         </div>
         <div class="box">
-          <h2 data-i18n="obsTitle"></h2>
+          <h2 data-i18n="obsTitle" data-help="settings.obsUrl"></h2>
           <small data-i18n="copyObsHint"></small>
-          <input id="obsUrl" type="text" readonly aria-label="OBS URL">
+          <input id="obsUrl" type="text" readonly data-aria="obsTitle">
         </div>
         <div class="box">
-          <h2 data-i18n="resetTitle"></h2>
+          <h2 data-i18n="resetTitle" data-help="settings.reset"></h2>
           <small data-i18n="resetHint"></small>
           <div><button id="resetAll" class="danger" data-i18n="resetAll"></button></div>
+        </div>
+      </section>
+
+      <!-- ===== Guide: its own topic list; the text is in i18n guide.topics (renderGuide) ===== -->
+      <section class="view" data-view="guide" hidden>
+        <h1 class="title" data-i18n="guide"></h1>
+        <div class="guide">
+          <nav id="guideTopics" class="guide-topics" data-aria="guideTopics"></nav>
+          <article id="guideBody" class="guide-body"></article>
         </div>
       </section>
     </main>
@@ -508,6 +526,7 @@
   </button>
   <div id="qBackdrop" class="q-backdrop" hidden></div>
 
+  <div id="tip" role="tooltip" hidden></div>
   <div id="toast" role="status" aria-live="polite"></div>
   <script src="/socket.io/socket.io.js"></script>
   <script src="panel.js"></script>

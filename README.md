@@ -27,10 +27,16 @@ Jarchi must be running before OBS loads the source. If you started OBS first, ri
 
 ## The panel
 
-- **Top bar**: **Copy OBS link**.
+- **Top bar**: the **فا | EN** language switch and **Copy OBS link**.
 - **Right column, on every page: Alert queue**. Now playing (with a bar for the time left), **Pause / Resume**, **Skip**, **Clear queue** (click twice), the waiting alerts in order (× removes one), the last 10 played (each with **Replay**), and a notice when no OBS alerts overlay is open. The arrow collapses it to a thin strip with the waiting count (remembered); on narrow windows it opens as a drawer from the round button at the bottom right.
-- **Left column**: **Theme** at the top (opens a page with a live card per theme; click one to use it), then the alerts, each with an on/off switch; **Settings** at the bottom (badge switch, test platform, gap between alerts, connection / proxy, reset everything).
+- **Left column**: **Theme** at the top (opens a page with a live card per theme; click one to use it), then the alerts, each with an on/off switch; **Guide** and **Settings** at the bottom (badge switch, test platform, gap between alerts, connection / proxy, reset everything).
+- **?** next to every setting: a short explanation on hover, keyboard focus or a tap.
+- **Guide**: Getting started, Add Jarchi to OBS, Alerts, Goals, Chat widget, Alert queue, Proxy & VPN, and If something doesn't work (questions that open their answers). The links in it are this PC's real ones.
 - **Right side**: the selected alert: live preview with Play, its own theme (or the main one), then image/GIF/video, sound and text, **Different media by amount** (Kicks, gifted subs, bits); **More options** opens frame, colors, font size, text position, text alignment (left/center/right), duration, volume, minimum amount and video sound.
+
+### Persian (فارسی)
+
+The **فا | EN** switch (remembered in the browser) puts the whole panel in Persian, right to left, in the bundled Vazirmatn font with Persian digits: the list moves to the right, the alert queue to the left. Fields for links, `{user}`-style variables, channel names and numbers stay left to right. It changes only the panel: alert texts, chat and goals in OBS stay exactly as you wrote them (English by default). Panel strings live in `i18n/en.json` and `i18n/fa.json`; a test fails if `fa.json` misses a key.
 
 ## Alerts
 
@@ -96,7 +102,7 @@ Two goal widgets, each with its own OBS URL (transparent background):
 
 They listen to the same event bus as the alerts, so they'll move by themselves once Kick and Twitch are connected. Until then, test alerts and the panel's buttons move them.
 
-In OBS: **Sources → + → Browser**, paste the goal's URL (the panel has **Copy this goal's OBS link**), width **1000**, height **400**. The goal sits in the middle; use the panel's **Size** option or OBS to scale it.
+In OBS: **Sources → + → Browser**, paste the goal's URL (the panel has **Copy this goal's OBS link**), width **800**, height **200** (Circle style: **400** × **400**). The goal sits in the middle; use the panel's **Size** option or OBS to scale it.
 
 In the panel (left list → **Widgets**): title, target, current count (−, +, number, **Reset to 0**), **Test**, 6 styles (Classic, Pill, Neon, Circle, Text only, Retro), colors, and **More options** for background, border, corners, size, font, title position, percentage/numbers and the celebration. A style is a starting point: every option works with every style, and **Reset style** brings the style's own look back.
 
@@ -141,7 +147,8 @@ connectors/          Kick and Twitch chat readers (+ Twitch badge images)
 assets/              official platform logos (platform-logos), Kick badge icons (kick-badges), bundled fonts (fonts)
 widgets/<name>/      each widget is a folder, served at /widgets/<name>
 panel/               settings panel (served at /)
-i18n/en.json         every UI string, panel and overlay
+i18n/en.json         every UI string, panel and overlay (overlays always use it)
+i18n/fa.json         the panel in Persian (same keys)
 ```
 
 Every event, whatever its source, looks like this:

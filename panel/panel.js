@@ -1,12 +1,25 @@
-// Settings panel. All visible text comes from /i18n/en.json.
+// Settings panel. All visible text comes from /i18n/en.json, or /i18n/fa.json in Persian (the "فا | EN" switch).
+// The language is the panel's only: overlays, and their previews here, always use en.json.
 // Layout: left column lists items in groups (GROUPS below); the right side shows the editor for the selected item.
 // Previews are the real overlays in scaled iframes: alerts are driven by postMessage, the goal by its own live socket.
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
-let S, settings, samples, goalData; // goalData = { state, styles, fonts } from /api/goals; state then follows the socket
+// Remembered in this browser: the language, the queue column folded.
+const remember = {
+  get: (k) => { try { return localStorage.getItem(k); } catch { return null; } },
+  set: (k, v) => { try { localStorage.setItem(k, v); } catch {} },
+};
+const FA = remember.get('jarchi.lang') === 'fa';
+document.documentElement.lang = FA ? 'fa' : 'en';
+document.documentElement.dir = FA ? 'rtl' : 'ltr';
+// Persian digits (and ٪ ٫) in labels; inputs keep theirs.
+const fd = (v) => (FA ? String(v).replace(/(?<=\d)\.(?=\d)/g, '٫').replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[d]).replace(/%/g, '٪') : String(v));
+const fmt = (n) => n.toLocaleString(FA ? 'fa-IR' : undefined);
+const ltr = (s) => (FA ? `\u2066${s}\u2069` : s); // an address inside a Persian sentence keeps its order
+let S, EN, settings, samples, goalData; // S: the panel's strings, EN: English for the overlays. goalData = { state, styles, fonts } from /api/goals; state then follows the socket
 let chatStyles, chatFonts, chatStatus; // chat style looks and fonts (/api/chat/styles), connection status (follows the socket)
 let chatThumbs; // sample messages for the chat style thumbnails (/api/chat/thumbs: random viewers and badges each visit)
-let view = 'alert', cur = 'follow', curGoal = 'subs'; // what's selected: an alert, a goal, or the theme / settings view
+let view = 'alert', cur = 'follow', curGoal = 'subs', topic = 'start'; // what's selected: an alert, a goal, a guide topic, or the theme / settings view
 let queue = { paused: false, overlays: 0, waiting: 0, now: null }; // the alert queue (follows the socket)
 
 const pct = (v) => `${Math.round(v * 100)}%`;
@@ -14,7 +27,7 @@ const px = (v) => `${v}px`;
 const FORMAT = {
   volume: pct, frameOpacity: pct, frameRadius: px, fontSize: px, bgOpacity: pct, borderWidth: px, radius: px, scale: pct,
   emoteSize: px, bigEmoteSize: px, nameSize: px, padding: px, gap: px, width: px, height: px, fadeZone: px, blur: px,
-  tickerSpeed: (v) => `${v} px/s`, maxMessages: (v) => String(v), hideAfter: (v) => (Number(v) ? `${v}s` : S.panel.never), animSpeed: (v) => `×${v}`,
+  tickerSpeed: (v) => `${v} px/s`, maxMessages: (v) => String(v), hideAfter: (v) => (Number(v) ? tpl(S.panel.seconds, { n: v }) : S.panel.never), animSpeed: (v) => `×${v}`,
 };
 const GOAL_STEP = { subs: 1, kicks: 100 }; // what "Test", "+" and "−" add
 const GOAL_SAMPLE = { subs: { current: 32, target: 50 }, kicks: { current: 640, target: 1000 } }; // numbers on style thumbnails
@@ -35,8 +48,8 @@ const el = (tag, props = {}, ...kids) => {
 // An item can bring its own `content` instead of the default dot + label, and a `toggle(on)` for its switch.
 const GROUPS = () => [
   { title: S.panel.groupTheme, items: [{ view: 'theme', key: 'theme', content: themeRow }] },
-  { title: S.panel.groupAlerts, items: Object.keys(settings.alerts).map((t) => ({ view: 'alert', key: t, label: S.types[t], toggle: (on) => patchAlert(t, { enabled: on }) })) },
-  { title: S.panel.groupWidgets, items: [
+  { title: S.panel.groupAlerts, help: 'groups.alerts', items: Object.keys(settings.alerts).map((t) => ({ view: 'alert', key: t, label: S.types[t], toggle: (on) => patchAlert(t, { enabled: on }) })) },
+  { title: S.panel.groupWidgets, help: 'groups.widgets', items: [
     ...Object.keys(settings.goals).map((id) => ({ view: 'goal', key: id, label: S.goals[id].name, toggle: (on) => patchGoal(id, { enabled: on }) })),
     { view: 'chat', key: 'chat', label: S.panel.chatName, toggle: (on) => patchChat({ enabled: on }) },
   ] },
@@ -66,7 +79,7 @@ const CHAT_GROUPS = () => [
     ['select', 'exitAnim', { options: [['fade', 'animFade'], ['slide', 'animSlide'], ['none', 'animNone']] }], ['range', 'animSpeed', { min: 0.25, max: 3, step: 0.25 }],
     ['toggle', 'fade'], ['range', 'fadeZone', { min: 0, max: 400, step: 5, only: 'fade' }], ['toggle', 'typewriter'], ['toggle', 'typeSound', { only: 'typewriter' }]]],
   ['chatFilters', [['toggle', 'hideCommands'], ['toggle', 'hideBots'], ['text', 'bots', { only: 'bots', hint: 'listHint' }], ['text', 'hiddenUsers', { hint: 'listHint' }],
-    ['text', 'blockedWords', { hint: 'listHint' }], ['toggle', 'hideLinks'], ['select', 'source', { options: [['both', 'sourceBoth'], ['kick', 'sourceKick'], ['twitch', 'sourceTwitch']] }]]],
+    ['text', 'blockedWords', { hint: 'listHint', dir: 'auto' }], ['toggle', 'hideLinks'], ['select', 'source', { options: [['both', 'sourceBoth'], ['kick', 'sourceKick'], ['twitch', 'sourceTwitch']] }]]],
   ['chatFx', [['toggle', 'fxSubGlow'], ['toggle', 'fxFirst'], ['toggle', 'fxRainbowVip'], ['text', 'rainbowUsers', { hint: 'listHint' }], ['toggle', 'fxMention'], ['toggle', 'fxCombo'],
     ['toggle', 'avatars', { hint: 'avatarsHint' }], ['range', 'blur', { min: 0, max: 40 }]]],
 ];
@@ -96,8 +109,9 @@ function chatControl(kind, f, o) {
     sel.append(...o.options.map(([v, k]) => new Option(S.panel[k] ?? k, v)));
     node = el('label', { className: 'field' }, el('span', { textContent: label }), sel);
   } else {
-    node = el('label', { className: 'field' }, el('span', { textContent: label }), input({ type: kind === 'color' ? 'color' : 'text', maxLength: 1000 }), o.hint ? el('small', { textContent: S.panel[o.hint] }) : '');
+    node = el('label', { className: 'field' }, el('span', { textContent: label }), input({ type: kind === 'color' ? 'color' : 'text', maxLength: 1000, ...(o.dir && { dir: o.dir }) }), o.hint ? el('small', { textContent: S.panel[o.hint] }) : '');
   }
+  node.firstChild.dataset.help = `chat.${f}`; // the label: build() adds its "?"
   if (o.only) node.dataset.only = o.only;
   return node;
 }
@@ -110,7 +124,7 @@ function drawChatThumbs() {
     const ticker = chatStyles[style].layout === 'horizontal';
     const cfg = { ...settings.chat, ...chatStyles[style], style, enabled: true, width: ticker ? 440 : 400, height: ticker ? 64 : 290, maxMessages: 6,
       hideCommands: false, hideBots: false, hiddenUsers: '', blockedWords: '', hideLinks: false, source: 'both', avatars: false, fxMention: false };
-    f.contentWindow?.postMessage({ strings: S, cfg, messages: chatThumbs }, location.origin);
+    f.contentWindow?.postMessage({ strings: EN, cfg, messages: chatThumbs }, location.origin);
   }
 }
 
@@ -197,7 +211,7 @@ async function goalCount(body) {
 const sample = (type, amount) => ({ ...samples[type], type, platform: $('#testAs').value, test: true, ...(amount !== undefined && { amount }) });
 const previewAmount = () => (samples[cur].amount > 0 ? Number($('#previewAmount').value) || 0 : undefined);
 
-const post = (frame, s, event, muted, hold = false) => frame.contentWindow?.postMessage({ strings: S, settings: s, event, muted, hold }, location.origin);
+const post = (frame, s, event, muted, hold = false) => frame.contentWindow?.postMessage({ strings: EN, settings: s, event, muted, hold }, location.origin);
 
 function preview() {
   if (view === 'alert') post($('#preview'), settings, sample(cur, previewAmount()), !$('#previewSound').checked);
@@ -237,6 +251,10 @@ function select(v, key) {
   }
   if (v === 'chat' && !$('#chatPreview').getAttribute('src')) $('#chatPreview').src = '/widgets/chat?preview';
   if (v === 'settings') showProxyNow();
+  if (v === 'guide') {
+    if (S.guide.topics[key]) topic = key;
+    renderGuide();
+  }
   $$('main .view').forEach((s) => (s.hidden = s.dataset.view !== v));
   render();
   preview();
@@ -266,15 +284,15 @@ function typeIcon(type) {
 }
 // "Rich · Gifted subs · 10": icon, name, type, and the amount (or a resub's months).
 function alertRow(a, action) {
-  const amount = a.type === 'resub' && a.months ? tpl(S.panel.qMonths, { n: a.months }) : a.amount ? a.amount.toLocaleString() : '';
+  const amount = a.type === 'resub' && a.months ? tpl(S.panel.qMonths, { n: fmt(a.months) }) : a.amount ? fmt(a.amount) : '';
   return el('li', { className: 'q-item' }, typeIcon(a.type),
-    el('span', { className: 'q-who' }, el('b', { textContent: a.user, title: a.user }), el('small', { textContent: S.types[a.type] })),
+    el('span', { className: 'q-who' }, el('b', { textContent: a.user, title: a.user, dir: 'auto' }), el('small', { textContent: S.types[a.type] })),
     el('span', { className: 'q-amt', textContent: amount }), action ?? '');
 }
 
 function renderQueue() {
   const q = queue, n = q.now;
-  for (const c of $$('#qCount, #qStripCount, #qFabCount')) c.textContent = q.waiting;
+  for (const c of $$('#qCount, #qStripCount, #qFabCount')) c.textContent = fd(q.waiting);
   $('#qPaused').hidden = !q.paused;
   $('#queue').dataset.state = q.paused ? 'paused' : n ? 'playing' : 'idle';
   $('#qNow').replaceChildren(n ? alertRow(n) : el('p', { className: 'q-empty', textContent: S.panel.qIdle }));
@@ -304,10 +322,6 @@ function renderQueue() {
 const queueCall = (method, what, body) => api(method, `/api/alerts/${what}`, body).then((q) => { queue = q; renderQueue(); return q; }, (err) => toast(err.message, true));
 
 // Collapsed to a strip (remembered in this browser), or, on narrow windows, a drawer.
-const remember = {
-  get: (k) => { try { return localStorage.getItem(k); } catch { return null; } },
-  set: (k, v) => { try { localStorage.setItem(k, v); } catch {} },
-};
 const narrow = matchMedia('(max-width: 1180px)');
 function setCollapsed(on) {
   document.body.classList.toggle('q-collapsed', on);
@@ -344,7 +358,7 @@ function renderTiers(cfg) {
   $('#tiers').replaceChildren(...cfg.tiers.map((t) => {
     const on = el('input', { type: 'checkbox', checked: t.on, onchange: () => send('PATCH', `/api/tiers/${cur}/${t.amount}`, { on: on.checked }) });
     on.setAttribute('aria-label', S.panel.tierOn);
-    const amount = tpl(S.panel.tierAmount[cur][t.amount === 1 ? 'one' : 'many'], { n: t.amount.toLocaleString() });
+    const amount = tpl(S.panel.tierAmount[cur][t.amount === 1 ? 'one' : 'many'], { n: fmt(t.amount) });
     const name = t.gift // Kicks: Kick's own gift, its icon and name
       ? [el('img', { className: 'gift-icon', alt: '', src: `/assets/kick-gifts/${t.gift.id}.webp` }),
         el('b', { textContent: S.kickGifts[t.gift.id] ?? t.gift.id }), el('small', { textContent: amount })]
@@ -381,7 +395,7 @@ function testTier(amount) {
 }
 
 // ---------- Settings: proxy ----------
-const proxyLabel = (p) => `${p.host}:${p.port} (${p.type === 'socks5' ? 'SOCKS5' : 'HTTP'})`;
+const proxyLabel = (p) => ltr(`${p.host}:${p.port} (${p.type === 'socks5' ? 'SOCKS5' : 'HTTP'})`);
 function showProxyNow() {
   api('GET', '/api/net/proxy').then(({ proxy }) => {
     $('#proxyNow').textContent = proxy ? tpl(S.net.systemNow, { proxy: proxyLabel(proxy) }) : S.net.systemNone;
@@ -410,10 +424,76 @@ function wireFile(row, upload, remove) {
   $('.remove', row).onclick = () => send('DELETE', remove());
 }
 
+// ---------- Help ("?") and Guide text ----------
+// `code` stays left to right (links, {user}), **bold** names a button; {alertsUrl}-style names become this PC's links.
+const LINKS = {
+  panelUrl: location.origin, alertsUrl: `${location.origin}/widgets/alerts`, chatUrl: `${location.origin}/widgets/chat`,
+  goalSubsUrl: `${location.origin}/widgets/goal/subs`, goalKicksUrl: `${location.origin}/widgets/goal/kicks`,
+};
+const rich = (s) => tpl(s, LINKS).replace(/ × /g, '\u00a0×\u00a0').split('`').flatMap((part, i) => (i % 2 // "420 × 600" stays on one line
+  ? [el('code', { dir: 'ltr', textContent: part })]
+  : part.split('**').map((t, j) => (j % 2 ? el('b', { textContent: t }) : t))));
+const helpText = (key) => key.split('.').reduce((o, k) => o?.[k], S.help);
+
+// A "?" after a setting's label (data-help="alert.volume" -> S.help.alert.volume). Its text is the button's
+// description for screen readers, and one shared tooltip shows it on hover, keyboard focus or a tap.
+let helpCount = 0;
+function addHelp(host) {
+  const text = helpText(host.dataset.help);
+  if (!text) return;
+  const desc = el('span', { id: `help-${++helpCount}`, hidden: true, textContent: tpl(text, LINKS).replace(/`|\*\*/g, '') });
+  const btn = el('button', { type: 'button', className: 'help', textContent: S.panel.helpMark }, desc);
+  btn.dataset.tip = text;
+  btn.setAttribute('aria-label', S.panel.help);
+  btn.setAttribute('aria-describedby', desc.id);
+  host.append(btn);
+}
+function showTip(btn) {
+  const tip = $('#tip');
+  tip.replaceChildren(...rich(btn.dataset.tip));
+  tip.hidden = false;
+  const r = btn.getBoundingClientRect();
+  const x = Math.min(Math.max(8, FA ? r.right - tip.offsetWidth : r.left), innerWidth - tip.offsetWidth - 8);
+  const below = r.bottom + 8 + tip.offsetHeight < innerHeight;
+  Object.assign(tip.style, { left: `${x}px`, top: `${below ? r.bottom + 8 : r.top - 8 - tip.offsetHeight}px` });
+}
+const hideTip = () => ($('#tip').hidden = true);
+function wireHelp() {
+  const helpOf = (e) => e.target.closest?.('.help');
+  addEventListener('mouseover', (e) => helpOf(e) && showTip(helpOf(e)));
+  addEventListener('mouseout', (e) => { if (helpOf(e) && !helpOf(e).matches(':focus-visible')) hideTip(); });
+  addEventListener('focusin', (e) => helpOf(e) && showTip(helpOf(e)));
+  addEventListener('focusout', (e) => helpOf(e) && hideTip());
+  addEventListener('click', (e) => {
+    if (!helpOf(e)) return hideTip(); // a tap anywhere else closes it
+    e.preventDefault(); // inside a <label>: don't flip its switch
+    showTip(helpOf(e));
+  });
+  addEventListener('scroll', hideTip, true);
+  addEventListener('keydown', (e) => e.key === 'Escape' && hideTip());
+}
+
+// Guide page: the topic list, then the topic: intro, numbered step cards, a tip, and questions that open their answers.
+function renderGuide() {
+  $$('#guideTopics button').forEach((b) => b.setAttribute('aria-current', String(b.dataset.topic === topic)));
+  const t = S.guide.topics[topic];
+  $('#guideBody').replaceChildren(
+    el('h2', { textContent: t.title }),
+    el('p', { className: 'guide-intro' }, ...rich(t.intro)),
+    t.steps.length ? el('ol', { className: 'steps' }, ...t.steps.map(([title, text], i) => el('li', { className: 'step' },
+      el('span', { className: 'step-n', textContent: fd(i + 1) }),
+      el('div', {}, el('b', { textContent: title }), el('p', {}, ...rich(text)))))) : '',
+    t.tip ? el('aside', { className: 'tip' }, el('b', { textContent: S.guide.tip }), el('p', {}, ...rich(t.tip))) : '',
+    ...(t.faq ?? []).map(({ q, a }) => el('details', { className: 'faq' },
+      el('summary', { textContent: q }), el('ul', {}, ...a.map((line) => el('li', {}, ...rich(line)))))),
+  );
+}
+
 // ---------- Build once ----------
 function build() {
   document.documentElement.lang = S.lang;
   document.documentElement.dir = S.dir;
+  document.title = S.panel.title;
 
   // Left column
   for (const g of GROUPS()) {
@@ -431,9 +511,34 @@ function build() {
       }
       list.append(row);
     }
-    $('#groups').append(el('h2', { className: 'group-title', textContent: g.title }), list);
+    const title = el('h2', { className: 'group-title', textContent: g.title });
+    if (g.help) title.dataset.help = g.help;
+    $('#groups').append(title, list);
   }
-  $('.side-foot .nav-btn').onclick = () => select('settings');
+  $$('.side-foot .nav-row').forEach((row) => ($('.nav-btn', row).onclick = () => select(row.dataset.view))); // Guide, Settings
+
+  // Top bar: language. The page reloads in the other language and comes back to what was open.
+  $$('.lang button').forEach((b) => {
+    b.setAttribute('aria-pressed', String(b.dataset.lang === S.lang));
+    b.onclick = () => {
+      if (b.dataset.lang === S.lang) return;
+      remember.set('jarchi.lang', b.dataset.lang);
+      try { sessionStorage.setItem('jarchi.back', JSON.stringify([view, { alert: cur, goal: curGoal, guide: topic }[view]])); } catch {}
+      location.reload();
+    };
+  });
+
+  // Guide: one button per topic.
+  $('#guideTopics').append(...Object.entries(S.guide.topics).map(([id, t]) => {
+    const b = el('button', { textContent: t.title, onclick: () => {
+      topic = id;
+      renderGuide();
+      const top = $('#guideBody').getBoundingClientRect().top;
+      if (top < 60) scrollBy(0, top - 80); // scrolled down a long topic: back to the new topic's start (below the top bar)
+    } });
+    b.dataset.topic = id;
+    return b;
+  }));
 
   // Theme page: a card per theme. Hover (or focus) previews it muted; click selects it and plays it with sound.
   for (const [id, name] of Object.entries(S.themes)) {
@@ -591,13 +696,17 @@ function build() {
 
   $$('[data-i18n]').forEach((e) => (e.textContent = S.panel[e.dataset.i18n]));
   $$('[data-title]').forEach((e) => e.setAttribute('aria-label', (e.title = S.panel[e.dataset.title])));
+  $$('[data-aria]').forEach((e) => e.setAttribute('aria-label', S.panel[e.dataset.aria]));
+  $$('[data-help]').forEach(addHelp); // after data-i18n, which sets the labels' text
+  $$('input[type=text]:not([dir]), input[type=number]:not([dir])').forEach((i) => (i.dir = 'ltr')); // links, {user}, names, numbers
+  wireHelp();
 }
 
 // Range sliders: filled track + value label (labels are per editor: both editors have e.g. "volume").
 function showRange(inp) {
   inp.style.setProperty('--fill', `${((inp.value - inp.min) / (inp.max - inp.min)) * 100}%`);
   const out = $(`[data-out="${inp.dataset.f}"]`, inp.closest('.view'));
-  if (out) out.textContent = FORMAT[inp.dataset.f](inp.value);
+  if (out) out.textContent = fd(FORMAT[inp.dataset.f](inp.value));
 }
 
 // Put a config's values into an editor's [data-f] inputs.
@@ -641,7 +750,7 @@ function render() {
   });
 
   $('#showBadge').checked = settings.showBadge;
-  $('#connectedList').textContent = settings.connected.map((p) => S.platforms[p]).join(', ') || S.panel.connectedNone;
+  $('#connectedList').textContent = settings.connected.map((p) => S.platforms[p]).join(FA ? '، ' : ', ') || S.panel.connectedNone;
   if (view === 'settings') renderSettings();
   if (view === 'alert') renderAlert();
   if (view === 'goal') renderGoal();
@@ -719,8 +828,8 @@ function renderGoal() {
   $('#goalTest span').textContent = S.goals[curGoal].test;
   fill(ed, g);
   if (document.activeElement !== $('#goalCurrent')) $('#goalCurrent').value = goalData.state[curGoal].current;
-  $('#goalPlus').title = `+${GOAL_STEP[curGoal]}`;
-  $('#goalMinus').title = `−${GOAL_STEP[curGoal]}`;
+  $('#goalPlus').title = fd(`+${GOAL_STEP[curGoal]}`);
+  $('#goalMinus').title = fd(`−${GOAL_STEP[curGoal]}`);
   $$('.goal-tile').forEach((t) => t.classList.toggle('selected', t.dataset.style === g.style));
   drawThumbs();
 
@@ -739,7 +848,8 @@ function renderGoal() {
 }
 
 (async () => {
-  S = await (await fetch('/i18n/en.json')).json();
+  EN = await (await fetch('/i18n/en.json')).json();
+  S = FA ? await (await fetch('/i18n/fa.json')).json() : EN;
   try {
     [settings, samples, goalData, { styles: chatStyles, fonts: chatFonts }, chatStatus] = await Promise.all([
       api('GET', '/api/settings'), api('GET', '/api/samples'), api('GET', '/api/goals'), api('GET', '/api/chat/styles'), api('GET', '/api/chat/status'),
@@ -748,5 +858,13 @@ function renderGoal() {
     return toast(err.message, true);
   }
   build();
-  select('alert', cur);
+  // Back from a language switch: open what was open.
+  let back;
+  try {
+    back = JSON.parse(sessionStorage.getItem('jarchi.back'));
+    sessionStorage.removeItem('jarchi.back');
+  } catch {}
+  const [v, key] = back ?? [];
+  const ok = v === 'alert' ? key in settings.alerts : v === 'goal' ? key in settings.goals : ['chat', 'theme', 'settings', 'guide'].includes(v);
+  select(ok ? v : 'alert', ok ? key : cur);
 })();

@@ -183,7 +183,7 @@
     "avatarsHint": "Kick: real pictures. Twitch: needs a Twitch key, letters until then.",
     "blur": "Glass blur",
     "goalCopy": "Copy this goal's OBS link",
-    "goalCopyHint": "Add it in OBS as a Browser Source, width 1000, height 400. The goal sits in the middle.",
+    "goalCopyHint": "Add it in OBS as a Browser Source, width 800, height 200 (Circle style: 400 × 400). The goal sits in the middle.",
     "goalCopied": "Goal link copied!",
     "goalResetStyle": "Reset style",
     "goalOffHint": "Off hides it on stream. It keeps counting.",
@@ -343,7 +343,16 @@
     "proxyHost": "Address",
     "proxyPort": "Port",
     "netTest": "Test connection",
-    "netTesting": "Testing…"
+    "netTesting": "Testing…",
+    "language": "Language",
+    "guide": "Guide",
+    "guideTopics": "Guide topics",
+    "help": "Help",
+    "helpMark": "?",
+    "seconds": "{n}s",
+    "alertPreview": "Alert preview",
+    "goalPreview": "Goal preview",
+    "chatPreview": "Chat preview"
   },
   "net": {
     "names": { "kick": "Kick", "twitch": "Twitch", "sevenTv": "7TV" },
@@ -367,5 +376,264 @@
     "forbidden": "Request blocked.",
     "server_error": "Something went wrong.",
     "offline": "Can't reach Jarchi. Is it running?"
+  },
+  "help": {
+    "groups": {
+      "alerts": "Click an alert to edit it. Its switch turns it on or off.",
+      "widgets": "Click a widget to edit it. The switch only hides it on stream: goals keep counting and Kick alerts keep coming."
+    },
+    "theme": { "main": "The look every alert uses, unless an alert has its own theme. Hover a card to preview it, click it to use it." },
+    "alert": {
+      "look": "**Kick gift** shows Kick's own picture of the gift with Kick-style text. **Use theme** shows it like the other alerts.",
+      "theme": "A theme for this alert only. Keep \"Same as main\" to follow the main theme.",
+      "media": "Your own image, GIF or video instead of the theme's animation. Max 20 MB; only WebM keeps a transparent background.",
+      "sound": "**Theme default** plays the theme's sound, **My sound** a file you upload, **No sound** nothing.",
+      "template": "The text on screen. `{user}` becomes the viewer's name, `{amount}` the amount, `{months}` the months, `{platform}` Kick or Twitch.",
+      "tiers": "A different image and sound for bigger amounts. Example: one GIF for 100 Kicks, another for 1,000.",
+      "frame": "The box around the alert: the theme's, your own colors, or none.",
+      "frameBg": "The frame's fill color.",
+      "frameBorder": "The frame's edge color.",
+      "frameOpacity": "How solid the frame is. 0% is see-through.",
+      "frameRadius": "How round the frame's corners are.",
+      "textPos": "Where the text goes: above, below, or on top of the image.",
+      "textAlign": "Lines the text up on the left, in the center or on the right.",
+      "fontSize": "Size of the alert text, in pixels.",
+      "textColor": "**Theme** uses the theme's text color, **Custom** your own.",
+      "duration": "How many seconds the alert stays on screen. Bigger amounts add a little more.",
+      "volume": "How loud this alert's sound (and video) plays.",
+      "minAmount": "Smaller amounts don't play an alert; goals still count them. Example: 10 keeps single Kicks out.",
+      "videoSound": "For a video: muted, only the video's own sound, or the video plus the alert sound."
+    },
+    "goal": {
+      "title": "The text viewers see with the goal, for example \"Subs\".",
+      "target": "The number to reach. When it's reached, the goal turns the \"full\" color and celebrates.",
+      "current": "The count right now. **−** and **+** change it by one step, or type a number. It's kept when Jarchi restarts.",
+      "style": "A ready-made look to start from. Every option below works with every style.",
+      "barColor": "Color of the filled part.",
+      "barBg": "Color of the empty part.",
+      "textColor": "Color of the title and numbers.",
+      "fullColor": "The bar's color once the target is reached.",
+      "bg": "**Color**: a box behind the goal. **Transparent**: a box without fill. **Off**: no box.",
+      "bgColor": "The box's fill color.",
+      "bgOpacity": "How solid the box is. 0% is see-through.",
+      "border": "A line around the box.",
+      "borderColor": "Color of that line.",
+      "borderWidth": "How thick that line is.",
+      "radius": "How round the corners of the box and the bar are.",
+      "scale": "Makes the whole goal bigger or smaller. Above 100%, make the OBS source bigger too.",
+      "fontSize": "Size of the title and numbers.",
+      "font": "The typeface of the goal's text.",
+      "titlePos": "The title above or below the bar, inside it, or hidden.",
+      "showPercent": "Shows how far along it is, for example 64%.",
+      "showNumbers": "Shows the count and the target, for example 32 / 50.",
+      "celebrate": "Confetti and a glow, once, when the target is reached.",
+      "celebrateSound": "The celebration's sound: the theme's, your own file, or none.",
+      "volume": "How loud the celebration sound plays."
+    },
+    "chat": {
+      "kickChannel": "Your channel name, as in `kick.com/name`. Brings the chat and real Kick alerts. No login.",
+      "twitchChannel": "Your channel name, as in `twitch.tv/name`. Brings the Twitch chat. No login.",
+      "style": "A ready-made look to start from. Every option in More options works with every style.",
+      "showPlatform": "A small Kick or Twitch logo before each name.",
+      "showBadges": "Badges before names, like mod, VIP or sub.",
+      "badgeBroadcaster": "The streamer's own badge.",
+      "badgeMod": "The moderators' badge.",
+      "badgeVip": "The VIPs' badge.",
+      "badgeSub": "The subscribers' badge.",
+      "badgeOther": "Every other badge, for example OG, founder or sub gifter.",
+      "showTime": "The time each message was sent.",
+      "showColon": "A colon between the name and the message.",
+      "emotesKick": "Kick emotes as pictures. Off: their names show as text.",
+      "emotesTwitch": "Twitch emotes as pictures. Off: their names show as text.",
+      "emotes7tv": "7TV emotes (the channel's and the global ones) as pictures.",
+      "emotesAnimated": "Animated emotes move. Off: they stand still.",
+      "emoteSize": "Size of emotes inside messages.",
+      "bigEmotes": "A message with only emotes shows them bigger.",
+      "bigEmoteSize": "Size of those emote-only messages.",
+      "font": "The typeface of the chat.",
+      "fontSize": "Size of the message text.",
+      "nameSize": "Size of viewers' names.",
+      "nameColorMode": "**Platform color**: each name's own color from Kick or Twitch. **Style colors**: the style's. **One color**: the same for everyone.",
+      "nameColor": "The color for every name.",
+      "textColor": "Color of the message text.",
+      "namePos": "The name on the same line as the message, or above it.",
+      "textShadow": "A soft shadow that keeps text readable on busy backgrounds.",
+      "textDir": "**Auto** puts Persian and Arabic messages right to left, everything else left to right.",
+      "bg": "**Color**: a box behind the chat. **Transparent**: a box without fill. **Off**: no box.",
+      "bgColor": "The box's color.",
+      "bgOpacity": "How solid the box is. 0% is see-through.",
+      "bubbles": "Each message in its own bubble instead of one big box.",
+      "border": "A line around the box.",
+      "borderColor": "Color of that line.",
+      "borderWidth": "How thick that line is.",
+      "radius": "How round the corners are.",
+      "padding": "Space inside the box, around the messages.",
+      "gap": "Space between two messages.",
+      "width": "Width of the chat. Make the OBS source at least this wide.",
+      "height": "Height of the chat. Make the OBS source at least this tall.",
+      "layout": "**Vertical**: a list of messages. **Horizontal**: one bar where messages scroll by.",
+      "tickerDir": "Which way messages move along the bar.",
+      "tickerSpeed": "How fast the bar moves, in pixels per second.",
+      "tickerLoop": "When chat is quiet, the bar keeps showing the last messages again.",
+      "tickerPos": "Puts the bar at the top or the bottom of a taller OBS source.",
+      "newAt": "Where new messages appear.",
+      "maxMessages": "How many messages stay on screen; older ones leave.",
+      "hideAfter": "Each message leaves after this many seconds. 0 = never.",
+      "enterAnim": "How a new message comes in.",
+      "exitAnim": "How a message leaves.",
+      "animSpeed": "Faster or slower animations. ×2 is twice as fast.",
+      "fade": "Old messages fade out softly at the edge instead of being cut off.",
+      "fadeZone": "How big that soft edge is.",
+      "typewriter": "The newest message is typed out letter by letter.",
+      "typeSound": "A soft typing sound while it types.",
+      "hideCommands": "Hides messages that start with `!`, like `!discord`.",
+      "hideBots": "Hides messages from the names in **Bots**.",
+      "bots": "Bot names to hide, separated by commas.",
+      "hiddenUsers": "Viewers whose messages never show, separated by commas.",
+      "blockedWords": "A message with any of these words is hidden. Separate them with commas.",
+      "hideLinks": "Hides messages that contain a link.",
+      "source": "Both chats, only Kick, or only Twitch.",
+      "fxSubGlow": "Subscribers' messages glow gold, with a SUBSCRIBER tag.",
+      "fxFirst": "A viewer's very first message in your chat gets a sparkly tag.",
+      "fxRainbowVip": "VIPs' names shine in rainbow colors.",
+      "rainbowUsers": "More names that get the rainbow, separated by commas.",
+      "fxMention": "Messages that mention your channel name stand out.",
+      "fxCombo": "When people send the same emote again and again, it shows once with a counter (x12).",
+      "avatars": "Profile pictures next to names. Kick: real pictures. Twitch: letters, unless you add a Twitch key.",
+      "blur": "Blurs what's behind a see-through box, like frosted glass."
+    },
+    "settings": {
+      "showBadge": "A small Kick or Twitch badge on alerts. It only shows when both accounts are connected.",
+      "testAs": "Which platform test alerts come from. `{platform}` in the alert text shows its name.",
+      "alertGap": "Seconds of quiet between two alerts.",
+      "proxyMode": "How Jarchi reaches Kick, Twitch and 7TV: directly, through the Windows proxy your VPN sets, or through a proxy you type in.",
+      "proxyType": "Your VPN or proxy app tells you which. v2rayN: SOCKS5 on `10808`, HTTP on `10809`.",
+      "proxyHost": "The proxy's address. For a VPN app on this PC: `127.0.0.1`.",
+      "proxyPort": "The proxy's port, for example `10808`.",
+      "obsUrl": "The alerts link for OBS. Add it as a Browser Source, 1920 × 1080.",
+      "reset": "Deletes every change and every uploaded file. Click twice to confirm."
+    }
+  },
+  "guide": {
+    "tip": "Tip",
+    "topics": {
+      "start": {
+        "title": "Getting started",
+        "intro": "Jarchi runs on your own PC and shows alerts, a chat box and goals in OBS. No account and no login: your Kick channel name is enough for real Kick alerts.",
+        "steps": [
+          ["Keep Jarchi running", "Start Jarchi and leave its window open while you stream. This panel is at `{panelUrl}`."],
+          ["Type your channel names", "Open **Chat** under Widgets and type your Kick channel (and your Twitch channel, for chat). The Kick name also brings real Kick alerts."],
+          ["Pick a theme", "Click **Theme** at the top of the list. Every alert uses it, unless you give an alert its own."],
+          ["Add Jarchi to OBS", "Add the alerts to OBS as a Browser Source. The next topic shows how."],
+          ["Test it", "Pick an alert in the list and press **Test in OBS**. It plays in OBS and shows up in the alert queue."]
+        ],
+        "tip": "Start Jarchi before OBS. If OBS was open first, right-click the Jarchi source in OBS and choose **Refresh**."
+      },
+      "obs": {
+        "title": "Add Jarchi to OBS",
+        "intro": "Every part of Jarchi is a web page that OBS shows as a Browser Source. The alerts, the chat and each goal have their own link.",
+        "steps": [
+          ["Copy the link", "Click **Copy OBS link** in the top bar. The alerts link is `{alertsUrl}`."],
+          ["Add a Browser Source", "In OBS: **Sources → + → Browser**. Give it a name, for example \"Jarchi Alerts\"."],
+          ["Paste it and set the size", "Paste the link into **URL**. Width **1920**, height **1080**."],
+          ["Turn on the sound", "Tick **Control audio via OBS**, so alert sounds go through the OBS mixer to your stream. Then click **OK**."],
+          ["Chat and goals", "The same steps, with their own link and size. Chat: `{chatUrl}`, 420 × 600. Goals: `{goalSubsUrl}` and `{goalKicksUrl}`, 800 × 200 (Circle style: 400 × 400)."]
+        ],
+        "tip": "Jarchi must be running when OBS loads the source. If you started OBS first, right-click the source and choose **Refresh**. After that it reconnects by itself whenever Jarchi restarts."
+      },
+      "alerts": {
+        "title": "Alerts",
+        "intro": "Seven alerts: follow, sub, resub, gifted subs, Kicks, bits and raid. Each has its own picture, sound and text.",
+        "steps": [
+          ["Pick an alert", "Click it in the **Alerts** list. The switch next to it turns it on or off."],
+          ["Preview it", "The preview plays the alert exactly as OBS will. **Play** replays it; **Test in OBS** sends it to OBS."],
+          ["Picture, sound and text", "Upload your own image, GIF, video or sound, or keep the theme's. In the text, `{user}` `{amount}` `{months}` `{platform}` become the real values."],
+          ["Different media by amount", "Kicks, gifted subs and bits can play their own picture and sound for bigger amounts. Turn it on and upload per amount."],
+          ["More options", "Frame, text position and color, font size, duration, volume, minimum amount and video sound."]
+        ],
+        "tip": "Real Kick alerts (subs, resubs, gifted subs, Kicks and hosts) come from your Kick channel name in **Chat**, with no login. Kick follows need a Kick login, which comes later. Twitch alerts aren't connected yet. The **Test** buttons work for every alert."
+      },
+      "goals": {
+        "title": "Goals",
+        "intro": "Two goals for your stream: a Sub goal (subs, resubs and gifted subs from Kick and Twitch) and a Kicks goal. They count real events by themselves.",
+        "steps": [
+          ["Open a goal", "Under **Widgets**, click **Sub goal** or **Kicks goal**."],
+          ["Title and target", "Type the title viewers see and the number to reach."],
+          ["Fix the count", "Use **−** and **+**, type a number, or **Reset to 0** for a new goal. The count is kept when Jarchi restarts."],
+          ["Pick a look", "Choose a style, then change colors, box, font and size in **More options**. **Reset style** brings the style's own look back."],
+          ["Add it to OBS", "Click **Copy this goal's OBS link** and add it as a Browser Source, 800 × 200 (Circle style: 400 × 400)."]
+        ],
+        "tip": "When the target is reached, the bar turns the \"full\" color and celebrates once. The switch in the list only hides the goal on stream; it keeps counting."
+      },
+      "chat": {
+        "title": "Chat widget",
+        "intro": "Kick and Twitch chat together in one box on your stream, with Kick, Twitch and 7TV emotes.",
+        "steps": [
+          ["Type your channels", "Under **Widgets → Chat**, type your Kick and/or Twitch channel name. No login. Each one says **Connected** when it works."],
+          ["Pick a style", "18 vertical styles and 9 horizontal bars. A style is a starting point: every option works with every style."],
+          ["Try it", "**Send test message**, **Send 10 messages** and **Show all effects** fill the preview and OBS with sample messages."],
+          ["Fine-tune it", "**More options**: size, fonts, colors, badges, emotes, motion, filters and effects."],
+          ["Add it to OBS", "Click **Copy chat OBS link** and add it as a Browser Source, 420 × 600. Make it at least as big as the chat's width and height; the horizontal bars need width 1920."]
+        ],
+        "tip": "The switch in the list only hides the chat on stream. Real Kick alerts keep coming either way."
+      },
+      "queue": {
+        "title": "Alert queue",
+        "intro": "Alerts play one after another, never on top of each other. The queue column on the right shows what's playing and what's waiting.",
+        "steps": [
+          ["Now playing", "The alert on screen, with a bar for the time it has left."],
+          ["Pause, Skip, Clear", "**Pause** lets the current alert finish and holds the rest. **Skip** ends the current one. **Clear queue** (click twice) removes everything waiting."],
+          ["Waiting and Replay", "× takes one waiting alert out. **Last played** keeps the last 10, each with **Replay**."],
+          ["Gap between alerts", "In **Settings**, choose how many seconds pass between two alerts."]
+        ],
+        "tip": "If OBS is closed, alerts wait and play when it opens again; the column says so at the bottom. The arrow folds the column into a thin strip; in small windows the queue opens from the round button in the corner."
+      },
+      "proxy": {
+        "title": "Proxy & VPN",
+        "intro": "If Kick, Twitch or 7TV is filtered where you are, Jarchi can connect through your VPN or proxy. Chat pictures (emotes, badges, profile pictures) go through it too.",
+        "steps": [
+          ["Open the setting", "**Settings → Connection (proxy)**."],
+          ["Windows system proxy", "The default. It uses the Windows proxy your VPN app sets. If none is set, Jarchi connects directly."],
+          ["Manual", "Pick HTTP or SOCKS5 and type your VPN app's local address and port, for example `127.0.0.1` and `10808` (SOCKS5 in v2rayN)."],
+          ["Test it", "**Test connection** checks Kick, Twitch and 7TV and says in plain words what works."]
+        ],
+        "tip": "If your VPN runs in TUN mode (the whole PC goes through it), **Off** works too. Proxies with a username and password, and PAC scripts, aren't supported."
+      },
+      "fix": {
+        "title": "If something doesn't work",
+        "intro": "Click a question to see what to check.",
+        "steps": [],
+        "faq": [
+          { "q": "The alert doesn't show in OBS", "a": [
+            "Is Jarchi running? Start it before OBS, or right-click the source in OBS and choose **Refresh**.",
+            "If the queue column says the OBS overlay isn't open, OBS hasn't loaded the page. Check that the URL is exactly `{alertsUrl}`.",
+            "The source should be 1920 × 1080, visible, and in the scene you're live on.",
+            "Is the alert switched on in the list? Is the queue paused? Kicks below the **Minimum amount** (10 by default) don't play."
+          ] },
+          { "q": "There's no sound", "a": [
+            "In the source's properties in OBS, tick **Control audio via OBS**, then check that the source isn't muted in the OBS mixer.",
+            "Check that the alert's **Sound** isn't **No sound**, and its **Volume** in More options.",
+            "The **Sound** box under the preview only mutes the preview here in the panel.",
+            "For a video with its own sound, choose **Video sound** in More options."
+          ] },
+          { "q": "Kick won't connect, or it's filtered", "a": [
+            "**channel not found**: type the name exactly as in your Kick link, `kick.com/name`.",
+            "**blocked** or **can't reach it**: Kick is filtered or blocked on your network. Turn on your VPN, set up **Settings → Connection (proxy)** and press **Test connection**.",
+            "Jarchi keeps retrying by itself; there's no need to restart it."
+          ] },
+          { "q": "The chat shows nothing", "a": [
+            "Does the channel say **Connected** under **Chat**? Is the chat switched on in the list?",
+            "Send a test message. If it shows here but not in OBS, refresh the source in OBS and make it at least as big as the chat (420 × 600 is enough for the default style).",
+            "Check the filters: **Show from**, **Hidden users**, **Blocked words** and **Hide each message after**."
+          ] },
+          { "q": "Alerts are late or pile up", "a": [
+            "Alerts play one at a time, so a burst waits in line. Lower **Duration** or **Gap between alerts**, or use **Skip** and **Clear queue**.",
+            "Is the queue paused? Press **Resume**.",
+            "Raise the Kicks alert's **Minimum amount** to keep small taps out of the line (goals still count them).",
+            "Kick sends some events a few seconds late, and an automatic resub waits about 10 seconds for its months. That's normal."
+          ] }
+        ]
+      }
+    }
   }
 }
