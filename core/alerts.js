@@ -13,10 +13,10 @@ const OUT_MS = 600; // the overlay's exit animation
 const GRACE_MS = 3000; // the last overlay left less than this before the end: a refresh, the alert counts as seen
 const MAX_WAITING = 200, HISTORY = 10;
 
-const alerts = new EventEmitter(); // 'play' ({ id, ev, seed, left }), 'skip' (id), 'state' (state())
-const queue = []; // { id, ev, seed } — seed: one random number, so every overlay picks the same file from a tier
+const alerts = new EventEmitter(); // 'play' ({ id, ev, left }), 'skip' (id), 'state' (state())
+const queue = []; // { id, ev }
 const history = []; // the last played, newest first: { id, ev }
-let playing = null; // { id, ev, seed, ms, started }
+let playing = null; // { id, ev, ms, started }
 let busy = false; // an alert is playing, or it's the gap after one
 let paused = false, overlays = 0, goneAt = 0, timer;
 
@@ -30,7 +30,7 @@ function onScreenMs(ev) {
 // What the panel shows: the alert on now (with its length and time left, for the progress bar), the waiting ones
 // in order, and the last played.
 const brief = ({ id, ev }) => ({ id, type: ev.type, user: ev.user, amount: ev.amount, months: ev.months, platform: ev.platform });
-const current = () => playing && { id: playing.id, ev: playing.ev, seed: playing.seed, left: playing.ms - (Date.now() - playing.started) };
+const current = () => playing && { id: playing.id, ev: playing.ev, left: playing.ms - (Date.now() - playing.started) };
 const state = () => ({
   paused,
   overlays,
@@ -48,7 +48,7 @@ const played = ({ id, ev }) => {
 bus.on('event', (ev) => {
   const cfg = settings.get().alerts[ev.type];
   if (!ev.test && (!cfg.enabled || ev.amount < (cfg.minAmount ?? 0))) return; // test buttons always play
-  queue.push({ id: ev.id, ev, seed: Math.random() });
+  queue.push({ id: ev.id, ev });
   if (queue.length > MAX_WAITING) queue.shift(); // ponytail: a flood drops the oldest; merge similar alerts if that ever matters
   next();
 });
@@ -65,8 +65,8 @@ function next() {
 }
 
 function ended() {
-  const { id, ev, seed } = playing;
-  if (!overlays && Date.now() - goneAt > GRACE_MS) queue.unshift({ id, ev, seed }); // OBS was closed: play it again when it's back
+  const { id, ev } = playing;
+  if (!overlays && Date.now() - goneAt > GRACE_MS) queue.unshift({ id, ev }); // OBS was closed: play it again when it's back
   else played(playing);
   playing = null;
   rest(0);
@@ -116,7 +116,7 @@ function remove(id) {
 // One of the last played, again, at the end of the queue. Not a new event: goals don't count it twice.
 function replay(id) {
   const it = history.find((h) => h.id === id);
-  if (it) queue.push({ id: randomUUID(), ev: it.ev, seed: Math.random() });
+  if (it) queue.push({ id: randomUUID(), ev: it.ev });
   next();
   return state();
 }

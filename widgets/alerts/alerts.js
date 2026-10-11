@@ -56,11 +56,11 @@ if (params.has('preview')) {
   socket.on('settings', applySettings);
   socket.on('connect', () => socket.emit('alertsJoin')); // again after every reconnect
   addEventListener('pagehide', () => socket.disconnect()); // leaving: tell the queue now, not after a ping timeout
-  // { id, ev, seed, left, late }: late = this overlay (re)connected while it was already on; no sound again then.
+  // { id, ev, left, late }: late = this overlay (re)connected while it was already on; no sound again then.
   socket.on('alert', (a) => {
     if (!settings || !S) return;
     stopAll();
-    show(a.ev, { ms: a.left, seed: a.seed, id: a.id, muted: a.late }).catch(console.error);
+    show(a.ev, { ms: a.left, id: a.id, muted: a.late }).catch(console.error);
   });
   socket.on('alertSkip', (id) => { if (onNow?.id === id) onNow.end(); });
 }
@@ -74,25 +74,23 @@ function stopAll() {
   stage.replaceChildren();
 }
 
-// Media by amount: the highest tier the amount reaches, its files picked with the alert's seed (the server sends the
-// same random number to every overlay, so they all show the same file). An empty list means the theme's own.
-// Tiers off, or no tier reached: the alert's own image and sound.
-function mediaFor(cfg, ev, seed) {
-  const tier = cfg.tiersOn ? [...(cfg.tiers ?? [])].reverse().find((t) => ev.amount >= t.min) : null;
+// Media by amount: the alert's own tier (the highest one at or below the amount) if it's on, else the closest lower
+// tier that's on; a tier without a file uses the theme's. Tiers off, or none on below the amount: the alert's own media.
+function mediaFor(cfg, ev) {
+  const tier = cfg.tiersOn ? [...(cfg.tiers ?? [])].reverse().find((t) => t.on && t.amount <= ev.amount) : null; // not findLast: older OBS
   if (!tier) return { image: cfg.image, sound: cfg.soundMode === 'custom' ? cfg.sound : null };
-  const pick = (list, r) => list[Math.floor(r * list.length)] ?? null;
-  return { image: pick(tier.images, seed), sound: pick(tier.sounds, (seed * 7919) % 1) };
+  return { image: tier.image, sound: tier.sound };
 }
 
-// opts: muted, hold (preview: stay until the next post), ms (on-screen time, from the server), seed, id.
-async function show(ev, { muted = false, hold = false, ms, seed = Math.random(), id } = {}) {
+// opts: muted, hold (preview: stay until the next post), ms (on-screen time, from the server), id.
+async function show(ev, { muted = false, hold = false, ms, id } = {}) {
   const my = gen;
   const cfg = settings.alerts[ev.type];
   const theme = cfg.theme || settings.theme; // an alert can override the main theme
   const tier = tierOf(ev);
   const grows = ev.type in STEPS;
   const v = { user: ev.user, amount: ev.amount.toLocaleString(), months: ev.months, platform: S.platforms[ev.platform] };
-  const files = mediaFor(cfg, ev, seed);
+  const files = mediaFor(cfg, ev);
 
   const media = mediaEl(files.image, fill(S.emblems[ev.type], v));
   const video = media.querySelector('video');

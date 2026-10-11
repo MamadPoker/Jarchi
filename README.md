@@ -30,20 +30,23 @@ Jarchi must be running before OBS loads the source. If you started OBS first, ri
 - **Top bar**: **Copy OBS link**.
 - **Right column, on every page: Alert queue**. Now playing (with a bar for the time left), **Pause / Resume**, **Skip**, **Clear queue** (click twice), the waiting alerts in order (× removes one), the last 10 played (each with **Replay**), and a notice when no OBS alerts overlay is open. The arrow collapses it to a thin strip with the waiting count (remembered); on narrow windows it opens as a drawer from the round button at the bottom right.
 - **Left column**: **Theme** at the top (opens a page with a live card per theme; click one to use it), then the alerts, each with an on/off switch; **Settings** at the bottom (badge switch, test platform, gap between alerts, connection / proxy, reset everything).
-- **Right side**: the selected alert: live preview with Play, its own theme (or the main one), then image/GIF/video, sound and text, **Different media by amount** (Kicks, gifted subs, bits, raid); **More options** opens frame, colors, font size, text position, text alignment (left/center/right), duration, volume, minimum amount and video sound.
+- **Right side**: the selected alert: live preview with Play, its own theme (or the main one), then image/GIF/video, sound and text, **Different media by amount** (Kicks, gifted subs, bits); **More options** opens frame, colors, font size, text position, text alignment (left/center/right), duration, volume, minimum amount and video sound.
 
 ## Alerts
 
 - **Theme**: Neon, Minimal, Fun, Retro, Glass, Fire, Ice, Galaxy or Comic. Each has its own animations, particles and soft synthesized sounds. All of it is CSS and Web Audio, with no image or sound files.
 - **Live preview**: the panel plays each alert exactly as OBS will show it, and replays it whenever you change something.
 - **Per alert**:
-  - on/off, text with `{user}` `{amount}` `{months}` `{platform}`, duration, minimum amount (Kicks, bits, gift subs)
+  - on/off, text with `{user}` `{amount}` `{months}` `{platform}`, duration, minimum amount (Kicks, bits, gift subs; Kicks start at 10 so floods of 1-Kick taps stay out of the queue, while the Kicks goal still counts them)
   - image/GIF/WebM/MP4 (only WebM keeps a transparent background), with an option to play the video's own sound
   - sound: theme default, your own mp3/wav/ogg, or none, plus volume
   - frame: theme style, custom (background, opacity, border, roundness) or off; text above/below/on top of the media; font size and text color
 - **Bigger events feel bigger**: follow is small and quick; sub is bigger; gift subs, Kicks and bits grow with the amount (gift subs at 5/20, Kicks and bits at 100/1000) and play longer; raid is the biggest.
 - **Kick/Twitch badge**: only appears when both accounts are connected; it can be switched off in Settings.
-- **Different media by amount** (Kicks, gifted subs, bits, raid; off by default): add tiers, each with a minimum amount and its own images/GIFs/videos and sounds (none = the theme's). The highest tier the amount reaches plays; with several files one is picked at random (every open overlay picks the same one). Below the first tier the normal media is used. Each tier has a **Test** button.
+- **Different media by amount** (off by default), with fixed, ready-made tiers:
+  - **Kicks**: Kick's own gifts: Hell Yeah 1, Hype 10, Skull Emoji 50, Full Send 100, Rage Quit 500, Pack It Up 1,000, YAP 2,000, Stomp 5,000, Flex 10,000, BOOOOOM 50,000 (from Kick's gift list, `web.kick.com/api/v1/kicks/gifts`, the same as in kick.com's web app).
+  - **Gifted subs**: 1, 5, 10, 20, 50, 100. **Bits**: 100, 500, 1,000, 5,000, 10,000. Raid always uses its one alert.
+  - Each tier: on/off, its own image/GIF/video and sound (none = the theme's), and **Test**. An amount plays its own tier; if that tier is off, the closest lower tier that's on plays, or else the normal media. Uploading a file turns its tier on.
 - Uploads are checked by their real file type and are limited to 20 MB.
 - **Reset to default** per alert, or **Reset everything**.
 
@@ -112,6 +115,7 @@ Kick and Twitch chat in one box: `http://127.0.0.1:3000/widgets/chat` (transpare
 - Messages deleted by a moderator, and everything from banned / timed-out users, disappear from the overlay too.
 - Emotes: Kick, Twitch and 7TV (the channel's set + global, refreshed every 5 minutes), animated or still.
 - Badges and logos come from the platforms: Twitch's own badge images; on Kick, Kick's own badge icons (host, mod, VIP, OG, founder, verified, staff, sub gifter tiers, default subscriber; taken unmodified from kick.com's web app, see `assets/kick-badges/README.md`), the channel's own sub badges and Kick's image badges.
+- Name colors: by default (**Platform color**, every style) each name has the color it has on Kick or Twitch. A viewer without one gets the platform's default: white on Kick (like kick.com), one of Twitch's 15 default colors on Twitch (the same one every time). **Style colors** and **One color** are still options. On light backgrounds, light names keep their color and get a thin dark outline.
 - Chat also goes through the event bus (`chat`, `chatClear`), so other widgets can use it later.
 
 How it reads chat, and what needs a key:

@@ -1,14 +1,13 @@
 // Settings = defaults + whatever the user changed. Only the changes are stored, so "reset" is just deleting them.
 const fs = require('node:fs');
 const path = require('node:path');
-const { randomUUID } = require('node:crypto');
 const { DATA_DIR, UPLOADS_DIR } = require('./config');
 const { TYPES } = require('./events');
 const store = require('./store');
 const strings = require('../i18n/en.json');
 
 const FILE = path.join(DATA_DIR, 'settings.json');
-const VERSION = 2;
+const VERSION = 3;
 const THEMES = ['neon', 'minimal', 'fun', 'retro', 'glass', 'fire', 'ice', 'galaxy', 'comic'];
 // App-wide settings (not per alert). showBadge: platform badge on alerts; it still needs both Kick and Twitch connected.
 // alertGap: seconds between two alerts. proxy*: how Jarchi reaches Kick, Twitch and 7TV (core/net.js).
@@ -23,19 +22,27 @@ const GLOBAL_RULES = {
   proxyPort: (v) => Number.isInteger(v) && v >= 0 && v <= 65535,
 };
 // Follow is small and quick, raid is the big one. minAmount only where an amount makes sense.
-// Media by amount (tiersOn + tiers) for the types with an amount: [{ min, images: [{ file, name }], sounds: [...] }], sorted by min.
-const TIERED = { tiersOn: false, tiers: [] };
+// Media by amount (tiersOn + tiers): fixed, ready-made tiers. Saved as tiers: { [amount]: { on, image, sound } };
+// get() lists every tier: [{ amount, on, image, sound }], lowest first.
+// Kick's own Kicks gifts (web.kick.com/api/v1/kicks/gifts; the same table is in kick.com's web app, with these icons).
+// If Kick adds a gift, add it here and its name in i18n kickGifts.
+const KICK_GIFTS = [
+  { amount: 1, id: 'hell_yeah', icon: 'hell-yeah' }, { amount: 10, id: 'hype', icon: 'hype' }, { amount: 50, id: 'skull_emoji', icon: 'skull-emoji' },
+  { amount: 100, id: 'full_send', icon: 'full-send' }, { amount: 500, id: 'rage_quit', icon: 'rage-quit-static' },
+  { amount: 1000, id: 'pack_it_up', icon: 'pack-it-up-static' }, { amount: 2000, id: 'yap', icon: 'yap-static' }, { amount: 5000, id: 'stomp', icon: 'stomp-static' },
+  { amount: 10000, id: 'flex', icon: 'flex-static' }, { amount: 50000, id: 'boooom', icon: 'boom-static' },
+];
+const TIER_AMOUNTS = { gift_sub: [1, 5, 10, 20, 50, 100], kicks: KICK_GIFTS.map((g) => g.amount), bits: [100, 500, 1000, 5000, 10000] };
+const TIERED = { tiersOn: false, tiers: {} };
 const PER_TYPE = {
   follow: { duration: 4, fontSize: 38 },
   sub: { duration: 6, fontSize: 46 },
   resub: { duration: 6, fontSize: 46 },
   gift_sub: { duration: 6, fontSize: 46, minAmount: 0, ...TIERED },
-  kicks: { duration: 6, fontSize: 46, minAmount: 0, ...TIERED },
+  kicks: { duration: 6, fontSize: 46, minAmount: 10, ...TIERED }, // 1-Kick taps come in floods; goals still count them
   bits: { duration: 6, fontSize: 46, minAmount: 0, ...TIERED },
-  raid: { duration: 9, fontSize: 54, ...TIERED },
+  raid: { duration: 9, fontSize: 54 },
 };
-const TIER_TYPES = Object.keys(PER_TYPE).filter((t) => 'tiers' in PER_TYPE[t]);
-const MAX_TIERS = 10, MAX_TIER_FILES = 10;
 const DEFAULTS = Object.fromEntries(TYPES.map((t) => [t, {
   enabled: true,
   template: strings.templates[t],
@@ -155,23 +162,23 @@ const CHAT_STYLES = Object.fromEntries(Object.entries({
   popin: { bubbles: true, bgColor: '#20232e', bgOpacity: 0.92, radius: 22, padding: 10, gap: 8, enterAnim: 'pop', animSpeed: 0.9 },
   side: { bg: 'off', border: true, borderColor: '#8b5cf6', borderWidth: 3, width: 300, height: 900, namePos: 'above', nameSize: 15, gap: 14, padding: 0 },
   ticker: { layout: 'horizontal', width: 1920, height: 64, bgOpacity: 0.85, radius: 0, padding: 10, maxMessages: 15, fadeZone: 120 },
-  cyberpunk: { bubbles: true, bgColor: '#0a0a0c', bgOpacity: 0.92, border: true, borderColor: '#fcee0a', borderWidth: 3, radius: 0, padding: 9, gap: 8, textColor: '#e9e9e9', textShadow: false, nameColorMode: 'style', fontSize: 17, nameSize: 16, enterAnim: 'fade' },
-  comic: { bubbles: true, bgColor: '#ffffff', bgOpacity: 1, border: true, borderColor: '#111111', borderWidth: 3, radius: 16, padding: 10, gap: 8, textColor: '#111111', textShadow: false, nameColorMode: 'style', namePos: 'above', fontSize: 16, nameSize: 21, showColon: false, enterAnim: 'pop' },
-  hud: { bgColor: '#04121c', bgOpacity: 0.6, borderColor: '#00e5ff', radius: 2, padding: 18, textColor: '#d8f6ff', nameColorMode: 'custom', nameColor: '#5ff3ff', nameSize: 15, showColon: false },
-  sticky: { bubbles: true, bgColor: '#fff27a', bgOpacity: 1, textColor: '#2b2b2b', textShadow: false, nameColorMode: 'custom', nameColor: '#1f1f1f', namePos: 'above', fontSize: 16, nameSize: 15, radius: 3, padding: 12, gap: 16, enterAnim: 'drop' },
-  pastel: { bubbles: true, bgColor: '#dccbff', bgOpacity: 1, textColor: '#3b3355', textShadow: false, nameColorMode: 'custom', nameColor: '#2d2546', font: 'Fredoka', fontSize: 17, nameSize: 17, radius: 40, padding: 9, gap: 8, enterAnim: 'bounce' },
-  galaxy: { bgColor: '#0b0920', bgOpacity: 0.88, radius: 18, padding: 16, textColor: '#ece8ff', nameColorMode: 'style', enterAnim: 'float' },
-  rpg: { bubbles: true, bgColor: '#13207a', bgOpacity: 0.94, border: true, borderColor: '#ffffff', borderWidth: 3, radius: 6, padding: 12, gap: 24, font: 'Press Start 2P', fontSize: 12, nameSize: 10, textColor: '#ffffff', textShadow: false, namePos: 'above', nameColorMode: 'custom', nameColor: '#ffe066', emoteSize: 24, enterAnim: 'fade', typewriter: true },
+  cyberpunk: { bubbles: true, bgColor: '#0a0a0c', bgOpacity: 0.92, border: true, borderColor: '#fcee0a', borderWidth: 3, radius: 0, padding: 9, gap: 8, textColor: '#e9e9e9', textShadow: false, fontSize: 17, nameSize: 16, enterAnim: 'fade' },
+  comic: { bubbles: true, bgColor: '#ffffff', bgOpacity: 1, border: true, borderColor: '#111111', borderWidth: 3, radius: 16, padding: 10, gap: 8, textColor: '#111111', textShadow: false, namePos: 'above', fontSize: 16, nameSize: 21, showColon: false, enterAnim: 'pop' },
+  hud: { bgColor: '#04121c', bgOpacity: 0.6, borderColor: '#00e5ff', radius: 2, padding: 18, textColor: '#d8f6ff', nameColor: '#5ff3ff', nameSize: 15, showColon: false },
+  sticky: { bubbles: true, bgColor: '#fff27a', bgOpacity: 1, textColor: '#2b2b2b', textShadow: false, nameColor: '#1f1f1f', namePos: 'above', fontSize: 16, nameSize: 15, radius: 3, padding: 12, gap: 16, enterAnim: 'drop' },
+  pastel: { bubbles: true, bgColor: '#dccbff', bgOpacity: 1, textColor: '#3b3355', textShadow: false, nameColor: '#2d2546', font: 'Fredoka', fontSize: 17, nameSize: 17, radius: 40, padding: 9, gap: 8, enterAnim: 'bounce' },
+  galaxy: { bgColor: '#0b0920', bgOpacity: 0.88, radius: 18, padding: 16, textColor: '#ece8ff', enterAnim: 'float' },
+  rpg: { bubbles: true, bgColor: '#13207a', bgOpacity: 0.94, border: true, borderColor: '#ffffff', borderWidth: 3, radius: 6, padding: 12, gap: 24, font: 'Press Start 2P', fontSize: 12, nameSize: 10, textColor: '#ffffff', textShadow: false, namePos: 'above', nameColor: '#ffe066', emoteSize: 24, enterAnim: 'fade', typewriter: true },
   // Horizontal (ticker) styles
   news: { ...BAR, bgColor: '#ffffff', bgOpacity: 1, height: 56, textColor: '#1a1a1a', textShadow: false, padding: 10, fadeZone: 60, tickerSpeed: 110 },
   neonstrip: { ...BAR, bgColor: '#07031a', bgOpacity: 0.9, borderColor: '#ff2bd6', textColor: '#f2e9ff' },
   pills: { ...BAR, bubbles: true, bgColor: '#16161f', bgOpacity: 0.88, radius: 40, padding: 8, gap: 18, fadeZone: 100 },
   minimal: { ...BAR, bg: 'off', height: 72, fontSize: 26, nameSize: 26, padding: 0, tickerSpeed: 70 },
-  led: { ...BAR, bgColor: '#050505', bgOpacity: 0.95, radius: 4, font: 'Consolas', fontSize: 22, nameSize: 22, textColor: '#ffb000', textShadow: false, nameColorMode: 'style', fadeZone: 80 },
-  cyberbar: { ...BAR, bgColor: '#0a0a0c', bgOpacity: 0.92, border: true, borderColor: '#fcee0a', borderWidth: 3, textColor: '#0b0b0b', textShadow: false, nameColorMode: 'custom', nameColor: '#0b0b0b', fontSize: 17, nameSize: 16, fadeZone: 80 },
-  candy: { ...BAR, bgColor: '#ffffff', bgOpacity: 1, radius: 40, padding: 8, font: 'Fredoka', fontSize: 18, nameSize: 18, textColor: '#3b3355', textShadow: false, nameColorMode: 'custom', nameColor: '#2d2546', tickerDir: 'ltr', fadeZone: 60 },
+  led: { ...BAR, bgColor: '#050505', bgOpacity: 0.95, radius: 4, font: 'Consolas', fontSize: 22, nameSize: 22, textColor: '#ffb000', textShadow: false, fadeZone: 80 },
+  cyberbar: { ...BAR, bgColor: '#0a0a0c', bgOpacity: 0.92, border: true, borderColor: '#fcee0a', borderWidth: 3, textColor: '#0b0b0b', textShadow: false, nameColor: '#0b0b0b', fontSize: 17, nameSize: 16, fadeZone: 80 },
+  candy: { ...BAR, bgColor: '#ffffff', bgOpacity: 1, radius: 40, padding: 8, font: 'Fredoka', fontSize: 18, nameSize: 18, textColor: '#3b3355', textShadow: false, nameColor: '#2d2546', tickerDir: 'ltr', fadeZone: 60 },
   glassbar: { ...BAR, bgColor: '#ffffff', bgOpacity: 0.16, border: true, borderColor: '#ffffff', borderWidth: 1, radius: 32, blur: 12, fadeZone: 160 },
-  persian: { bgColor: '#0d1b3d', bgOpacity: 0.92, border: true, borderColor: '#d4af37', borderWidth: 8, radius: 6, padding: 20, font: 'Vazirmatn', fontSize: 18, nameSize: 17, textColor: '#f3ead3', nameColorMode: 'style' },
+  persian: { bgColor: '#0d1b3d', bgOpacity: 0.92, border: true, borderColor: '#d4af37', borderWidth: 8, radius: 6, padding: 20, font: 'Vazirmatn', fontSize: 18, nameSize: 17, textColor: '#f3ead3' },
 }).map(([id, change]) => [id, { ...CHAT_BASE, ...change }]));
 // The chat can also use these bundled fonts (assets/fonts).
 const CHAT_FONTS = [...FONTS, 'Press Start 2P', 'Bangers', 'Fredoka', 'Vazirmatn'];
@@ -214,9 +221,26 @@ const bad = (code = 'bad_request') => Object.assign(new Error(code), { status: 4
 
 fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 let saved = store.load(FILE);
-if ((saved.version ?? 1) < VERSION) {
+const from = saved.version ?? 1;
+if (from < 2) {
   // v1 -> v2: an uploaded sound always played; now soundMode picks the sound, so keep those playing.
   for (const a of Object.values(saved.alerts ?? {})) if (a?.sound && !a.soundMode) a.soundMode = 'custom';
+}
+if (from < 3) {
+  // v2 -> v3: free tiers (a list with min, images[], sounds[]) became fixed tiers. Each old tier's first image and sound
+  // move to the fixed tier at or below its minimum, turned on; extra files go. Raid's old tiers are ignored (see alert()).
+  for (const [t, amounts] of Object.entries(TIER_AMOUNTS)) {
+    const o = saved.alerts?.[t];
+    if (!Array.isArray(o?.tiers)) continue;
+    const fixed = {};
+    for (const old of o.tiers) {
+      const tier = (fixed[amounts.findLast((a) => a <= old.min) ?? amounts[0]] ??= { on: true });
+      for (const [kind, files] of [['image', old.images], ['sound', old.sounds]]) for (const f of files ?? []) if (tier[kind]) removeFile(f); else tier[kind] = f;
+    }
+    o.tiers = fixed;
+  }
+}
+if (from < VERSION) {
   saved.version = VERSION;
   persist();
 }
@@ -229,10 +253,24 @@ function get() {
   const globals = Object.entries(GLOBAL).map(([k, d]) => [k, GLOBAL_RULES[k](saved[k]) ? saved[k] : d]);
   return {
     ...Object.fromEntries(globals),
-    alerts: Object.fromEntries(TYPES.map((t) => [t, { ...DEFAULTS[t], ...saved.alerts?.[t] }])),
+    alerts: Object.fromEntries(TYPES.map((t) => [t, alert(t)])),
     goals: Object.fromEntries(GOAL_IDS.map((id) => [id, goal(id)])),
     chat: chat(),
   };
+}
+
+// An alert = its defaults + the user's changes to fields it has (so e.g. raid's old tiers stay ignored),
+// with every fixed tier listed (Kicks tiers also name Kick's gift).
+function alert(t) {
+  const o = saved.alerts?.[t] ?? {};
+  const cfg = Object.fromEntries(Object.entries(DEFAULTS[t]).map(([k, d]) => [k, k in o ? o[k] : d]));
+  if (TIER_AMOUNTS[t]) {
+    cfg.tiers = TIER_AMOUNTS[t].map((amount) => ({
+      amount, on: false, image: null, sound: null, ...o.tiers?.[amount],
+      ...(t === 'kicks' && { gift: KICK_GIFTS.find((g) => g.amount === amount) }),
+    }));
+  }
+  return cfg;
 }
 
 // Chat = its style's look + the chat defaults + the user's changes.
@@ -320,7 +358,7 @@ function keepUpload(o, prefix, kind, buf, name, modeKey) {
   const entry = writeUpload(prefix, kind, buf, name);
   removeFile(o[kind]);
   o[kind] = entry;
-  if (kind === 'sound') o[modeKey] = 'custom';
+  if (kind === 'sound' && modeKey) o[modeKey] = 'custom';
   persist();
   return get();
 }
@@ -350,51 +388,27 @@ function removeGoalSound(id) {
   return dropUpload(saved.goals?.[id], 'sound', 'celebrateSound');
 }
 
-// ---------- Media by amount (tiers) ----------
-// The panel edits tiers one action at a time; each returns the new settings. i = the tier's place in the sorted list.
-const TIER_KIND = { image: 'images', sound: 'sounds' };
-function tiersOf(type) {
-  if (!TIER_TYPES.includes(type)) throw bad();
-  return (overrides(type).tiers ??= []);
+// ---------- Media by amount: fixed tiers ----------
+// One tier = { on, image, sound } under its amount. Uploading a file turns the tier on.
+function tierOf(type, amount) {
+  if (!TIER_AMOUNTS[type]?.includes(amount)) throw bad();
+  return ((overrides(type).tiers ??= {})[amount] ??= {});
 }
-function tierAt(type, i) {
-  const t = tiersOf(type)[i];
-  if (!Number.isInteger(i) || !t) throw bad();
-  return t;
+function setTier(type, amount, fields) {
+  if (typeof fields?.on !== 'boolean') throw bad();
+  tierOf(type, amount).on = fields.on;
+  persist();
+  return get();
 }
-const done = () => { persist(); return get(); };
-
-// A new tier starts 10x above the highest one (1, 10, 100...).
-function addTier(type) {
-  const list = tiersOf(type);
-  if (list.length >= MAX_TIERS) throw bad();
-  list.push({ min: list.length ? Math.min(1e9, list[list.length - 1].min * 10) : 1, images: [], sounds: [] });
-  return done();
+function saveTierFile(type, amount, kind, buf, name) {
+  if (!ALLOWED[kind]) throw bad();
+  const tier = tierOf(type, amount);
+  tier.on = true;
+  return keepUpload(tier, `${type}-tier-${amount}-${kind}`, kind, buf, name);
 }
-function setTierMin(type, i, min) {
-  if (!Number.isInteger(min) || min < 1 || min > 1e9) throw bad();
-  tierAt(type, i).min = min;
-  tiersOf(type).sort((a, b) => a.min - b.min);
-  return done();
-}
-function removeTier(type, i) {
-  const t = tierAt(type, i);
-  [...t.images, ...t.sounds].forEach(removeFile);
-  tiersOf(type).splice(i, 1);
-  return done();
-}
-function addTierFile(type, i, kind, buf, name) {
-  const list = tierAt(type, i)[TIER_KIND[kind]];
-  if (!list || list.length >= MAX_TIER_FILES) throw bad();
-  list.push(writeUpload(`${type}-tier-${kind}-${randomUUID().slice(0, 8)}`, kind, buf, name));
-  return done();
-}
-function removeTierFile(type, i, kind, n) {
-  const list = tierAt(type, i)[TIER_KIND[kind]];
-  if (!list?.[n]) throw bad();
-  removeFile(list[n]);
-  list.splice(n, 1);
-  return done();
+function removeTierFile(type, amount, kind) {
+  if (!ALLOWED[kind]) throw bad();
+  return dropUpload(tierOf(type, amount), kind);
 }
 
 // Back to the selected style's look; title, target, count and celebration settings stay.
@@ -418,7 +432,7 @@ function reset(type) {
   for (const t of type ? [type] : TYPES) {
     removeFile(saved.alerts?.[t]?.image);
     removeFile(saved.alerts?.[t]?.sound);
-    for (const tier of saved.alerts?.[t]?.tiers ?? []) [...tier.images, ...tier.sounds].forEach(removeFile);
+    for (const tier of Object.values(saved.alerts?.[t]?.tiers ?? {})) [tier.image, tier.sound, ...(tier.images ?? []), ...(tier.sounds ?? [])].forEach(removeFile); // old free tiers too
     delete saved.alerts?.[t];
   }
   if (!type) {
@@ -431,6 +445,6 @@ function reset(type) {
 
 module.exports = {
   get, update, saveUpload, removeUpload, reset, saveGoalSound, removeGoalSound, resetGoalStyle, resetChatStyle,
-  addTier, setTierMin, removeTier, addTierFile, removeTierFile, sniff,
-  GOAL_IDS, GOAL_STYLES, CHAT_STYLES, CHAT_FONTS, FONTS, TIER_TYPES,
+  setTier, saveTierFile, removeTierFile, sniff,
+  GOAL_IDS, GOAL_STYLES, CHAT_STYLES, CHAT_FONTS, FONTS,
 };

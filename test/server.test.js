@@ -39,7 +39,7 @@ test('migration, settings, uploads, reset, events', async () => {
   assert.equal(s.alerts.sub.soundMode, 'custom');
   assert.equal(s.alerts.sub.volume, 0.4);
   assert.equal(s.alerts.follow.soundMode, 'theme');
-  assert.equal(JSON.parse(fs.readFileSync(path.join(dataDir, 'settings.json'))).version, 2);
+  assert.equal(JSON.parse(fs.readFileSync(path.join(dataDir, 'settings.json'))).version, 3);
   assert.equal((await fetch(`${base}/uploads/sub-sound-1.wav`)).status, 200);
 
   // Platform badge: setting on by default, but nothing is connected yet, so widgets keep it hidden.
@@ -51,7 +51,7 @@ test('migration, settings, uploads, reset, events', async () => {
   assert.deepEqual((await (await call('GET', '/api/settings')).json()).connected, ['kick']);
   setConnected('kick', false);
 
-  assert.equal(s.alerts.kicks.minAmount, 0);
+  assert.equal(s.alerts.kicks.minAmount, 10, "Kicks: 1-Kick taps stay out of the queue by default");
   assert.ok(!('minAmount' in s.alerts.follow));
   assert.ok(s.alerts.raid.fontSize > s.alerts.follow.fontSize, 'raid is bigger than follow');
 

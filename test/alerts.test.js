@@ -9,6 +9,19 @@ const tcp = require('node:net');
 
 const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'jarchi-alerts-'));
 process.env.JARCHI_DATA_DIR = dataDir;
+fs.mkdirSync(path.join(dataDir, 'uploads'));
+for (const f of ['kicks-tier-image-small.gif', 'kicks-tier-image-extra.gif', 'kicks-tier-image-big.gif', 'kicks-tier-sound-big.wav', 'raid-tier-image-old.gif']) {
+  fs.writeFileSync(path.join(dataDir, 'uploads', f), f.endsWith('.wav') ? 'RIFF\0\0\0\0WAVE' : 'GIF89a');
+}
+const old = (name) => ({ file: name, name: name.replace(/^.*-(\w+)\.(\w+)$/, '$1.$2') });
+fs.writeFileSync(path.join(dataDir, 'settings.json'), JSON.stringify({
+  version: 2,
+  alerts: {
+    kicks: { tiersOn: true, tiers: [{ min: 1, images: [old('kicks-tier-image-small.gif'), old('kicks-tier-image-extra.gif')], sounds: [] },
+      { min: 150, images: [old('kicks-tier-image-big.gif')], sounds: [old('kicks-tier-sound-big.wav')] }] },
+    raid: { volume: 0.5, tiersOn: true, tiers: [{ min: 10, images: [old('raid-tier-image-old.gif')], sounds: [] }] },
+  },
+}));
 process.env.JARCHI_PORT = '3997';
 const { server, io } = require('../server');
 const { bus, emitEvent } = require('../core/events');
@@ -26,46 +39,56 @@ const call = (method, url, body, headers = {}) => fetch(base + url, {
 });
 const flush = () => new Promise((r) => setImmediate(r));
 
-test('media by amount: tiers are added, sorted, get files, and are removed with their files', async () => {
+test("media by amount: fixed tiers (Kick's gift amounts), on/off and files; old free tiers and raid tiers migrate safely", async () => {
   if (!server.listening) await new Promise((r) => server.once('listening', r));
   let s = await (await call('GET', '/api/settings')).json();
-  assert.deepEqual([s.alerts.kicks.tiersOn, s.alerts.kicks.tiers], [false, []], 'off by default');
-  assert.ok(!('tiersOn' in s.alerts.follow), 'only for types with an amount');
-  assert.equal((await call('POST', '/api/tiers/follow')).status, 400);
+  const file = (f) => path.join(dataDir, 'uploads', f.file ?? f);
 
-  for (let i = 0; i < 3; i++) s = await (await call('POST', '/api/tiers/kicks')).json();
-  assert.deepEqual(s.alerts.kicks.tiers.map((t) => t.min), [1, 10, 100]);
-  s = await (await call('PATCH', '/api/tiers/kicks/1', { min: 500 })).json();
-  assert.deepEqual(s.alerts.kicks.tiers.map((t) => t.min), [1, 100, 500], 'kept sorted');
-  assert.equal((await call('PATCH', '/api/tiers/kicks/0', { min: 0 })).status, 400);
-  assert.equal((await call('PATCH', '/api/tiers/kicks/9', { min: 5 })).status, 400);
+  // Migration (v2 -> v3): the old free Kicks tiers moved to the fixed tier at or below their minimum, turned on;
+  // a second file in one tier went. Raid's old tiers are ignored (and their file left alone).
+  assert.equal(JSON.parse(fs.readFileSync(path.join(dataDir, 'settings.json'))).version, 3);
+  const k = s.alerts.kicks;
+  assert.deepEqual(k.tiers.map((t) => t.amount), [1, 10, 50, 100, 500, 1000, 2000, 5000, 10000, 50000], "Kick's own gift amounts");
+  assert.deepEqual(k.tiers.map((t) => t.gift.id).slice(0, 4), ['hell_yeah', 'hype', 'skull_emoji', 'full_send']);
+  assert.equal(k.tiersOn, true, 'kept');
+  const t1 = k.tiers.find((t) => t.amount === 1), t100 = k.tiers.find((t) => t.amount === 100);
+  assert.deepEqual([t1.on, t1.image?.name, t1.sound], [true, 'small.gif', null]);
+  assert.deepEqual([t100.on, t100.image?.name, t100.sound?.name], [true, 'big.gif', 'big.wav'], 'min 150 -> the 100 tier');
+  assert.ok(fs.existsSync(file(t1.image)) && fs.existsSync(file(t100.sound)), 'their files still there');
+  assert.ok(!fs.existsSync(file('kicks-tier-image-extra.gif')), "a tier's second file went");
+  assert.ok(k.tiers.filter((t) => t.amount !== 1 && t.amount !== 100).every((t) => !t.on && !t.image && !t.sound), 'the other tiers: off, theme media');
+  assert.ok(!('tiers' in s.alerts.raid) && !('tiersOn' in s.alerts.raid), 'raid: no media by amount');
+  assert.ok(fs.existsSync(file('raid-tier-image-old.gif')), "raid's old file is left alone");
+  assert.equal(k.minAmount, 10, 'Kicks: small taps stay out of the queue by default');
+  assert.deepEqual([s.alerts.gift_sub.tiers.map((t) => t.amount), s.alerts.bits.tiers.map((t) => t.amount)], [[1, 5, 10, 20, 50, 100], [100, 500, 1000, 5000, 10000]]);
 
+  // On/off, a file per kind (uploading turns the tier on and replaces the old file), remove.
   const gif = Buffer.from('GIF89a\x01\x00\x01\x00\x00\x00\x00;', 'latin1');
   const wav = Buffer.from('RIFF\0\0\0\0WAVE', 'latin1');
-  const up = (i, kind, buf, name) => call('POST', `/api/tiers/kicks/${i}/${kind}`, buf, { 'content-type': 'application/octet-stream', 'x-filename': name });
-  await up(2, 'image', gif, 'a.gif');
-  await up(2, 'image', gif, 'b.gif');
-  s = await (await up(2, 'sound', wav, 'big.wav')).json();
-  const top = s.alerts.kicks.tiers[2];
-  assert.deepEqual([top.images.map((f) => f.name), top.sounds.map((f) => f.name)], [['a.gif', 'b.gif'], ['big.wav']]);
-  assert.equal((await up(2, 'sound', gif, 'x.gif')).status, 400, 'a GIF is not a sound');
-  assert.equal((await up(2, 'video', gif, 'x.gif')).status, 400);
-  const file = (f) => path.join(dataDir, 'uploads', f.file);
-  assert.ok(top.images.every((f) => fs.existsSync(file(f))));
+  const up = (type, amount, kind, buf, name) => call('POST', `/api/tiers/${type}/${amount}/${kind}`, buf, { 'content-type': 'application/octet-stream', 'x-filename': name });
+  const tier = (s, type, amount) => s.alerts[type].tiers.find((t) => t.amount === amount);
+  s = await (await up('bits', 500, 'image', gif, 'a.gif')).json();
+  assert.deepEqual([tier(s, 'bits', 500).on, tier(s, 'bits', 500).image.name], [true, 'a.gif'], 'uploading turns the tier on');
+  const first = tier(s, 'bits', 500).image;
+  s = await (await up('bits', 500, 'image', gif, 'b.gif')).json();
+  assert.equal(tier(s, 'bits', 500).image.name, 'b.gif');
+  assert.ok(!fs.existsSync(file(first)), 'the replaced file is removed');
+  s = await (await up('bits', 500, 'sound', wav, 's.wav')).json();
+  s = await (await call('PATCH', '/api/tiers/bits/500', { on: false })).json();
+  assert.deepEqual([tier(s, 'bits', 500).on, tier(s, 'bits', 500).sound.name], [false, 's.wav'], 'off keeps the files');
+  s = await (await call('DELETE', '/api/tiers/bits/500/sound')).json();
+  assert.equal(tier(s, 'bits', 500).sound, null);
+  for (const [method, url, body] of [['PATCH', '/api/tiers/bits/250', { on: true }], ['PATCH', '/api/tiers/raid/10', { on: true }], ['PATCH', '/api/tiers/kicks/100', { on: 'yes' }],
+    ['POST', '/api/tiers/kicks/7/image', gif], ['POST', '/api/tiers/gift_sub/5/video', gif], ['DELETE', '/api/tiers/follow/1/image']]) {
+    assert.equal((await call(method, url, body, Buffer.isBuffer(body) ? { 'content-type': 'application/octet-stream' } : {})).status, 400, `${method} ${url}`);
+  }
+  assert.equal((await up('gift_sub', 5, 'sound', gif, 'x.gif')).status, 400, 'a GIF is not a sound');
+  assert.equal((await call('PATCH', '/api/settings', { alerts: { raid: { tiersOn: true } } })).status, 400, 'raid has no tiers');
 
-  s = await (await call('DELETE', '/api/tiers/kicks/2/image/0')).json();
-  assert.deepEqual(s.alerts.kicks.tiers[2].images.map((f) => f.name), ['b.gif']);
-  assert.ok(!fs.existsSync(file(top.images[0])), 'file removed');
-  s = await (await call('PATCH', '/api/settings', { alerts: { kicks: { tiersOn: true } } })).json();
-  assert.equal(s.alerts.kicks.tiersOn, true);
-  s = await (await call('DELETE', '/api/tiers/kicks/2')).json();
-  assert.equal(s.alerts.kicks.tiers.length, 2);
-  assert.ok(!fs.existsSync(file(top.images[1])) && !fs.existsSync(file(top.sounds[0])), 'a removed tier takes its files');
-
-  await up(1, 'image', gif, 'c.gif');
-  s = await (await call('POST', '/api/reset/kicks')).json();
-  assert.deepEqual([s.alerts.kicks.tiersOn, s.alerts.kicks.tiers], [false, []]);
-  assert.deepEqual(fs.readdirSync(path.join(dataDir, 'uploads')).filter((f) => f.includes('tier')), [], 'reset removes tier files');
+  // Reset removes tier files.
+  const kept = tier(s, 'bits', 500).image;
+  s = await (await call('POST', '/api/reset/bits')).json();
+  assert.ok(s.alerts.bits.tiers.every((t) => !t.on && !t.image) && !fs.existsSync(file(kept)));
 });
 
 test('proxy: HTTP CONNECT and SOCKS5 tunnels, Windows proxy strings, plain-word errors, /remote only for the platforms', async () => {

@@ -49,12 +49,10 @@ const fileName = (req) => {
 const raw = express.raw({ type: () => true, limit: '20mb' });
 app.post('/api/upload/:type/:kind', raw, (req, res) => res.json(changed(settings.saveUpload(req.params.type, req.params.kind, req.body, fileName(req)))));
 
-// Media by amount: tiers of one alert type. :i = the tier's place in the list, :n = a file's place in the tier.
-app.post('/api/tiers/:type', (req, res) => res.json(changed(settings.addTier(req.params.type))));
-app.patch('/api/tiers/:type/:i', (req, res) => res.json(changed(settings.setTierMin(req.params.type, Number(req.params.i), req.body?.min))));
-app.delete('/api/tiers/:type/:i', (req, res) => res.json(changed(settings.removeTier(req.params.type, Number(req.params.i)))));
-app.post('/api/tiers/:type/:i/:kind', raw, (req, res) => res.json(changed(settings.addTierFile(req.params.type, Number(req.params.i), req.params.kind, req.body, fileName(req)))));
-app.delete('/api/tiers/:type/:i/:kind/:n', (req, res) => res.json(changed(settings.removeTierFile(req.params.type, Number(req.params.i), req.params.kind, Number(req.params.n)))));
+// Media by amount: the fixed tiers of one alert type, by amount. { on } switches one; :kind is image | sound.
+app.patch('/api/tiers/:type/:amount', (req, res) => res.json(changed(settings.setTier(req.params.type, Number(req.params.amount), req.body))));
+app.post('/api/tiers/:type/:amount/:kind', raw, (req, res) => res.json(changed(settings.saveTierFile(req.params.type, Number(req.params.amount), req.params.kind, req.body, fileName(req)))));
+app.delete('/api/tiers/:type/:amount/:kind', (req, res) => res.json(changed(settings.removeTierFile(req.params.type, Number(req.params.amount), req.params.kind))));
 
 // Alert queue (core/alerts): what's playing, how many wait, and the panel's controls.
 app.get('/api/alerts/queue', (req, res) => res.json(alertQueue.state()));

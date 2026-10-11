@@ -340,22 +340,19 @@ main { padding: 24px 28px 64px; container-type: inline-size; } /* editor rules b
 .style-grid.five { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 .style-grid .grid-head { grid-column: 1 / -1; margin: 6px 0 0; }
 
-/* ---------- Media by amount (tiers) ---------- */
+/* ---------- Media by amount (fixed tiers) ---------- */
 .tiers { display: grid; gap: 10px; }
-.tiers:empty { display: none; }
 .tier { display: grid; gap: 10px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--bg); }
-.tier-head { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
-.tier-min { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; }
-.tier-min input { width: 110px; }
-.tier-range { margin-right: auto; font-weight: 700; }
+.tier.off .tier-name, .tier.off .tier-files { opacity: 0.5; } /* off: still editable, just quiet */
+.tier-head { display: flex; align-items: center; gap: 12px; }
+.tier-name { display: flex; flex: 1; align-items: center; gap: 8px; min-width: 0; }
+.tier-name small { white-space: nowrap; }
+.gift-icon { width: 28px; height: 28px; flex: none; object-fit: contain; }
 .tier-files { display: grid; grid-template-columns: 150px minmax(0, 1fr); align-items: center; gap: 10px; }
 .tier-label { color: var(--muted); font-size: 13px; }
 .chips { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-width: 0; }
-.chip { display: inline-flex; align-items: center; gap: 4px; max-width: 240px; padding: 3px 4px 3px 10px; border: 1px solid var(--line); border-radius: 99px; background: var(--surface-2); font-size: 13px; }
-.chip .x { padding: 0 7px; border: 0; border-radius: 99px; background: none; color: var(--muted); font-size: 15px; line-height: 1.4; }
-.chip .x:hover { background: var(--line); color: var(--text); }
+.chips .fname { max-width: 260px; font-size: 13px; }
 .chips .add { padding: 4px 10px; font-size: 13px; }
-.chips .fname.default { font-size: 13px; }
 
 /* ---------- Settings: queue gap, proxy ---------- */
 input.num { width: 110px; }

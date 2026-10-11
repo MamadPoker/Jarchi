@@ -117,9 +117,13 @@ body.preview, body.thumb { display: grid; place-items: center; }
 /* No box: the border option draws a line beside each message */
 .chat.bg-off.bordered .msg { border-left: var(--bw) solid var(--bd); padding-left: 0.6em; }
 
-/* Light boxes: dark text tags; viewers' own name colors darkened so they stay readable */
+/* Light boxes: dark text tags. A light name (lname) keeps its platform color and gets a thin dark outline instead,
+   here and on the other light message backgrounds (Cyberpunk bar's yellow pills, Cyberpunk's newest message). */
 .light .bt-other { background: rgba(0, 0, 0, 0.12); }
-.light.names-own .name:not(.rainbow) { filter: brightness(0.68) saturate(1.4); }
+.light .name.lname:not(.rainbow), .style-cyberbar .tick .name.lname,
+.chat.style-cyberpunk.new-bottom .row:last-child .name.lname, .chat.style-cyberpunk.new-top .row:first-child .name.lname, .chat.style-cyberpunk .tick:last-child .name.lname {
+  text-shadow: 0 0 1px #000, 0 0 1px #000, 0 0 1px #000, 0 1px 2px rgba(0, 0, 0, 0.3);
+}
 
 /* ---------- Styles: what the options can't do ---------- */
 /* "Newest message" below = the last row (new at bottom), the first row (new at top), or the last ticker item. */
@@ -186,7 +190,6 @@ body.preview, body.thumb { display: grid; place-items: center; }
 .chat.style-cyberpunk.bubbles.bordered .msg { border: 0; border-left: var(--bw) solid var(--bd); }
 .style-cyberpunk .name { text-transform: uppercase; letter-spacing: 0.08em; }
 .chat.style-cyberpunk.new-bottom .row:last-child .msg, .chat.style-cyberpunk.new-top .row:first-child .msg, .chat.style-cyberpunk .tick:last-child .msg { background: var(--bd); color: #0b0b0b; }
-.chat.style-cyberpunk.new-bottom .row:last-child .name, .chat.style-cyberpunk.new-top .row:first-child .name, .chat.style-cyberpunk .tick:last-child .name { color: #0b0b0b !important; }
 .style-cyberpunk .arrive .msg:not(.glow) { animation: glitch 0.55s steps(1) 1; }
 @keyframes glitch {
   0% { transform: translate(-4px, 0); text-shadow: 3px 0 #ff2bd6, -3px 0 #00f0ff; }

@@ -332,47 +332,45 @@ function twoClick(btn, label, idle, confirm, action) {
   };
 }
 
-// ---------- Media by amount: one card per tier, rebuilt only when the tiers change ----------
+// ---------- Media by amount: one card per fixed tier, rebuilt only when the tiers change ----------
 let tiersDrawn = '';
 function renderTiers(cfg) {
   const key = JSON.stringify([cur, cfg.tiers]);
   if (key === tiersDrawn) return;
   tiersDrawn = key;
-  const unit = S.panel.tierUnit[cur];
-  $('#tiers').replaceChildren(...cfg.tiers.map((t, i) => {
-    const next = cfg.tiers[i + 1];
-    const range = next && next.min > t.min
-      ? tpl(S.panel.tierRange, { from: t.min.toLocaleString(), to: (next.min - 1).toLocaleString(), unit })
-      : tpl(S.panel.tierRangeUp, { from: t.min.toLocaleString(), unit });
-    const min = el('input', { type: 'number', min: 1, step: 1, value: t.min, onchange: () => send('PATCH', `/api/tiers/${cur}/${i}`, { min: Math.round(Number(min.value)) }) });
-    return el('div', { className: 'tier' },
+  $('#tiers').replaceChildren(...cfg.tiers.map((t) => {
+    const on = el('input', { type: 'checkbox', checked: t.on, onchange: () => send('PATCH', `/api/tiers/${cur}/${t.amount}`, { on: on.checked }) });
+    on.setAttribute('aria-label', S.panel.tierOn);
+    const amount = tpl(S.panel.tierAmount[cur][t.amount === 1 ? 'one' : 'many'], { n: t.amount.toLocaleString() });
+    const name = t.gift // Kicks: Kick's own gift, its icon and name
+      ? [el('img', { className: 'gift-icon', alt: '', src: `/remote?u=${encodeURIComponent(`https://files.kick.com/kicks/gifts/${t.gift.icon}.webp`)}` }),
+        el('b', { textContent: S.kickGifts[t.gift.id] ?? t.gift.id }), el('small', { textContent: amount })]
+      : [el('b', { textContent: amount })];
+    return el('div', { className: `tier${t.on ? '' : ' off'}` },
       el('div', { className: 'tier-head' },
-        el('label', { className: 'tier-min' }, el('span', { textContent: S.panel.tierFrom }), min),
-        el('span', { className: 'tier-range', textContent: range }),
-        el('button', { textContent: S.panel.tierTest, onclick: () => testTier(t.min) }),
-        el('button', { className: 'ghost', textContent: S.panel.tierRemove, onclick: () => send('DELETE', `/api/tiers/${cur}/${i}`) })),
-      tierFiles(i, 'image', t.images), tierFiles(i, 'sound', t.sounds));
+        el('label', { className: 'switch' }, on, el('span')),
+        el('span', { className: 'tier-name' }, ...name),
+        el('button', { textContent: S.panel.tierTest, onclick: () => testTier(t.amount) })),
+      tierFile(t, 'image'), tierFile(t, 'sound'));
   }));
 }
 
-// A tier's images or sounds: a chip per file (× removes it), "+ Add" uploads one or more.
-function tierFiles(i, kind, list) {
-  const input = el('input', { type: 'file', hidden: true, multiple: true, accept: ACCEPT[kind] });
-  input.onchange = async () => {
-    const files = [...input.files];
-    input.value = '';
-    for (const f of files) await send('POST', `/api/tiers/${cur}/${i}/${kind}`, f, { 'content-type': f.type || 'application/octet-stream', 'x-filename': encodeURIComponent(f.name) });
-  };
-  const chips = list.length
-    ? list.map((f, n) => el('span', { className: 'chip' }, el('span', { className: 'fname', textContent: f.name, title: f.name }),
-      el('button', { className: 'x', textContent: '×', title: S.panel.remove, onclick: () => send('DELETE', `/api/tiers/${cur}/${i}/${kind}/${n}`) })))
-    : [el('span', { className: 'fname default', textContent: S.panel[kind === 'image' ? 'tierNoImages' : 'tierNoSounds'] })];
-  return el('div', { className: 'tier-files' },
-    el('span', { className: 'tier-label', textContent: S.panel[kind === 'image' ? 'tierImages' : 'tierSounds'] }),
-    el('div', { className: 'chips' }, ...chips, list.length < 10 ? el('button', { className: 'ghost add', textContent: `+ ${S.panel.tierAdd}`, title: S.panel.tierManyHint, onclick: () => input.click() }) : '', input));
+// A tier's image or sound: the file's name (or the theme's), Upload (replaces it), Remove. Wired like the alert's own .file rows.
+function tierFile(t, kind) {
+  const f = t[kind];
+  const row = el('div', { className: 'tier-files' },
+    el('span', { className: 'tier-label', textContent: S.panel[kind === 'image' ? 'mediaTitle' : 'soundTitle'] }),
+    el('div', { className: 'chips' },
+      el('span', { className: `fname${f ? '' : ' default'}`, textContent: f ? f.name : S.panel[kind === 'image' ? 'mediaDefault' : 'tierNoSound'], title: f?.name ?? '' }),
+      el('button', { className: 'ghost add upload', textContent: S.panel.upload }),
+      el('button', { className: 'ghost add remove', textContent: S.panel.remove, hidden: !f }),
+      el('input', { type: 'file', hidden: true, accept: ACCEPT[kind] })));
+  const url = () => `/api/tiers/${cur}/${t.amount}/${kind}`;
+  wireFile(row, url, url);
+  return row;
 }
 
-// A tier's Test: plays it here in the preview and sends it to OBS, with the tier's lowest amount.
+// A tier's Test: plays it here in the preview and sends it to OBS, with the tier's amount.
 function testTier(amount) {
   $('#previewAmount').value = amount;
   preview();
@@ -523,7 +521,6 @@ function build() {
   $('#qBackdrop').onclick = () => setDrawer(false);
   addEventListener('keydown', (e) => { if (e.key === 'Escape') setDrawer(false); });
   narrow.addEventListener('change', () => setDrawer(false));
-  $('#addTier').onclick = () => send('POST', `/api/tiers/${cur}`);
 
   // Chat editor
   for (const [title, controls] of CHAT_GROUPS()) {

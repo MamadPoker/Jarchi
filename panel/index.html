@@ -98,20 +98,14 @@
           </div>
         </div>
 
-        <!-- Media by amount (Kicks, gifted subs, bits, raid): tiers built in panel.js (renderTiers). -->
+        <!-- Media by amount (Kicks, gifted subs, bits): fixed tiers, built in panel.js (renderTiers). -->
         <div class="box" data-only="tiers">
           <label class="row between toggle-row">
             <span class="stack"><b data-i18n="tiersTitle"></b><small data-i18n="tiersHint"></small></span>
             <span class="switch"><input type="checkbox" data-f="tiersOn"><span></span></span>
           </label>
+          <small data-only="tiersOn" data-i18n="tiersRule"></small>
           <div id="tiers" class="tiers" data-only="tiersOn"></div>
-          <div class="row" data-only="tiersOn">
-            <button id="addTier">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
-              <span data-i18n="addTier"></span>
-            </button>
-            <small data-i18n="tiersRule"></small>
-          </div>
         </div>
 
         <details class="more">

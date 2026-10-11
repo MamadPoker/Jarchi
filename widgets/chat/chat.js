@@ -11,7 +11,11 @@ const viewport = root.querySelector('.viewport');
 const list = root.querySelector('.list');
 const KEEP = 100; // messages kept in memory
 const LINK = /(https?:\/\/|www\.)\S+|\b[\w-]+\.(com|net|org|tv|gg|io|me|ly|be|co|app|xyz|ir)\b/i;
-const PALETTE = ['#ff6b6b', '#ffa94d', '#ffd43b', '#69db7c', '#38d9a9', '#4dabf7', '#748ffc', '#da77f2', '#f783ac'];
+const PALETTE = ['#ff6b6b', '#ffa94d', '#ffd43b', '#69db7c', '#38d9a9', '#4dabf7', '#748ffc', '#da77f2', '#f783ac']; // "Style colors" for styles without their own
+// A viewer with no name color of their own gets the platform's default: Kick's web chat shows white; Twitch's picks one of
+// these 15 at random for each person watching, so here the name picks one (the same one every time).
+const TWITCH_DEFAULTS = ['#FF0000', '#0000FF', '#008000', '#B22222', '#FF7F50', '#9ACD32', '#FF4500', '#2E8B57', '#DAA520', '#D2691E', '#5F9EA0', '#1E90FF', '#FF69B4', '#8A2BE2', '#00FF7F'];
+const KICK_DEFAULT = '#FFFFFF';
 const BADGE_KEY = { broadcaster: 'badgeBroadcaster', moderator: 'badgeMod', vip: 'badgeVip', subscriber: 'badgeSub', other: 'badgeOther' };
 // Per style: name colors for "Style colors", and colors that messages take turns with (null = the box color option).
 const STYLE_NAMES = { cyberpunk: ['#fcee0a', '#00f0ff'], comic: ['#e63946', '#1d4ed8', '#059669', '#9333ea', '#ea580c'], galaxy: ['#c9a8ff', '#8fb8ff', '#ff9ad5'], persian: ['#e9c46a', '#2ec4b6'], led: ['#ffb000', '#ff8c1a', '#ffd34d'] };
@@ -100,13 +104,12 @@ function apply(still = false) {
   if (!cfg || !S) return;
   root.hidden = !cfg.enabled && !params.has('preview') && !params.has('thumb');
   const boxed = cfg.bg !== 'off' && !cfg.bubbles;
-  const n = parseInt(cfg.bgColor.slice(1), 16);
-  const light = cfg.bg === 'color' && cfg.bgOpacity >= 0.5 && (0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) / 255 > 0.6;
+  const light = cfg.bg === 'color' && cfg.bgOpacity >= 0.5 && lum(cfg.bgColor) > 0.6;
   root.className = [
     'chat', `style-${cfg.style}`, `layout-${cfg.layout}`, `new-${cfg.newAt}`, `bg-${cfg.bg}`,
     cfg.bubbles && 'bubbles', boxed && 'boxed', cfg.border && 'bordered', cfg.fade && cfg.fadeZone > 0 && 'fade',
     cfg.textShadow && 'shadow', cfg.namePos === 'above' && 'name-above', still && 'still',
-    light && 'light', cfg.nameColorMode === 'user' && 'names-own', // light boxes darken viewers' own name colors to stay readable
+    light && 'light', // light boxes: light names get an outline (chat.css), their color stays
   ].filter(Boolean).join(' ');
   const vars = {
     '--w': `${cfg.width}px`, '--h': `${cfg.height}px`, '--font': `"${cfg.font}", "Segoe UI", system-ui, sans-serif`,
@@ -169,6 +172,11 @@ function comboKey(m) {
   return names.size === 1 ? [...names][0] : null;
 }
 
+// 0 (black) .. 1 (white), how light a #rrggbb color looks.
+const lum = (hex) => {
+  const n = parseInt(hex.slice(1), 16);
+  return (0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) / 255;
+};
 const hash = (s) => {
   let n = 0;
   for (const c of s) n = (n * 31 + c.charCodeAt(0)) >>> 0;
@@ -180,7 +188,13 @@ function nameColor(m) {
     const colors = STYLE_NAMES[cfg.style] ?? PALETTE;
     return colors[hash(m.user.login) % colors.length];
   }
-  return m.user.color ?? PALETTE[hash(m.user.login) % PALETTE.length];
+  return m.user.color ?? (m.platform === 'kick' ? KICK_DEFAULT : TWITCH_DEFAULTS[hash(m.user.login) % TWITCH_DEFAULTS.length]);
+}
+
+// The name in its color; a light color is marked (lname) so light message backgrounds can outline it.
+function nameEl(m, rainbow) {
+  const color = nameColor(m);
+  return h('span', { className: `name${rainbow ? ' rainbow' : ''}${lum(color) > 0.6 ? ' lname' : ''}`, textContent: m.user.name, style: `color:${color}` });
 }
 
 function avatarEl(m) {
@@ -219,7 +233,7 @@ function msgEl(m) {
     cfg.showTime && h('time', { textContent: time }),
     cfg.showPlatform && h('img', { className: 'platform', src: `/assets/platform-logos/${m.platform}.svg`, alt: m.platform }),
     badgesEl(m),
-    h('span', { className: `name${rainbow ? ' rainbow' : ''}`, textContent: m.user.name, style: `color:${nameColor(m)}` }),
+    nameEl(m, rainbow),
     cfg.showColon && m.kind === 'message' && !m.action && h('span', { className: 'colon', textContent: SEPARATOR[cfg.style] ?? ':' }));
   const hasText = m.parts.some((p) => p.t === 'emote' || p.v.trim());
   const el = h('div', { className: ['msg', m.kind === 'sub' && 'kind-sub', glow && 'glow', first && 'first', mention && 'mention', m.action && 'action'].filter(Boolean).join(' ') },
