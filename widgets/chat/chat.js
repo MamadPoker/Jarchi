@@ -16,6 +16,9 @@ const PALETTE = ['#ff6b6b', '#ffa94d', '#ffd43b', '#69db7c', '#38d9a9', '#4dabf7
 // these 15 at random for each person watching, so here the name picks one (the same one every time).
 const TWITCH_DEFAULTS = ['#FF0000', '#0000FF', '#008000', '#B22222', '#FF7F50', '#9ACD32', '#FF4500', '#2E8B57', '#DAA520', '#D2691E', '#5F9EA0', '#1E90FF', '#FF69B4', '#8A2BE2', '#00FF7F'];
 const KICK_DEFAULT = '#FFFFFF';
+// A Kick viewer without a profile picture (or whose lookup failed) gets one of Kick's own 6 default pictures
+// (assets/kick-avatars), picked by the name so it's the same one every time.
+const kickAvatar = (m) => `/assets/kick-avatars/default-avatar-${(hash(m.user.login) % 6) + 1}.webp`;
 const BADGE_KEY = { broadcaster: 'badgeBroadcaster', moderator: 'badgeMod', vip: 'badgeVip', subscriber: 'badgeSub', other: 'badgeOther' };
 // Per style: name colors for "Style colors", and colors that messages take turns with (null = the box color option).
 const STYLE_NAMES = { kick: ['#00F1FF', '#4CFF75', '#55FFC7', '#6F87FF', '#AAA9FF', '#BDFF28', '#E26EFF', '#E4D88F', '#E5FFAB', '#FEA0CF', '#FF2C56', '#FF4117', '#FF55B3', '#FFA600', '#FFAE76', '#FFFFFF'], cyberpunk: ['#fcee0a', '#00f0ff'], comic: ['#e63946', '#1d4ed8', '#059669', '#9333ea', '#ea580c'], galaxy: ['#c9a8ff', '#8fb8ff', '#ff9ad5'], persian: ['#e9c46a', '#2ec4b6'], led: ['#ffb000', '#ff8c1a', '#ffd34d'] };
@@ -197,9 +200,19 @@ function nameEl(m, rainbow) {
   return h('span', { className: `name${rainbow ? ' rainbow' : ''}${lum(color) > 0.6 ? ' lname' : ''}`, textContent: m.user.name, style: `color:${color}` });
 }
 
+// The profile picture. Kick: the real one, else (none, or it doesn't load) Kick's default. Twitch: the letter circle
+// when there's no picture or it doesn't load.
 function avatarEl(m) {
-  if (m.user.avatar) return h('img', { className: 'avatar', src: remote(m.user.avatar), alt: '' });
-  return h('span', { className: 'avatar letter', textContent: (m.user.name || '?').slice(0, 1).toUpperCase(), style: `background:${nameColor(m)}` });
+  const letter = () => h('span', { className: 'avatar letter', textContent: (m.user.name || '?').slice(0, 1).toUpperCase(), style: `background:${nameColor(m)}` });
+  const kick = m.platform === 'kick';
+  if (!m.user.avatar && !kick) return letter();
+  const img = h('img', { className: 'avatar', src: m.user.avatar ? remote(m.user.avatar) : kickAvatar(m), alt: '' });
+  img.onerror = () => {
+    img.onerror = null;
+    if (kick && m.user.avatar) img.src = kickAvatar(m);
+    else img.replaceWith(letter());
+  };
+  return img;
 }
 
 function badgesEl(m) {

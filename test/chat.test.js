@@ -138,6 +138,12 @@ test('chat settings, Reset style, test messages, OBS page and logos', async () =
 
   assert.equal((await fetch(`${base}/widgets/chat/`)).status, 200);
   for (const logo of ['kick', 'twitch']) assert.equal((await fetch(`${base}/assets/platform-logos/${logo}.svg`)).status, 200);
+  // Kick's 6 default profile pictures are bundled (the chat widget picks one by name for Kick viewers without a picture).
+  for (let i = 1; i <= 6; i++) {
+    const r = await fetch(`${base}/assets/kick-avatars/default-avatar-${i}.webp`);
+    assert.equal(r.status, 200);
+    assert.equal(Buffer.from(await r.arrayBuffer()).subarray(8, 12).toString('latin1'), 'WEBP', `default-avatar-${i}`);
+  }
 });
 
 test('test messages: random viewers with real badge images and the Kick channel\'s own sub badges', async () => {

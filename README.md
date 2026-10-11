@@ -122,6 +122,7 @@ Kick and Twitch chat in one box: `http://127.0.0.1:3000/widgets/chat` (transpare
 - Messages deleted by a moderator, and everything from banned / timed-out users, disappear from the overlay too.
 - Emotes: Kick, Twitch and 7TV (the channel's set + global, refreshed every 5 minutes), animated or still.
 - Badges and logos come from the platforms: Twitch's own badge images; on Kick, Kick's own badge icons (host, mod, VIP, OG, founder, verified, staff, sub gifter tiers, default subscriber; taken unmodified from kick.com's web app, see `assets/kick-badges/README.md`), the channel's own sub badges and Kick's image badges.
+- Profile pictures (**More options → Fancy effects → Profile pictures**, off by default): Kick viewers show their own picture; a Kick viewer without one (or whose picture can't be looked up) gets one of Kick's own six default pictures (`assets/kick-avatars`, picked by the name, so it's the same one every time). Twitch pictures need the Twitch key; without one, or when a picture doesn't load, Twitch shows a letter circle.
 - Name colors: by default (**Platform color**, every style) each name has the color it has on Kick or Twitch. A viewer without one gets the platform's default: white on Kick (like kick.com), one of Twitch's 15 default colors on Twitch (the same one every time). **Style colors** and **One color** are still options. On light backgrounds, light names keep their color and get a thin dark outline.
 - Chat also goes through the event bus (`chat`, `chatClear`), so other widgets can use it later.
 
@@ -144,7 +145,7 @@ core/store.js        JSON files in the data folder
 core/chat.js         runs the chat connectors, adds 7TV emotes, test messages
 core/seventv.js      7TV emote sets (cached)
 connectors/          Kick and Twitch chat readers (+ Twitch badge images)
-assets/              official platform logos (platform-logos), Kick badge icons (kick-badges), bundled fonts (fonts)
+assets/              official platform logos (platform-logos), Kick badge icons (kick-badges), Kick default profile pictures (kick-avatars), bundled fonts (fonts)
 widgets/<name>/      each widget is a folder, served at /widgets/<name>
 panel/               settings panel (served at /)
 i18n/en.json         every UI string, panel and overlay (overlays always use it)
