@@ -454,7 +454,9 @@ input.num { width: 110px; }
   height: 17px;
   margin-inline-start: 6px;
   padding: 0;
+  border: 1px solid var(--line);
   border-radius: 50%;
+  background: var(--surface-2);
   vertical-align: 1px;
   color: var(--muted);
   font-size: 11px;
@@ -462,8 +464,10 @@ input.num { width: 110px; }
   line-height: 1;
   letter-spacing: 0;
   text-transform: none;
+  cursor: help;
+  user-select: none;
 }
-.help:hover, .help:focus-visible { border-color: var(--accent-2); background: var(--surface-2); color: var(--text); }
+.help:hover, .help:focus-visible { border-color: var(--accent-2); color: var(--text); }
 #tip {
   position: fixed;
   z-index: 50;
