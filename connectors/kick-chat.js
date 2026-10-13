@@ -4,6 +4,7 @@
 // only answers HTTP/2: Kick's firewall blocks HTTP/1.1 clients such as Node's fetch, so this uses node:http2.
 const http2 = require('node:http2');
 const net = require('../core/net');
+const { logIncoming } = require('../core/events');
 const strings = require('../i18n/en.json');
 
 const PUSHER = 'wss://ws-us2.pusher.com/app/32cbd69e4b950bf97679?protocol=7&client=js&version=8.4.0&flash=false';
@@ -119,8 +120,12 @@ async function subMonths(slug, user) {
 //                                                  can come in chunks), amount = gifted_total
 //   KicksGifted (channel_<id>)                     Kicks, keyed by Kick's gift transaction id
 //   StreamHostEvent (.v2)                          raid (Kick calls it a host), amount = viewers
+// Each of these (not other chat messages) goes to the event log (data/logs/events.log) as it came.
+const ALERT_EVENTS = new Set(['App\\Events\\SubscriptionEvent', 'App\\Events\\ChannelSubscriptionEvent', 'GiftedSubscriptionsEvent',
+  'App\\Events\\GiftedSubscriptionsEvent', 'KicksGifted', 'App\\Events\\StreamHostEvent']);
 function handle(event, raw, channel, info, cb) {
   const d = typeof raw === 'string' ? JSON.parse(raw) : raw;
+  if (ALERT_EVENTS.has(event) || d?.metadata?.celebration) logIncoming('kick', event, d);
   const name = (n) => ({ name: n, login: n });
   const login = (n) => String(n ?? '').toLowerCase();
   const sub = (user, months, message = '') => {

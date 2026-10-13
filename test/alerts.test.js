@@ -24,7 +24,7 @@ fs.writeFileSync(path.join(dataDir, 'settings.json'), JSON.stringify({
 }));
 process.env.JARCHI_PORT = '3997';
 const { server, io } = require('../server');
-const { bus, emitEvent } = require('../core/events');
+const { bus, emitEvent, logIncoming } = require('../core/events');
 const kick = require('../connectors/kick-chat');
 const queue = require('../core/alerts');
 const goals = require('../core/goals');
@@ -258,8 +258,17 @@ test('Kick gift of 2: one gift alert even when its viewers\' "subscribed" comes 
   H('App\\Events\\SubscriptionEvent', { chatroom_id: 1, username: 'GiftedTwo', months: 1 });
   H('GiftedSubscriptionsEvent', { chatroom_id: 1, correlation_id: 'pi_two', gifted_usernames: ['GiftedOne', 'GiftedTwo'], gifter_username: 'Santa', gifted_total: 2, gifter_total: 2, chunk_details: null });
   H('App\\Events\\SubscriptionEvent', { chatroom_id: 1, username: 'RealFan', months: 1 });
+  H('App\\Events\\ChatMessageEvent', { id: 'm1', content: 'hi', sender: { username: 'Chatter', slug: 'chatter' } });
   t.mock.timers.tick(kick.HOLD_MS);
   assert.deepEqual(got, [['gift_sub', 'Santa', 2], ['sub', 'RealFan', 1]]);
+
+  // The event log: those Kick events as they came, in order, not the chat message; only the last 500 lines are kept.
+  const log = () => fs.readFileSync(path.join(dataDir, 'logs', 'events.log'), 'utf8').trim().split('\n');
+  assert.deepEqual(log().slice(-4).map((l) => l.split(' ')[3]),
+    ['App\\Events\\SubscriptionEvent', 'App\\Events\\SubscriptionEvent', 'GiftedSubscriptionsEvent', 'App\\Events\\SubscriptionEvent']);
+  assert.match(log().at(-2), /^\d{4}-\d\d-\d\d \d\d:\d\d:\d\d\.\d{3} kick GiftedSubscriptionsEvent \{.*"gifter_username":"Santa"/);
+  for (let i = 0; i < 500; i++) logIncoming('kick', 'filler', { i });
+  assert.deepEqual([log().length, log()[0].endsWith('filler {"i":0}')], [500, true]);
 });
 
 test('alert queue: one at a time to every overlay, survives refreshes and OBS closing, skip / pause / clear', async (t) => {

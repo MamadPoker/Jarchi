@@ -74,6 +74,8 @@ The Kick channel you type in **Widgets → Chat** also brings real alerts, read 
 
 Every Kick event has a key (Kick's own id where there is one), so an event that arrives twice (Kick sends some on several sockets) fires once. Sub and Kicks goals count these real events. Twitch alerts aren't connected yet.
 
+**Event log**: `data/logs/events.log` keeps the last 500 alert events exactly as Kick and Twitch sent them (subs, gifts, Kicks, raids, Twitch bits; not chat messages), one per line with the local time. Look there when an alert looked wrong. Follows can't be logged: neither public connection sends them.
+
 ### Alert queue
 
 Alerts play one after another from Jarchi itself, not from the OBS page:
