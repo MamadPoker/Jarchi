@@ -435,33 +435,42 @@ const rich = (s) => tpl(s, LINKS).replace(/ × /g, '\u00a0×\u00a0').split('`').
   : part.split('**').map((t, j) => (j % 2 ? el('b', { textContent: t }) : t))));
 const helpText = (key) => key.split('.').reduce((o, k) => o?.[k], S.help);
 
-// A "?" after a setting's label (data-help="alert.volume" -> S.help.alert.volume). Its text is the button's
-// description for screen readers, and one shared tooltip shows it on hover, keyboard focus or a tap.
+// A "?" after a setting's label (data-help="alert.volume" -> S.help.alert.volume). Its text is the "?"'s
+// description for screen readers, and one shared tooltip shows it while the mouse is on the "?", on keyboard focus or a tap.
+// The "?" is a <span role="button">, not a <button>: a <label> belongs to its first <button> or <input>, so a <button>
+// "?" would take the row's clicks (and focus) away from the row's own switch or field.
 let helpCount = 0;
 function addHelp(host) {
   const text = helpText(host.dataset.help);
   if (!text) return;
   const desc = el('span', { id: `help-${++helpCount}`, hidden: true, textContent: tpl(text, LINKS).replace(/`|\*\*/g, '') });
-  const btn = el('button', { type: 'button', className: 'help', textContent: S.panel.helpMark }, desc);
-  btn.dataset.tip = text;
-  btn.setAttribute('aria-label', S.panel.help);
-  btn.setAttribute('aria-describedby', desc.id);
-  host.append(btn);
+  const q = el('span', { className: 'help', tabIndex: 0, textContent: S.panel.helpMark }, desc);
+  q.dataset.tip = text;
+  q.setAttribute('role', 'button');
+  q.setAttribute('aria-label', S.panel.help);
+  q.setAttribute('aria-describedby', desc.id);
+  host.append(q);
 }
-function showTip(btn) {
-  const tip = $('#tip');
-  tip.replaceChildren(...rich(btn.dataset.tip));
+// To the side of the "?" (left in English, right in Persian), on the other side if there's no room, inside the window.
+function showTip(q) {
+  const tip = $('#tip'), gap = 8;
+  tip.replaceChildren(...rich(q.dataset.tip));
+  Object.assign(tip.style, { left: '0px', top: '0px' }); // measured at full width, not squeezed by where it was last
   tip.hidden = false;
-  const r = btn.getBoundingClientRect();
-  const x = Math.min(Math.max(8, FA ? r.right - tip.offsetWidth : r.left), innerWidth - tip.offsetWidth - 8);
-  const below = r.bottom + 8 + tip.offsetHeight < innerHeight;
-  Object.assign(tip.style, { left: `${x}px`, top: `${below ? r.bottom + 8 : r.top - 8 - tip.offsetHeight}px` });
+  const r = q.getBoundingClientRect(), w = tip.offsetWidth, h = tip.offsetHeight;
+  const left = r.left - gap - w, right = r.right + gap;
+  const fitsLeft = left >= gap, fitsRight = right + w <= innerWidth - gap;
+  const x = FA ? (fitsRight || !fitsLeft ? right : left) : (fitsLeft || !fitsRight ? left : right);
+  Object.assign(tip.style, {
+    left: `${Math.min(Math.max(gap, x), innerWidth - w - gap)}px`,
+    top: `${Math.min(Math.max(gap, r.top + r.height / 2 - h / 2), innerHeight - h - gap)}px`,
+  });
 }
 const hideTip = () => ($('#tip').hidden = true);
 function wireHelp() {
   const helpOf = (e) => e.target.closest?.('.help');
   addEventListener('mouseover', (e) => helpOf(e) && showTip(helpOf(e)));
-  addEventListener('mouseout', (e) => { if (helpOf(e) && !helpOf(e).matches(':focus-visible')) hideTip(); });
+  addEventListener('mouseout', (e) => { if (helpOf(e) && !helpOf(e).contains(e.relatedTarget)) hideTip(); }); // left the "?"
   addEventListener('focusin', (e) => helpOf(e) && showTip(helpOf(e)));
   addEventListener('focusout', (e) => helpOf(e) && hideTip());
   addEventListener('click', (e) => {
@@ -470,7 +479,10 @@ function wireHelp() {
     showTip(helpOf(e));
   });
   addEventListener('scroll', hideTip, true);
-  addEventListener('keydown', (e) => e.key === 'Escape' && hideTip());
+  addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') hideTip();
+    if (helpOf(e) && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); showTip(helpOf(e)); } // a role="button": Space doesn't scroll
+  });
 }
 
 // Guide page: the topic list, then the topic: intro, numbered step cards, a tip, and questions that open their answers.
