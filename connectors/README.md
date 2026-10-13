@@ -5,7 +5,7 @@ Each connector talks to one platform and translates what it receives into Jarchi
 ## Chat (built)
 
 - `twitch-chat.js`: Twitch chat, read anonymously (IRC over WebSocket). `twitch-badges.js` holds Twitch badge images and is the one place the optional Twitch key (`TWITCH_CLIENT_ID` / `TWITCH_CLIENT_SECRET` in `.env`) is used.
-- `kick-chat.js`: Kick chat over Kick's public Pusher socket. The channel-name lookup uses Kick's website API over HTTP/2 (its firewall blocks HTTP/1.1 clients).
+- `kick-chat.js`: Kick chat over Kick's public Pusher socket (its app key changes now and then, so it's asked from web.kick.com on every connect, like kick.com does). The channel-name lookup uses Kick's website API over HTTP/2 (its firewall blocks HTTP/1.1 clients).
 
 Both export `connect(channel, { onStatus, onMessage, onClear, onChannel })` and return `{ stop() }`. `core/chat.js` starts them from the chat settings, adds 7TV emotes, and puts messages on the event bus with `emitChat()` / `emitChatClear()` (see `core/events.js` for the message shape).
 
