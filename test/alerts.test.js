@@ -230,22 +230,36 @@ test('Kick events become one alert each, repeats are dropped, goals count them',
   kick.subMonths = realLookup;
 
   assert.deepEqual(got.map((e) => [e.type, e.user, e.amount, e.months]), [
-    ['sub', '747steven_russell', 0, 1],
-    ['resub', 'Fan', 0, 5],
     ['resub', 'xxYCYxx', 0, 31],
     ['gift_sub', 'itsfuuki', 10, 0],
     ['gift_sub', 'Whale', 50, 0],
     ['kicks', 'hejpparallaa', 500, 0],
     ['kicks', 'AMITGIDC', 1, 0],
     ['raid', 'CheapCharlieLive', 178, 0],
+    ['sub', '747steven_russell', 0, 1], // subs announced in chat wait a moment for a gift that names them
+    ['resub', 'Fan', 0, 5],
     ['resub', 'KunciKediri', 0, 10],
   ]);
   assert.ok(got.every((e) => e.platform === 'kick' && !e.test));
-  assert.equal(got[2].message, "Tersten mağduriyet 31'i");
-  assert.match(got[5].message, /^JUST KEEP PLANKING/);
+  assert.equal(got[0].message, "Tersten mağduriyet 31'i");
+  assert.match(got[3].message, /^JUST KEEP PLANKING/);
   const g = goals.all();
   assert.deepEqual([g.subs.current, g.kicks.current], [1 + 1 + 1 + 10 + 50 + 1, 501], 'goals count real events once');
   queue.clear();
+});
+
+test('Kick gift of 2: one gift alert even when its viewers\' "subscribed" comes first; a real sub still alerts', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const got = [];
+  const cb = { onMessage() {}, onClear() {}, onAlert: (a) => got.push([a.type, a.user, a.amount ?? a.months]) };
+  const H = (event, data) => kick.handle(event, JSON.stringify(data), 'somechannel', { subBadges: [] }, cb);
+  // The chat socket's "subscribed" for both viewers reaches Jarchi just before the gift itself (another socket).
+  H('App\\Events\\SubscriptionEvent', { chatroom_id: 1, username: 'GiftedOne', months: 1 });
+  H('App\\Events\\SubscriptionEvent', { chatroom_id: 1, username: 'GiftedTwo', months: 1 });
+  H('GiftedSubscriptionsEvent', { chatroom_id: 1, correlation_id: 'pi_two', gifted_usernames: ['GiftedOne', 'GiftedTwo'], gifter_username: 'Santa', gifted_total: 2, gifter_total: 2, chunk_details: null });
+  H('App\\Events\\SubscriptionEvent', { chatroom_id: 1, username: 'RealFan', months: 1 });
+  t.mock.timers.tick(kick.HOLD_MS);
+  assert.deepEqual(got, [['gift_sub', 'Santa', 2], ['sub', 'RealFan', 1]]);
 });
 
 test('alert queue: one at a time to every overlay, survives refreshes and OBS closing, skip / pause / clear', async (t) => {

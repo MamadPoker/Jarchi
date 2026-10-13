@@ -93,6 +93,7 @@ function kickBadges(identity, subBadges) {
 // gifted a sub: their "subscribed" is part of that gift), 'from:<login>' (gifted subs) -> when.
 const RECENT_MS = 60 * 1000; // the channel socket's "subscribed" for a gifter came 8-19 s after the gift
 const HOLD_MS = 10 * 1000; // a channel-socket-only sub waits this long for the chat socket's copy (that one comes within ms)
+const GIFT_WAIT_MS = 3 * 1000; // a sub announced in chat waits this long: a gift's own event can come just after its viewers' "subscribed"
 const recent = new Map();
 const mark = (k) => {
   recent.set(k, Date.now());
@@ -108,7 +109,8 @@ async function subMonths(slug, user) {
 
 // One Pusher event -> callbacks. Exported for tests.
 // Alerts (cb.onAlert), each with a key naming that one real event, so a repeat is dropped (core/events):
-//   SubscriptionEvent (chatrooms.<id>.v2)          sub (1 month) or resub; key: viewer + month count
+//   SubscriptionEvent (chatrooms.<id>.v2)          sub (1 month) or resub; key: viewer + month count. After GIFT_WAIT_MS,
+//                                                  and none if a gift named the viewer (Kick sends it for gifted subs too)
 //   ChannelSubscriptionEvent (channel_<id>)        Kick sends every sub here too, and automatic renewals ONLY here, without
 //                                                  the months: if the chat socket didn't announce it (and it's no gift),
 //                                                  the months are looked up and it's a resub (same key as above)
@@ -145,7 +147,7 @@ function handle(event, raw, channel, info, cb) {
     case 'App\\Events\\SubscriptionEvent': {
       const months = Number(d.months) || 1;
       cb.onMessage({ platform: 'kick', channel, kind: 'sub', user: name(d.username), system: fill(strings.chatText.kickSub, { user: d.username, months }), text: '', parts: [] });
-      return sub(d.username, months);
+      return setTimeout(() => sub(d.username, months), GIFT_WAIT_MS);
     }
     case 'App\\Events\\ChannelSubscriptionEvent': {
       if ((d.user_ids?.length ?? 1) > 1) return; // several viewers at once: a gift

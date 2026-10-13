@@ -63,11 +63,11 @@ The Kick channel you type in **Widgets → Chat** also brings real alerts, read 
 
 | Kick event | Alert | How |
 |---|---|---|
-| New sub | Sub | announced in chat |
-| Resub (manual) | Resub, with months | announced in chat |
+| New sub | Sub | announced in chat; Jarchi waits 3 s in case it's part of a gift |
+| Resub (manual) | Resub, with months | announced in chat (same 3 s wait) |
 | Resub (automatic renewal) | Resub, with months | Kick only says "subscribed" on the channel socket; Jarchi waits 10 s, then looks up the months |
 | Resub shared in chat ("celebration") | Resub, with the viewer's message | the shared message |
-| Gifted subs | **One** Gifted subs alert, amount = number of subs | Kick's gift event; a big gift sent in chunks is still one alert |
+| Gifted subs | **One** Gifted subs alert, amount = number of subs | Kick's gift event; a big gift sent in chunks is still one alert, and the viewers who got the subs get no Sub alert of their own |
 | Kicks | Kicks, with amount and message | Kick's Kicks event |
 | Host (Kick's raid) | Raid, amount = viewers | Kick's host event |
 | Follow | not available | Kick's public socket only sends the follower count, not who followed |
