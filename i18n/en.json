@@ -79,6 +79,7 @@
     "err_not_found": "channel not found",
     "err_blocked": "Kick blocked the request, retrying",
     "err_network": "can't reach it, retrying",
+    "err_refused": "Kick's chat server refused the connection, retrying",
     "chatTest": "Send test message",
     "chatBurst": "Send 10 messages",
     "chatAllFx": "Show all effects",

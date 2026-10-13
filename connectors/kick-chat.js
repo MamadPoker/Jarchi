@@ -6,7 +6,10 @@ const http2 = require('node:http2');
 const net = require('../core/net');
 const strings = require('../i18n/en.json');
 
-const PUSHER = 'wss://ws-us2.pusher.com/app/32cbd69e4b950bf97679?protocol=7&client=js&version=8.4.0&flash=false';
+// Kick's Pusher socket. Kick changes its app key now and then (32cbd69e4b950bf97679 stopped working in October 2026), so
+// connect() asks Kick for the current one (pusherUrl); PUSHER is only the fallback when that request fails.
+const pusherAt = (key, cluster) => `wss://ws-${cluster}.pusher.com/app/${key}?protocol=7&client=js&version=8.4.0&flash=false`;
+const PUSHER = pusherAt('34bf7a0ff419a2a775b9', 'us2');
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36';
 const EMOTE = /\[emote:(\d+):([^\]]*)\]/g;
 const ROLE = { broadcaster: 'broadcaster', moderator: 'moderator', vip: 'vip', subscriber: 'subscriber' };
@@ -18,15 +21,16 @@ const QUIET_MS = 150 * 1000; // we ping every minute; silence longer than this m
 
 const fill = (tpl, v) => tpl.replace(/\{(\w+)\}/g, (m, k) => v[k] ?? m);
 
-// GET a kick.com API path over HTTP/2 (through the proxy setting) -> { status, json }.
-async function kickGet(path) {
-  const sock = await net.secure('kick.com', 443, ['h2']);
+// GET a kick.com API path over HTTP/2 (through the proxy setting) -> { status, json }. With `body`: POST it as JSON.
+async function kickGet(path, { host = 'kick.com', body: payload } = {}) {
+  const sock = await net.secure(host, 443, ['h2']);
   return new Promise((resolve, reject) => {
-    const client = http2.connect('https://kick.com', { createConnection: () => sock });
+    const client = http2.connect(`https://${host}`, { createConnection: () => sock });
     const finish = (fn, v) => { client.close(); fn(v); };
     client.on('error', (e) => finish(reject, e));
     client.setTimeout(10000, () => finish(reject, new Error('timeout')));
-    const req = client.request({ ':path': path, 'user-agent': UA, accept: 'application/json' });
+    const req = client.request({ ':path': path, 'user-agent': UA, accept: 'application/json', ...(payload && { ':method': 'POST', 'content-type': 'application/json' }) });
+    if (payload) req.end(JSON.stringify(payload));
     let status = 0, body = '';
     req.setEncoding('utf8');
     req.on('response', (h) => (status = h[':status']));
@@ -51,6 +55,15 @@ async function channelInfo(slug) {
     userId: json.user_id,
     subBadges: (json.subscriber_badges ?? []).map((b) => ({ months: b.months, src: b.badge_image?.src })).filter((b) => b.src).sort((a, b) => b.months - a.months),
   };
+}
+
+// The Pusher socket for a channel's chat, asked the way kick.com's own web app does (no login, a random client id).
+// Kick also offers its newer Centrifugo socket; Jarchi only asks for Pusher, the protocol it speaks.
+async function pusherUrl(channelId) {
+  const { json } = await module.exports.kickGet(`/api/v1/realtime/channels/${encodeURIComponent(channelId)}/chat/connection`, { host: 'web.kick.com',
+    body: { client: { id: crypto.randomUUID(), type: 'web' }, capabilities: { accepted_providers: [{ provider: 'pusher' }] } } });
+  const c = json?.data?.connections?.find((x) => x.provider === 'pusher')?.credentials;
+  return /^[0-9a-f]{20}$/.test(c?.app_key ?? '') && /^[a-z0-9-]+$/.test(c?.cluster ?? '') ? pusherAt(c.app_key, c.cluster) : PUSHER;
 }
 
 // A viewer's profile picture (one website API call; callers cache and rate-limit).
@@ -195,8 +208,10 @@ function connect(slug, cb) {
     }
     if (stopped) return;
     cb.onChannel({ userId: info.userId, subBadges: info.subBadges });
+    const url = await pusherUrl(info.channelId).catch(() => PUSHER);
+    if (stopped) return;
     last = Date.now();
-    ws = new WebSocket(PUSHER);
+    ws = new WebSocket(url);
     ws.onmessage = (e) => {
       last = Date.now();
       const msg = JSON.parse(e.data);
@@ -213,10 +228,17 @@ function connect(slug, cb) {
       }
     };
     ws.onerror = () => cb.onStatus('error', 'network');
-    ws.onclose = () => again(Math.min(30000, 2000 * 2 ** retry++));
+    ws.onclose = (e) => {
+      // 4000-4099: Pusher refused us (an old app key: "not in this cluster"). Say so, instead of "connecting" forever.
+      if (e.code >= 4000 && e.code < 4100) {
+        console.warn(`Kick chat: Pusher refused the connection (${e.code} ${e.reason})`);
+        cb.onStatus('error', 'refused');
+      }
+      again(Math.min(30000, 2000 * 2 ** retry++));
+    };
   }
   open();
   return { stop() { stopped = true; clearTimeout(timer); clearInterval(keepAlive); ws?.close(); } };
 }
 
-module.exports = { connect, handle, kickParts, kickBadges, avatar, kickGet, subMonths, PUSHER, HOLD_MS };
+module.exports = { connect, handle, kickParts, kickBadges, avatar, kickGet, subMonths, pusherUrl, PUSHER, HOLD_MS };

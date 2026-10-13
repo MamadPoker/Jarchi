@@ -81,6 +81,21 @@ test('Kick Pusher events -> messages, badges, removals', () => {
   assert.deepEqual([out.messages[1].kind, out.messages[1].system], ['sub', 'Rich gifted 3 subs!']);
 });
 
+test("Kick's Pusher key comes from Kick (it changes); anything odd falls back to the built-in one", async () => {
+  const real = kick.kickGet;
+  const answer = (connections) => { kick.kickGet = async () => ({ status: 200, json: { data: { connections, mode: 'websocket' }, message: 'success' } }); };
+  answer([{ credentials: { app_key: '34bf7a0ff419a2a775b9', cluster: 'us2' }, provider: 'pusher' }]); // web.kick.com's real answer (2026-10-13)
+  assert.equal(await kick.pusherUrl(72358661), 'wss://ws-us2.pusher.com/app/34bf7a0ff419a2a775b9?protocol=7&client=js&version=8.4.0&flash=false');
+  answer([{ credentials: { app_key: 'aaaaaaaaaaaaaaaaaaaa', cluster: 'eu' }, provider: 'pusher' }]);
+  assert.match(await kick.pusherUrl(1), /^wss:\/\/ws-eu\.pusher\.com\/app\/aaaaaaaaaaaaaaaaaaaa\?/, 'a new key or cluster is used as is');
+  for (const odd of [[{ credentials: { url: 'wss://realtime.us-west-2.platform.kick.com/connection/websocket' }, provider: 'centrifugo' }],
+    [{ credentials: { app_key: '34bf7a0ff419a2a775b9', cluster: 'evil.example/x' }, provider: 'pusher' }], undefined]) {
+    answer(odd);
+    assert.equal(await kick.pusherUrl(1), kick.PUSHER);
+  }
+  kick.kickGet = real;
+});
+
 test('7TV names become emotes; channel set wins over global', () => {
   seventv._set('global', [{ name: 'EZ', src: 'https://cdn.7tv.app/emote/g/2x.webp', still: 'https://cdn.7tv.app/emote/g/2x_static.webp' }]);
   seventv._set('kick', [{ name: 'EZ', src: 'https://cdn.7tv.app/emote/k/2x.webp', still: 'https://cdn.7tv.app/emote/k/2x_static.webp' }]);
