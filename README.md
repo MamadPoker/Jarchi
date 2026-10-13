@@ -63,16 +63,18 @@ The Kick channel you type in **Widgets → Chat** also brings real alerts, read 
 
 | Kick event | Alert | How |
 |---|---|---|
-| New sub | Sub | announced in chat |
-| Resub (manual) | Resub, with months | announced in chat |
+| New sub | Sub | announced in chat; Jarchi waits 3 s in case it's part of a gift |
+| Resub (manual) | Resub, with months | announced in chat (same 3 s wait) |
 | Resub (automatic renewal) | Resub, with months | Kick only says "subscribed" on the channel socket; Jarchi waits 10 s, then looks up the months |
 | Resub shared in chat ("celebration") | Resub, with the viewer's message | the shared message |
-| Gifted subs | **One** Gifted subs alert, amount = number of subs | Kick's gift event; a big gift sent in chunks is still one alert |
+| Gifted subs | **One** Gifted subs alert, amount = number of subs | Kick's gift event; a big gift sent in chunks is still one alert, and the viewers who got the subs get no Sub alert of their own |
 | Kicks | Kicks, with amount and message | Kick's Kicks event |
 | Host (Kick's raid) | Raid, amount = viewers | Kick's host event |
 | Follow | not available | Kick's public socket only sends the follower count, not who followed |
 
 Every Kick event has a key (Kick's own id where there is one), so an event that arrives twice (Kick sends some on several sockets) fires once. Sub and Kicks goals count these real events. Twitch alerts aren't connected yet.
+
+**Event log**: `data/logs/events.log` keeps the last 500 alert events exactly as Kick and Twitch sent them (subs, gifts, Kicks, raids, Twitch bits; not chat messages), one per line with the local time. Look there when an alert looked wrong. Follows can't be logged: neither public connection sends them.
 
 ### Alert queue
 

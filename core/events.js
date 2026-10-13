@@ -1,6 +1,9 @@
 // Internal event bus. Connectors (Kick, Twitch, test button) call emitEvent(); widgets only ever see what comes out of here.
 const { EventEmitter } = require('node:events');
 const { randomUUID } = require('node:crypto');
+const fs = require('node:fs');
+const path = require('node:path');
+const { DATA_DIR } = require('./config');
 
 const TYPES = ['follow', 'sub', 'resub', 'gift_sub', 'kicks', 'bits', 'raid'];
 const PLATFORMS = ['kick', 'twitch', 'test'];
@@ -86,4 +89,23 @@ function setConnected(platform, on) {
 }
 const connectedPlatforms = () => [...connected];
 
-module.exports = { bus, emitEvent, emitChat, chatMessage, emitChatClear, setConnected, connectedPlatforms, TYPES, PLATFORMS };
+// The alert events Kick and Twitch sent (subs, gifts, Kicks, raids, bits; not chat messages), as they came, before
+// Jarchi decides what to show: data/logs/events.log, the last 500 lines, "local time  platform  event  data".
+const LOG_FILE = path.join(DATA_DIR, 'logs', 'events.log');
+const LOG_LINES = 500;
+function logIncoming(platform, name, data) {
+  try {
+    const now = new Date();
+    const time = new Date(now - now.getTimezoneOffset() * 60000).toISOString().slice(0, 23).replace('T', ' ');
+    let lines = [];
+    try { lines = fs.readFileSync(LOG_FILE, 'utf8').split('\n').filter(Boolean); } catch {} // none yet
+    lines.push(`${time} ${platform} ${name} ${typeof data === 'string' ? data : JSON.stringify(data)}`);
+    fs.mkdirSync(path.dirname(LOG_FILE), { recursive: true });
+    // ponytail: rewrites the whole (500-line) file per event; append and trim every ~100 lines if Kicks floods make it slow.
+    fs.writeFileSync(LOG_FILE, `${lines.slice(-LOG_LINES).join('\n')}\n`);
+  } catch (err) {
+    console.warn('Event log:', err.message); // never in the way of the alert itself
+  }
+}
+
+module.exports = { bus, emitEvent, emitChat, chatMessage, emitChatClear, setConnected, connectedPlatforms, logIncoming, TYPES, PLATFORMS };

@@ -1,6 +1,7 @@
 // Twitch chat, read anonymously (no login) over Twitch's IRC-on-WebSocket: messages, sub notices,
 // deleted messages and bans/timeouts. Reconnects by itself.
 const badges = require('./twitch-badges');
+const { logIncoming } = require('../core/events');
 
 const URL = 'wss://irc-ws.chat.twitch.tv:443';
 const ROLE = { broadcaster: 'broadcaster', moderator: 'moderator', vip: 'vip', subscriber: 'subscriber', founder: 'subscriber' };
@@ -76,6 +77,9 @@ function handle(line, channel, cb) {
     const login = prefix.split('!')[0] || t.login || '';
     return { id: t['user-id'], login, name: t['display-name'] || login, color: t.color || null, badges: toBadges(t.badges, t['badge-info']) };
   };
+  // Alert events (subs, gifts, raids, bits) go to the event log (data/logs/events.log) as they came; chat messages don't.
+  if (command === 'USERNOTICE' && (SUB_NOTICES.has(t['msg-id']) || t['msg-id'] === 'raid')) logIncoming('twitch', t['msg-id'], line);
+  if (command === 'PRIVMSG' && t.bits) logIncoming('twitch', 'bits', line);
   if (command === 'PRIVMSG') {
     let text = trailing ?? '';
     const action = text.startsWith('\u0001ACTION ') && text.endsWith('\u0001');

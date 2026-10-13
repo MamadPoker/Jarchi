@@ -4,6 +4,7 @@
 // only answers HTTP/2: Kick's firewall blocks HTTP/1.1 clients such as Node's fetch, so this uses node:http2.
 const http2 = require('node:http2');
 const net = require('../core/net');
+const { logIncoming } = require('../core/events');
 const strings = require('../i18n/en.json');
 
 const PUSHER = 'wss://ws-us2.pusher.com/app/32cbd69e4b950bf97679?protocol=7&client=js&version=8.4.0&flash=false';
@@ -93,6 +94,7 @@ function kickBadges(identity, subBadges) {
 // gifted a sub: their "subscribed" is part of that gift), 'from:<login>' (gifted subs) -> when.
 const RECENT_MS = 60 * 1000; // the channel socket's "subscribed" for a gifter came 8-19 s after the gift
 const HOLD_MS = 10 * 1000; // a channel-socket-only sub waits this long for the chat socket's copy (that one comes within ms)
+const GIFT_WAIT_MS = 3 * 1000; // a sub announced in chat waits this long: a gift's own event can come just after its viewers' "subscribed"
 const recent = new Map();
 const mark = (k) => {
   recent.set(k, Date.now());
@@ -108,7 +110,8 @@ async function subMonths(slug, user) {
 
 // One Pusher event -> callbacks. Exported for tests.
 // Alerts (cb.onAlert), each with a key naming that one real event, so a repeat is dropped (core/events):
-//   SubscriptionEvent (chatrooms.<id>.v2)          sub (1 month) or resub; key: viewer + month count
+//   SubscriptionEvent (chatrooms.<id>.v2)          sub (1 month) or resub; key: viewer + month count. After GIFT_WAIT_MS,
+//                                                  and none if a gift named the viewer (Kick sends it for gifted subs too)
 //   ChannelSubscriptionEvent (channel_<id>)        Kick sends every sub here too, and automatic renewals ONLY here, without
 //                                                  the months: if the chat socket didn't announce it (and it's no gift),
 //                                                  the months are looked up and it's a resub (same key as above)
@@ -117,8 +120,12 @@ async function subMonths(slug, user) {
 //                                                  can come in chunks), amount = gifted_total
 //   KicksGifted (channel_<id>)                     Kicks, keyed by Kick's gift transaction id
 //   StreamHostEvent (.v2)                          raid (Kick calls it a host), amount = viewers
+// Each of these (not other chat messages) goes to the event log (data/logs/events.log) as it came.
+const ALERT_EVENTS = new Set(['App\\Events\\SubscriptionEvent', 'App\\Events\\ChannelSubscriptionEvent', 'GiftedSubscriptionsEvent',
+  'App\\Events\\GiftedSubscriptionsEvent', 'KicksGifted', 'App\\Events\\StreamHostEvent']);
 function handle(event, raw, channel, info, cb) {
   const d = typeof raw === 'string' ? JSON.parse(raw) : raw;
+  if (ALERT_EVENTS.has(event) || d?.metadata?.celebration) logIncoming('kick', event, d);
   const name = (n) => ({ name: n, login: n });
   const login = (n) => String(n ?? '').toLowerCase();
   const sub = (user, months, message = '') => {
@@ -145,7 +152,7 @@ function handle(event, raw, channel, info, cb) {
     case 'App\\Events\\SubscriptionEvent': {
       const months = Number(d.months) || 1;
       cb.onMessage({ platform: 'kick', channel, kind: 'sub', user: name(d.username), system: fill(strings.chatText.kickSub, { user: d.username, months }), text: '', parts: [] });
-      return sub(d.username, months);
+      return setTimeout(() => sub(d.username, months), GIFT_WAIT_MS);
     }
     case 'App\\Events\\ChannelSubscriptionEvent': {
       if ((d.user_ids?.length ?? 1) > 1) return; // several viewers at once: a gift
