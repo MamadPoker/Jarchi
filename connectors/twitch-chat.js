@@ -71,8 +71,29 @@ function toBadges(tag, info) {
   }).filter((b) => b.img);
 }
 
-// ponytail: a cheermote is "letters+number" (Cheer100, Kappa50); Twitch's real list is per channel and needs the API.
-const CHEER = /(^|\s)[a-z]+\d+(?=\s|$)/gi;
+// A cheer in a message with bits: one of Twitch's global cheermote prefixes + a number, as its own word ("Cheer100").
+// Channels' own cheermotes need the Twitch API: they stay text. Any case, like Twitch.
+const CHEER = /(^|\s)(Cheer|BibleThump|cheerwhal|Corgo|uni|ShowLove|Party|SeemsGood|Pride|Kappa|FrankerZ|HeyGuys|DansGame|EleGiggle|TriHard|Kreygasm|4Head|SwiftRage|NotLikeThis|FailFish|VoHiYo|PJSalt|MrDestructoid|bday|RIPCheer|Shamrock)(\d+)(?=\s|$)/gi;
+// Twitch's default gems, by amount: assets/twitch-bits/<gem>.gif (same amounts as the bits tiers in core/settings.js).
+const GEMS = [10000, 5000, 1000, 100, 1];
+
+// Text parts -> text and cheer parts ({ t: 'cheer', name, amount, gem }): the chat shows the gem and the amount, like Twitch.
+function cheerParts(parts) {
+  return parts.flatMap((p) => {
+    if (p.t !== 'text') return [p];
+    const out = [];
+    let i = 0;
+    for (const m of p.v.matchAll(CHEER)) {
+      const at = m.index + m[1].length;
+      if (at > i) out.push({ t: 'text', v: p.v.slice(i, at) });
+      const amount = Number(m[3]);
+      out.push({ t: 'cheer', name: m[2] + m[3], amount, gem: GEMS.find((g) => amount >= g) ?? 1 });
+      i = at + m[2].length + m[3].length;
+    }
+    if (i < p.v.length) out.push({ t: 'text', v: p.v.slice(i) });
+    return out;
+  });
+}
 
 // One IRC line -> the alert it is (for cb.onAlert), or null. Key: Twitch's message id, so a repeat is dropped (core/events).
 //   USERNOTICE sub / resub        sub, or resub with months (msg-param-cumulative-months) and the viewer's message
@@ -113,7 +134,8 @@ function handle(line, channel, cb) {
     let text = trailing ?? '';
     const action = text.startsWith('\u0001ACTION ') && text.endsWith('\u0001');
     if (action) text = text.slice(8, -1);
-    cb.onMessage({ platform: 'twitch', id: t.id, channel, time: Number(t['tmi-sent-ts']) || Date.now(), text, action, first: t['first-msg'] === '1', user: user(), parts: emoteParts(text, t.emotes) });
+    const parts = emoteParts(text, t.emotes);
+    cb.onMessage({ platform: 'twitch', id: t.id, channel, time: Number(t['tmi-sent-ts']) || Date.now(), text, action, first: t['first-msg'] === '1', user: user(), parts: t.bits ? cheerParts(parts) : parts });
   } else if (command === 'USERNOTICE' && SUB_NOTICES.has(t['msg-id'])) {
     const text = trailing ?? '';
     cb.onMessage({ platform: 'twitch', id: t.id, channel, kind: 'sub', system: t['system-msg'] || '', time: Number(t['tmi-sent-ts']) || Date.now(), text, user: user(), parts: emoteParts(text, t.emotes) });

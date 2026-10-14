@@ -10,7 +10,8 @@ const tcp = require('node:net');
 const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'jarchi-alerts-'));
 process.env.JARCHI_DATA_DIR = dataDir;
 fs.mkdirSync(path.join(dataDir, 'uploads'));
-for (const f of ['kicks-tier-image-small.gif', 'kicks-tier-image-extra.gif', 'kicks-tier-image-big.gif', 'kicks-tier-sound-big.wav', 'raid-tier-image-old.gif']) {
+for (const f of ['kicks-tier-image-small.gif', 'kicks-tier-image-extra.gif', 'kicks-tier-image-big.gif', 'kicks-tier-sound-big.wav', 'raid-tier-image-old.gif',
+  'bits-tier-image-100.gif', 'bits-tier-image-500.gif', 'bits-tier-sound-500.wav']) {
   fs.writeFileSync(path.join(dataDir, 'uploads', f), f.endsWith('.wav') ? 'RIFF\0\0\0\0WAVE' : 'GIF89a');
 }
 const old = (name) => ({ file: name, name: name.replace(/^.*-(\w+)\.(\w+)$/, '$1.$2') });
@@ -20,6 +21,8 @@ fs.writeFileSync(path.join(dataDir, 'settings.json'), JSON.stringify({
     kicks: { tiersOn: true, tiers: [{ min: 1, images: [old('kicks-tier-image-small.gif'), old('kicks-tier-image-extra.gif')], sounds: [] },
       { min: 150, images: [old('kicks-tier-image-big.gif')], sounds: [old('kicks-tier-sound-big.wav')] }] },
     raid: { volume: 0.5, tiersOn: true, tiers: [{ min: 10, images: [old('raid-tier-image-old.gif')], sounds: [] }] },
+    // Fixed bits tiers of v3/v4 (100, 500, ...): 500 is no Twitch gem, so it goes into 100 (v5).
+    bits: { tiers: { 100: { on: false, image: old('bits-tier-image-100.gif') }, 500: { on: true, image: old('bits-tier-image-500.gif'), sound: old('bits-tier-sound-500.wav') } } },
   },
 }));
 process.env.JARCHI_PORT = '3997';
@@ -47,7 +50,7 @@ test("media by amount: fixed tiers (Kick's gift amounts), on/off and files; old 
 
   // Migration (v2 -> v3): the old free Kicks tiers moved to the fixed tier at or below their minimum, turned on;
   // a second file in one tier went. Raid's old tiers are ignored (and their file left alone).
-  assert.equal(JSON.parse(fs.readFileSync(path.join(dataDir, 'settings.json'))).version, 4);
+  assert.equal(JSON.parse(fs.readFileSync(path.join(dataDir, 'settings.json'))).version, 5);
   const k = s.alerts.kicks;
   assert.deepEqual(k.tiers.map((t) => t.amount), [1, 10, 50, 100, 500, 1000, 2000, 5000, 10000, 50000], "Kick's own gift amounts");
   assert.deepEqual(k.tiers.map((t) => t.gift.id).slice(0, 4), ['hell_yeah', 'hype', 'skull_emoji', 'full_send']);
@@ -76,24 +79,33 @@ test("media by amount: fixed tiers (Kick's gift amounts), on/off and files; old 
     assert.equal(Buffer.from(await img.arrayBuffer()).toString('latin1', 8, 12), 'WEBP', gift.id);
     assert.ok(names[gift.id], gift.id);
   }
-  assert.deepEqual([s.alerts.gift_sub.tiers.map((t) => t.amount), s.alerts.bits.tiers.map((t) => t.amount)], [[1, 5, 10, 20, 50, 100], [100, 500, 1000, 5000, 10000]]);
+  assert.deepEqual([s.alerts.gift_sub.tiers.map((t) => t.amount), s.alerts.bits.tiers.map((t) => t.amount)], [[1, 5, 10, 20, 50, 100], [1, 100, 1000, 5000, 10000]]);
+  // Bits tiers are Twitch's gems (served here, offline). The old 500 tier went into 100: its sound moved, its image
+  // went (100 had one), and 100 is on because 500 was.
+  for (const n of [1, 100, 1000, 5000, 10000]) {
+    const gem = await fetch(`${base}/assets/twitch-bits/${n}.gif`);
+    assert.equal(Buffer.from(await gem.arrayBuffer()).toString('latin1', 0, 6), 'GIF89a', `gem ${n}`);
+  }
+  const b100 = s.alerts.bits.tiers.find((t) => t.amount === 100);
+  assert.deepEqual([b100.on, b100.image?.name, b100.sound?.name], [true, '100.gif', '500.wav']);
+  assert.ok(!fs.existsSync(file('bits-tier-image-500.gif')) && fs.existsSync(file(b100.sound)), "500's image went, its sound moved");
 
   // On/off, a file per kind (uploading turns the tier on and replaces the old file), remove.
   const gif = Buffer.from('GIF89a\x01\x00\x01\x00\x00\x00\x00;', 'latin1');
   const wav = Buffer.from('RIFF\0\0\0\0WAVE', 'latin1');
   const up = (type, amount, kind, buf, name) => call('POST', `/api/tiers/${type}/${amount}/${kind}`, buf, { 'content-type': 'application/octet-stream', 'x-filename': name });
   const tier = (s, type, amount) => s.alerts[type].tiers.find((t) => t.amount === amount);
-  s = await (await up('bits', 500, 'image', gif, 'a.gif')).json();
-  assert.deepEqual([tier(s, 'bits', 500).on, tier(s, 'bits', 500).image.name], [true, 'a.gif'], 'uploading turns the tier on');
-  const first = tier(s, 'bits', 500).image;
-  s = await (await up('bits', 500, 'image', gif, 'b.gif')).json();
-  assert.equal(tier(s, 'bits', 500).image.name, 'b.gif');
+  s = await (await up('bits', 1000, 'image', gif, 'a.gif')).json();
+  assert.deepEqual([tier(s, 'bits', 1000).on, tier(s, 'bits', 1000).image.name], [true, 'a.gif'], 'uploading turns the tier on');
+  const first = tier(s, 'bits', 1000).image;
+  s = await (await up('bits', 1000, 'image', gif, 'b.gif')).json();
+  assert.equal(tier(s, 'bits', 1000).image.name, 'b.gif');
   assert.ok(!fs.existsSync(file(first)), 'the replaced file is removed');
-  s = await (await up('bits', 500, 'sound', wav, 's.wav')).json();
-  s = await (await call('PATCH', '/api/tiers/bits/500', { on: false })).json();
-  assert.deepEqual([tier(s, 'bits', 500).on, tier(s, 'bits', 500).sound.name], [false, 's.wav'], 'off keeps the files');
-  s = await (await call('DELETE', '/api/tiers/bits/500/sound')).json();
-  assert.equal(tier(s, 'bits', 500).sound, null);
+  s = await (await up('bits', 1000, 'sound', wav, 's.wav')).json();
+  s = await (await call('PATCH', '/api/tiers/bits/1000', { on: false })).json();
+  assert.deepEqual([tier(s, 'bits', 1000).on, tier(s, 'bits', 1000).sound.name], [false, 's.wav'], 'off keeps the files');
+  s = await (await call('DELETE', '/api/tiers/bits/1000/sound')).json();
+  assert.equal(tier(s, 'bits', 1000).sound, null);
   for (const [method, url, body] of [['PATCH', '/api/tiers/bits/250', { on: true }], ['PATCH', '/api/tiers/raid/10', { on: true }], ['PATCH', '/api/tiers/kicks/100', { on: 'yes' }],
     ['POST', '/api/tiers/kicks/7/image', gif], ['POST', '/api/tiers/gift_sub/5/video', gif], ['DELETE', '/api/tiers/follow/1/image']]) {
     assert.equal((await call(method, url, body, Buffer.isBuffer(body) ? { 'content-type': 'application/octet-stream' } : {})).status, 400, `${method} ${url}`);
@@ -102,7 +114,7 @@ test("media by amount: fixed tiers (Kick's gift amounts), on/off and files; old 
   assert.equal((await call('PATCH', '/api/settings', { alerts: { raid: { tiersOn: true } } })).status, 400, 'raid has no tiers');
 
   // Reset removes tier files.
-  const kept = tier(s, 'bits', 500).image;
+  const kept = tier(s, 'bits', 1000).image;
   s = await (await call('POST', '/api/reset/bits')).json();
   assert.ok(s.alerts.bits.tiers.every((t) => !t.on && !t.image) && !fs.existsSync(file(kept)));
 });
@@ -294,7 +306,7 @@ test('Twitch IRC events become one alert each: a community gift is one alert, no
   notice('display-name=Elf;login=elf;id=g2;msg-id=subgift;msg-param-recipient-display-name=Lucky;msg-param-months=1');
   notice('display-name=AnAnonymousGifter;login=ananonymousgifter;id=g3;msg-id=anonsubmysterygift;msg-param-community-gift-id=99;msg-param-mass-gift-count=5');
   notice('display-name=TestChannel;login=testchannel;id=rd1;msg-id=raid;msg-param-displayName=TestChannel;msg-param-login=testchannel;msg-param-viewerCount=15');
-  H('display-name=Cheery;bits=100;id=b1;user-id=5', ':cheery!cheery@cheery.tmi.twitch.tv PRIVMSG #somechannel :Cheer100 great Cheer100 stream');
+  H('display-name=Cheery;bits=100;id=b1;user-id=5', ':cheery!cheery@cheery.tmi.twitch.tv PRIVMSG #somechannel :Cheer100 great gg2 cheer100 stream');
   // Not alerts: a chat line, bits from another channel in a shared chat, a Prime upgrade.
   H('display-name=Chatter;id=m1', ':chatter!chatter@chatter.tmi.twitch.tv PRIVMSG #somechannel :Cheer100 is just text here');
   H('display-name=Guest;bits=500;id=b2;source-room-id=1234', ':guest!guest@guest.tmi.twitch.tv PRIVMSG #somechannel :Cheer500');
@@ -312,7 +324,7 @@ test('Twitch IRC events become one alert each: a community gift is one alert, no
   ]);
   assert.ok(got.every((e) => e.platform === 'twitch' && !e.test));
   assert.equal(got[1].message, 'Great stream -- keep it up!');
-  assert.equal(got[6].message, 'great stream', 'cheermotes left out');
+  assert.equal(got[6].message, 'great gg2 stream', "cheermotes left out, other words with numbers kept");
   assert.equal(goals.all().subs.current, 1 + 1 + 3 + 1 + 5, 'goals count them once');
   queue.clear();
 });

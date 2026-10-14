@@ -254,6 +254,7 @@
     "mediaTitle": "Image / GIF / video",
     "mediaDefault": "Theme animation",
     "mediaKickGift": "Kick gift (default)",
+    "mediaTwitchGem": "Twitch gem (default)",
     "soundKickDefault": "Kick chime (default)",
     "soundKick": "Kick chime",
     "mediaHint": "PNG, JPG, GIF, WebP, WebM or MP4, max 20 MB. Only WebM keeps a transparent background.",

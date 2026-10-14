@@ -52,7 +52,7 @@ The **فا | EN** switch (remembered in the browser) puts the whole panel in Per
 - **Kicks: Kick's own look** (the default; **Look → Use theme** brings the theme back): Kick's image of the gift that was sent, big and centered (animated where Kick has an animation), and under it "{user} sent {amount} Kicks" in Kick's font, the name white and bold, the amount and "Kicks" in Kick's green, with a soft shadow and no box. A clean pop-in and fade-out and a short, soft chime. An uploaded image/GIF/video (the alert's own or a tier's) replaces the gift; **Remove** brings the gift back. The gift images are in `assets/kick-gifts`, so they work offline.
 - **Different media by amount** (off by default), with fixed, ready-made tiers:
   - **Kicks**: Kick's own gifts: Hell Yeah 1, Hype 10, Skull Emoji 50, Full Send 100, Rage Quit 500, Pack It Up 1,000, YAP 2,000, Stomp 5,000, Flex 10,000, BOOOOOM 50,000 (from Kick's gift list, `web.kick.com/api/v1/kicks/gifts`, the same as in kick.com's web app).
-  - **Gifted subs**: 1, 5, 10, 20, 50, 100. **Bits**: 100, 500, 1,000, 5,000, 10,000. Raid always uses its one alert.
+  - **Gifted subs**: 1, 5, 10, 20, 50, 100. **Bits**: 1, 100, 1,000, 5,000, 10,000, Twitch's own gems: a bits alert without its own file shows the gem for the amount (`assets/twitch-bits`). Raid always uses its one alert.
   - Each tier: on/off, its own image/GIF/video and sound (none = the theme's), and **Test**. An amount plays its own tier; if that tier is off, the closest lower tier that's on plays, or else the normal media. Uploading a file turns its tier on.
 - Uploads are checked by their real file type and are limited to 20 MB.
 - **Reset to default** per alert, or **Reset everything**.
@@ -85,7 +85,7 @@ The Twitch channel in **Widgets → Chat** brings real alerts the same way, from
 | Gifted subs to the community | **One** Gifted subs alert, amount = number of subs | Twitch's gift notice; the per-viewer notices that follow it make no alert |
 | Sub gifted to one viewer | Gifted subs, amount 1 | Twitch's gift notice |
 | Raid | Raid, amount = viewers | Twitch's raid notice |
-| Bits | Bits, with amount and message | a chat message with bits (the Cheer100-style words are left out of the message) |
+| Bits | Bits, with amount and message | a chat message with bits (Twitch's cheer words like Cheer100 are left out of the alert's message; in the chat widget they show as Twitch's gem and the amount) |
 | Follow | not available | needs a Twitch login |
 
 In a shared chat, the other channels' events don't make alerts here. Sub goals count these too.

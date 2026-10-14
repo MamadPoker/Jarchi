@@ -73,6 +73,13 @@ body.preview, body.thumb { display: grid; place-items: center; }
 .action .body { font-style: italic; }
 .emote { height: var(--emote); vertical-align: middle; margin: -0.15em 0.05em; }
 .body.big .emote { height: var(--emote-big); }
+/* A cheer: Twitch's gem and the amount in the gem's color (Twitch's own colors for its default cheermotes). */
+.cheer { font-weight: 800; white-space: nowrap; }
+.gem-1 { color: #979797; }
+.gem-100 { color: #9c3ee8; }
+.gem-1000 { color: #1db2a5; }
+.gem-5000 { color: #0099fe; }
+.gem-10000 { color: #f43021; }
 .avatar { display: inline-flex; align-items: center; justify-content: center; width: 1.7em; height: 1.7em; margin-right: 0.4em; border-radius: 50%; object-fit: cover; vertical-align: middle; font-size: var(--ns); font-weight: 800; color: #fff; text-shadow: none; }
 .combo { display: inline-block; margin-left: 0.4em; color: #ffd54d; font-weight: 900; }
 /* OG hat (Kick viewers with the OG badge): on a letter of the name, on the profile picture, or with the badges.

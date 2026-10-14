@@ -8,7 +8,7 @@ const path = require('node:path');
 process.env.JARCHI_DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'jarchi-chat-'));
 process.env.JARCHI_PORT = '3998';
 const { server, io } = require('../server');
-const { bus } = require('../core/events');
+const { bus, chatMessage } = require('../core/events');
 const twitch = require('../connectors/twitch-chat');
 const kick = require('../connectors/kick-chat');
 const seventv = require('../core/seventv');
@@ -42,6 +42,14 @@ test('Twitch IRC lines -> messages, removals, room id', () => {
 
   twitch.handle('@msg-id=resub;system-msg=Fan\\ssubscribed\\sfor\\s6\\smonths!;display-name=Fan;id=s1;user-id=9 :tmi.twitch.tv USERNOTICE #xqc :hello', 'xqc', cb);
   assert.deepEqual([out.messages[2].kind, out.messages[2].system, out.messages[2].text], ['sub', 'Fan subscribed for 6 months!', 'hello']);
+
+  // Bits: Twitch's global cheermotes (any case) become the gem for their amount; other words with a number stay text.
+  twitch.handle('@bits=5351;display-name=Cheery;id=b1;user-id=5 :cheery!cheery@cheery.tmi.twitch.tv PRIVMSG #xqc :Cheer100 gg2 kappa5000 hi Cheer250', 'xqc', cb);
+  assert.deepEqual(chatMessage(out.messages[3]).parts.map((p) => (p.t === 'cheer' ? [p.name, p.amount, p.gem] : p.v)),
+    [['Cheer100', 100, 100], ' gg2 ', ['kappa5000', 5000, 5000], ' hi ', ['Cheer250', 250, 100]]);
+  // Without bits it's plain text, as on Twitch.
+  twitch.handle('@display-name=Faker;id=b2;user-id=6 :faker!faker@faker.tmi.twitch.tv PRIVMSG #xqc :Cheer10000', 'xqc', cb);
+  assert.deepEqual(out.messages[4].parts, [{ t: 'text', v: 'Cheer10000' }]);
 
   twitch.handle('@login=bad;target-msg-id=abc-1 :tmi.twitch.tv CLEARMSG #xqc :oops', 'xqc', cb);
   twitch.handle('@ban-duration=600;target-user-id=42 :tmi.twitch.tv CLEARCHAT #xqc :mark', 'xqc', cb);

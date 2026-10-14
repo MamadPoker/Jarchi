@@ -7,7 +7,7 @@ const store = require('./store');
 const strings = require('../i18n/en.json');
 
 const FILE = path.join(DATA_DIR, 'settings.json');
-const VERSION = 4;
+const VERSION = 5;
 const THEMES = ['neon', 'minimal', 'fun', 'retro', 'glass', 'fire', 'ice', 'galaxy', 'comic'];
 // App-wide settings (not per alert). showBadge: platform badge on alerts; it still needs both Kick and Twitch connected.
 // alertGap: seconds between two alerts. proxy*: how Jarchi reaches Kick, Twitch and 7TV (core/net.js).
@@ -30,7 +30,8 @@ const KICK_GIFTS = [
   { amount: 1, id: 'hell_yeah' }, { amount: 10, id: 'hype' }, { amount: 50, id: 'skull_emoji' }, { amount: 100, id: 'full_send' }, { amount: 500, id: 'rage_quit' },
   { amount: 1000, id: 'pack_it_up' }, { amount: 2000, id: 'yap' }, { amount: 5000, id: 'stomp' }, { amount: 10000, id: 'flex' }, { amount: 50000, id: 'boooom' },
 ];
-const TIER_AMOUNTS = { gift_sub: [1, 5, 10, 20, 50, 100], kicks: KICK_GIFTS.map((g) => g.amount), bits: [100, 500, 1000, 5000, 10000] };
+// Bits: Twitch's own cheer gems (gray, purple, green, blue, red), in assets/twitch-bits/<amount>.gif.
+const TIER_AMOUNTS = { gift_sub: [1, 5, 10, 20, 50, 100], kicks: KICK_GIFTS.map((g) => g.amount), bits: [1, 100, 1000, 5000, 10000] };
 const TIERED = { tiersOn: false, tiers: {} };
 const PER_TYPE = {
   follow: { duration: 4, fontSize: 38 },
@@ -249,6 +250,17 @@ if (from < 4 && Object.keys(saved).length) {
   // v3 -> v4: "Kick default" became the chat style for new users. Someone who already used Jarchi without picking a
   // style had Classic: keep it.
   (saved.chat ??= {}).style ??= 'classic';
+}
+if (from < 5) {
+  // v4 -> v5: the bits tiers became Twitch's gems (1, 100, 1000, 5000, 10000). The old 500 tier's files move to the 100
+  // tier where it has none of that kind (else they go), and turn it on if the 500 tier was on.
+  const tiers = saved.alerts?.bits?.tiers, old = tiers?.[500];
+  if (old) {
+    const to = (tiers[100] ??= {});
+    for (const kind of ['image', 'sound']) if (old[kind]) { if (to[kind]) removeFile(old[kind]); else to[kind] = old[kind]; }
+    to.on ||= !!old.on;
+    delete tiers[500];
+  }
 }
 if (from < VERSION) {
   saved.version = VERSION;

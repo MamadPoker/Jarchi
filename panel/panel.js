@@ -34,8 +34,8 @@ const GOAL_SAMPLE = { subs: { current: 32, target: 50 }, kicks: { current: 640, 
 const isVideo = (file) => /\.(webm|mp4)$/.test(file ?? '');
 const tpl = (s, v) => s.replace(/\{(\w+)\}/g, (m, k) => v[k] ?? m);
 const kickLook = (type, cfg) => type === 'kicks' && cfg.look === 'kick';
-// What plays when there's no file: the theme's, or (Kicks in its Kick look) Kick's gift and the Kick chime.
-const defaultMedia = (kind, kick) => S.panel[kind === 'image' ? (kick ? 'mediaKickGift' : 'mediaDefault') : (kick ? 'soundKickDefault' : 'tierNoSound')];
+// What plays when there's no file: the theme's, or (Kicks in its Kick look) Kick's gift and the Kick chime; bits show Twitch's gem.
+const defaultMedia = (kind, kick) => S.panel[kind === 'image' ? (kick ? 'mediaKickGift' : cur === 'bits' ? 'mediaTwitchGem' : 'mediaDefault') : (kick ? 'soundKickDefault' : 'tierNoSound')];
 const ACCEPT = { image: 'image/png,image/jpeg,image/gif,image/webp,video/webm,video/mp4,.webm,.mp4', sound: 'audio/mpeg,audio/wav,audio/ogg,.mp3,.wav,.ogg' };
 const valueOf = (inp) => (inp.type === 'checkbox' ? inp.checked : ['number', 'range'].includes(inp.type) ? Number(inp.value) : inp.value);
 const el = (tag, props = {}, ...kids) => {
@@ -366,6 +366,7 @@ function renderTiers(cfg) {
     const name = t.gift // Kicks: Kick's own gift, its icon and name
       ? [el('img', { className: 'gift-icon', alt: '', src: `/assets/kick-gifts/${t.gift.id}.webp` }),
         el('b', { textContent: S.kickGifts[t.gift.id] ?? t.gift.id }), el('small', { textContent: amount })]
+      : cur === 'bits' ? [el('img', { className: 'gift-icon', alt: '', src: `/assets/twitch-bits/${t.amount}.gif` }), el('b', { textContent: amount })] // Twitch's gem
       : [el('b', { textContent: amount })];
     return el('div', { className: `tier${t.on ? '' : ' off'}` },
       el('div', { className: 'tier-head' },

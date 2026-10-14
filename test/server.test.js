@@ -39,7 +39,7 @@ test('migration, settings, uploads, reset, events', async () => {
   assert.equal(s.alerts.sub.soundMode, 'custom');
   assert.equal(s.alerts.sub.volume, 0.4);
   assert.equal(s.alerts.follow.soundMode, 'theme');
-  assert.equal(JSON.parse(fs.readFileSync(path.join(dataDir, 'settings.json'))).version, 4);
+  assert.equal(JSON.parse(fs.readFileSync(path.join(dataDir, 'settings.json'))).version, 5);
   assert.equal(s.chat.style, 'classic', 'an earlier user who never picked a chat style keeps Classic (Kick default is for new users)');
   assert.equal((await fetch(`${base}/uploads/sub-sound-1.wav`)).status, 200);
 

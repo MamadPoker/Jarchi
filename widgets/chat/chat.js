@@ -178,7 +178,7 @@ function shown(m) {
 
 // ---------- One message ----------
 const emoteOn = (p) => ({ twitch: cfg.emotesTwitch, kick: cfg.emotesKick, '7tv': cfg.emotes7tv })[p.provider];
-const onlyEmotes = (m) => m.parts.some((p) => p.t === 'emote' && emoteOn(p)) && m.parts.every((p) => (p.t === 'emote' ? emoteOn(p) : !p.v.trim()));
+const onlyEmotes = (m) => m.parts.some((p) => p.t === 'emote' && emoteOn(p)) && m.parts.every((p) => (p.t === 'emote' ? emoteOn(p) : p.t === 'text' && !p.v.trim()));
 // A message that is just one emote (once or repeated) -> its name, for the combo counter.
 function comboKey(m) {
   if (!onlyEmotes(m)) return null;
@@ -301,6 +301,8 @@ function bodyEl(m) {
   const body = h('span', { className: `body${big ? ' big' : ''}`, dir: cfg.textDir });
   for (const p of m.parts) {
     if (p.t === 'text') body.append(p.v);
+    // A cheer, like Twitch: its gem and the amount in the gem's color (chat.css .cheer).
+    else if (p.t === 'cheer') body.append(h('span', { className: `cheer gem-${p.gem}`, title: p.name }, h('img', { className: 'emote', src: `/assets/twitch-bits/${p.gem}.gif`, alt: p.name }), String(p.amount)));
     else if (emoteOn(p)) body.append(h('img', { className: 'emote', src: remote(cfg.emotesAnimated ? p.src : p.still || p.src), alt: p.name, title: p.name }));
     else body.append(p.name);
   }
@@ -327,7 +329,7 @@ function msgEl(m) {
     nameEl(m, rainbow, turn, hat),
     cfg.showColon && m.kind === 'message' && !m.action && h('span', { className: 'colon', textContent: SEPARATOR[cfg.style] ?? ':' }));
   const avatar = cfg.avatars && (hat === 'avatar' ? h('span', { className: 'avatar-box' }, avatarEl(m), hatEl('avatar')) : avatarEl(m));
-  const hasText = m.parts.some((p) => p.t === 'emote' || p.v.trim());
+  const hasText = m.parts.some((p) => p.t !== 'text' || p.v.trim());
   const el = h('div', { className: ['msg', m.kind === 'sub' && 'kind-sub', glow && 'glow', first && 'first', mention && 'mention', m.action && 'action', hat && hat !== 'badge' && 'hatted'].filter(Boolean).join(' ') },
     tags.length ? h('div', { className: 'tags' }, ...tags) : null,
     m.kind === 'sub' && m.system ? h('div', { className: 'system', dir: cfg.textDir, textContent: m.system }) : null,

@@ -64,6 +64,7 @@ body { font-family: "Segoe UI", system-ui, sans-serif; }
 
 .media { position: relative; display: grid; place-items: center; animation: var(--idle); }
 .media img, .media video { display: block; max-width: 600px; max-height: 460px; }
+.media.gem img { width: calc(200px * var(--s)); height: calc(200px * var(--s)); object-fit: contain; } /* Twitch's bits gem: the emblem's size */
 
 .box { position: relative; z-index: 1; padding: 20px 46px; }
 .text { font-size: var(--fs, 46px); font-weight: 800; line-height: 1.2; overflow-wrap: anywhere; }
