@@ -109,6 +109,7 @@ const GOAL_DEFAULTS = Object.fromEntries(GOAL_IDS.map((id) => [id, {
   celebrateSound: 'theme',
   sound: null, // { file, name } once uploaded
   volume: 0.7,
+  ...(id === 'subs' && { countTwitch: false }), // Twitch subs count only when this is on; Kick's always do
 }]));
 const bool = (v) => typeof v === 'boolean';
 const GOAL_RULES = {
@@ -117,6 +118,7 @@ const GOAL_RULES = {
   target: (v) => Number.isInteger(v) && v >= 1 && v <= 1e9,
   style: (v) => v in GOAL_STYLES,
   celebrate: bool,
+  countTwitch: bool,
   celebrateSound: oneOf('theme', 'custom', 'none'),
   volume: num(0, 1),
   barColor: hex,
@@ -323,7 +325,7 @@ function update(patch) {
   const goals = Object.entries(patch.goals ?? {});
   for (const [id, fields] of goals) {
     if (!GOAL_IDS.includes(id) || !fields || typeof fields !== 'object') throw bad();
-    for (const [k, v] of Object.entries(fields)) if (!GOAL_RULES[k] || !GOAL_RULES[k](v)) throw bad();
+    for (const [k, v] of Object.entries(fields)) if (!GOAL_RULES[k] || !(k in GOAL_DEFAULTS[id] || GOAL_LOOK.includes(k)) || !GOAL_RULES[k](v)) throw bad();
   }
   const chatFields = patch.chat;
   if (chatFields !== undefined) {

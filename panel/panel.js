@@ -857,6 +857,7 @@ function renderGoal() {
     box: g.bg !== 'off',
     borderOn: g.bg !== 'off' && g.border,
     goalCustomSound: g.celebrateSound === 'custom',
+    subsGoal: curGoal === 'subs', // "Also count Twitch subs": the Kicks goal is Kick's only
   };
   $$('[data-only]', ed).forEach((e) => (e.hidden = !show[e.dataset.only]));
   const fname = $('.file .fname', ed);

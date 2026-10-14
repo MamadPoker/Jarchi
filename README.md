@@ -88,7 +88,7 @@ The Twitch channel in **Widgets → Chat** brings real alerts the same way, from
 | Bits | Bits, with amount and message | a chat message with bits (Twitch's cheer words like Cheer100 are left out of the alert's message; in the chat widget they show as Twitch's gem and the amount) |
 | Follow | not available | needs a Twitch login |
 
-In a shared chat, the other channels' events don't make alerts here. Sub goals count these too.
+In a shared chat, the other channels' events don't make alerts here. The Sub goal counts these only with its **Also count Twitch subs** box on.
 
 **Event log**: `data/logs/events.log` keeps the last 500 alert events exactly as Kick and Twitch sent them (subs, gifts, Kicks, raids, Twitch bits; not chat messages), one per line with the local time. Look there when an alert looked wrong. Follows can't be logged: neither public connection sends them.
 
@@ -115,7 +115,7 @@ Everything Jarchi reaches online goes through it: Kick, Twitch, 7TV, and the emo
 
 Two goal widgets, each with its own OBS URL (transparent background):
 
-- **Sub goal**: `http://127.0.0.1:3000/widgets/goal/subs` counts subs, resubs and gifted subs (each gift = 1) from Kick and Twitch.
+- **Sub goal**: `http://127.0.0.1:3000/widgets/goal/subs` counts Kick subs, resubs and gifted subs (a gift of 5 subs = 5). With **Also count Twitch subs** on (off by default), Twitch's count the same way.
 - **Kicks goal**: `http://127.0.0.1:3000/widgets/goal/kicks` counts Kicks from Kick.
 
 They listen to the same event bus as the alerts, so they'll move by themselves once Kick and Twitch are connected. Until then, test alerts and the panel's buttons move them.

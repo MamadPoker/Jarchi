@@ -325,7 +325,7 @@ test('Twitch IRC events become one alert each: a community gift is one alert, no
   assert.ok(got.every((e) => e.platform === 'twitch' && !e.test));
   assert.equal(got[1].message, 'Great stream -- keep it up!');
   assert.equal(got[6].message, 'great gg2 stream', "cheermotes left out, other words with numbers kept");
-  assert.equal(goals.all().subs.current, 1 + 1 + 3 + 1 + 5, 'goals count them once');
+  assert.equal(goals.all().subs.current, 0, 'the sub goal counts Twitch subs only with "Also count Twitch subs" on (server.test.js)');
   queue.clear();
 });
 
