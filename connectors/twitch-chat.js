@@ -1,5 +1,6 @@
 // Twitch chat, read anonymously (no login) over Twitch's IRC-on-WebSocket: messages, sub notices,
-// deleted messages and bans/timeouts. Reconnects by itself.
+// deleted messages and bans/timeouts, plus the events that become alerts (subs, resubs, gifted subs, raids, bits;
+// see alertOf()). Reconnects by itself.
 const badges = require('./twitch-badges');
 const { logIncoming } = require('../core/events');
 
@@ -70,7 +71,35 @@ function toBadges(tag, info) {
   }).filter((b) => b.img);
 }
 
-// One IRC line -> callbacks (onMessage / onClear / onRoom). Exported for tests.
+// ponytail: a cheermote is "letters+number" (Cheer100, Kappa50); Twitch's real list is per channel and needs the API.
+const CHEER = /(^|\s)[a-z]+\d+(?=\s|$)/gi;
+
+// One IRC line -> the alert it is (for cb.onAlert), or null. Key: Twitch's message id, so a repeat is dropped (core/events).
+//   USERNOTICE sub / resub        sub, or resub with months (msg-param-cumulative-months) and the viewer's message
+//   USERNOTICE submysterygift     gifted subs: ONE alert per gift, amount = msg-param-mass-gift-count. Twitch then sends a
+//                                 subgift per viewer with the same msg-param-community-gift-id: those are no alert
+//   USERNOTICE subgift            a sub gifted to one chosen viewer (no community gift id): gifted subs, amount 1
+//   USERNOTICE raid               raid, amount = msg-param-viewerCount
+//   PRIVMSG with a bits tag       bits, with the message minus its cheermotes
+// anon* msg-ids (older anonymous gifts) count as the same. Follows need a login: none here.
+function alertOf(command, t, trailing) {
+  if (t['source-room-id'] && t['source-room-id'] !== t['room-id']) return null; // another channel's, in a shared chat
+  const user = t['display-name'] || t.login || '';
+  const key = `twitch:${t.id}`;
+  if (command === 'PRIVMSG') return t.bits ? { type: 'bits', user, amount: Number(t.bits) || 0, message: (trailing ?? '').replace(CHEER, '').trim(), key } : null;
+  if (command !== 'USERNOTICE') return null;
+  const message = trailing ?? '';
+  switch (t['msg-id']?.replace(/^anon/, '')) {
+    case 'sub': return { type: 'sub', user, months: 1, message, key };
+    case 'resub': return { type: 'resub', user, months: Number(t['msg-param-cumulative-months']) || 2, message, key };
+    case 'submysterygift': return { type: 'gift_sub', user, amount: Number(t['msg-param-mass-gift-count']) || 1, key };
+    case 'subgift': return t['msg-param-community-gift-id'] ? null : { type: 'gift_sub', user, amount: 1, key };
+    case 'raid': return { type: 'raid', user, amount: Number(t['msg-param-viewerCount']) || 0, key };
+  }
+  return null;
+}
+
+// One IRC line -> callbacks (onMessage / onClear / onChannel / onAlert). Exported for tests.
 function handle(line, channel, cb) {
   const { tags: t, prefix, command, trailing } = parseLine(line);
   const user = () => {
@@ -95,9 +124,11 @@ function handle(line, channel, cb) {
   } else if (command === 'ROOMSTATE' && t['room-id']) {
     cb.onChannel({ userId: t['room-id'] });
   }
+  const alert = alertOf(command, t, trailing);
+  if (alert) cb.onAlert?.(alert);
 }
 
-// cb: { onStatus(state, detail), onMessage(msg), onClear(clear), onChannel({ userId }) }. Returns { stop() }.
+// cb: { onStatus(state, detail), onMessage(msg), onClear(clear), onChannel({ userId }), onAlert(alert) }. Returns { stop() }.
 function connect(channel, cb) {
   let ws, timer, last = Date.now(), retry = 0, stopped = false;
   const watchdog = setInterval(() => { if (Date.now() - last > QUIET_MS) ws?.close(); }, 30000);

@@ -1,6 +1,6 @@
 # Jarchi
 
-Stream alerts for OBS that run locally on your own PC. No account, no central server. Real Kick alerts come from your Kick channel's public chat (just the channel name, no login); Twitch alerts come later. Every alert can also be fired with the **Test** buttons.
+Stream alerts for OBS that run locally on your own PC. No account, no central server. Real Kick and Twitch alerts come from your channels' public chat (just the channel names, no login). Every alert can also be fired with the **Test** buttons.
 
 ## Setup
 
@@ -72,7 +72,23 @@ The Kick channel you type in **Widgets → Chat** also brings real alerts, read 
 | Host (Kick's raid) | Raid, amount = viewers | Kick's host event |
 | Follow | not available | Kick's public socket only sends the follower count, not who followed |
 
-Every Kick event has a key (Kick's own id where there is one), so an event that arrives twice (Kick sends some on several sockets) fires once. Sub and Kicks goals count these real events. Twitch alerts aren't connected yet.
+Every Kick event has a key (Kick's own id where there is one), so an event that arrives twice (Kick sends some on several sockets) fires once. Sub and Kicks goals count these real events.
+
+### Real Twitch alerts (no login)
+
+The Twitch channel in **Widgets → Chat** brings real alerts the same way, from Twitch's anonymous chat connection.
+
+| Twitch event | Alert | How |
+|---|---|---|
+| New sub | Sub | Twitch's sub notice |
+| Resub | Resub, with months and the viewer's message | Twitch's resub notice (sent when the viewer shares it) |
+| Gifted subs to the community | **One** Gifted subs alert, amount = number of subs | Twitch's gift notice; the per-viewer notices that follow it make no alert |
+| Sub gifted to one viewer | Gifted subs, amount 1 | Twitch's gift notice |
+| Raid | Raid, amount = viewers | Twitch's raid notice |
+| Bits | Bits, with amount and message | a chat message with bits (the Cheer100-style words are left out of the message) |
+| Follow | not available | needs a Twitch login |
+
+In a shared chat, the other channels' events don't make alerts here. Sub goals count these too.
 
 **Event log**: `data/logs/events.log` keeps the last 500 alert events exactly as Kick and Twitch sent them (subs, gifts, Kicks, raids, Twitch bits; not chat messages), one per line with the local time. Look there when an alert looked wrong. Follows can't be logged: neither public connection sends them.
 

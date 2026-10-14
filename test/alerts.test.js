@@ -1,4 +1,4 @@
-// Kick alerts from chat events (payloads captured from live Kick channels), the server-side alert queue,
+// Kick alerts from chat events (payloads captured from live Kick channels), Twitch alerts from IRC lines, the server-side alert queue,
 // media by amount (tiers) and the proxy tunnel (through local fake HTTP CONNECT and SOCKS5 proxies).
 const test = require('node:test');
 const assert = require('node:assert');
@@ -26,6 +26,7 @@ process.env.JARCHI_PORT = '3997';
 const { server, io } = require('../server');
 const { bus, emitEvent, logIncoming } = require('../core/events');
 const kick = require('../connectors/kick-chat');
+const twitch = require('../connectors/twitch-chat');
 const queue = require('../core/alerts');
 const goals = require('../core/goals');
 const net = require('../core/net');
@@ -269,6 +270,48 @@ test('Kick gift of 2: one gift alert even when its viewers\' "subscribed" comes 
   assert.match(log().at(-2), /^\d{4}-\d\d-\d\d \d\d:\d\d:\d\d\.\d{3} kick GiftedSubscriptionsEvent \{.*"gifter_username":"Santa"/);
   for (let i = 0; i < 500; i++) logIncoming('kick', 'filler', { i });
   assert.deepEqual([log().length, log()[0].endsWith('filler {"i":0}')], [500, true]);
+});
+
+test('Twitch IRC events become one alert each: a community gift is one alert, not one per viewer', () => {
+  for (const id of ['subs', 'kicks']) goals.change(id, { set: 0 });
+  const got = [];
+  const onEvent = (e) => got.push(e);
+  bus.on('event', onEvent);
+  const cb = { onMessage() {}, onClear() {}, onChannel() {}, onAlert: (a) => emitEvent({ ...a, platform: 'twitch' }) };
+  const H = (tags, rest) => twitch.handle(`@${tags};room-id=71092938 ${rest}`, 'somechannel', cb);
+  const notice = (tags, text) => H(tags, `:tmi.twitch.tv USERNOTICE #somechannel${text ? ` :${text}` : ''}`);
+
+  notice('display-name=NewFan;login=newfan;id=n1;msg-id=sub;msg-param-cumulative-months=1;msg-param-sub-plan=1000');
+  notice('display-name=ronni;login=ronni;id=r1;msg-id=resub;msg-param-cumulative-months=8;msg-param-streak-months=2;msg-param-sub-plan=Prime', 'Great stream -- keep it up!');
+  notice('display-name=ronni;login=ronni;id=r1;msg-id=resub;msg-param-cumulative-months=8', 'Great stream -- keep it up!'); // the same line again
+  // A community gift of 3: the gift itself, then one subgift per viewer with the same community gift id.
+  notice('display-name=Santa;login=santa;id=g1;msg-id=submysterygift;msg-param-community-gift-id=344143;msg-param-mass-gift-count=3;msg-param-sender-count=50');
+  for (const [i, v] of ['Ann', 'Bob', 'Cy'].entries()) notice(`display-name=Santa;login=santa;id=g1-${i};msg-id=subgift;msg-param-community-gift-id=344143;msg-param-recipient-display-name=${v};msg-param-months=1`);
+  // A sub gifted to one chosen viewer: no community gift id.
+  notice('display-name=Elf;login=elf;id=g2;msg-id=subgift;msg-param-recipient-display-name=Lucky;msg-param-months=1');
+  notice('display-name=AnAnonymousGifter;login=ananonymousgifter;id=g3;msg-id=anonsubmysterygift;msg-param-community-gift-id=99;msg-param-mass-gift-count=5');
+  notice('display-name=TestChannel;login=testchannel;id=rd1;msg-id=raid;msg-param-displayName=TestChannel;msg-param-login=testchannel;msg-param-viewerCount=15');
+  H('display-name=Cheery;bits=100;id=b1;user-id=5', ':cheery!cheery@cheery.tmi.twitch.tv PRIVMSG #somechannel :Cheer100 great Cheer100 stream');
+  // Not alerts: a chat line, bits from another channel in a shared chat, a Prime upgrade.
+  H('display-name=Chatter;id=m1', ':chatter!chatter@chatter.tmi.twitch.tv PRIVMSG #somechannel :Cheer100 is just text here');
+  H('display-name=Guest;bits=500;id=b2;source-room-id=1234', ':guest!guest@guest.tmi.twitch.tv PRIVMSG #somechannel :Cheer500');
+  notice('display-name=Up;login=up;id=u1;msg-id=primepaidupgrade;msg-param-sub-plan=1000');
+  bus.off('event', onEvent);
+
+  assert.deepEqual(got.map((e) => [e.type, e.user, e.amount, e.months]), [
+    ['sub', 'NewFan', 0, 1],
+    ['resub', 'ronni', 0, 8],
+    ['gift_sub', 'Santa', 3, 0],
+    ['gift_sub', 'Elf', 1, 0],
+    ['gift_sub', 'AnAnonymousGifter', 5, 0],
+    ['raid', 'TestChannel', 15, 0],
+    ['bits', 'Cheery', 100, 0],
+  ]);
+  assert.ok(got.every((e) => e.platform === 'twitch' && !e.test));
+  assert.equal(got[1].message, 'Great stream -- keep it up!');
+  assert.equal(got[6].message, 'great stream', 'cheermotes left out');
+  assert.equal(goals.all().subs.current, 1 + 1 + 3 + 1 + 5, 'goals count them once');
+  queue.clear();
 });
 
 test('alert queue: one at a time to every overlay, survives refreshes and OBS closing, skip / pause / clear', async (t) => {

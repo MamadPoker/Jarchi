@@ -63,7 +63,7 @@
     "groupAlerts": "Alerts",
     "groupWidgets": "Widgets",
     "chatName": "Chat",
-    "chatHint": "Reads Kick and Twitch chat with just the channel names, no login. The Kick channel also brings real Kick alerts (subs, resubs, gifted subs, Kicks, hosts). The switch only hides the chat on stream.",
+    "chatHint": "Reads Kick and Twitch chat with just the channel names, no login. Each channel also brings its real alerts (Kick: subs, resubs, gifted subs, Kicks, hosts; Twitch: subs, resubs, gifted subs, raids, bits). The switch only hides the chat on stream.",
     "chatCopy": "Copy chat OBS link",
     "chatCopyHint": "Add it in OBS as a Browser Source. Make it at least as big as the chat's width and height (More options).",
     "chatCopied": "Chat link copied!",
@@ -433,7 +433,7 @@
     },
     "chat": {
       "kickChannel": "Your channel name, as in `kick.com/name`. Brings the chat and real Kick alerts. No login.",
-      "twitchChannel": "Your channel name, as in `twitch.tv/name`. Brings the Twitch chat. No login.",
+      "twitchChannel": "Your channel name, as in `twitch.tv/name`. Brings the chat and real Twitch alerts. No login.",
       "style": "A ready-made look to start from. Every option in More options works with every style.",
       "showPlatform": "A small Kick or Twitch logo before each name.",
       "showBadges": "Badges before names, like mod, VIP or sub.",
@@ -520,10 +520,10 @@
     "topics": {
       "start": {
         "title": "Getting started",
-        "intro": "Jarchi runs on your own PC and shows alerts, a chat box and goals in OBS. No account and no login: your Kick channel name is enough for real Kick alerts.",
+        "intro": "Jarchi runs on your own PC and shows alerts, a chat box and goals in OBS. No account and no login: your Kick and Twitch channel names are enough for real alerts.",
         "steps": [
           ["Keep Jarchi running", "Start Jarchi and leave its window open while you stream. This panel is at `{panelUrl}`."],
-          ["Type your channel names", "Open **Chat** under Widgets and type your Kick channel (and your Twitch channel, for chat). The Kick name also brings real Kick alerts."],
+          ["Type your channel names", "Open **Chat** under Widgets and type your Kick and/or Twitch channel. Each name also brings that platform's real alerts."],
           ["Pick a theme", "Click **Theme** at the top of the list. Every alert uses it, unless you give an alert its own."],
           ["Add Jarchi to OBS", "Add the alerts to OBS as a Browser Source. The next topic shows how."],
           ["Test it", "Pick an alert in the list and press **Test in OBS**. It plays in OBS and shows up in the alert queue."]
@@ -552,7 +552,7 @@
           ["Different media by amount", "Kicks, gifted subs and bits can play their own picture and sound for bigger amounts. Turn it on and upload per amount."],
           ["More options", "Frame, text position and color, font size, duration, volume, minimum amount and video sound."]
         ],
-        "tip": "Real Kick alerts (subs, resubs, gifted subs, Kicks and hosts) come from your Kick channel name in **Chat**, with no login. Kick follows need a Kick login, which comes later. Twitch alerts aren't connected yet. The **Test** buttons work for every alert."
+        "tip": "Real Kick alerts (subs, resubs, gifted subs, Kicks and hosts) come from your Kick channel name in **Chat**, with no login. Real Twitch alerts (subs, resubs, gifted subs, raids and bits) come from your Twitch channel name the same way. Follows need a Kick or Twitch login, which comes later. The **Test** buttons work for every alert."
       },
       "goals": {
         "title": "Goals",
@@ -576,7 +576,7 @@
           ["Fine-tune it", "**More options**: size, fonts, colors, badges, emotes, motion, filters and effects."],
           ["Add it to OBS", "Click **Copy chat OBS link** and add it as a Browser Source, 420 × 600. Make it at least as big as the chat's width and height; the horizontal bars need width 1920."]
         ],
-        "tip": "The switch in the list only hides the chat on stream. Real Kick alerts keep coming either way."
+        "tip": "The switch in the list only hides the chat on stream. Real Kick and Twitch alerts keep coming either way."
       },
       "queue": {
         "title": "Alert queue",
