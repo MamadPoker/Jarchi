@@ -275,6 +275,38 @@ test('profile pictures: the message never waits for a lookup; a returning chatte
   Object.assign(kick, { connect: realConnect, avatar: realAvatar });
 });
 
+test('Twitch profile pictures without a key: decapi.me (plain text), else api.ivr.fi (JSON "logo")', async () => {
+  const badges = require('../connectors/twitch-badges');
+  const key = { TWITCH_CLIENT_ID: process.env.TWITCH_CLIENT_ID, TWITCH_CLIENT_SECRET: process.env.TWITCH_CLIENT_SECRET };
+  for (const k in key) delete process.env[k];
+  const realFetch = global.fetch;
+  const asked = [];
+  const pic = (id, size) => `https://static-cdn.jtvnw.net/jtv_user_pictures/${id}-profile_image-${size}.png`;
+  // Answers shaped like the real ones (checked live with xqc, shroud, pokimane, caedrel).
+  const DECAPI = { shroud: pic('c754eebf', '300x300'), ghost: 'User not found: ghost', odd: 'https://example.com/x.png' };
+  global.fetch = async (url) => {
+    const u = new URL(url);
+    asked.push(u.hostname);
+    if (u.hostname === 'decapi.me') {
+      const login = u.pathname.split('/').pop();
+      if (login === 'slowpoke') throw Object.assign(new Error('timeout'), { name: 'TimeoutError' });
+      return new Response(DECAPI[login], { headers: { 'content-type': 'text/plain' } });
+    }
+    const login = u.searchParams.get('login');
+    return Response.json(login === 'ghost' ? [] : [{ login, logo: pic(login, '600x600') }]);
+  };
+  try {
+    assert.equal(await badges.avatar('shroud'), pic('c754eebf', '300x300'), 'decapi\'s URL as it is');
+    assert.deepEqual(asked, ['decapi.me'], 'no second request when decapi answers');
+    assert.equal(await badges.avatar('slowpoke'), pic('slowpoke', '300x300'), 'decapi slow or down: ivr, at the same size');
+    assert.equal(await badges.avatar('odd'), pic('odd', '300x300'), 'only a picture on Twitch\'s own CDN is taken');
+    assert.equal(await badges.avatar('ghost'), null, 'no such user: null (a letter in chat)');
+  } finally {
+    global.fetch = realFetch;
+    for (const k in key) if (key[k] !== undefined) process.env[k] = key[k];
+  }
+});
+
 test('readable names: a platform color too close to its background keeps its hue, just lighter or darker', () => {
   // The widget's color code, run here as it is (between its two comments).
   const src = fs.readFileSync(path.join(__dirname, '..', 'widgets', 'chat', 'chat.js'), 'utf8');

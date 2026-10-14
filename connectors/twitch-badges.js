@@ -1,7 +1,7 @@
 // Twitch badge images and profile pictures.
 // Without a key: Twitch's own images for the common global badges (fixed files on Twitch's CDN, no key needed;
-// versions with their own image are listed as 'set/version').
-// With a key: every global badge, the channel's custom subscriber badges, and viewers' profile pictures.
+// versions with their own image are listed as 'set/version'), and viewers' profile pictures through decapi.me / ivr.fi.
+// With a key: every global badge, the channel's custom subscriber badges, and profile pictures from Twitch's API.
 // THE KEY GOES HERE, via .env (create an app at https://dev.twitch.tv/console, no user login needed):
 //   TWITCH_CLIENT_ID=...
 //   TWITCH_CLIENT_SECRET=...
@@ -79,20 +79,24 @@ function image(set, version) {
 // The sub badge version Twitch shows for `months` of subscribing: the channel's highest tier up to that, else the default.
 const subVersion = (months) => String(Math.max(0, ...channelSubs.filter((n) => n <= months)));
 
-// Profile picture by login, or null without a key.
-const avatars = new Map();
+// Profile picture by login, or null (core/chat.js caches the answer). With the key: Twitch's API. Without it (or if that
+// fails): decapi.me, which answers the picture's URL as plain text, then api.ivr.fi (JSON, "logo") when decapi fails or
+// is slow. Both are free services that ask Twitch for us; only a picture on Twitch's own CDN is taken from them.
+const PICTURE = /^https:\/\/static-cdn\.jtvnw\.net\/\S+$/;
 async function avatar(login) {
-  if (!hasKey()) return null;
-  if (avatars.has(login)) return avatars.get(login);
-  try {
-    const j = await helix(`users?login=${encodeURIComponent(login)}`);
-    const url = j.data[0]?.profile_image_url ?? null;
-    if (avatars.size > 500) avatars.delete(avatars.keys().next().value);
-    avatars.set(login, url);
-    return url;
-  } catch {
-    return null;
+  const who = encodeURIComponent(login);
+  if (hasKey()) {
+    try { return (await helix(`users?login=${who}`)).data[0]?.profile_image_url ?? null; } catch {}
   }
+  try {
+    const res = await fetch(`https://decapi.me/twitch/avatar/${who}`, { signal: AbortSignal.timeout(3000) });
+    const url = (await res.text()).trim(); // or "User not found: <login>"
+    if (res.ok && PICTURE.test(url)) return url;
+  } catch {} // slow or down: ask ivr
+  const res = await fetch(`https://api.ivr.fi/v2/twitch/user?login=${who}`, { signal: AbortSignal.timeout(10000) });
+  if (!res.ok) throw new Error(`ivr ${res.status}`);
+  const logo = (await res.json())[0]?.logo ?? ''; // [] = no such user
+  return PICTURE.test(logo) ? logo.replace(/-600x600\./, '-300x300.') : null; // the size decapi and Twitch's API give
 }
 
 module.exports = { image, subVersion, loadChannel, avatar, hasKey };
