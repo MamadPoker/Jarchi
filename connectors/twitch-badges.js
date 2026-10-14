@@ -64,7 +64,7 @@ async function loadChannel(roomId) {
   try {
     const [global, channel] = await Promise.all([helix('chat/badges/global'), helix(`chat/badges?broadcaster_id=${roomId}`)]);
     fromHelix.clear();
-    for (const set of [...global.data, ...channel.data]) for (const v of set.versions) fromHelix.set(`${set.set_id}/${v.id}`, v.image_url_2x);
+    for (const set of [...global.data, ...channel.data]) for (const v of set.versions) fromHelix.set(`${set.set_id}/${v.id}`, v.image_url_4x ?? v.image_url_2x);
     channelSubs = (channel.data.find((set) => set.set_id === 'subscriber')?.versions ?? []).map((v) => Number(v.id)).filter((n) => n < 1000);
   } catch (err) {
     console.warn('Twitch badges:', err.message);
@@ -73,7 +73,7 @@ async function loadChannel(roomId) {
 
 function image(set, version) {
   const id = BUILT_IN[`${set}/${version}`] ?? BUILT_IN[set];
-  return fromHelix.get(`${set}/${version}`) ?? (id ? `${CDN}/${id}/2` : null);
+  return fromHelix.get(`${set}/${version}`) ?? (id ? `${CDN}/${id}/3` : null); // 3 = 72 px, Twitch's sharpest
 }
 
 // The sub badge version Twitch shows for `months` of subscribing: the channel's highest tier up to that, else the default.

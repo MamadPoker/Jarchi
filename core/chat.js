@@ -89,9 +89,11 @@ function restart() {
   if (globalRequested) seventv.loadGlobal();
 }
 
-// A connector's message -> 7TV emotes added -> the bus.
+// A connector's message -> 7TV emotes added -> the bus, right away. A chatter seen before brings their profile picture
+// along; a new one's is looked up after the message went out, and widgets swap it in when it comes ('chatAvatar').
 function publish(m) {
-  const msg = emitChat({ ...m, parts: seventv.enrich(m.platform, m.parts ?? []) });
+  const cached = avatars.get(`${m.platform}:${String(m.user?.login ?? m.user?.name ?? '').toLowerCase()}`);
+  const msg = emitChat({ ...m, user: { ...m.user, avatar: m.user?.avatar ?? cached }, parts: seventv.enrich(m.platform, m.parts ?? []) });
   if (!msg.user.avatar && settings.get().chat.avatars) lookUpAvatar(msg);
 }
 

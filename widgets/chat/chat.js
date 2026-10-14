@@ -20,6 +20,13 @@ const KICK_DEFAULT = '#FFFFFF';
 // (assets/kick-avatars), picked by the name so it's the same one every time.
 const kickAvatar = (m) => `/assets/kick-avatars/default-avatar-${(hash(m.user.login) % 6) + 1}.webp`;
 const BADGE_KEY = { broadcaster: 'badgeBroadcaster', moderator: 'badgeMod', vip: 'badgeVip', subscriber: 'badgeSub', other: 'badgeOther' };
+// "Badges: Important only": roles and statuses (Twitch's "partner" is its verified check). Gifter tiers, Prime, levels and
+// the like only with "All".
+const IMPORTANT = new Set(['broadcaster', 'moderator', 'vip', 'og', 'founder', 'subscriber', 'verified', 'partner', 'staff']);
+// "Make names readable": what's behind a see-through chat is the stream, taken as dark (like the text shadow does), and
+// the styles whose messages are filled with their turn color.
+const STREAM = '#111111';
+const TURN_FILL = new Set(['comic', 'sticky', 'pastel', 'candy']);
 // Per style: name colors for "Style colors", and colors that messages take turns with (null = the box color option).
 const STYLE_NAMES = { kick: ['#00F1FF', '#4CFF75', '#55FFC7', '#6F87FF', '#AAA9FF', '#BDFF28', '#E26EFF', '#E4D88F', '#E5FFAB', '#FEA0CF', '#FF2C56', '#FF4117', '#FF55B3', '#FFA600', '#FFAE76', '#FFFFFF'], cyberpunk: ['#fcee0a', '#00f0ff'], comic: ['#e63946', '#1d4ed8', '#059669', '#9333ea', '#ea580c'], galaxy: ['#c9a8ff', '#8fb8ff', '#ff9ad5'], persian: ['#e9c46a', '#2ec4b6'], led: ['#ffb000', '#ff8c1a', '#ffd34d'] };
 const STYLE_TURNS = { comic: [null, '#ffe14d', '#a5e4ff'], sticky: [null, '#ffb3c7', '#b8f2d0', '#a9d8ff', '#ffd59e'], pastel: [null, '#ffc6e0', '#bff0d8', '#ffd9b3', '#c5dcff'], popin: ['#ff4d9d', '#3ee8ff', '#ffd54d', '#7cff6b'], candy: ['#dccbff', '#ffc6e0', '#bff0d8', '#fff1a8'] };
@@ -63,7 +70,9 @@ if (params.has('thumb')) {
   });
 } else {
   if (params.has('preview')) document.body.classList.add('preview');
-  const socket = io();
+  // WebSocket first: over HTTP polling, chat waited behind profile pictures and emotes still downloading (a browser
+  // opens only 6 connections to this PC at a time). Polling stays as the fallback if WebSocket can't connect.
+  const socket = io({ transports: ['websocket', 'polling'], tryAllTransports: true });
   socket.on('strings', (s) => (S = s));
   socket.on('settings', (s) => {
     mainSettings = s;
@@ -112,13 +121,15 @@ function apply(still = false) {
     'chat', `style-${cfg.style}`, `layout-${cfg.layout}`, `new-${cfg.newAt}`, `bg-${cfg.bg}`,
     cfg.bubbles && 'bubbles', boxed && 'boxed', cfg.border && 'bordered', cfg.fade && cfg.fadeZone > 0 && 'fade',
     cfg.textShadow && 'shadow', cfg.namePos === 'above' && 'name-above', still && 'still',
-    light && 'light', // light boxes: light names get an outline (chat.css), their color stays
+    cfg.blur > 0 && 'blurred', // only then: a backdrop filter puts each message on its own layer, which can blur its text
+    light && 'light', // light boxes: light names get an outline (chat.css)
   ].filter(Boolean).join(' ');
   const vars = {
     '--w': `${cfg.width}px`, '--h': `${cfg.height}px`, '--font': `"${cfg.font}", "Segoe UI", system-ui, sans-serif`,
     '--fs': `${cfg.fontSize}px`, '--ns': `${cfg.nameSize}px`, '--text': cfg.textColor, '--bg': rgba(cfg.bgColor, cfg.bgOpacity),
     '--bd': cfg.borderColor, '--bw': `${cfg.borderWidth}px`, '--radius': `${cfg.radius}px`, '--pad': `${cfg.padding}px`, '--gap': `${cfg.gap}px`,
     '--emote': `${cfg.emoteSize}px`, '--emote-big': `${cfg.bigEmoteSize}px`, '--fade': `${cfg.fadeZone}px`, '--blur': `${cfg.blur}px`,
+    '--badge': cfg.badgeSize,
   };
   for (const [k, v] of Object.entries(vars)) root.style.setProperty(k, v);
   root.querySelector('.bar-title').textContent = S.chatText[cfg.style === 'news' ? 'liveLabel' : 'windowTitle'];
@@ -194,32 +205,94 @@ function nameColor(m) {
   return m.user.color ?? (m.platform === 'kick' ? KICK_DEFAULT : TWITCH_DEFAULTS[hash(m.user.login) % TWITCH_DEFAULTS.length]);
 }
 
+// ---------- Readable names: WCAG contrast, and the same hue lighter or darker ----------
+const rgb = (hex) => { const n = parseInt(hex.slice(1), 16); return [n >> 16, (n >> 8) & 255, n & 255]; };
+const toHex = (c) => `#${c.map((v) => Math.round(v).toString(16).padStart(2, '0')).join('')}`;
+const mix = (a, b, k) => toHex(rgb(a).map((v, i) => v * k + rgb(b)[i] * (1 - k))); // a over b, a at opacity k
+const relLum = (hex) => {
+  const [r, g, b] = rgb(hex).map((v) => (v /= 255) <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4);
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+};
+const contrast = (a, b) => { const [x, y] = [relLum(a), relLum(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
+function toHsl(hex) {
+  const [r, g, b] = rgb(hex).map((v) => v / 255);
+  const max = Math.max(r, g, b), min = Math.min(r, g, b), l = (max + min) / 2, d = max - min;
+  if (!d) return [0, 0, l];
+  const s = d / (1 - Math.abs(2 * l - 1));
+  const hue = max === r ? ((g - b) / d) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  return [hue * 60, s, l];
+}
+function fromHsl(hue, s, l) {
+  const c = (1 - Math.abs(2 * l - 1)) * s, x = c * (1 - Math.abs(((hue / 60) % 2 + 2) % 2 - 1)), m0 = l - c / 2;
+  const [r, g, b] = [[c, x, 0], [x, c, 0], [0, c, x], [0, x, c], [x, 0, c], [c, 0, x]][Math.floor((((hue % 360) + 360) % 360) / 60)];
+  return toHex([r, g, b].map((v) => (v + m0) * 255));
+}
+// A color too close to its background (under 4.5:1) keeps its hue and gets just as much lighter or darker as it needs.
+function readable(color, bg) {
+  if (contrast(color, bg) >= 4.5) return color;
+  const [hue, s, l] = toHsl(color);
+  const darker = contrast('#000000', bg) > contrast('#ffffff', bg);
+  let lo = darker ? 0 : l, hi = darker ? l : 1;
+  for (let i = 0; i < 14; i++) {
+    const mid = (lo + hi) / 2, ok = contrast(fromHsl(hue, s, mid), bg) >= 4.5;
+    if (ok === darker) lo = mid; else hi = mid;
+  }
+  return fromHsl(hue, s, darker ? lo : hi);
+}
+// What's behind a name: its message's fill (styles with turn colors), the box, or the stream.
+function behindName(turn) {
+  if (cfg.style === 'cyberbar' && !vertical()) return cfg.borderColor; // its messages sit on tags in the border color
+  if (cfg.bg !== 'color') return STREAM;
+  return mix(TURN_FILL.has(cfg.style) ? turn : cfg.bgColor, STREAM, cfg.bgOpacity);
+}
+
+// ---------- OG hat: Kick viewers with the OG badge get one (assets/og-hats) ----------
+// Where it sits: 'first' | 'last' (letter of the name) | 'badge' | 'avatar', or null (no hat).
+function hatAt(m) {
+  if (!cfg.ogHat || m.platform !== 'kick' || !m.user.badges.some((b) => b.name === 'og')) return null;
+  return cfg.hatPos === 'avatar' && !cfg.avatars ? 'first' : cfg.hatPos;
+}
+const hatEl = (at) => h('img', { className: `hat hat-${at} hat-${cfg.hatStyle}${at === 'badge' ? ' badge' : ''}`, src: `/assets/og-hats/${cfg.hatStyle}.svg`, alt: at === 'badge' ? 'OG' : '' });
+
 // The name in its color; a light color is marked (lname) so light message backgrounds can outline it.
-function nameEl(m, rainbow) {
-  const color = nameColor(m);
-  return h('span', { className: `name${rainbow ? ' rainbow' : ''}${lum(color) > 0.6 ? ' lname' : ''}`, textContent: m.user.name, style: `color:${color}` });
+function nameEl(m, rainbow, turn, hat) {
+  let color = nameColor(m);
+  if (cfg.readableNames && cfg.nameColorMode === 'user') color = readable(color, behindName(turn));
+  const el = h('span', { className: `name${rainbow ? ' rainbow' : ''}${lum(color) > 0.6 ? ' lname' : ''}`, style: `color:${color}` });
+  if (hat !== 'first' && hat !== 'last') {
+    el.textContent = m.user.name;
+    return el;
+  }
+  // The hat on the first or last letter: that letter gets its own box, so the hat can be twice its width.
+  const chars = Array.from(m.user.name);
+  const letter = h('span', { className: 'hat-letter' }, hat === 'first' ? chars.shift() : chars.pop(), hatEl(hat));
+  el.append(...(hat === 'first' ? [letter, chars.join('')] : [chars.join(''), letter]));
+  return el;
 }
 
-// The profile picture. Kick: the real one, else (none, or it doesn't load) Kick's default. Twitch: the letter circle
-// when there's no picture or it doesn't load.
+// The profile picture. Until the real one has loaded (or without one): Kick's default picture on Kick, the letter
+// circle on Twitch. The message never waits for it.
 function avatarEl(m) {
-  const letter = () => h('span', { className: 'avatar letter', textContent: (m.user.name || '?').slice(0, 1).toUpperCase(), style: `background:${nameColor(m)}` });
-  const kick = m.platform === 'kick';
-  if (!m.user.avatar && !kick) return letter();
-  const img = h('img', { className: 'avatar', src: m.user.avatar ? remote(m.user.avatar) : kickAvatar(m), alt: '' });
-  img.onerror = () => {
-    img.onerror = null;
-    if (kick && m.user.avatar) img.src = kickAvatar(m);
-    else img.replaceWith(letter());
-  };
-  return img;
+  const stand = m.platform === 'kick'
+    ? h('img', { className: 'avatar', src: kickAvatar(m), alt: '' })
+    : h('span', { className: 'avatar letter', textContent: (m.user.name || '?').slice(0, 1).toUpperCase(), style: `background:${nameColor(m)}` });
+  if (!m.user.avatar) return stand;
+  const img = h('img', { className: 'avatar', src: remote(m.user.avatar), alt: '' });
+  if (img.complete && img.naturalWidth) return img; // loaded before: no stand-in
+  img.onload = () => stand.replaceWith(img);
+  return stand;
 }
 
-function badgesEl(m) {
-  if (!cfg.showBadges) return null;
-  const out = m.user.badges.filter((b) => cfg[BADGE_KEY[b.type] ?? 'badgeOther']).map((b) => (b.img
-    ? h('img', { className: 'badge', src: remote(b.img), alt: b.title, title: b.title })
-    : h('span', { className: `badge-text bt-${b.type}`, textContent: S.chatText.badges[b.name] ?? b.title })));
+// The badges to show. With the OG hat on the badges, the hat takes the OG badge's place (shown even with badges off).
+function badgesEl(m, hat) {
+  const show = (b) => cfg.showBadges && cfg[BADGE_KEY[b.type] ?? 'badgeOther'] && (cfg.badgeMode === 'all' || IMPORTANT.has(b.name));
+  const out = m.user.badges.map((b) => {
+    if (hat === 'badge' && b.name === 'og') return hatEl('badge');
+    if (!show(b)) return null;
+    return b.img
+      ? h('img', { className: 'badge', src: remote(b.img), alt: b.title, title: b.title })
+      : h('span', { className: `badge-text bt-${b.type}`, textContent: S.chatText.badges[b.name] ?? b.title });
+  }).filter(Boolean);
   return out.length ? h('span', { className: 'badges' }, ...out) : null;
 }
 
@@ -242,21 +315,24 @@ function msgEl(m) {
   const first = m.first && cfg.fxFirst;
   const tags = [glow && h('span', { className: 'tag tag-sub', textContent: S.chatText.subTag }), first && h('span', { className: 'tag tag-first', textContent: S.chatText.firstTag })].filter(Boolean);
   const time = new Date(m.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  const meta = h('span', { className: 'meta' },
-    cfg.showTime && h('time', { textContent: time }),
-    cfg.showPlatform && h('img', { className: 'platform', src: `/assets/platform-logos/${m.platform}.svg`, alt: m.platform }),
-    badgesEl(m),
-    nameEl(m, rainbow),
-    cfg.showColon && m.kind === 'message' && !m.action && h('span', { className: 'colon', textContent: SEPARATOR[cfg.style] ?? ':' }));
-  const hasText = m.parts.some((p) => p.t === 'emote' || p.v.trim());
-  const el = h('div', { className: ['msg', m.kind === 'sub' && 'kind-sub', glow && 'glow', first && 'first', mention && 'mention', m.action && 'action'].filter(Boolean).join(' ') },
-    tags.length ? h('div', { className: 'tags' }, ...tags) : null,
-    m.kind === 'sub' && m.system ? h('div', { className: 'system', dir: cfg.textDir, textContent: m.system }) : null,
-    m.kind === 'message' || hasText ? h('div', { className: 'line' }, cfg.avatars && avatarEl(m), meta, bodyEl(m)) : null);
-  // For the styles: the message's turn color, a small tilt (same each time it's drawn) and its text direction.
+  // For the styles: the message's turn color (also what's behind its name), a small tilt (same each time it's drawn).
   m.seq ??= ++seq;
   const turns = STYLE_TURNS[cfg.style];
-  if (turns) el.style.setProperty('--turn', rgba(turns[m.seq % turns.length] ?? cfg.bgColor, cfg.bgOpacity));
+  const turn = turns && (turns[m.seq % turns.length] ?? cfg.bgColor);
+  const hat = hatAt(m);
+  const meta = h('span', { className: 'meta' },
+    cfg.showTime && h('time', { textContent: time }),
+    cfg.showPlatform && h('img', { className: `platform pl-${m.platform}`, src: `/assets/platform-logos/${m.platform}.svg`, alt: m.platform }),
+    badgesEl(m, hat),
+    nameEl(m, rainbow, turn, hat),
+    cfg.showColon && m.kind === 'message' && !m.action && h('span', { className: 'colon', textContent: SEPARATOR[cfg.style] ?? ':' }));
+  const avatar = cfg.avatars && (hat === 'avatar' ? h('span', { className: 'avatar-box' }, avatarEl(m), hatEl('avatar')) : avatarEl(m));
+  const hasText = m.parts.some((p) => p.t === 'emote' || p.v.trim());
+  const el = h('div', { className: ['msg', m.kind === 'sub' && 'kind-sub', glow && 'glow', first && 'first', mention && 'mention', m.action && 'action', hat && hat !== 'badge' && 'hatted'].filter(Boolean).join(' ') },
+    tags.length ? h('div', { className: 'tags' }, ...tags) : null,
+    m.kind === 'sub' && m.system ? h('div', { className: 'system', dir: cfg.textDir, textContent: m.system }) : null,
+    m.kind === 'message' || hasText ? h('div', { className: 'line' }, avatar, meta, bodyEl(m)) : null);
+  if (turn) el.style.setProperty('--turn', rgba(turn, cfg.bgOpacity));
   el.style.setProperty('--tilt', `${(hash(m.id) % 61) / 10 - 3}deg`);
   el.dataset.dir = cfg.textDir !== 'auto' ? cfg.textDir : RTL.test(m.text.match(/\p{L}/u)?.[0] ?? '') ? 'rtl' : 'ltr';
   return el;
@@ -425,7 +501,8 @@ function prune() {
 // Ticker: each message slides across; the next one starts when there is room, so they never overlap.
 // repeat: a looped message (no arrival effects). Returns false when skipped.
 // Messages wait for their images (emotes, badges) before they're measured, so a late image never makes one wider
-// than the space it was given; they still go in order.
+// than the space it was given; they still go in order. The wait counts from when a message came in, not from its turn
+// (one slow picture used to hold every message behind it), and profile pictures (fixed size) never hold one.
 let tickChain = Promise.resolve();
 function addTick(m, still, repeat = false) {
   const el = h('div', { className: 'tick' }, msgEl(m));
@@ -441,11 +518,12 @@ function addTick(m, still, repeat = false) {
   list.append(el);
   rows.push(r);
   const fill = filling;
-  tickChain = tickChain.then(() => imagesReady(el)).then(() => place(r, fill));
+  const ready = imagesReady(el);
+  tickChain = tickChain.then(() => ready).then(() => place(r, fill));
   return true;
 }
 const imagesReady = (el) => Promise.race([
-  Promise.all([...el.querySelectorAll('img')].map((i) => (i.complete ? null : new Promise((ok) => { i.onload = i.onerror = ok; })))),
+  Promise.all([...el.querySelectorAll('img:not(.avatar)')].map((i) => (i.complete ? null : new Promise((ok) => { i.onload = i.onerror = ok; })))),
   new Promise((ok) => setTimeout(ok, 1500)),
 ]);
 

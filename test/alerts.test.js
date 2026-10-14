@@ -250,8 +250,8 @@ test('Kick events become one alert each, repeats are dropped, goals count them',
 
 test('Kick gift of 2: one gift alert even when its viewers\' "subscribed" comes first; a real sub still alerts', (t) => {
   t.mock.timers.enable({ apis: ['setTimeout'] });
-  const got = [];
-  const cb = { onMessage() {}, onClear() {}, onAlert: (a) => got.push([a.type, a.user, a.amount ?? a.months]) };
+  const got = [], lines = [];
+  const cb = { onMessage: (m) => lines.push(m.system || m.text), onClear() {}, onAlert: (a) => got.push([a.type, a.user, a.amount ?? a.months]) };
   const H = (event, data) => kick.handle(event, JSON.stringify(data), 'somechannel', { subBadges: [] }, cb);
   // The chat socket's "subscribed" for both viewers reaches Jarchi just before the gift itself (another socket).
   H('App\\Events\\SubscriptionEvent', { chatroom_id: 1, username: 'GiftedOne', months: 1 });
@@ -259,6 +259,9 @@ test('Kick gift of 2: one gift alert even when its viewers\' "subscribed" comes 
   H('GiftedSubscriptionsEvent', { chatroom_id: 1, correlation_id: 'pi_two', gifted_usernames: ['GiftedOne', 'GiftedTwo'], gifter_username: 'Santa', gifted_total: 2, gifter_total: 2, chunk_details: null });
   H('App\\Events\\SubscriptionEvent', { chatroom_id: 1, username: 'RealFan', months: 1 });
   H('App\\Events\\ChatMessageEvent', { id: 'm1', content: 'hi', sender: { username: 'Chatter', slug: 'chatter' } });
+  // The 3 s wait is for sub alerts only: every chat line, the sub lines too, is out at once.
+  assert.deepEqual(lines, ['GiftedOne subscribed for 1 months!', 'GiftedTwo subscribed for 1 months!', 'Santa gifted 2 subs!', 'RealFan subscribed for 1 months!', 'hi']);
+  assert.deepEqual(got, [['gift_sub', 'Santa', 2]], 'the sub alerts wait');
   t.mock.timers.tick(kick.HOLD_MS);
   assert.deepEqual(got, [['gift_sub', 'Santa', 2], ['sub', 'RealFan', 1]]);
 

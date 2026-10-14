@@ -22,6 +22,7 @@ body.preview, body.thumb { display: grid; place-items: center; }
   font-family: var(--font);
   font-size: var(--fs);
   line-height: 1.35;
+  font-synthesis: style; /* no fake bold: fonts with one weight (Impact, Bangers, Press Start 2P) stay crisp */
 }
 .chat[hidden] { display: none; }
 /* One box around the whole chat (bubbles off) */
@@ -34,7 +35,8 @@ body.preview, body.thumb { display: grid; place-items: center; }
 .chat.bubbles.bg-transparent .msg { background: transparent; }
 .chat.bubbles.bordered .msg { border: var(--bw) solid var(--bd); }
 .chat.bubbles.bg-off .msg { padding: 0; background: none; border: 0; }
-.chat.boxed, .chat.bubbles .msg { backdrop-filter: blur(var(--blur)); }
+/* Only with a blur set: a backdrop filter puts the box on its own layer, and text on such a layer can come out soft */
+.chat.blurred.boxed, .chat.blurred.bubbles .msg { backdrop-filter: blur(var(--blur)); }
 
 .viewport { position: relative; flex: 1; min-height: 0; overflow: hidden; }
 .list { position: absolute; left: 0; right: 0; bottom: 0; display: flex; flex-direction: column; }
@@ -52,15 +54,18 @@ body.preview, body.thumb { display: grid; place-items: center; }
 
 /* A message */
 .msg { overflow-wrap: anywhere; }
-.shadow .msg { text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9), 0 0 2px rgba(0, 0, 0, 0.8); }
+.shadow .msg { text-shadow: 0 1px 1px rgba(0, 0, 0, 0.9), 0 0 2px rgba(0, 0, 0, 0.7); } /* tight, so letters keep sharp edges */
 .line { display: block; }
 .meta { margin-right: 0.3em; font-size: var(--ns); font-weight: 700; } /* the space before the message, with or without a colon */
 .meta time { margin-right: 0.35em; font-weight: 400; opacity: 0.7; font-size: 0.85em; }
 /* Name, time and colon stay on the message's baseline; icons are as tall as the name and centered on its letters. */
-.platform { width: 1em; height: 1em; margin-right: 0.3em; vertical-align: middle; }
+/* Platform icon: the official logo as it is, on a small dark tile so it shows on light boxes too */
+.platform { box-sizing: border-box; width: 1.1em; height: 1.1em; padding: 0.17em; margin-right: 0.3em; border-radius: 0.25em; background: #000; vertical-align: middle; }
+.platform.pl-twitch { background: #0e0e10; } /* Twitch's own dark */
 .badges { margin-right: 0.3em; }
-.badge { height: 1em; margin-right: 0.18em; vertical-align: middle; }
-.badge-text { display: inline-block; margin-right: 0.25em; padding: 0.1em 0.35em; border-radius: 0.3em; background: rgba(255, 255, 255, 0.18); font-size: 0.62em; font-weight: 800; letter-spacing: 0.04em; line-height: 1.3; vertical-align: middle; text-shadow: none; }
+/* Badges: as tall as the name, times "Badge size" (--badge) */
+.badge { height: calc(1em * var(--badge, 1)); margin-right: 0.18em; vertical-align: middle; }
+.badge-text { display: inline-block; margin-right: 0.25em; padding: 0.1em 0.35em; border-radius: 0.3em; background: rgba(255, 255, 255, 0.18); font-size: calc(0.62em * var(--badge, 1)); font-weight: 800; letter-spacing: 0.04em; line-height: 1.3; vertical-align: middle; text-shadow: none; }
 .bt-broadcaster { background: #e5484d; color: #fff; }
 .bt-moderator { background: #2fbf71; color: #fff; }
 .bt-vip { background: #d63ad8; color: #fff; }
@@ -70,6 +75,23 @@ body.preview, body.thumb { display: grid; place-items: center; }
 .body.big .emote { height: var(--emote-big); }
 .avatar { display: inline-flex; align-items: center; justify-content: center; width: 1.7em; height: 1.7em; margin-right: 0.4em; border-radius: 50%; object-fit: cover; vertical-align: middle; font-size: var(--ns); font-weight: 800; color: #fff; text-shadow: none; }
 .combo { display: inline-block; margin-left: 0.4em; color: #ffd54d; font-weight: 900; }
+/* OG hat (Kick viewers with the OG badge): on a letter of the name, on the profile picture, or with the badges.
+   Every size is in em of the name, so it follows "Name size". The SVGs are images, so their ids never clash. */
+.hat { filter: drop-shadow(0 0.05em 0.07em rgba(0, 0, 0, 0.5)); pointer-events: none; }
+.hat-letter { position: relative; display: inline-block; line-height: 1; }
+/* About twice the letter's width (the letter's own box), tilted, over the top of the letter */
+.hat-first, .hat-last { position: absolute; z-index: 1; bottom: 0.62em; left: 50%; width: 200%; min-width: 1.2em; max-width: 1.7em; transform: translateX(-50%) rotate(-12deg); }
+.hat-last { transform: translateX(-50%) rotate(12deg); }
+.hat-cap.hat-first { transform: translateX(-44%) rotate(-12deg); } /* the cap's crown, not its peak, over the letter */
+.hat-cap.hat-last { transform: translateX(-44%) rotate(12deg); }
+/* Room above a hatted name, so the hat never covers the line above */
+.layout-vertical .msg.hatted .line { padding-top: calc(var(--ns) * 0.62); }
+.avatar-box { position: relative; display: inline-block; margin-right: 0.4em; font-size: var(--ns); vertical-align: middle; line-height: 0; }
+.avatar-box .avatar { margin-right: 0; }
+.name-above .avatar-box { grid-row: span 2; align-self: start; }
+.hat-avatar { position: absolute; z-index: 1; left: 50%; bottom: 1.12em; width: 2em; transform: translateX(-50%) rotate(-12deg); }
+.hat-cap.hat-avatar { transform: translateX(-44%) rotate(-12deg); }
+.hat-badge { width: auto; }
 
 /* Name above the message */
 .name-above .line { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; }
@@ -118,12 +140,13 @@ body.preview, body.thumb { display: grid; place-items: center; }
 /* No box: the border option draws a line beside each message */
 .chat.bg-off.bordered .msg { border-left: var(--bw) solid var(--bd); padding-left: 0.6em; }
 
-/* Light boxes: dark text tags. A light name (lname) keeps its platform color and gets a thin dark outline instead,
-   here and on the other light message backgrounds (Cyberpunk bar's yellow pills, Cyberpunk's newest message). */
+/* Light boxes: dark text tags. A light name (lname) keeps its color and gets a thin, hard dark outline instead (no blur, so
+   it stays sharp), here and on the other light message backgrounds (Cyberpunk bar's yellow pills, Cyberpunk's newest
+   message). With "Make names readable" on, platform colors are already made to read, so this is rarely needed. */
 .light .bt-other { background: rgba(0, 0, 0, 0.12); }
 .light .name.lname:not(.rainbow), .style-cyberbar .tick .name.lname,
 .chat.style-cyberpunk.new-bottom .row:last-child .name.lname, .chat.style-cyberpunk.new-top .row:first-child .name.lname, .chat.style-cyberpunk .tick:last-child .name.lname {
-  text-shadow: 0 0 1px #000, 0 0 1px #000, 0 0 1px #000, 0 1px 2px rgba(0, 0, 0, 0.3);
+  text-shadow: 1px 0 0 rgba(0, 0, 0, 0.75), -1px 0 0 rgba(0, 0, 0, 0.75), 0 1px 0 rgba(0, 0, 0, 0.75), 0 -1px 0 rgba(0, 0, 0, 0.75);
 }
 
 /* ---------- Styles: what the options can't do ---------- */
@@ -136,7 +159,7 @@ body.preview, body.thumb { display: grid; place-items: center; }
 /* Kick default: Kick's own chat. Plain lines with Kick's spacing (badges 16px before the name, a colon, the message,
    emotes in the line); Kick's green (#53fc18) for mentions, subs, first messages and combos instead of the usual colors. */
 .style-kick .msg { padding: 4px 6px; border-radius: 4px; line-height: 1.5; }
-.style-kick .badge { height: 1.15em; margin-right: 4px; }
+.style-kick .badge { height: calc(1.15em * var(--badge, 1)); margin-right: 4px; }
 .style-kick .badges { margin-right: 2px; }
 .chat.style-kick .msg.mention { padding-left: 9px; background: rgba(83, 252, 24, 0.12); box-shadow: inset 3px 0 0 #53fc18; }
 .chat.style-kick .msg.glow { padding: 6px 8px; background: rgba(83, 252, 24, 0.1); box-shadow: 0 0 0 1px rgba(83, 252, 24, 0.7); animation: none; }

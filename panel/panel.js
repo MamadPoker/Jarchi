@@ -26,7 +26,7 @@ const pct = (v) => `${Math.round(v * 100)}%`;
 const px = (v) => `${v}px`;
 const FORMAT = {
   volume: pct, frameOpacity: pct, frameRadius: px, fontSize: px, bgOpacity: pct, borderWidth: px, radius: px, scale: pct,
-  emoteSize: px, bigEmoteSize: px, nameSize: px, padding: px, gap: px, width: px, height: px, fadeZone: px, blur: px,
+  emoteSize: px, bigEmoteSize: px, badgeSize: pct, nameSize: px, padding: px, gap: px, width: px, height: px, fadeZone: px, blur: px,
   tickerSpeed: (v) => `${v} px/s`, maxMessages: (v) => String(v), hideAfter: (v) => (Number(v) ? tpl(S.panel.seconds, { n: v }) : S.panel.never), animSpeed: (v) => `×${v}`,
 };
 const GOAL_STEP = { subs: 1, kicks: 100 }; // what "Test", "+" and "−" add
@@ -58,12 +58,16 @@ const GROUPS = () => [
 // Chat "More options", built from this list: [group label, [[kind, field, options]...]].
 // kind: toggle | range | seg | select | color | text. options.only: shown only when CHAT_ONLY[only] is true.
 const CHAT_GROUPS = () => [
-  ['chatShow', [['toggle', 'showPlatform'], ['toggle', 'showBadges'], ['toggle', 'badgeBroadcaster', { only: 'badges' }], ['toggle', 'badgeMod', { only: 'badges' }],
-    ['toggle', 'badgeVip', { only: 'badges' }], ['toggle', 'badgeSub', { only: 'badges' }], ['toggle', 'badgeOther', { only: 'badges' }], ['toggle', 'showTime'], ['toggle', 'showColon']]],
+  ['chatShow', [['toggle', 'showPlatform'], ['toggle', 'showBadges'], ['seg', 'badgeMode', { options: [['important', 'badgesImportant'], ['all', 'badgesAll']], only: 'badges' }],
+    ['range', 'badgeSize', { min: 0.5, max: 2, step: 0.05, only: 'badges' }], ['toggle', 'badgeBroadcaster', { only: 'badges' }], ['toggle', 'badgeMod', { only: 'badges' }],
+    ['toggle', 'badgeVip', { only: 'badges' }], ['toggle', 'badgeSub', { only: 'badges' }], ['toggle', 'badgeOther', { only: 'badges' }], ['toggle', 'showTime'], ['toggle', 'showColon'],
+    ['toggle', 'ogHat'], ['seg', 'hatStyle', { options: [['cap', 'hatCap'], ['beanie', 'hatBeanie'], ['fedora', 'hatFedora']], only: 'hat' }],
+    ['select', 'hatPos', { options: [['first', 'hatFirst'], ['last', 'hatLast'], ['badge', 'hatBadge'], ['avatar', 'hatAvatar']], only: 'hat' }]]],
   ['chatEmotes', [['toggle', 'emotesKick'], ['toggle', 'emotesTwitch'], ['toggle', 'emotes7tv'], ['toggle', 'emotesAnimated'], ['range', 'emoteSize', { min: 12, max: 112 }],
     ['toggle', 'bigEmotes'], ['range', 'bigEmoteSize', { min: 16, max: 160, only: 'big' }]]],
   ['chatText', [['select', 'font', { options: chatFonts.map((x) => [x, x]) }], ['range', 'fontSize', { min: 10, max: 72, label: 'messageSize' }], ['range', 'nameSize', { min: 10, max: 72 }],
     ['seg', 'nameColorMode', { label: 'nameColor', options: [['user', 'nameOwn'], ['style', 'nameStyle'], ['custom', 'nameCustom']] }], ['color', 'nameColor', { only: 'nameCustom' }],
+    ['toggle', 'readableNames', { only: 'nameOwn' }],
     ['color', 'textColor', { label: 'messageColor' }], ['seg', 'namePos', { options: [['inline', 'nameInline'], ['above', 'nameAbove']] }], ['toggle', 'textShadow'],
     ['select', 'textDir', { options: [['auto', 'dirAuto'], ['ltr', 'dirLtr'], ['rtl', 'dirRtl']] }]]],
   ['chatBox', [['seg', 'bg', { label: 'bgMode', options: [['color', 'bgColor'], ['transparent', 'bgTransparent'], ['off', 'bgOff']] }], ['color', 'bgColor', { only: 'bgColor' }],
@@ -789,6 +793,7 @@ function renderChat() {
   const show = {
     off: !c.enabled, badges: c.showBadges, big: c.bigEmotes, nameCustom: c.nameColorMode === 'custom', bgColor: c.bg === 'color',
     borderOn: c.border, typewriter: c.typewriter, ticker: c.layout === 'horizontal', vertical: c.layout === 'vertical', fade: c.fade, bots: c.hideBots,
+    nameOwn: c.nameColorMode === 'user', hat: c.ogHat,
   };
   $$('[data-only]', ed).forEach((e) => (e.hidden = !show[e.dataset.only]));
   fitChat();

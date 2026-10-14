@@ -168,7 +168,7 @@ test('test messages: random viewers with real badge images and the Kick channel\
   if (!server.listening) await new Promise((r) => server.once('listening', r));
   const chat = require('../core/chat');
   const badges = require('../connectors/twitch-badges');
-  assert.equal(badges.image('sub-gifter', '25'), 'https://static-cdn.jtvnw.net/badges/v1/052a5d41-f1cc-455c-bc7b-fe841ffaf17f/2');
+  assert.equal(badges.image('sub-gifter', '25'), 'https://static-cdn.jtvnw.net/badges/v1/052a5d41-f1cc-455c-bc7b-fe841ffaf17f/3');
   assert.equal(badges.image('sub-gifter', '7'), null, 'no made-up images');
 
   // A Kick channel with its own sub badges (1 and 6 months), without going online.
@@ -225,12 +225,57 @@ test('chat styles: all 27 can be picked (Kick default first), new options valida
   }
   assert.equal((await call('PATCH', '/api/settings', { chat: { style: 'rpg' } })).status, 200);
   assert.equal((await (await call('GET', '/api/settings')).json()).chat.typewriter, true, 'RPG dialog types out');
-  for (const ok of [{ nameColorMode: 'style' }, { enterAnim: 'drop' }, { typeSound: true }, { font: 'Vazirmatn' }]) assert.equal((await call('PATCH', '/api/settings', { chat: ok })).status, 200, JSON.stringify(ok));
-  for (const bad of [{ nameColorMode: 'rainbow' }, { enterAnim: 'spin' }, { typewriter: 'yes' }, { font: 'Comic Sans' }]) assert.equal((await call('PATCH', '/api/settings', { chat: bad })).status, 400, JSON.stringify(bad));
+  for (const ok of [{ nameColorMode: 'style' }, { enterAnim: 'drop' }, { typeSound: true }, { font: 'Vazirmatn' }, { badgeMode: 'all' }, { badgeSize: 1.5 }, { readableNames: false },
+    { ogHat: false }, { hatStyle: 'fedora' }, { hatPos: 'avatar' }]) assert.equal((await call('PATCH', '/api/settings', { chat: ok })).status, 200, JSON.stringify(ok));
+  for (const bad of [{ nameColorMode: 'rainbow' }, { enterAnim: 'spin' }, { typewriter: 'yes' }, { font: 'Comic Sans' }, { badgeMode: 'some' }, { badgeSize: 5 },
+    { hatStyle: 'tophat' }, { hatPos: 'middle' }]) assert.equal((await call('PATCH', '/api/settings', { chat: bad })).status, 400, JSON.stringify(bad));
+  const fresh = (await (await call('PATCH', '/api/settings', { chat: { style: 'comic' } })).json()).chat;
+  assert.deepEqual([fresh.ogHat, fresh.hatStyle, fresh.hatPos, fresh.badgeMode], [false, 'fedora', 'avatar', 'important'], 'the OG hat stays when the style changes; badges take the style\'s');
+  await call('PATCH', '/api/settings', { chat: { ogHat: true, hatStyle: 'cap', hatPos: 'first' } });
+  for (const hat of ['cap', 'beanie', 'fedora']) assert.equal((await fetch(`${base}/assets/og-hats/${hat}.svg`)).status, 200, hat);
   for (const file of ['press-start-2p/PressStart2P-Regular.ttf', 'bangers/Bangers-Regular.ttf', 'fredoka/Fredoka-Variable.ttf', 'vazirmatn/Vazirmatn-Variable.ttf', 'inter/Inter-Variable.ttf']) {
     assert.equal((await fetch(`${base}/assets/fonts/${file}`)).status, 200, file);
     assert.ok(fs.existsSync(path.join(__dirname, '..', 'assets/fonts', path.dirname(file), 'OFL.txt')), `${file} license`);
   }
   await call('POST', '/api/chat/reset-style');
   await call('PATCH', '/api/settings', { chat: { style: 'classic' } });
+});
+
+test('profile pictures: the message never waits for a lookup; a returning chatter\'s picture comes with the message', async () => {
+  if (!server.listening) await new Promise((r) => server.once('listening', r));
+  const PIC = 'https://files.kick.com/images/user/1/profile_image/conversion/a-fullsize.webp';
+  const realConnect = kick.connect, realAvatar = kick.avatar;
+  let cb;
+  kick.connect = (slug, c) => { cb = c; return { stop() {} }; };
+  kick.avatar = async () => PIC;
+  await call('PATCH', '/api/settings', { chat: { kickChannel: 'picchannel', avatars: true } });
+  const seen = [], pics = [];
+  const onChat = (m) => seen.push(m), onPic = (a) => pics.push(a);
+  bus.on('chat', onChat);
+  bus.on('chatAvatar', onPic);
+  const say = (id) => cb.onMessage({ platform: 'kick', id, channel: 'picchannel', text: 'hi', user: { id: '1', login: 'newbie', name: 'Newbie', badges: [] }, parts: [{ t: 'text', v: 'hi' }] });
+  say('p1');
+  assert.deepEqual([seen.length, seen[0].user.avatar], [1, null], 'out at once, before its lookup');
+  await new Promise((r) => setTimeout(r, 50));
+  assert.deepEqual(pics, [{ platform: 'kick', login: 'newbie', avatar: PIC }], 'the picture follows');
+  say('p2');
+  assert.equal(seen[1].user.avatar, PIC, 'next message: with the picture');
+  assert.equal(pics.length, 1, 'no second lookup');
+  bus.off('chat', onChat);
+  bus.off('chatAvatar', onPic);
+  await call('PATCH', '/api/settings', { chat: { kickChannel: '', avatars: false } });
+  Object.assign(kick, { connect: realConnect, avatar: realAvatar });
+});
+
+test('readable names: a platform color too close to its background keeps its hue, just lighter or darker', () => {
+  // The widget's color code, run here as it is (between its two comments).
+  const src = fs.readFileSync(path.join(__dirname, '..', 'widgets', 'chat', 'chat.js'), 'utf8');
+  const code = src.slice(src.indexOf('// ---------- Readable names'), src.indexOf("// What's behind a name"));
+  const { readable, contrast, toHsl } = require('node:vm').runInNewContext(`${code}; ({ readable, contrast, toHsl })`);
+  for (const [color, bg] of [['#4CFF75', '#ffffff'], ['#0000FF', '#14141c'], ['#FFFFFF', '#ffe14d'], ['#E5FFAB', '#a5e4ff'], ['#FF0000', '#ffffff'], ['#000000', '#111111']]) {
+    const out = readable(color, bg);
+    assert.ok(contrast(out, bg) >= 4.5 && contrast(out, bg) < 4.8, `${color} on ${bg} -> ${out}: readable, and only just`);
+    if (toHsl(color)[1] > 0.1) assert.ok(Math.abs(toHsl(out)[0] - toHsl(color)[0]) < 4, `${color} -> ${out}: same hue`);
+  }
+  assert.equal(readable('#FF6B6B', '#14141c'), '#FF6B6B', 'already readable: unchanged');
 });
