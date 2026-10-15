@@ -42,7 +42,7 @@
   },
   "test": { "user": "TestViewer", "message": "This is a test alert!" },
   "goals": {
-    "subs": { "name": "Sub goal", "title": "Subs", "test": "Test +1 sub", "counts": "Counts subs, resubs and gifted subs (each gift = 1) from Kick and Twitch." },
+    "subs": { "name": "Sub goal", "title": "Subs", "test": "Test +1 sub", "counts": "Counts Kick subs, resubs and gifted subs (a gift of 5 subs = 5), and Twitch's too with \"Also count Twitch subs\" on." },
     "kicks": { "name": "Kicks goal", "title": "Kicks", "test": "Test +100 kicks", "counts": "Counts Kicks from Kick." }
   },
   "chatStyles": {"kick":"Kick default","classic":"Classic box","bubbles":"Bubbles","floating":"Floating","neon":"Neon","terminal":"Terminal","retro":"Retro","glass":"Glass","popin":"Pop-in","side":"Side column","ticker":"Ticker","cyberpunk":"Cyberpunk","comic":"Comic","hud":"Gamer HUD","sticky":"Sticky notes","pastel":"Pastel","galaxy":"Galaxy","rpg":"RPG dialog","persian":"Persian tile","news":"News ticker","neonstrip":"Neon strip","pills":"Pills","minimal":"Minimal","led":"LED board","cyberbar":"Cyberpunk bar","candy":"Pastel candy","glassbar":"Glass bar"},
@@ -63,7 +63,7 @@
     "groupAlerts": "Alerts",
     "groupWidgets": "Widgets",
     "chatName": "Chat",
-    "chatHint": "Reads Kick and Twitch chat with just the channel names, no login. The Kick channel also brings real Kick alerts (subs, resubs, gifted subs, Kicks, hosts). The switch only hides the chat on stream.",
+    "chatHint": "Reads Kick and Twitch chat with just the channel names, no login. Each channel also brings its real alerts (Kick: subs, resubs, gifted subs, Kicks, hosts; Twitch: subs, resubs, gifted subs, raids, bits). The switch only hides the chat on stream.",
     "chatCopy": "Copy chat OBS link",
     "chatCopyHint": "Add it in OBS as a Browser Source. Make it at least as big as the chat's width and height (More options).",
     "chatCopied": "Chat link copied!",
@@ -95,6 +95,20 @@
     "badgeVip": "VIP badge",
     "badgeSub": "Sub badge",
     "badgeOther": "Other badges",
+    "badgeMode": "Badges",
+    "badgesImportant": "Important only",
+    "badgesAll": "All",
+    "badgeSize": "Badge size",
+    "ogHat": "OG hat",
+    "hatStyle": "Hat style",
+    "hatCap": "Cap",
+    "hatBeanie": "Beanie",
+    "hatFedora": "Fedora",
+    "hatPos": "Hat position",
+    "hatFirst": "First letter",
+    "hatLast": "Last letter",
+    "hatBadge": "Badge",
+    "hatAvatar": "Profile picture",
     "showTime": "Time of message",
     "showColon": "Colon after the name",
     "chatEmotes": "Emotes",
@@ -112,6 +126,7 @@
     "nameOwn": "Platform color",
     "nameCustom": "One color",
     "nameStyle": "Style colors",
+    "readableNames": "Make names readable",
     "messageColor": "Message color",
     "namePos": "Name position",
     "nameInline": "Same line",
@@ -181,8 +196,10 @@
     "fxMention": "Highlight mentions of the streamer",
     "fxCombo": "Emote combo counter (x12)",
     "avatars": "Profile pictures",
-    "avatarsHint": "Kick: real pictures, or Kick's own default picture. Twitch: needs a Twitch key, letters until then.",
+    "avatarsHint": "Kick: real pictures, or Kick's own default picture. Twitch: real pictures, or a letter when there is none.",
     "blur": "Glass blur",
+    "chatDebug": "Debug",
+    "showTiming": "Show chat timing",
     "goalCopy": "Copy this goal's OBS link",
     "goalCopyHint": "Add it in OBS as a Browser Source, width 800, height 200 (Circle style: 400 × 400). The goal sits in the middle.",
     "goalCopied": "Goal link copied!",
@@ -221,6 +238,7 @@
     "showNumbers": "Show numbers",
     "celebration": "Celebration",
     "celebrate": "Celebration effect",
+    "goalCountTwitch": "Also count Twitch subs",
     "celebrateSound": "Celebration sound",
     "settings": "Settings",
     "off": "Off",
@@ -239,6 +257,7 @@
     "mediaTitle": "Image / GIF / video",
     "mediaDefault": "Theme animation",
     "mediaKickGift": "Kick gift (default)",
+    "mediaTwitchGem": "Twitch gem (default)",
     "soundKickDefault": "Kick chime (default)",
     "soundKick": "Kick chime",
     "mediaHint": "PNG, JPG, GIF, WebP, WebM or MP4, max 20 MB. Only WebM keeps a transparent background.",
@@ -428,12 +447,13 @@
       "showPercent": "Shows how far along it is, for example 64%.",
       "showNumbers": "Shows the count and the target, for example 32 / 50.",
       "celebrate": "Confetti and a glow, once, when the target is reached.",
+      "countTwitch": "On: Twitch new subs, resubs and gifted subs count too, the same as Kick's (a gift of 5 subs counts 5). It needs your Twitch channel in **Chat**. Off: only Kick subs count.",
       "celebrateSound": "The celebration's sound: the theme's, your own file, or none.",
       "volume": "How loud the celebration sound plays."
     },
     "chat": {
       "kickChannel": "Your channel name, as in `kick.com/name`. Brings the chat and real Kick alerts. No login.",
-      "twitchChannel": "Your channel name, as in `twitch.tv/name`. Brings the Twitch chat. No login.",
+      "twitchChannel": "Your channel name, as in `twitch.tv/name`. Brings the chat and real Twitch alerts. No login.",
       "style": "A ready-made look to start from. Every option in More options works with every style.",
       "showPlatform": "A small Kick or Twitch logo before each name.",
       "showBadges": "Badges before names, like mod, VIP or sub.",
@@ -442,6 +462,11 @@
       "badgeVip": "The VIPs' badge.",
       "badgeSub": "The subscribers' badge.",
       "badgeOther": "Every other badge, for example OG, founder or sub gifter.",
+      "badgeMode": "**Important only**: broadcaster, mod, VIP, OG, founder, sub, Kick's sub gifter, verified and staff. **All**: every badge, Twitch's gifter tiers and levels too.",
+      "badgeSize": "How big badges are next to the name. 100% is as tall as the name.",
+      "ogHat": "Kick viewers with the OG badge get a black hat with MP on it.",
+      "hatStyle": "The hat: a cap, a beanie or a fedora.",
+      "hatPos": "**First letter** / **Last letter**: on the name. **Badge**: a small hat with the badges, instead of the OG badge. **Profile picture**: on the picture (with profile pictures off: on the first letter).",
       "showTime": "The time each message was sent.",
       "showColon": "A colon between the name and the message.",
       "emotesKick": "Kick emotes as pictures. Off: their names show as text.",
@@ -455,6 +480,7 @@
       "fontSize": "Size of the message text.",
       "nameSize": "Size of viewers' names.",
       "nameColorMode": "**Platform color**: each name's own color from Kick or Twitch. **Style colors**: the style's. **One color**: the same for everyone.",
+      "readableNames": "A platform color that is hard to read on the box (light on light, dark on dark) gets just enough lighter or darker to read well. It stays the same color.",
       "nameColor": "The color for every name.",
       "textColor": "Color of the message text.",
       "namePos": "The name on the same line as the message, or above it.",
@@ -500,8 +526,9 @@
       "rainbowUsers": "More names that get the rainbow, separated by commas.",
       "fxMention": "Messages that mention your channel name stand out.",
       "fxCombo": "When people send the same emote again and again, it shows once with a counter (x12).",
-      "avatars": "Profile pictures next to names. Kick: real pictures, or Kick's own default picture for viewers without one. Twitch: letters, unless you add a Twitch key.",
-      "blur": "Blurs what's behind a see-through box, like frosted glass."
+      "avatars": "Profile pictures next to names. Kick: real pictures, or Kick's own default picture for viewers without one. Twitch: real pictures too (no key needed), or the first letter of the name when one can't be found.",
+      "blur": "Blurs what's behind a see-through box, like frosted glass.",
+      "showTiming": "For finding chat delays. Each new message gets a small label like `+1.2s`: how long after Kick or Twitch made it, it showed here. The window where Jarchi runs prints one line per message with each step: **received** (Jarchi got it), **sent** (to the chat), **shown** (the chat drew it). Turn it off when you're done."
     },
     "settings": {
       "showBadge": "A small Kick or Twitch badge on alerts. It only shows when both accounts are connected.",
@@ -520,10 +547,10 @@
     "topics": {
       "start": {
         "title": "Getting started",
-        "intro": "Jarchi runs on your own PC and shows alerts, a chat box and goals in OBS. No account and no login: your Kick channel name is enough for real Kick alerts.",
+        "intro": "Jarchi runs on your own PC and shows alerts, a chat box and goals in OBS. No account and no login: your Kick and Twitch channel names are enough for real alerts.",
         "steps": [
           ["Keep Jarchi running", "Start Jarchi and leave its window open while you stream. This panel is at `{panelUrl}`."],
-          ["Type your channel names", "Open **Chat** under Widgets and type your Kick channel (and your Twitch channel, for chat). The Kick name also brings real Kick alerts."],
+          ["Type your channel names", "Open **Chat** under Widgets and type your Kick and/or Twitch channel. Each name also brings that platform's real alerts."],
           ["Pick a theme", "Click **Theme** at the top of the list. Every alert uses it, unless you give an alert its own."],
           ["Add Jarchi to OBS", "Add the alerts to OBS as a Browser Source. The next topic shows how."],
           ["Test it", "Pick an alert in the list and press **Test in OBS**. It plays in OBS and shows up in the alert queue."]
@@ -552,11 +579,11 @@
           ["Different media by amount", "Kicks, gifted subs and bits can play their own picture and sound for bigger amounts. Turn it on and upload per amount."],
           ["More options", "Frame, text position and color, font size, duration, volume, minimum amount and video sound."]
         ],
-        "tip": "Real Kick alerts (subs, resubs, gifted subs, Kicks and hosts) come from your Kick channel name in **Chat**, with no login. Kick follows need a Kick login, which comes later. Twitch alerts aren't connected yet. The **Test** buttons work for every alert."
+        "tip": "Real Kick alerts (subs, resubs, gifted subs, Kicks and hosts) come from your Kick channel name in **Chat**, with no login. Real Twitch alerts (subs, resubs, gifted subs, raids and bits) come from your Twitch channel name the same way. Follows need a Kick or Twitch login, which comes later. The **Test** buttons work for every alert."
       },
       "goals": {
         "title": "Goals",
-        "intro": "Two goals for your stream: a Sub goal (subs, resubs and gifted subs from Kick and Twitch) and a Kicks goal. They count real events by themselves.",
+        "intro": "Two goals for your stream: a Sub goal (subs, resubs and gifted subs from Kick, and from Twitch if you turn that on) and a Kicks goal. They count real events by themselves.",
         "steps": [
           ["Open a goal", "Under **Widgets**, click **Sub goal** or **Kicks goal**."],
           ["Title and target", "Type the title viewers see and the number to reach."],
@@ -576,7 +603,7 @@
           ["Fine-tune it", "**More options**: size, fonts, colors, badges, emotes, motion, filters and effects."],
           ["Add it to OBS", "Click **Copy chat OBS link** and add it as a Browser Source, 420 × 600. Make it at least as big as the chat's width and height; the horizontal bars need width 1920."]
         ],
-        "tip": "The switch in the list only hides the chat on stream. Real Kick alerts keep coming either way."
+        "tip": "The switch in the list only hides the chat on stream. Real Kick and Twitch alerts keep coming either way."
       },
       "queue": {
         "title": "Alert queue",

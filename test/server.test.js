@@ -39,7 +39,7 @@ test('migration, settings, uploads, reset, events', async () => {
   assert.equal(s.alerts.sub.soundMode, 'custom');
   assert.equal(s.alerts.sub.volume, 0.4);
   assert.equal(s.alerts.follow.soundMode, 'theme');
-  assert.equal(JSON.parse(fs.readFileSync(path.join(dataDir, 'settings.json'))).version, 4);
+  assert.equal(JSON.parse(fs.readFileSync(path.join(dataDir, 'settings.json'))).version, 5);
   assert.equal(s.chat.style, 'classic', 'an earlier user who never picked a chat style keeps Classic (Kick default is for new users)');
   assert.equal((await fetch(`${base}/uploads/sub-sound-1.wav`)).status, 200);
 
@@ -123,15 +123,25 @@ test('goals: count from events, latch when reached, saved, styles', async () => 
   const count = async (id, body) => (await call('PATCH', `/api/goals/${id}`, body)).json();
   for (const id of ['subs', 'kicks']) await count(id, { set: 0 });
 
-  // From the event bus: subs/resubs +1 and each gifted sub +1 on both platforms; Kicks only from Kick.
-  emitEvent({ platform: 'twitch', type: 'sub', user: 'a' });
+  // From the event bus: Kick subs/resubs +1 and each gifted sub +1; Twitch's the same, but only with the sub goal's
+  // "Also count Twitch subs" on (off by default). Kicks only from Kick.
+  const before = (await (await call('GET', '/api/settings')).json()).goals;
+  assert.deepEqual([before.subs.countTwitch, 'countTwitch' in before.kicks], [false, false]);
   emitEvent({ platform: 'kick', type: 'resub', user: 'a', months: 3 });
-  emitEvent({ platform: 'kick', type: 'gift_sub', user: 'a', amount: 5 });
+  emitEvent({ platform: 'twitch', type: 'sub', user: 'a' });
+  emitEvent({ platform: 'twitch', type: 'gift_sub', user: 'a', amount: 5 });
   emitEvent({ platform: 'twitch', type: 'kicks', user: 'a', amount: 100 });
   emitEvent({ platform: 'kick', type: 'kicks', user: 'a', amount: 250 });
   emitEvent({ platform: 'twitch', type: 'bits', user: 'a', amount: 500 });
   let st = await goalsNow();
-  assert.deepEqual([st.subs.current, st.kicks.current], [7, 250]);
+  assert.deepEqual([st.subs.current, st.kicks.current], [1, 250], 'Twitch subs: not counted by default');
+  assert.equal((await call('PATCH', '/api/settings', { goals: { subs: { countTwitch: true } } })).status, 200);
+  assert.equal((await call('PATCH', '/api/settings', { goals: { kicks: { countTwitch: true } } })).status, 400, 'the Kicks goal is Kick only');
+  emitEvent({ platform: 'twitch', type: 'sub', user: 'b' });
+  emitEvent({ platform: 'twitch', type: 'gift_sub', user: 'b', amount: 5 });
+  emitEvent({ platform: 'twitch', type: 'kicks', user: 'b', amount: 100 });
+  st = await goalsNow();
+  assert.deepEqual([st.subs.current, st.kicks.current], [7, 250], 'on: a Twitch gift of 5 counts 5');
 
   // Reaching the target latches "reached" and announces it once.
   await call('PATCH', '/api/settings', { goals: { subs: { target: 10 } } });

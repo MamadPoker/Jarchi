@@ -89,9 +89,11 @@ function restart() {
   if (globalRequested) seventv.loadGlobal();
 }
 
-// A connector's message -> 7TV emotes added -> the bus.
+// A connector's message -> 7TV emotes added -> the bus, right away. A chatter seen before brings their profile picture
+// along; a new one's is looked up after the message went out, and widgets swap it in when it comes ('chatAvatar').
 function publish(m) {
-  const msg = emitChat({ ...m, parts: seventv.enrich(m.platform, m.parts ?? []) });
+  const cached = avatars.get(`${m.platform}:${String(m.user?.login ?? m.user?.name ?? '').toLowerCase()}`);
+  const msg = emitChat({ ...m, user: { ...m.user, avatar: m.user?.avatar ?? cached }, parts: seventv.enrich(m.platform, m.parts ?? []) });
   if (!msg.user.avatar && settings.get().chat.avatars) lookUpAvatar(msg);
 }
 
@@ -137,6 +139,24 @@ bus.on('chatClear', (c) => {
     if (m.platform === c.platform && (c.messageId ? m.id === c.messageId : c.userId ? m.user.id === c.userId : true)) recent.splice(i, 1);
   }
 });
+
+// ---------- "Show chat timing" (debug): one line in the server output per message a widget drew ----------
+// created (Kick's / Twitch's own clock) -> received (Jarchi got it) -> sent (to widgets) -> shown (the widget drew it).
+// Each step is the time since the one before; total = created -> shown. Only "created" is another computer's clock.
+// r: { id, shown, where } from the widget (only an id we know and a number are used); transport: websocket | polling.
+const WHERE = ['OBS', 'panel', 'browser'];
+const clock = (t) => new Date(t - new Date(t).getTimezoneOffset() * 60000).toISOString().slice(11, 23); // local time with ms
+const step = (a, b) => `${b >= a ? '+' : '-'}${(Math.abs(b - a) / 1000).toFixed(2)}s`;
+function timing(r, transport) {
+  const m = settings.get().chat.showTiming && recent.find((x) => x.id === r?.id);
+  const shown = Number(r?.shown);
+  if (!m || !Number.isFinite(shown)) return null;
+  const who = `${m.user.name}: ${m.text || m.system}`.replace(/\p{Cc}/gu, ' ').slice(0, 50); // viewers' text: no terminal control codes
+  const line = `chat timing  ${m.platform.padEnd(6)} created ${clock(m.time)}  received ${step(m.time, m.received)}  sent ${step(m.received, m.sent)}  `
+    + `shown ${step(m.sent, shown)}  total ${step(m.time, shown)}  ${WHERE.includes(r.where) ? r.where : '?'}/${transport}  ${who}`;
+  console.log(line);
+  return line;
+}
 
 // ---------- Test messages: random fake viewers with badge sets seen in real chat ----------
 // Their badges go through the same converters as real chat, so they get the same images (the channel's own sub
@@ -263,4 +283,4 @@ function thumbs() {
   return [plain.twitch(viewer), fx.sub(), fx.first(), fx.vip(), fx.mention()].map((m) => chatMessage({ ...m, test: true }));
 }
 
-module.exports = { sync, restart, check, test, thumbs, status: () => status, recent: () => recent, events: chat };
+module.exports = { sync, restart, check, test, thumbs, timing, status: () => status, recent: () => recent, events: chat };

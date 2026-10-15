@@ -10,7 +10,9 @@ const store = require('./store');
 const FILE = path.join(DATA_DIR, 'goals.json');
 // How much each normalized event adds to each goal.
 const COUNT = {
-  subs: (ev) => (ev.type === 'sub' || ev.type === 'resub' ? 1 : ev.type === 'gift_sub' ? ev.amount : 0), // Kick + Twitch
+  // Kick's, and Twitch's when the sub goal's "Also count Twitch subs" is on.
+  subs: (ev) => (ev.platform === 'twitch' && !settings.get().goals.subs.countTwitch ? 0
+    : ev.type === 'sub' || ev.type === 'resub' ? 1 : ev.type === 'gift_sub' ? ev.amount : 0),
   kicks: (ev) => (ev.type === 'kicks' && ev.platform !== 'twitch' ? ev.amount : 0), // Kicks are Kick's
 };
 

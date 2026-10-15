@@ -11,7 +11,7 @@ Both export `connect(channel, { onStatus, onMessage, onClear, onChannel })` and 
 
 ## Alerts and goals
 
-`kick-chat.js` also turns Kick's public socket events into alerts (no login): subs, resubs (also automatic renewals and shared "celebrations"), gifted subs (one alert per gift), Kicks and hosts. It calls `onAlert(alert)`, and `core/chat.js` passes that to `emitEvent()`. See the table at `handle()` for which Kick event becomes which alert. Kick doesn't send follows publicly. Twitch alerts aren't connected yet.
+`kick-chat.js` also turns Kick's public socket events into alerts (no login): subs, resubs (also automatic renewals and shared "celebrations"), gifted subs (one alert per gift), Kicks and hosts. It calls `onAlert(alert)`, and `core/chat.js` passes that to `emitEvent()`. See the table at `handle()` for which Kick event becomes which alert. Kick doesn't send follows publicly. `twitch-chat.js` does the same from Twitch's anonymous IRC (see `alertOf()`): subs, resubs, gifted subs (one alert per gift), raids and bits. Twitch follows need a login.
 
 A connector for follows, subs, Kicks, bits and raids calls `emitEvent()`:
 

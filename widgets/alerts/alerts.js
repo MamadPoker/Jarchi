@@ -124,7 +124,9 @@ async function show(ev, { muted = false, hold = false, ms, id } = {}) {
 
 // The theme look: media with the theme's particles, rings and glow, the text box, all inside a theme wrapper.
 function themed(cfg, ev, v, files, theme, tier, grows) {
-  const media = mediaEl(files.image, fill(S.emblems[ev.type], v));
+  // Bits without a file of their own: Twitch's gem for the amount (the bits tiers are Twitch's gem amounts).
+  const gem = ev.type === 'bits' && !files.image && ([...cfg.tiers].reverse().find((t) => t.amount <= ev.amount) ?? cfg.tiers[0]).amount;
+  const media = gem ? h('div', { className: 'media gem' }, h('img', { src: `/assets/twitch-bits/${gem}.gif`, alt: '' })) : mediaEl(files.image, fill(S.emblems[ev.type], v));
   const video = media.querySelector('video');
   media.append(particles(tier, theme));
   for (let i = 0; i < RINGS[tier]; i++) media.append(h('b', { className: 'ring', style: `--delay:${0.1 + i * 0.22}s` }));

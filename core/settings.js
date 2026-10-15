@@ -7,7 +7,7 @@ const store = require('./store');
 const strings = require('../i18n/en.json');
 
 const FILE = path.join(DATA_DIR, 'settings.json');
-const VERSION = 4;
+const VERSION = 5;
 const THEMES = ['neon', 'minimal', 'fun', 'retro', 'glass', 'fire', 'ice', 'galaxy', 'comic'];
 // App-wide settings (not per alert). showBadge: platform badge on alerts; it still needs both Kick and Twitch connected.
 // alertGap: seconds between two alerts. proxy*: how Jarchi reaches Kick, Twitch and 7TV (core/net.js).
@@ -30,7 +30,8 @@ const KICK_GIFTS = [
   { amount: 1, id: 'hell_yeah' }, { amount: 10, id: 'hype' }, { amount: 50, id: 'skull_emoji' }, { amount: 100, id: 'full_send' }, { amount: 500, id: 'rage_quit' },
   { amount: 1000, id: 'pack_it_up' }, { amount: 2000, id: 'yap' }, { amount: 5000, id: 'stomp' }, { amount: 10000, id: 'flex' }, { amount: 50000, id: 'boooom' },
 ];
-const TIER_AMOUNTS = { gift_sub: [1, 5, 10, 20, 50, 100], kicks: KICK_GIFTS.map((g) => g.amount), bits: [100, 500, 1000, 5000, 10000] };
+// Bits: Twitch's own cheer gems (gray, purple, green, blue, red), in assets/twitch-bits/<amount>.gif.
+const TIER_AMOUNTS = { gift_sub: [1, 5, 10, 20, 50, 100], kicks: KICK_GIFTS.map((g) => g.amount), bits: [1, 100, 1000, 5000, 10000] };
 const TIERED = { tiersOn: false, tiers: {} };
 const PER_TYPE = {
   follow: { duration: 4, fontSize: 38 },
@@ -108,6 +109,7 @@ const GOAL_DEFAULTS = Object.fromEntries(GOAL_IDS.map((id) => [id, {
   celebrateSound: 'theme',
   sound: null, // { file, name } once uploaded
   volume: 0.7,
+  ...(id === 'subs' && { countTwitch: false }), // Twitch subs count only when this is on; Kick's always do
 }]));
 const bool = (v) => typeof v === 'boolean';
 const GOAL_RULES = {
@@ -116,6 +118,7 @@ const GOAL_RULES = {
   target: (v) => Number.isInteger(v) && v >= 1 && v <= 1e9,
   style: (v) => v in GOAL_STYLES,
   celebrate: bool,
+  countTwitch: bool,
   celebrateSound: oneOf('theme', 'custom', 'none'),
   volume: num(0, 1),
   barColor: hex,
@@ -140,9 +143,9 @@ const GOAL_RULES = {
 // ---------- Chat ----------
 // The Classic look. Every chat style is this plus a few changes; users then tweak any value. Reset style restores them.
 const CHAT_BASE = {
-  showPlatform: true, showBadges: true, badgeBroadcaster: true, badgeMod: true, badgeVip: true, badgeSub: true, badgeOther: true, showTime: false, showColon: true,
+  showPlatform: true, showBadges: true, badgeMode: 'important', badgeSize: 1, badgeBroadcaster: true, badgeMod: true, badgeVip: true, badgeSub: true, badgeOther: true, showTime: false, showColon: true,
   emotesAnimated: true, emoteSize: 28, bigEmotes: true, bigEmoteSize: 56,
-  font: 'Segoe UI', fontSize: 18, nameSize: 18, nameColorMode: 'user', nameColor: '#8b5cf6', textColor: '#ffffff', namePos: 'inline', textShadow: true, textDir: 'auto',
+  font: 'Segoe UI', fontSize: 18, nameSize: 18, nameColorMode: 'user', readableNames: true, nameColor: '#8b5cf6', textColor: '#ffffff', namePos: 'inline', textShadow: true, textDir: 'auto',
   bg: 'color', bgColor: '#14141c', bgOpacity: 0.6, bubbles: false, border: false, borderColor: '#8b5cf6', borderWidth: 2, radius: 12, padding: 12, gap: 6, width: 420, height: 600,
   layout: 'vertical', tickerDir: 'rtl', tickerSpeed: 120, newAt: 'bottom', maxMessages: 30, hideAfter: 0, enterAnim: 'slide', exitAnim: 'fade', animSpeed: 1, fadeZone: 80, fade: true,
   fxSubGlow: true, fxFirst: true, fxRainbowVip: true, fxMention: true, fxCombo: true, avatars: false, blur: 0, typewriter: false, typeSound: false,
@@ -194,7 +197,9 @@ const CHAT_DEFAULTS = {
   emotesKick: true, emotesTwitch: true, emotes7tv: true,
   hideCommands: true, hideBots: true, bots: 'botrix, kickbot', hiddenUsers: '', blockedWords: '', hideLinks: false, source: 'both',
   rainbowUsers: '',
+  ogHat: true, hatStyle: 'cap', hatPos: 'first', // Kick's OG viewers get a hat (assets/og-hats): kept when the style changes
   tickerPos: 'top', // where a bar sits in the OBS source: kept when the style changes
+  showTiming: false, // debug: how late each message shows (a label in the chat, a line in the server output)
 };
 const words = (v) => typeof v === 'string' && v.length <= 1000;
 const CHAT_RULES = {
@@ -205,9 +210,10 @@ const CHAT_RULES = {
   emotesKick: bool, emotesTwitch: bool, emotes7tv: bool,
   hideCommands: bool, hideBots: bool, bots: words, hiddenUsers: words, blockedWords: words, hideLinks: bool, source: oneOf('both', 'kick', 'twitch'),
   rainbowUsers: words,
-  showPlatform: bool, showBadges: bool, badgeBroadcaster: bool, badgeMod: bool, badgeVip: bool, badgeSub: bool, badgeOther: bool, showTime: bool, showColon: bool,
+  ogHat: bool, hatStyle: oneOf('cap', 'beanie', 'fedora'), hatPos: oneOf('first', 'last', 'badge', 'avatar'),
+  showPlatform: bool, showBadges: bool, badgeMode: oneOf('important', 'all'), badgeSize: num(0.5, 2), badgeBroadcaster: bool, badgeMod: bool, badgeVip: bool, badgeSub: bool, badgeOther: bool, showTime: bool, showColon: bool,
   emotesAnimated: bool, emoteSize: num(12, 112), bigEmotes: bool, bigEmoteSize: num(16, 160),
-  font: oneOf(...CHAT_FONTS), fontSize: num(10, 72), nameSize: num(10, 72), nameColorMode: oneOf('user', 'custom', 'style'), nameColor: hex, textColor: hex,
+  font: oneOf(...CHAT_FONTS), fontSize: num(10, 72), nameSize: num(10, 72), nameColorMode: oneOf('user', 'custom', 'style'), readableNames: bool, nameColor: hex, textColor: hex,
   namePos: oneOf('inline', 'above'), textShadow: bool, textDir: oneOf('auto', 'ltr', 'rtl'),
   bg: oneOf('color', 'transparent', 'off'), bgColor: hex, bgOpacity: num(0, 1), bubbles: bool, border: bool, borderColor: hex, borderWidth: num(1, 12),
   radius: num(0, 40), padding: num(0, 60), gap: num(0, 40), width: num(200, 1920), height: num(40, 1080),
@@ -215,7 +221,7 @@ const CHAT_RULES = {
   maxMessages: (v) => Number.isInteger(v) && v >= 1 && v <= 100, hideAfter: num(0, 600),
   enterAnim: oneOf('slide', 'fade', 'pop', 'float', 'bounce', 'drop', 'none'), exitAnim: oneOf('fade', 'slide', 'none'), animSpeed: num(0.25, 3), fadeZone: num(0, 400), fade: bool,
   fxSubGlow: bool, fxFirst: bool, fxRainbowVip: bool, fxMention: bool, fxCombo: bool, avatars: bool, blur: num(0, 40), typewriter: bool, typeSound: bool,
-  tickerLoop: bool, tickerPos: oneOf('top', 'bottom'),
+  tickerLoop: bool, tickerPos: oneOf('top', 'bottom'), showTiming: bool,
 };
 
 const ALLOWED = { image: ['png', 'jpg', 'gif', 'webp', 'webm', 'mp4'], sound: ['mp3', 'wav', 'ogg'] };
@@ -247,6 +253,17 @@ if (from < 4 && Object.keys(saved).length) {
   // v3 -> v4: "Kick default" became the chat style for new users. Someone who already used Jarchi without picking a
   // style had Classic: keep it.
   (saved.chat ??= {}).style ??= 'classic';
+}
+if (from < 5) {
+  // v4 -> v5: the bits tiers became Twitch's gems (1, 100, 1000, 5000, 10000). The old 500 tier's files move to the 100
+  // tier where it has none of that kind (else they go), and turn it on if the 500 tier was on.
+  const tiers = saved.alerts?.bits?.tiers, old = tiers?.[500];
+  if (old) {
+    const to = (tiers[100] ??= {});
+    for (const kind of ['image', 'sound']) if (old[kind]) { if (to[kind]) removeFile(old[kind]); else to[kind] = old[kind]; }
+    to.on ||= !!old.on;
+    delete tiers[500];
+  }
 }
 if (from < VERSION) {
   saved.version = VERSION;
@@ -309,7 +326,7 @@ function update(patch) {
   const goals = Object.entries(patch.goals ?? {});
   for (const [id, fields] of goals) {
     if (!GOAL_IDS.includes(id) || !fields || typeof fields !== 'object') throw bad();
-    for (const [k, v] of Object.entries(fields)) if (!GOAL_RULES[k] || !GOAL_RULES[k](v)) throw bad();
+    for (const [k, v] of Object.entries(fields)) if (!GOAL_RULES[k] || !(k in GOAL_DEFAULTS[id] || GOAL_LOOK.includes(k)) || !GOAL_RULES[k](v)) throw bad();
   }
   const chatFields = patch.chat;
   if (chatFields !== undefined) {

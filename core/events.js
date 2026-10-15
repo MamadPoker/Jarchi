@@ -38,9 +38,9 @@ function emitEvent(e) {
 }
 
 // Chat. Connectors call emitChat() for every message and emitChatClear() when a moderator removes messages.
-// Message: { id, platform, time, kind: 'message' | 'sub', channel, text, first, action, system, test,
+// Message: { id, platform, time (Kick's / Twitch's own), received (by Jarchi), kind: 'message' | 'sub', channel, text, first, action, system, test,
 //   user: { id, login, name, color, avatar, badges: [{ type: 'broadcaster'|'moderator'|'vip'|'subscriber'|'other', name, img, title }] },
-//   parts: [{ t: 'text', v } | { t: 'emote', name, src, still, provider: 'twitch'|'kick'|'7tv' }] }
+//   parts: [{ t: 'text', v } | { t: 'emote', name, src, still, provider: 'twitch'|'kick'|'7tv' } | { t: 'cheer', name, amount, gem }] }
 const https = (v) => typeof v === 'string' && v.startsWith('https://');
 const badgeImg = (v) => https(v) || /^\/assets\/kick-badges\/[\w-]+\.svg$/.test(v); // remote, or Kick's own icons shipped here
 function emitChat(m) {
@@ -56,6 +56,7 @@ function chatMessage(m) {
     id: String(m.id ?? randomUUID()),
     platform: m.platform,
     time: Number(m.time) || Date.now(),
+    received: Date.now(), // connectors hand a message over in the same tick their socket got it
     kind: m.kind === 'sub' ? 'sub' : 'message',
     channel: String(m.channel ?? '').toLowerCase(),
     text: String(m.text ?? '').slice(0, 1000),
@@ -71,7 +72,7 @@ function chatMessage(m) {
       avatar: https(u.avatar) ? u.avatar : null,
       badges: (u.badges ?? []).slice(0, 8).map((b) => ({ type: b.type, name: String(b.name ?? ''), img: badgeImg(b.img) ? b.img : null, title: String(b.title ?? b.name ?? '') })),
     },
-    parts: (m.parts ?? [{ t: 'text', v: m.text ?? '' }]).filter((p) => (p.t === 'emote' ? https(p.src) : p.t === 'text')).slice(0, 300),
+    parts: (m.parts ?? [{ t: 'text', v: m.text ?? '' }]).filter((p) => (p.t === 'emote' ? https(p.src) : p.t === 'cheer' ? Number.isInteger(p.gem) && Number.isInteger(p.amount) : p.t === 'text')).slice(0, 300),
   };
 }
 // { platform, messageId }: one message. { platform, userId }: everything a user said (ban / timeout). { platform }: the whole chat.
