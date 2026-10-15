@@ -40,6 +40,7 @@ let seq = 0; // message order, for styles whose messages take turns with colors
 let seeded = false; // preview: showing sample messages until real ones arrive
 let filling = false; // ticker: drawing the recent messages as if the bar had been running
 let loopTimer, loopAt = 0; // ticker: looping the recent messages when chat is quiet
+let socket; // live and preview only
 
 // Emotes, badges and pictures come through Jarchi (/remote), so they follow its proxy setting.
 const remote = (u) => (u?.startsWith('https://') ? `/remote?u=${encodeURIComponent(u)}` : u);
@@ -72,7 +73,7 @@ if (params.has('thumb')) {
   if (params.has('preview')) document.body.classList.add('preview');
   // WebSocket first: over HTTP polling, chat waited behind profile pictures and emotes still downloading (a browser
   // opens only 6 connections to this PC at a time). Polling stays as the fallback if WebSocket can't connect.
-  const socket = io({ transports: ['websocket', 'polling'], tryAllTransports: true });
+  socket = io({ transports: ['websocket', 'polling'], tryAllTransports: true });
   socket.on('strings', (s) => (S = s));
   socket.on('settings', (s) => {
     mainSettings = s;
@@ -323,6 +324,7 @@ function msgEl(m) {
   const turn = turns && (turns[m.seq % turns.length] ?? cfg.bgColor);
   const hat = hatAt(m);
   const meta = h('span', { className: 'meta' },
+    cfg.showTiming && h('span', { className: 'timing', textContent: m.shownAt ? lateBy(m) : '' }), // filled in by markShown()
     cfg.showTime && h('time', { textContent: time }),
     cfg.showPlatform && h('img', { className: `platform pl-${m.platform}`, src: `/assets/platform-logos/${m.platform}.svg`, alt: m.platform }),
     badgesEl(m, hat),
@@ -342,8 +344,24 @@ function msgEl(m) {
 
 // ---------- Add / remove ----------
 function add(m, animate, still = false) {
-  if (cfg.fxCombo && animate && combo(m)) return;
+  if (cfg.fxCombo && animate && combo(m)) {
+    if (vertical()) markShown(m); // counted on the newest row (no label of its own); a bar's newest may not be out yet
+    return;
+  }
   vertical() ? addRow(m, animate) : addTick(m, still);
+}
+
+// "Show chat timing" (debug): when a live message is first drawn, its label says how long after Kick / Twitch made it,
+// and the server prints each step on the way (core/chat.js). Drawn = the next frame after it went on the page.
+const lateBy = (m) => `${m.shownAt < m.time ? '-' : '+'}${(Math.abs(m.shownAt - m.time) / 1000).toFixed(1)}s`;
+function markShown(m, el) {
+  if (!cfg.showTiming || m.shownAt) return;
+  requestAnimationFrame(() => {
+    m.shownAt = Date.now();
+    const label = el?.querySelector('.timing');
+    if (label) label.textContent = lateBy(m);
+    socket?.emit('chatShown', { id: m.id, shown: m.shownAt, where: window.obsstudio ? 'OBS' : params.has('preview') ? 'panel' : 'browser' });
+  });
 }
 
 // Same single emote as the newest message (within 20 s): count it there ("x12") instead of adding a row.
@@ -461,6 +479,7 @@ function addRow(m, animate) {
     const size = fullSize(el); // taller messages (a sub, a big note) grow a little longer, so nothing moves too fast
     el.animate([collapsed, size], { duration: ms(Math.min(650, 280 + parseFloat(size.height) * 1.5)), easing: SMOOTH }).onfinish = () => (el.style.overflow = '');
     arrive(el, el.firstChild);
+    markShown(m, el);
   }
   if (cfg.hideAfter > 0) r.timer = setTimeout(() => leave(r), cfg.hideAfter * 1000);
   const live = rows.filter((x) => !x.exiting);
@@ -548,6 +567,7 @@ function place(r, fill) {
     setTimeout(() => {
       el.classList.add('arrive');
       if (cfg.typewriter && el.isConnected) typeOut(el.firstChild);
+      markShown(m, el);
     }, start - now);
   }
   scheduleLoop();

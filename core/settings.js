@@ -199,6 +199,7 @@ const CHAT_DEFAULTS = {
   rainbowUsers: '',
   ogHat: true, hatStyle: 'cap', hatPos: 'first', // Kick's OG viewers get a hat (assets/og-hats): kept when the style changes
   tickerPos: 'top', // where a bar sits in the OBS source: kept when the style changes
+  showTiming: false, // debug: how late each message shows (a label in the chat, a line in the server output)
 };
 const words = (v) => typeof v === 'string' && v.length <= 1000;
 const CHAT_RULES = {
@@ -220,7 +221,7 @@ const CHAT_RULES = {
   maxMessages: (v) => Number.isInteger(v) && v >= 1 && v <= 100, hideAfter: num(0, 600),
   enterAnim: oneOf('slide', 'fade', 'pop', 'float', 'bounce', 'drop', 'none'), exitAnim: oneOf('fade', 'slide', 'none'), animSpeed: num(0.25, 3), fadeZone: num(0, 400), fade: bool,
   fxSubGlow: bool, fxFirst: bool, fxRainbowVip: bool, fxMention: bool, fxCombo: bool, avatars: bool, blur: num(0, 40), typewriter: bool, typeSound: bool,
-  tickerLoop: bool, tickerPos: oneOf('top', 'bottom'),
+  tickerLoop: bool, tickerPos: oneOf('top', 'bottom'), showTiming: bool,
 };
 
 const ALLOWED = { image: ['png', 'jpg', 'gif', 'webp', 'webm', 'mp4'], sound: ['mp3', 'wav', 'ogg'] };

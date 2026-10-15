@@ -140,6 +140,24 @@ bus.on('chatClear', (c) => {
   }
 });
 
+// ---------- "Show chat timing" (debug): one line in the server output per message a widget drew ----------
+// created (Kick's / Twitch's own clock) -> received (Jarchi got it) -> sent (to widgets) -> shown (the widget drew it).
+// Each step is the time since the one before; total = created -> shown. Only "created" is another computer's clock.
+// r: { id, shown, where } from the widget (only an id we know and a number are used); transport: websocket | polling.
+const WHERE = ['OBS', 'panel', 'browser'];
+const clock = (t) => new Date(t - new Date(t).getTimezoneOffset() * 60000).toISOString().slice(11, 23); // local time with ms
+const step = (a, b) => `${b >= a ? '+' : '-'}${(Math.abs(b - a) / 1000).toFixed(2)}s`;
+function timing(r, transport) {
+  const m = settings.get().chat.showTiming && recent.find((x) => x.id === r?.id);
+  const shown = Number(r?.shown);
+  if (!m || !Number.isFinite(shown)) return null;
+  const who = `${m.user.name}: ${m.text || m.system}`.replace(/\p{Cc}/gu, ' ').slice(0, 50); // viewers' text: no terminal control codes
+  const line = `chat timing  ${m.platform.padEnd(6)} created ${clock(m.time)}  received ${step(m.time, m.received)}  sent ${step(m.received, m.sent)}  `
+    + `shown ${step(m.sent, shown)}  total ${step(m.time, shown)}  ${WHERE.includes(r.where) ? r.where : '?'}/${transport}  ${who}`;
+  console.log(line);
+  return line;
+}
+
 // ---------- Test messages: random fake viewers with badge sets seen in real chat ----------
 // Their badges go through the same converters as real chat, so they get the same images (the channel's own sub
 // badges included: Kick's always, Twitch's with the key) and the same text tags where there's no image.
@@ -265,4 +283,4 @@ function thumbs() {
   return [plain.twitch(viewer), fx.sub(), fx.first(), fx.vip(), fx.mention()].map((m) => chatMessage({ ...m, test: true }));
 }
 
-module.exports = { sync, restart, check, test, thumbs, status: () => status, recent: () => recent, events: chat };
+module.exports = { sync, restart, check, test, thumbs, timing, status: () => status, recent: () => recent, events: chat };

@@ -319,3 +319,27 @@ test('readable names: a platform color too close to its background keeps its hue
   }
   assert.equal(readable('#FF6B6B', '#14141c'), '#FF6B6B', 'already readable: unchanged');
 });
+
+test('"Show chat timing": a widget\'s "shown" becomes one server line with each step; nothing while off', async () => {
+  if (!server.listening) await new Promise((r) => server.once('listening', r));
+  const chat = require('../core/chat');
+  const { emitChat } = require('../core/events');
+  const ESC = String.fromCharCode(27);
+  const m = emitChat({ platform: 'kick', id: 'late-1', time: Date.now() - 2000, text: `hi ${ESC}[31mred`, user: { name: 'Late' } });
+  assert.ok(m.received >= m.time + 2000 && m.sent >= m.received, 'received and sent are stamped on the way out');
+  assert.equal(chat.timing({ id: 'late-1', shown: m.sent + 30, where: 'OBS' }, 'websocket'), null, 'off by default');
+  assert.equal((await call('PATCH', '/api/settings', { chat: { showTiming: 'yes' } })).status, 400);
+  await call('PATCH', '/api/settings', { chat: { showTiming: true } });
+  const log = console.log;
+  console.log = () => {};
+  try {
+    const line = chat.timing({ id: 'late-1', shown: m.sent + 30, where: 'OBS' }, 'websocket');
+    assert.match(line, /^chat timing {2}kick {3}created \d\d:\d\d:\d\d\.\d{3} {2}received \+2\.0\ds {2}sent \+0\.0\ds {2}shown \+0\.03s {2}total \+2\.0\ds {2}OBS\/websocket {2}Late: hi {2}\[31mred$/, 'control codes out');
+    assert.match(chat.timing({ id: 'late-1', shown: m.sent, where: '<b>' }, 'polling'), / \?\/polling /, 'an unknown place is "?"');
+    assert.equal(chat.timing({ id: 'nope', shown: m.sent }, 'websocket'), null, 'unknown message');
+    assert.equal(chat.timing({ id: 'late-1', shown: 'soon' }, 'websocket'), null, 'no time');
+  } finally {
+    console.log = log;
+    await call('PATCH', '/api/settings', { chat: { showTiming: false } });
+  }
+});

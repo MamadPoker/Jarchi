@@ -58,6 +58,12 @@ body.preview, body.thumb { display: grid; place-items: center; }
 .line { display: block; }
 .meta { margin-right: 0.3em; font-size: var(--ns); font-weight: 700; } /* the space before the message, with or without a colon */
 .meta time { margin-right: 0.35em; font-weight: 400; opacity: 0.7; font-size: 0.85em; }
+/* "Show chat timing" (debug): how long after Kick / Twitch made the message it was drawn here. Not measured yet (or a
+   message from before the page opened), it keeps its place unseen, so filling it in never moves anything. */
+.timing { display: inline-block; min-width: 3.6em; margin-right: 0.35em; padding: 0 0.3em; border-radius: 4px; background: rgba(0, 0, 0, 0.75);
+  color: #fff; font: 600 0.7em/1.5 Consolas, monospace; text-align: center; text-shadow: none; vertical-align: middle; }
+.timing:empty { visibility: hidden; }
+.timing:empty::before { content: '+0.0s'; }
 /* Name, time and colon stay on the message's baseline; icons are as tall as the name and centered on its letters. */
 /* Platform icon: the official logo as it is, on a small dark tile so it shows on light boxes too */
 .platform { box-sizing: border-box; width: 1.1em; height: 1.1em; padding: 0.17em; margin-right: 0.3em; border-radius: 0.25em; background: #000; vertical-align: middle; }

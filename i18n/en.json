@@ -198,6 +198,8 @@
     "avatars": "Profile pictures",
     "avatarsHint": "Kick: real pictures, or Kick's own default picture. Twitch: real pictures, or a letter when there is none.",
     "blur": "Glass blur",
+    "chatDebug": "Debug",
+    "showTiming": "Show chat timing",
     "goalCopy": "Copy this goal's OBS link",
     "goalCopyHint": "Add it in OBS as a Browser Source, width 800, height 200 (Circle style: 400 × 400). The goal sits in the middle.",
     "goalCopied": "Goal link copied!",
@@ -525,7 +527,8 @@
       "fxMention": "Messages that mention your channel name stand out.",
       "fxCombo": "When people send the same emote again and again, it shows once with a counter (x12).",
       "avatars": "Profile pictures next to names. Kick: real pictures, or Kick's own default picture for viewers without one. Twitch: real pictures too (no key needed), or the first letter of the name when one can't be found.",
-      "blur": "Blurs what's behind a see-through box, like frosted glass."
+      "blur": "Blurs what's behind a see-through box, like frosted glass.",
+      "showTiming": "For finding chat delays. Each new message gets a small label like `+1.2s`: how long after Kick or Twitch made it, it showed here. The window where Jarchi runs prints one line per message with each step: **received** (Jarchi got it), **sent** (to the chat), **shown** (the chat drew it). Turn it off when you're done."
     },
     "settings": {
       "showBadge": "A small Kick or Twitch badge on alerts. It only shows when both accounts are connected.",

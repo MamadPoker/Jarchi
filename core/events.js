@@ -38,7 +38,7 @@ function emitEvent(e) {
 }
 
 // Chat. Connectors call emitChat() for every message and emitChatClear() when a moderator removes messages.
-// Message: { id, platform, time, kind: 'message' | 'sub', channel, text, first, action, system, test,
+// Message: { id, platform, time (Kick's / Twitch's own), received (by Jarchi), kind: 'message' | 'sub', channel, text, first, action, system, test,
 //   user: { id, login, name, color, avatar, badges: [{ type: 'broadcaster'|'moderator'|'vip'|'subscriber'|'other', name, img, title }] },
 //   parts: [{ t: 'text', v } | { t: 'emote', name, src, still, provider: 'twitch'|'kick'|'7tv' } | { t: 'cheer', name, amount, gem }] }
 const https = (v) => typeof v === 'string' && v.startsWith('https://');
@@ -56,6 +56,7 @@ function chatMessage(m) {
     id: String(m.id ?? randomUUID()),
     platform: m.platform,
     time: Number(m.time) || Date.now(),
+    received: Date.now(), // connectors hand a message over in the same tick their socket got it
     kind: m.kind === 'sub' ? 'sub' : 'message',
     channel: String(m.channel ?? '').toLowerCase(),
     text: String(m.text ?? '').slice(0, 1000),

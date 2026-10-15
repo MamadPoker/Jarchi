@@ -159,6 +159,8 @@ io.on('connection', (socket) => {
     alertQueue.join((now) => socket.emit('alert', now));
     socket.once('disconnect', alertQueue.leave);
   });
+  // "Show chat timing": a chat widget says when it drew a live message; core/chat prints how long each step took.
+  socket.on('chatShown', (r) => chat.timing(r, socket.conn.transport.name));
 });
 alertQueue.events.on('play', (a) => io.to('alerts').emit('alert', a));
 alertQueue.events.on('skip', (id) => io.to('alerts').emit('alertSkip', id));
@@ -167,7 +169,10 @@ alertQueue.events.on('state', (st) => io.emit('alertQueue', st));
 goals.events.on('change', (reached) => io.emit('goals', goals.all(), reached));
 bus.on('event', (ev) => io.emit('event', ev));
 bus.on('connections', () => changed());
-bus.on('chat', (m) => io.emit('chat', m));
+bus.on('chat', (m) => {
+  m.sent = Date.now(); // for "Show chat timing" (the recent messages hold this same object)
+  io.emit('chat', m);
+});
 bus.on('chatClear', (c) => io.emit('chatClear', c));
 bus.on('chatAvatar', (a) => io.emit('chatAvatar', a));
 chat.events.on('status', (st) => io.emit('chatStatus', st));

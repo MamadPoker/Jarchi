@@ -86,6 +86,7 @@ const CHAT_GROUPS = () => [
     ['text', 'blockedWords', { hint: 'listHint', dir: 'auto' }], ['toggle', 'hideLinks'], ['select', 'source', { options: [['both', 'sourceBoth'], ['kick', 'sourceKick'], ['twitch', 'sourceTwitch']] }]]],
   ['chatFx', [['toggle', 'fxSubGlow'], ['toggle', 'fxFirst'], ['toggle', 'fxRainbowVip'], ['text', 'rainbowUsers', { hint: 'listHint' }], ['toggle', 'fxMention'], ['toggle', 'fxCombo'],
     ['toggle', 'avatars', { hint: 'avatarsHint' }], ['range', 'blur', { min: 0, max: 40 }]]],
+  ['chatDebug', [['toggle', 'showTiming']]],
 ];
 
 // One "More options" control. Inputs carry data-f like the other editors, so fill() and the save handler just work.
