@@ -1,6 +1,6 @@
 # Kick badges
 
-Kick's own chat badge icons, unmodified (same shapes and colors). Kick doesn't publish them as image files: kick.com's web app draws them from SVG icon data in its scripts (`https://assets.kick.com/main/_next/static/chunks/…`). Each file here is that icon data written out the way kick.com's icon renderer builds it: `<svg xmlns viewBox fill="none">` + Kick's own SVG body. The only addition is the `xmlns:xlink` namespace declaration in `founder.svg`, which a standalone SVG file needs for its embedded image.
+Kick's own chat badge icons, unmodified (same shapes and colors). Kick doesn't publish them as image files: kick.com's web app draws them from SVG icon data in its scripts (`https://assets.kick.com/main/_next/static/chunks/…`). Each file here is that icon data written out the way kick.com's icon renderer builds it: `<svg xmlns viewBox fill="none">` + Kick's own SVG body: shapes only, no size, so they stay sharp at any size (the chat widget puts them into the page as SVG). The one change: kick.com's founder icon also has a small PNG texture blended (soft-light) over its "1"; `founder.svg` leaves that layer out so the file has no raster image. Checked against kick.com's scripts again in October 2026: every other file is unchanged.
 
 | File | Kick badge (icon name in kick.com's code) |
 | --- | --- |

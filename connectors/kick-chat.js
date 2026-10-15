@@ -45,6 +45,14 @@ async function kickGet(path, { host = 'kick.com', body: payload } = {}) {
   });
 }
 
+// The biggest picture Kick lists for an image ({ srcset: "url 2x, url 72w", src }). Sub badges in October 2026: srcset
+// empty, src 36x36 (the same size as Kick's animated original).
+function biggest(image) {
+  const listed = String(image?.srcset ?? '').split(',').map((s) => s.trim().split(/\s+/)).filter(([u]) => u?.startsWith('https://'));
+  const size = ([, d]) => parseFloat(d) || 1;
+  return listed.sort((a, b) => size(b) - size(a))[0]?.[0] ?? image?.src;
+}
+
 // Channel name -> what chat needs: chatroom id, the user id (for 7TV), the channel's own subscriber badges.
 async function channelInfo(slug) {
   const { status, json } = await kickGet(`/api/v2/channels/${encodeURIComponent(slug)}`);
@@ -54,7 +62,7 @@ async function channelInfo(slug) {
     chatroomId: json.chatroom.id,
     channelId: json.id, // Kicks arrive on the channel's own socket channel
     userId: json.user_id,
-    subBadges: (json.subscriber_badges ?? []).map((b) => ({ months: b.months, src: b.badge_image?.src })).filter((b) => b.src).sort((a, b) => b.months - a.months),
+    subBadges: (json.subscriber_badges ?? []).map((b) => ({ months: b.months, src: biggest(b.badge_image) })).filter((b) => b.src).sort((a, b) => b.months - a.months),
   };
 }
 
@@ -250,4 +258,4 @@ function connect(slug, cb) {
   return { stop() { stopped = true; clearTimeout(timer); clearInterval(keepAlive); ws?.close(); } };
 }
 
-module.exports = { connect, handle, kickParts, kickBadges, avatar, kickGet, subMonths, pusherUrl, PUSHER, HOLD_MS };
+module.exports = { connect, handle, kickParts, kickBadges, biggest, avatar, kickGet, subMonths, pusherUrl, PUSHER, HOLD_MS };

@@ -92,6 +92,7 @@ body.preview, body.thumb { display: grid; place-items: center; }
    Every size is in em of the name, so it follows "Name size". The SVGs are images, so their ids never clash. */
 .hat { filter: drop-shadow(0 0.05em 0.07em rgba(0, 0, 0, 0.5)); pointer-events: none; }
 .hat-letter { position: relative; display: inline-block; line-height: 1; }
+.hat-name { white-space: nowrap; } /* the hat's letter is its own box: the name never breaks after it */
 /* About twice the letter's width (the letter's own box), tilted, over the top of the letter */
 .hat-first, .hat-last { position: absolute; z-index: 1; bottom: 0.62em; left: 50%; width: 200%; min-width: 1.2em; max-width: 1.7em; transform: translateX(-50%) rotate(-12deg); }
 .hat-last { transform: translateX(-50%) rotate(12deg); }

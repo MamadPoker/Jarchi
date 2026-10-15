@@ -82,6 +82,16 @@ test('Kick Pusher events -> messages, badges, removals', () => {
   const tiers = new Set(img(Array.from({ length: 6000 }, (_, i) => ({ type: 'sub_gifter', count: i + 1 }))));
   assert.equal(tiers.size, 28);
   for (const f of tiers) assert.ok(fs.existsSync(path.join(__dirname, '..', f)), f);
+  // Kick's icons are shapes only, without a size of their own: sharp at any badge size.
+  const dir = path.join(__dirname, '..', 'assets', 'kick-badges');
+  for (const f of fs.readdirSync(dir).filter((x) => x.endsWith('.svg'))) {
+    const svg = fs.readFileSync(path.join(dir, f), 'utf8'), root = svg.slice(0, svg.indexOf('>'));
+    assert.ok(/viewBox="0 0 \d+ \d+"/.test(root) && !/\s(width|height)=/.test(root) && !/<image|data:/.test(svg), f);
+  }
+  // A channel's sub badge: the biggest picture Kick lists for it.
+  assert.equal(kick.biggest({ srcset: '', src: 'https://files.kick.com/a-fullsize.png' }), 'https://files.kick.com/a-fullsize.png');
+  assert.equal(kick.biggest({ srcset: 'https://files.kick.com/a1.png 1x, https://files.kick.com/a3.png 3x, https://files.kick.com/a2.png 2x', src: 'https://files.kick.com/a.png' }), 'https://files.kick.com/a3.png');
+  assert.equal(kick.biggest({ srcset: 'https://files.kick.com/s.png 36w, https://files.kick.com/l.png 72w' }), 'https://files.kick.com/l.png');
 
   kick.handle('App\\Events\\MessageDeletedEvent', { id: 'x', message: { id: 'k-1' } }, 'xqc', info, cb);
   kick.handle('App\\Events\\UserBannedEvent', { user: { id: 56477090, username: 'Ali' } }, 'xqc', info, cb);

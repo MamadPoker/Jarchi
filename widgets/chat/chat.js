@@ -20,9 +20,9 @@ const KICK_DEFAULT = '#FFFFFF';
 // (assets/kick-avatars), picked by the name so it's the same one every time.
 const kickAvatar = (m) => `/assets/kick-avatars/default-avatar-${(hash(m.user.login) % 6) + 1}.webp`;
 const BADGE_KEY = { broadcaster: 'badgeBroadcaster', moderator: 'badgeMod', vip: 'badgeVip', subscriber: 'badgeSub', other: 'badgeOther' };
-// "Badges: Important only": roles and statuses (Twitch's "partner" is its verified check). Gifter tiers, Prime, levels and
-// the like only with "All".
-const IMPORTANT = new Set(['broadcaster', 'moderator', 'vip', 'og', 'founder', 'subscriber', 'verified', 'partner', 'staff']);
+// "Badges: Important only": roles and statuses (Twitch's "partner" is its verified check), and Kick's sub gifter. Twitch's
+// gifter tiers, Prime, levels and the like only with "All".
+const IMPORTANT = new Set(['broadcaster', 'moderator', 'vip', 'og', 'founder', 'subscriber', 'verified', 'partner', 'staff', 'sub_gifter']);
 // "Make names readable": what's behind a see-through chat is the stream, taken as dark (like the text shadow does), and
 // the styles whose messages are filled with their turn color.
 const STREAM = '#111111';
@@ -268,6 +268,7 @@ function nameEl(m, rainbow, turn, hat) {
   const chars = Array.from(m.user.name);
   const letter = h('span', { className: 'hat-letter' }, hat === 'first' ? chars.shift() : chars.pop(), hatEl(hat));
   el.append(...(hat === 'first' ? [letter, chars.join('')] : [chars.join(''), letter]));
+  el.classList.add('hat-name');
   return el;
 }
 
@@ -290,11 +291,42 @@ function badgesEl(m, hat) {
   const out = m.user.badges.map((b) => {
     if (hat === 'badge' && b.name === 'og') return hatEl('badge');
     if (!show(b)) return null;
-    return b.img
-      ? h('img', { className: 'badge', src: remote(b.img), alt: b.title, title: b.title })
-      : h('span', { className: `badge-text bt-${b.type}`, textContent: S.chatText.badges[b.name] ?? b.title });
+    if (!b.img) return h('span', { className: `badge-text bt-${b.type}`, textContent: S.chatText.badges[b.name] ?? b.title });
+    if (KICK_ICON.test(b.img)) return iconEl(b.img, b.title);
+    // A picture (Twitch's 72 px, a Kick channel's 36 px sub badges...) is never drawn bigger than it is.
+    const img = h('img', { className: 'badge', src: remote(b.img), alt: b.title, title: b.title });
+    img.addEventListener('load', () => (img.style.maxHeight = `${img.naturalHeight}px`));
+    return img;
   }).filter(Boolean);
   return out.length ? h('span', { className: 'badges' }, ...out) : null;
+}
+
+// Kick's own badge icons (assets/kick-badges) go into the page as SVG: drawn as shapes at their final size, also while a
+// message pops in or tilts. Each file is fetched once; the first time one is seen it shows as an image until then.
+const KICK_ICON = /^\/assets\/kick-badges\/[\w-]+\.svg$/;
+const icons = new Map(); // path -> SVG markup ('' while loading or if it failed)
+let iconCopies = 0;
+function iconEl(src, title) {
+  const markup = icons.get(src);
+  if (!markup) {
+    if (!icons.has(src)) {
+      icons.set(src, '');
+      fetch(src).then((r) => r.text()).then((t) => {
+        if (!t.startsWith('<svg')) return;
+        icons.set(src, t);
+        for (const img of document.querySelectorAll('img.badge.icon')) if (img.getAttribute('src') === src) img.replaceWith(iconEl(src, img.title));
+      }).catch(() => {});
+    }
+    return h('img', { className: 'badge icon', src, alt: title, title });
+  }
+  const tpl = document.createElement('template');
+  // Every copy gets its own gradient ids, so removing one message never takes another one's colors.
+  tpl.innerHTML = markup.replace(/(id="|url\(#|href="#)([\w-]+)/g, `$1$2-${++iconCopies}`);
+  const svg = tpl.content.firstElementChild;
+  svg.classList.add('badge');
+  svg.setAttribute('role', 'img');
+  svg.setAttribute('aria-label', title);
+  return svg;
 }
 
 function bodyEl(m) {

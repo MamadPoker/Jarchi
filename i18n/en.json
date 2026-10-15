@@ -462,7 +462,7 @@
       "badgeVip": "The VIPs' badge.",
       "badgeSub": "The subscribers' badge.",
       "badgeOther": "Every other badge, for example OG, founder or sub gifter.",
-      "badgeMode": "**Important only**: broadcaster, mod, VIP, OG, founder, sub, verified and staff. **All**: every badge, gifter tiers and levels too.",
+      "badgeMode": "**Important only**: broadcaster, mod, VIP, OG, founder, sub, Kick's sub gifter, verified and staff. **All**: every badge, Twitch's gifter tiers and levels too.",
       "badgeSize": "How big badges are next to the name. 100% is as tall as the name.",
       "ogHat": "Kick viewers with the OG badge get a black hat with MP on it.",
       "hatStyle": "The hat: a cap, a beanie or a fedora.",
