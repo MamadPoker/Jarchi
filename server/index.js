@@ -1,5 +1,6 @@
 const path = require('node:path');
 const http = require('node:http');
+const { execFile } = require('node:child_process');
 const express = require('express');
 const { Server } = require('socket.io');
 const { HOST, PORT, UPLOADS_DIR } = require('../core/config');
@@ -35,6 +36,12 @@ app.use('/api', (req, res, next) => {
 app.use(express.json());
 
 app.get('/api/settings', (req, res) => res.json(view()));
+// The panel's "Same as Windows" colors: Windows' app mode from the registry; dark when it can't be read (or not on Windows).
+app.get('/api/system-theme', (req, res) => {
+  const key = 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize';
+  execFile('reg', ['query', key, '/v', 'AppsUseLightTheme'], { windowsHide: true, timeout: 3000 }, (err, out) =>
+    res.json({ theme: !err && /AppsUseLightTheme\s+REG_DWORD\s+0x0*1\b/.test(out) ? 'light' : 'dark' }));
+});
 app.patch('/api/settings', (req, res) => {
   const s = settings.update(req.body);
   for (const [id, fields] of Object.entries(req.body.goals ?? {})) if ('target' in fields) goals.retarget(id);

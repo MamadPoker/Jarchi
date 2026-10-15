@@ -5,12 +5,18 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Jarchi</title>
   <link rel="stylesheet" href="panel.css">
+  <!-- The colors last shown (panel.js keeps it), set before the first paint so a light panel doesn't flash dark. -->
+  <script>try { document.documentElement.dataset.theme = localStorage.getItem('jarchi.theme') || 'dark'; } catch {}</script>
 </head>
 <body>
   <header class="topbar">
     <div class="brand"><div class="logo" aria-hidden="true">J</div><span data-i18n="title"></span></div>
     <div class="lang" role="group" data-aria="language">
       <button data-lang="fa" lang="fa">فا</button><button data-lang="en" lang="en">EN</button>
+    </div>
+    <!-- Temporary, for testing the colors: Dark / Light / Same as Windows. -->
+    <div class="mode" role="group" data-aria="colorMode">
+      <button data-mode="dark" data-i18n="modeDark"></button><button data-mode="light" data-i18n="modeLight"></button><button data-mode="windows" data-i18n="modeWindows"></button>
     </div>
     <button id="copy" class="primary">
       <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h8"/></svg>

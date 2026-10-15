@@ -35,6 +35,8 @@ test('migration, settings, uploads, reset, events', async () => {
 
   // v1 -> v2: old custom sound keeps playing, old values kept, file still served.
   let s = await (await call('GET', '/api/settings')).json();
+  // The panel's "Same as Windows" colors: dark or light from the registry, dark where it can't be read.
+  assert.match((await (await call('GET', '/api/system-theme')).json()).theme, /^(dark|light)$/);
   assert.equal(s.theme, 'fun');
   assert.equal(s.alerts.sub.soundMode, 'custom');
   assert.equal(s.alerts.sub.volume, 0.4);

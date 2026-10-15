@@ -12,6 +12,17 @@ const remember = {
 const FA = remember.get('jarchi.lang') === 'fa';
 document.documentElement.lang = FA ? 'fa' : 'en';
 document.documentElement.dir = FA ? 'rtl' : 'ltr';
+// Colors: Dark (default), Light, or Same as Windows (the server reads Windows' setting). The top bar switch is temporary, for testing.
+const applyTheme = async () => {
+  const mode = remember.get('jarchi.mode') || 'dark';
+  const theme = mode !== 'windows' ? mode : (await fetch('/api/system-theme').then((r) => r.json()).catch(() => ({}))).theme === 'light' ? 'light' : 'dark';
+  document.documentElement.dataset.theme = theme;
+  remember.set('jarchi.theme', theme); // index.html sets it before the first paint
+  $$('.mode button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.mode === mode)));
+};
+$$('.mode button').forEach((b) => (b.onclick = () => (remember.set('jarchi.mode', b.dataset.mode), applyTheme())));
+addEventListener('focus', () => remember.get('jarchi.mode') === 'windows' && applyTheme()); // Windows' setting may have changed meanwhile
+applyTheme();
 // Persian digits (and ٪ ٫) in labels; inputs keep theirs.
 const fd = (v) => (FA ? String(v).replace(/(?<=\d)\.(?=\d)/g, '٫').replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[d]).replace(/%/g, '٪') : String(v));
 const fmt = (n) => n.toLocaleString(FA ? 'fa-IR' : undefined);
