@@ -217,6 +217,8 @@ function connect(slug, cb) {
     cb.onChannel({ userId: info.userId, subBadges: info.subBadges });
     const url = await pusherUrl(info.channelId).catch(() => PUSHER);
     if (stopped) return;
+    const { host, pathname } = new URL(url);
+    console.log(`Kick chat: ${slug} on ${host}, Pusher app ${pathname.split('/').pop()}`);
     last = Date.now();
     ws = new WebSocket(url);
     ws.onmessage = (e) => {
