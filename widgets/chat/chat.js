@@ -356,6 +356,9 @@ function avatarEl(m) {
   return stand;
 }
 
+// The badges that get a small dark tile on a light background (chat.css .on-light): the platforms' own role badges,
+// drawn for dark chats. Subscriber badges (the channel's own pictures) and the rest stay as they are.
+const TILED = new Set(['og', 'moderator', 'vip', 'verified', 'partner', 'founder', 'broadcaster', 'staff', 'sub_gifter', 'sub-gifter']);
 // The badges to show. With the OG hat on the badges, the hat takes the OG badge's place (shown even with badges off).
 function badgesEl(m, hat) {
   const show = (b) => cfg.showBadges && cfg[BADGE_KEY[b.type] ?? 'badgeOther'] && (cfg.badgeMode === 'all' || IMPORTANT.has(b.name));
@@ -363,9 +366,10 @@ function badgesEl(m, hat) {
     if (hat === 'badge' && b.name === 'og') return hatEl('badge');
     if (!show(b)) return null;
     if (!b.img) return h('span', { className: `badge-text bt-${b.type}`, textContent: S.chatText.badges[b.name] ?? b.title });
-    if (KICK_ICON.test(b.img)) return iconEl(b.img, b.title);
+    const tile = TILED.has(b.name);
+    if (KICK_ICON.test(b.img)) return iconEl(b.img, b.title, tile);
     // A picture (Twitch's 72 px, a Kick channel's 36 px sub badges...) is never drawn bigger than it is.
-    const img = h('img', { className: 'badge', src: remote(b.img), alt: b.title, title: b.title });
+    const img = h('img', { className: `badge${tile ? ' tile' : ''}`, src: remote(b.img), alt: b.title, title: b.title });
     img.addEventListener('load', () => (img.style.maxHeight = `${img.naturalHeight}px`));
     return img;
   }).filter(Boolean);
@@ -377,7 +381,7 @@ function badgesEl(m, hat) {
 const KICK_ICON = /^\/assets\/kick-badges\/[\w-]+\.svg$/;
 const icons = new Map(); // path -> SVG markup ('' while loading or if it failed)
 let iconCopies = 0;
-function iconEl(src, title) {
+function iconEl(src, title, tile) {
   const markup = icons.get(src);
   if (!markup) {
     if (!icons.has(src)) {
@@ -385,16 +389,17 @@ function iconEl(src, title) {
       fetch(src).then((r) => r.text()).then((t) => {
         if (!t.startsWith('<svg')) return;
         icons.set(src, t);
-        for (const img of document.querySelectorAll('img.badge.icon')) if (img.getAttribute('src') === src) img.replaceWith(iconEl(src, img.title));
+        for (const img of document.querySelectorAll('img.badge.icon')) if (img.getAttribute('src') === src) img.replaceWith(iconEl(src, img.title, img.classList.contains('tile')));
       }).catch(() => {});
     }
-    return h('img', { className: 'badge icon', src, alt: title, title });
+    return h('img', { className: `badge icon${tile ? ' tile' : ''}`, src, alt: title, title });
   }
   const tpl = document.createElement('template');
   // Every copy gets its own gradient ids, so removing one message never takes another one's colors.
   tpl.innerHTML = markup.replace(/(id="|url\(#|href="#)([\w-]+)/g, `$1$2-${++iconCopies}`);
   const svg = tpl.content.firstElementChild;
   svg.classList.add('badge');
+  if (tile) svg.classList.add('tile');
   svg.setAttribute('role', 'img');
   svg.setAttribute('aria-label', title);
   return svg;
