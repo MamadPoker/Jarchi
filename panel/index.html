@@ -9,44 +9,68 @@
   <script>try { document.documentElement.dataset.theme = localStorage.getItem('jarchi.theme') || 'dark'; } catch {}</script>
 </head>
 <body>
-  <header class="topbar">
-    <div class="brand"><div class="logo" aria-hidden="true">J</div><span data-i18n="title"></span></div>
-    <div class="lang" role="group" data-aria="language">
-      <button data-lang="fa" lang="fa">فا</button><button data-lang="en" lang="en">EN</button>
-    </div>
-    <!-- Temporary, for testing the colors: Dark / Light / Same as Windows. -->
-    <div class="mode" role="group" data-aria="colorMode">
-      <button data-mode="dark" data-i18n="modeDark"></button><button data-mode="light" data-i18n="modeLight"></button><button data-mode="windows" data-i18n="modeWindows"></button>
-    </div>
-    <button id="copy" class="primary">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h8"/></svg>
-      <span data-i18n="copyObs"></span>
-    </button>
-  </header>
-
-  <div class="layout">
-    <!-- Left column: groups of items, built in panel.js (GROUPS). Settings sits at the bottom. -->
+  <div class="app">
+    <!-- Sidebar: the brand, then one item per page. Each opens its <section data-view> (select() in panel.js). -->
     <aside class="side">
-      <div id="groups" class="side-scroll"></div>
-      <div class="side-foot">
-        <div class="nav-row row-guide" data-view="guide">
-          <button class="nav-btn">
-            <svg class="guide-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3M12 17h.01"/></svg>
-            <span data-i18n="guide"></span>
-          </button>
-        </div>
-        <div class="nav-row" data-view="settings">
-          <button class="nav-btn">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M2 12h3M19 12h3M4.9 19.1L7 17M17 7l2.1-2.1"/></svg>
-            <span data-i18n="settings"></span>
-          </button>
-        </div>
-      </div>
+      <div class="brand" id="brand"></div>
+      <nav class="nav" data-aria="menu">
+        <button class="nav-item" data-view="home"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5L12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg><span data-i18n="navHome"></span></button>
+        <button class="nav-item" data-view="alert"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.9 1.9 0 0 0 3.4 0"/></svg><span data-i18n="groupAlerts"></span></button>
+        <button class="nav-item" data-view="chat"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><span data-i18n="chatName"></span></button>
+        <button class="nav-item" data-view="goal"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/></svg><span data-i18n="navGoals"></span></button>
+        <h2 class="group-title" data-i18n="navLive"></h2>
+        <button class="nav-item" data-view="queue"><svg class="flip" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01"/></svg><span data-i18n="queueTitle"></span><span class="q-count" id="qNavCount" hidden></span></button>
+        <button class="nav-item" data-view="events"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 2.6-6.4L3 8M3 3v5h5M12 7v5l3 2"/></svg><span data-i18n="navEvents"></span></button>
+        <h2 class="group-title" data-i18n="navSetup"></h2>
+        <button class="nav-item" data-view="connections"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg><span data-i18n="navConnections"></span></button>
+        <button class="nav-item" data-view="appearance"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21a9 9 0 1 1 9-9c0 2-1.6 3-3.2 3H15a1.8 1.8 0 0 0-1.4 2.9A1.8 1.8 0 0 1 12 21zM7.5 11.5h.01M10 7.5h.01M14.5 7.5h.01"/></svg><span data-i18n="navAppearance"></span></button>
+        <button class="nav-item" data-view="settings"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.3 4.7L10.5 2.1H13.5L13.7 4.7A7.5 7.5 0 0 1 16 5.6L17.9 4L20 6.1L18.4 8A7.5 7.5 0 0 1 19.3 10.3L21.9 10.5V13.5L19.3 13.7A7.5 7.5 0 0 1 18.4 16L20 17.9L17.9 20L16 18.4A7.5 7.5 0 0 1 13.7 19.3L13.5 21.9H10.5L10.3 19.3A7.5 7.5 0 0 1 8 18.4L6.1 20L4 17.9L5.6 16A7.5 7.5 0 0 1 4.7 13.7L2.1 13.5V10.5L4.7 10.3A7.5 7.5 0 0 1 5.6 8L4 6.1L6.1 4L8 5.6A7.5 7.5 0 0 1 10.3 4.7Z"/><circle cx="12" cy="12" r="3"/></svg><span data-i18n="settings"></span></button>
+        <button class="nav-item" data-view="guide"><svg class="flip" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3M12 17h.01"/></svg><span data-i18n="guide"></span></button>
+      </nav>
     </aside>
 
+    <div class="page">
+    <header class="topbar">
+      <h1 id="pageTitle" class="page-title"></h1>
+      <!-- Kick / Twitch: green dot when the chat connection is up (renderStatus). -->
+      <div class="plats">
+        <button class="plat" data-p="kick"><img src="/assets/platform-logos/kick.svg" alt=""><i></i></button>
+        <button class="plat" data-p="twitch"><img src="/assets/platform-logos/twitch.svg" alt=""><i></i></button>
+      </div>
+      <!-- Temporary, for testing the colors: Dark / Light / Same as Windows. -->
+      <div class="mode" role="group" data-aria="colorMode">
+        <button data-mode="dark" data-i18n="modeDark"></button><button data-mode="light" data-i18n="modeLight"></button><button data-mode="windows" data-i18n="modeWindows"></button>
+      </div>
+      <div class="lang" role="group" data-aria="language">
+        <button data-lang="fa" lang="fa">فا</button><button data-lang="en" lang="en">EN</button>
+      </div>
+    </header>
+
     <main>
-      <!-- ===== One alert ===== -->
-      <section class="view" data-view="alert" hidden>
+      <!-- ===== Pages that aren't built yet ===== -->
+      <section class="view soon" data-view="home events connections appearance" hidden>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+        <h2 data-i18n="soonTitle"></h2>
+        <small data-i18n="soonHint"></small>
+      </section>
+
+      <!-- ===== Alerts: the main theme and the OBS link on top, then the alert list (with switches) next to the selected alert ===== -->
+      <section class="view split" data-view="alert" hidden>
+        <div class="page-head">
+          <button id="themeRow" class="theme-row">
+            <span class="group-title" data-i18n="groupTheme"></span>
+            <span class="swatch" id="themeSwatch"></span><b id="themeName"></b>
+            <span class="swatches" id="themeSwatches"></span>
+            <span class="change" data-i18n="change"></span>
+          </button>
+          <button id="copy">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h8"/></svg>
+            <span data-i18n="copyObs"></span>
+          </button>
+        </div>
+        <div class="split-body">
+        <div class="list"><h2 class="group-title" data-i18n="groupAlerts" data-help="groups.alerts"></h2><ul id="alertList" class="nav-list"></ul></div>
+        <div class="editor">
         <div class="row between">
           <h1 class="title"><span class="dot"></span><span class="name"></span><span class="pill" data-only="off" data-i18n="off"></span></h1>
           <div class="row">
@@ -204,16 +228,21 @@
             </div>
           </div>
         </details>
+        </div>
+        </div>
       </section>
 
-      <!-- ===== One goal widget ===== -->
-      <section class="view" data-view="goal" hidden>
+      <!-- ===== Goals: the goal list (with switches) next to the selected goal ===== -->
+      <section class="view split" data-view="goal" hidden>
+        <div class="split-body">
+        <div class="list"><h2 class="group-title" data-i18n="navGoals" data-help="groups.goals"></h2><ul id="goalList" class="nav-list"></ul></div>
+        <div class="editor">
         <div class="row between">
           <h1 class="title"><span class="dot"></span><span class="name"></span><span class="pill" data-only="off" data-i18n="off"></span></h1>
           <div class="row">
             <button id="goalCopy">
               <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h8"/></svg>
-              <span data-i18n="goalCopy"></span>
+              <span data-i18n="copyObs"></span>
             </button>
             <button id="goalResetStyle" class="ghost" data-i18n="goalResetStyle"></button>
           </div>
@@ -343,16 +372,18 @@
             </div>
           </div>
         </details>
+        </div>
+        </div>
       </section>
 
       <!-- ===== Chat widget ===== -->
       <section class="view" data-view="chat" hidden>
         <div class="row between">
-          <h1 class="title"><span class="dot"></span><span data-i18n="chatName"></span><span class="pill" data-only="off" data-i18n="off"></span></h1>
+          <h1 class="title"><span class="dot"></span><span data-i18n="chatName"></span><label class="switch"><input type="checkbox" data-f="enabled" data-aria="chatName"><span></span></label><span class="pill" data-only="off" data-i18n="off"></span></h1>
           <div class="row">
             <button id="chatCopy">
               <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h8"/></svg>
-              <span data-i18n="chatCopy"></span>
+              <span data-i18n="copyObs"></span>
             </button>
             <button id="chatResetStyle" class="ghost" data-i18n="chatResetStyle"></button>
           </div>
@@ -410,7 +441,6 @@
 
       <!-- ===== Settings ===== -->
       <section class="view narrow" data-view="settings" hidden>
-        <h1 class="title" data-i18n="settings"></h1>
         <div class="box">
           <h2 data-i18n="badgeTitle"></h2>
           <label class="row between toggle-row">
@@ -471,34 +501,19 @@
 
       <!-- ===== Guide: its own topic list; the text is in i18n guide.topics (renderGuide) ===== -->
       <section class="view" data-view="guide" hidden>
-        <h1 class="title" data-i18n="guide"></h1>
         <div class="guide">
           <nav id="guideTopics" class="guide-topics" data-aria="guideTopics"></nav>
           <article id="guideBody" class="guide-body"></article>
         </div>
       </section>
-    </main>
 
-    <!-- Right column: the alert queue (core/alerts.js), on every page. Collapses to a strip; a drawer on narrow windows. -->
-    <aside id="queue" class="queue-col" aria-labelledby="qTitle">
-      <button id="qExpand" class="q-strip" data-title="qExpand">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
-        <span class="q-count" id="qStripCount"></span>
-      </button>
-      <div class="q-panel">
-        <div class="q-head">
-          <h2 id="qTitle" data-i18n="queueTitle"></h2>
-          <span class="pill" id="qPaused" data-i18n="qPausedLabel" hidden></span>
-          <button id="qCollapse" class="icon-btn ghost" data-title="qCollapse">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
-          </button>
-        </div>
-        <div class="q-scroll">
-          <section class="q-sec" aria-live="polite">
-            <h3 data-i18n="qNow"></h3>
-            <div id="qNow" class="q-now"></div>
-            <div class="q-bar"><i id="qBar"></i></div>
-          </section>
+      <!-- ===== Alert queue (core/alerts.js): now playing, Pause / Skip / Clear, waiting, last played ===== -->
+      <section id="queue" class="view narrow" data-view="queue" hidden>
+        <p id="qNoObs" class="q-notice" data-i18n="qNoObs" hidden></p>
+        <div class="box q-sec">
+          <h3><span data-i18n="qNow"></span> <span class="pill" id="qPaused" data-i18n="qPausedLabel" hidden></span></h3>
+          <div id="qNow" class="q-now" aria-live="polite"></div>
+          <div class="q-bar"><i id="qBar"></i></div>
           <div class="q-buttons">
             <button id="qPause">
               <svg class="i-pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5v14M15 5v14"/></svg>
@@ -514,27 +529,21 @@
               <span data-i18n="qClear"></span>
             </button>
           </div>
-          <section class="q-sec">
-            <h3><span data-i18n="qWaitingTitle"></span> <span class="q-count" id="qCount"></span></h3>
-            <ol id="qList" class="q-list"></ol>
-            <p id="qEmpty" class="q-empty" data-i18n="qEmpty"></p>
-          </section>
-          <section class="q-sec">
-            <h3 data-i18n="qHistory"></h3>
-            <ol id="qHistory" class="q-list"></ol>
-            <p id="qNoHistory" class="q-empty" data-i18n="qNoHistory"></p>
-          </section>
         </div>
-        <p id="qNoObs" class="q-notice" data-i18n="qNoObs" hidden></p>
-      </div>
-    </aside>
+        <div class="box q-sec">
+          <h3><span data-i18n="qWaitingTitle"></span> <span class="q-count" id="qCount"></span></h3>
+          <ol id="qList" class="q-list"></ol>
+          <p id="qEmpty" class="q-empty" data-i18n="qEmpty"></p>
+        </div>
+        <div class="box q-sec">
+          <h3 data-i18n="qHistory"></h3>
+          <ol id="qHistory" class="q-list"></ol>
+          <p id="qNoHistory" class="q-empty" data-i18n="qNoHistory"></p>
+        </div>
+      </section>
+    </main>
+    </div>
   </div>
-  <!-- Narrow windows: the queue opens as a drawer from this button. -->
-  <button id="queueFab" class="queue-fab" data-title="qExpand" aria-controls="queue">
-    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
-    <span class="q-count" id="qFabCount"></span>
-  </button>
-  <div id="qBackdrop" class="q-backdrop" hidden></div>
 
   <div id="tip" role="tooltip" hidden></div>
   <div id="toast" role="status" aria-live="polite"></div>

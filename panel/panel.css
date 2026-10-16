@@ -19,7 +19,6 @@
   --on-gold: #1b1404;
   --on-color: #fff; /* text and knobs on green / red */
   --j: #c99a2e; /* the J of Jarchi, in every theme */
-  --logo-bg: #10241a;
   --focus: var(--gold);
   --danger: #f43f5e;
   --danger-line: rgba(244, 63, 94, 0.4);
@@ -183,31 +182,50 @@ input[type="color"]::-webkit-color-swatch { border: 0; border-radius: 7px; }
 .fname { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .fname.default { color: var(--muted); font-style: italic; }
 
-/* ---------- Top bar ---------- */
+/* ---------- App shell: sidebar (brand + pages) | top bar over the page ---------- */
+.app { display: grid; grid-template-columns: 232px minmax(0, 1fr); min-height: 100vh; }
+.side {
+  position: sticky;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow-y: auto;
+  padding: 14px 12px;
+  border-inline-end: 1px solid var(--border);
+  background: var(--sidebar);
+}
+.brand { padding: 4px 10px 18px; font-size: 22px; font-weight: 800; }
+.brand .j { color: var(--j); }
+.nav { display: grid; gap: 2px; }
+.nav .group-title { margin: 18px 10px 6px; }
+.nav-item { gap: 12px; padding: 9px 10px; border: 0; background: none; color: var(--muted); text-align: start; }
+.nav-item:hover { background: var(--hover); color: var(--text); }
+.nav-item[aria-current="page"] { background: var(--green-soft); color: var(--text); }
+.nav-item svg { width: 18px; height: 18px; }
+.nav-item .q-count { margin-inline-start: auto; background: var(--gold); color: var(--on-gold); }
+[dir="rtl"] .flip { transform: scaleX(-1); } /* list bullets, and the Persian question mark, on the other side */
+
+.page { min-width: 0; }
 .topbar {
   position: sticky;
   top: 0;
   z-index: 20;
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
   height: 60px;
-  padding: 0 20px;
+  padding: 0 28px;
   border-bottom: 1px solid var(--border);
   background: var(--topbar);
   backdrop-filter: blur(10px);
 }
-.brand { display: flex; align-items: center; gap: 10px; margin-inline-end: auto; font-size: 18px; font-weight: 800; }
-.logo {
-  display: grid;
-  place-items: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 10px;
-  color: var(--j);
-  background: var(--logo-bg);
-}
-:root:not([lang="fa"]) .brand span::first-letter { color: var(--j); } /* the J of "Jarchi" (Persian letters would lose their joins) */
+.page-title { margin-inline-end: auto; font-size: 19px; }
+.plats { display: flex; gap: 6px; }
+.plat { gap: 7px; padding: 6px 11px; border-radius: 99px; }
+.plat img { width: 16px; height: 16px; }
+.plat i { width: 8px; height: 8px; border-radius: 50%; background: var(--danger); }
+.plat.on i { background: var(--ok); }
 
 /* Theme swatches: a hint of each theme's colors. */
 .swatch { width: 16px; height: 16px; flex: none; border-radius: 5px; box-shadow: inset 0 0 0 1px var(--swatch-edge); }
@@ -221,36 +239,22 @@ input[type="color"]::-webkit-color-swatch { border: 0; border-radius: 7px; }
 .sw-galaxy { background: radial-gradient(circle at 35% 30%, #ffd1f5, #b18cff 40%, #2a1660); }
 .sw-comic { background: radial-gradient(circle, #ff2e2e 32%, #ffe600 34%); }
 
-/* ---------- Three columns: list + editor + alert queue (a 44px strip when collapsed) ---------- */
-.layout { display: grid; grid-template-columns: 300px minmax(0, 1fr) 280px; min-height: calc(100vh - 60px); }
-.q-collapsed .layout { grid-template-columns: 300px minmax(0, 1fr) 44px; }
-.side {
-  position: sticky;
-  top: 60px;
-  display: flex;
-  flex-direction: column;
-  height: calc(100vh - 60px);
-  border-inline-end: 1px solid var(--border);
-  background: var(--sidebar);
-}
-.side-scroll { flex: 1; overflow-y: auto; padding: 18px 12px; }
-.side-foot { padding: 10px 12px; border-top: 1px solid var(--border); }
+/* ---------- Alerts and Goals: the page's own list (rows with a switch) next to the selected item's editor ---------- */
 .group-title { margin: 4px 12px 8px; font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
-.nav { display: grid; gap: 2px; margin: 0 0 18px; padding: 0; list-style: none; }
-.nav-row { display: flex; align-items: center; gap: 8px; padding-inline-end: 12px; border-radius: 10px; }
+.view.split { max-width: 1340px; }
+.split-body { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 18px; align-items: start; }
+.list { position: sticky; top: 84px; padding: 12px 8px; border: 1px solid var(--border); border-radius: 14px; background: var(--card); }
+.nav-list { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; }
+.nav-row { display: flex; align-items: center; gap: 8px; padding-inline-end: 10px; border-radius: 10px; }
 .nav-row:hover { background: var(--hover); }
-.nav-row.active { background: var(--green-soft); box-shadow: inset 3px 0 0 var(--green); }
-[dir="rtl"] .nav-row.active { box-shadow: inset -3px 0 0 var(--green); }
-.nav-btn { flex: 1; min-width: 0; padding: 10px 12px; border: 0; background: none; text-align: start; }
+.nav-row.active { background: var(--green-soft); }
+.nav-btn { flex: 1; min-width: 0; padding: 9px 10px; border: 0; background: none; text-align: start; }
 .nav-btn:hover { background: none; }
 .nav-row.off .nav-btn { color: var(--muted); }
-.side-foot .nav-btn svg { color: var(--muted); }
-.side-foot .row-guide .guide-icon { color: var(--gold); }
-[dir="rtl"] .guide-icon, [dir="rtl"] .q-strip svg, [dir="rtl"] #qCollapse svg { transform: scaleX(-1); } /* arrows, and the Persian question mark, point the other way */
+.editor { display: grid; gap: 18px; container-type: inline-size; } /* editor rules below follow its width */
 
-/* Each alert type's color dot (list + editor title). */
+/* Each alert type's color dot (editor title). */
 .dot { width: 10px; height: 10px; flex: none; border-radius: 50%; background: var(--dot, var(--muted)); }
-.nav-row.off .dot { background: var(--border); }
 [data-key="follow"] { --dot: #22d3ee; }
 [data-key="sub"] { --dot: #8b5cf6; }
 [data-key="resub"] { --dot: #c084fc; }
@@ -323,7 +327,7 @@ main { padding: 24px 28px 64px; container-type: inline-size; } /* editor rules b
 .row.align-start { align-items: flex-start; gap: 16px; }
 
 .basics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
-.basics .seg span { padding-inline: 7px; } /* "Theme default / My sound / No sound" stays on one line next to the queue column */
+.basics .seg span { padding-inline: 7px; } /* "Theme default / My sound / No sound" stays on one line in a narrow editor */
 
 .more { border: 1px solid var(--border); border-radius: 14px; background: var(--card); }
 .more summary { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; font-weight: 700; cursor: pointer; list-style: none; }
@@ -350,15 +354,22 @@ main { padding: 24px 28px 64px; container-type: inline-size; } /* editor rules b
 #toast.show { opacity: 1; transform: translate(-50%, 0); }
 #toast.error { border-color: var(--danger); color: var(--danger-text); }
 
-/* ---------- Theme: row in the left list + page with a card per theme ---------- */
-.row-theme .nav-btn { display: grid; gap: 10px; padding: 12px; }
-.theme-now { display: flex; align-items: center; gap: 10px; }
-.theme-now .swatch { width: 20px; height: 20px; }
+/* ---------- Theme: row on top of the Alerts page (+ OBS link) and a page with a card per theme ---------- */
+.page-head { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.theme-row { flex: 1; flex-wrap: wrap; gap: 12px; padding: 12px 16px; border-radius: 14px; background: var(--card); text-align: start; }
+.theme-row:hover { background: var(--card); }
+.theme-row .group-title { margin: 0 4px 0 0; }
+#themeSwatch { width: 20px; height: 20px; }
 .change { margin-inline-start: auto; color: var(--muted); font-size: 12px; font-weight: 600; }
-.row-theme:hover .change, .row-theme.active .change { color: var(--gold-text); }
-.swatches { display: flex; gap: 6px; }
+.theme-row:hover .change { color: var(--gold-text); }
+.swatches { display: flex; gap: 6px; margin-inline-start: 8px; }
 .swatches .swatch { width: 14px; height: 14px; border-radius: 4px; }
-.swatches .swatch.current { box-shadow: 0 0 0 2px var(--sidebar), 0 0 0 4px var(--gold); }
+.swatches .swatch.current { box-shadow: 0 0 0 2px var(--card), 0 0 0 4px var(--gold); }
+
+/* ---------- Pages that aren't built yet ---------- */
+.view.soon { justify-items: center; align-content: center; gap: 8px; min-height: 55vh; text-align: center; }
+.soon svg { width: 40px; height: 40px; margin-bottom: 6px; color: var(--gold); }
+.soon h2 { font-size: 20px; }
 
 .stack { display: grid; gap: 4px; }
 .theme-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
@@ -437,54 +448,22 @@ input.num { width: 110px; }
 .net-results .bad::before { content: "!"; color: var(--danger); }
 .net-results .bad { color: var(--danger-text); }
 
-/* ---------- Alert queue column (right) ---------- */
-.queue-col {
-  position: sticky;
-  top: 60px;
-  height: calc(100vh - 60px);
-  border-inline-start: 1px solid var(--border);
-  background: var(--sidebar);
-}
-.q-panel { display: flex; flex-direction: column; height: 100%; }
-.q-strip { display: none; }
-.q-collapsed .q-panel { display: none; }
-.q-collapsed .q-strip {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-  height: 100%;
-  padding: 16px 0;
-  border: 0;
-  border-radius: 0;
-  background: none;
-  color: var(--muted);
-}
-.q-strip:hover { background: var(--hover); color: var(--text); }
-.q-head { display: flex; align-items: center; gap: 8px; padding-block: 14px 10px; padding-inline: 16px 12px; border-bottom: 1px solid var(--border); }
-.q-head h2 { margin-inline-end: auto; }
-.icon-btn { padding: 6px; border-color: transparent; }
-.q-scroll { flex: 1; display: grid; align-content: start; gap: 16px; overflow-y: auto; padding: 14px 12px 18px; }
-.q-sec { display: grid; gap: 8px; }
+/* ---------- Alert queue page ---------- */
 .q-sec h3 { display: flex; align-items: center; gap: 8px; }
 .q-count { min-width: 22px; padding: 1px 7px; border-radius: 99px; background: var(--card2); color: var(--text); font-size: 12px; font-weight: 700; text-align: center; }
-.q-strip .q-count { background: var(--gold); color: var(--on-gold); }
 
 /* Now playing: the alert, then a bar that fills up over the time it has left. */
 .q-now .q-item { padding: 10px; border: 1px solid var(--border); border-radius: 12px; background: var(--bg); }
-.queue-col[data-state="playing"] .q-now .q-item { border-color: var(--green); }
+#queue[data-state="playing"] .q-now .q-item { border-color: var(--green); }
 .q-bar { height: 4px; overflow: hidden; border-radius: 99px; background: var(--border); }
 .q-bar i { display: block; width: 0; height: 100%; border-radius: inherit; background: var(--green); }
-.queue-col:not([data-state="playing"]) .q-bar { visibility: hidden; }
+#queue:not([data-state="playing"]) .q-bar { visibility: hidden; }
 
-.q-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
-.q-buttons button { justify-content: center; padding: 7px 8px; font-size: 13px; }
+.q-buttons { display: flex; flex-wrap: wrap; gap: 8px; }
 .q-buttons button:disabled { opacity: 0.4; cursor: default; }
-#qClear { grid-column: 1 / -1; }
 #qClear.armed { border-color: transparent; background: var(--danger); color: var(--on-color); }
-.queue-col[data-state="paused"] .i-pause, .queue-col:not([data-state="paused"]) .i-play { display: none; }
-.queue-col[data-state="paused"] #qPause { border-color: var(--warn-line); color: var(--warn); }
+#queue[data-state="paused"] .i-pause, #queue:not([data-state="paused"]) .i-play { display: none; }
+#queue[data-state="paused"] #qPause { border-color: var(--warn-line); color: var(--warn); }
 #qPaused { border-color: var(--warn-line); color: var(--warn); }
 
 /* One alert: type icon, name over type, amount, and a small action (× or Replay). */
@@ -501,11 +480,7 @@ input.num { width: 110px; }
 .q-item .x:hover { background: var(--border); color: var(--text); }
 .q-item .replay { padding: 3px 9px; font-size: 12px; }
 .q-empty { margin: 0; color: var(--muted); font-size: 13px; font-style: italic; }
-.q-notice { margin: 0; padding: 10px 14px; border-top: 1px solid var(--warn-line); background: var(--warn-soft); color: var(--warn); font-size: 13px; }
-
-/* Narrow windows: no column; a round button (with the waiting count) opens the queue as a drawer. */
-.queue-fab { display: none; }
-.q-backdrop { position: fixed; inset: 60px 0 0; z-index: 25; background: var(--shadow); }
+.q-notice { margin: 0; padding: 10px 14px; border: 1px solid var(--warn-line); border-radius: 14px; background: var(--warn-soft); color: var(--warn); font-size: 14px; }
 
 /* ---------- "?" after a setting, and its tooltip ---------- */
 .help {
@@ -547,7 +522,7 @@ input.num { width: 110px; }
 code { padding: 1px 6px; border-radius: 6px; background: var(--card2); font: 0.9em Consolas, ui-monospace, monospace; overflow-wrap: anywhere; }
 #tip code { background: var(--bg); }
 
-/* ---------- Top bar: language switch ---------- */
+/* ---------- Top bar: colors and language switches ---------- */
 .lang, .mode { display: flex; gap: 2px; padding: 3px; border: 1px solid var(--border); border-radius: 10px; background: var(--card2); }
 .lang button, .mode button { padding: 4px 10px; border: 0; border-radius: 7px; background: none; color: var(--muted); font-size: 13px; }
 .lang button:hover, .mode button:hover { color: var(--text); }
@@ -577,40 +552,7 @@ code { padding: 1px 6px; border-radius: 6px; background: var(--card2); font: 0.9
 .faq ul { display: grid; gap: 8px; margin: 0; padding-block: 0 16px; padding-inline: 36px 16px; }
 
 /* ---------- Narrower screens ---------- */
-@media (max-width: 1180px) { /* same width as `narrow` in panel.js */
-  .layout, .q-collapsed .layout { grid-template-columns: 300px minmax(0, 1fr); }
-  .queue-col {
-    position: fixed;
-    top: 60px;
-    inset-inline-end: 0;
-    bottom: 0;
-    z-index: 30;
-    width: min(320px, 90vw);
-    height: auto;
-    box-shadow: -12px 0 32px var(--shadow);
-    transform: translateX(105%);
-    transition: transform 0.2s ease;
-  }
-  [dir="rtl"] .queue-col { box-shadow: 12px 0 32px var(--shadow); transform: translateX(-105%); } /* the drawer comes from the left */
-  .q-open .queue-col { transform: none; }
-  .q-collapsed .q-panel { display: flex; } /* the strip is for wide windows only */
-  .q-collapsed .q-strip { display: none; }
-  .queue-fab {
-    position: fixed;
-    inset-inline-end: 18px;
-    bottom: 18px;
-    z-index: 20;
-    display: flex;
-    padding: 12px 14px;
-    border-radius: 99px;
-    background: var(--gold);
-    color: var(--on-gold);
-    box-shadow: 0 6px 20px var(--shadow);
-  }
-  .queue-fab:hover { background: var(--gold); filter: brightness(1.08); }
-  .queue-fab .q-count { background: var(--on-gold); color: var(--gold); }
-}
-@container (max-width: 844px) { /* the editor as narrow as it was in a 1200px window before the queue column */
+@container (max-width: 940px) { /* an editor narrower than this gets fewer columns ("Theme default / My sound / No sound" wraps below it) */
   .basics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .proxy-manual { grid-template-columns: 1fr 1fr; }
   .tier-files { grid-template-columns: 1fr; gap: 4px; }
@@ -623,12 +565,16 @@ code { padding: 1px 6px; border-radius: 6px; background: var(--card2); font: 0.9
   .guide-topics button[aria-current="true"], [dir="rtl"] .guide-topics button[aria-current="true"] { border-color: var(--green); box-shadow: none; }
 }
 @media (max-width: 860px) {
-  .layout { grid-template-columns: 1fr; }
-  .side { position: static; height: auto; border-inline-end: 0; border-bottom: 1px solid var(--border); }
+  /* The sidebar on top: brand and pages in rows. */
+  .app, .split-body { grid-template-columns: 1fr; }
+  .side { position: static; flex-direction: row; flex-wrap: wrap; align-items: center; height: auto; border-inline-end: 0; border-bottom: 1px solid var(--border); }
+  .brand { padding: 4px 10px; }
+  .nav { display: flex; flex-wrap: wrap; }
+  .nav .group-title { display: none; }
+  .list { position: static; }
   .basics, .cols { grid-template-columns: 1fr; }
   main { padding: 18px 16px 48px; }
-  .topbar { padding: 0 16px; }
-  .brand span, #copy span { display: none; }
+  .topbar { flex-wrap: wrap; height: auto; min-height: 60px; padding: 8px 16px; }
   .theme-grid { grid-template-columns: 1fr 1fr; }
   .stage-ctrl { position: static; justify-content: flex-end; }
   .fx-hint { position: static; max-width: none; }

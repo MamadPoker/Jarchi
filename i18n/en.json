@@ -53,6 +53,16 @@
   "panel": {
     "title": "Jarchi",
     "copyObs": "Copy OBS link",
+    "menu": "Menu",
+    "navHome": "Home",
+    "navGoals": "Goals",
+    "navLive": "Live",
+    "navEvents": "Event log",
+    "navSetup": "Setup",
+    "navConnections": "Connections",
+    "navAppearance": "Appearance",
+    "soonTitle": "Coming soon",
+    "soonHint": "This page isn't ready yet.",
     "copyObsHint": "Add it in OBS as a Browser Source, width 1920, height 1080.",
     "copied": "OBS link copied!",
     "groupTheme": "Theme",
@@ -61,10 +71,8 @@
     "themeHint": "Used by every alert that doesn't have its own theme, image or sound.",
     "selected": "Selected",
     "groupAlerts": "Alerts",
-    "groupWidgets": "Widgets",
     "chatName": "Chat",
     "chatHint": "Reads Kick and Twitch chat with just the channel names, no login. Each channel also brings its real alerts (Kick: subs, resubs, gifted subs, Kicks, hosts; Twitch: subs, resubs, gifted subs, raids, bits). The switch only hides the chat on stream.",
-    "chatCopy": "Copy chat OBS link",
     "chatCopyHint": "Add it in OBS as a Browser Source. Make it at least as big as the chat's width and height (More options).",
     "chatCopied": "Chat link copied!",
     "chatResetStyle": "Reset style",
@@ -204,7 +212,6 @@
     "blur": "Glass blur",
     "chatDebug": "Debug",
     "showTiming": "Show chat timing",
-    "goalCopy": "Copy this goal's OBS link",
     "goalCopyHint": "Add it in OBS as a Browser Source, width 800, height 200 (Circle style: 400 × 400). The goal sits in the middle.",
     "goalCopied": "Goal link copied!",
     "goalResetStyle": "Reset style",
@@ -341,8 +348,6 @@
     "qReplay": "Replay",
     "qReplayed": "Added to the queue again",
     "qRemove": "Remove from the queue",
-    "qCollapse": "Hide the queue",
-    "qExpand": "Show the alert queue",
     "qMonths": "{n} months",
     "queueTitle": "Alert queue",
     "alertGap": "Gap between alerts (seconds)",
@@ -408,7 +413,7 @@
   "help": {
     "groups": {
       "alerts": "Click an alert to edit it. Its switch turns it on or off.",
-      "widgets": "Click a widget to edit it. The switch only hides it on stream: goals keep counting and Kick alerts keep coming."
+      "goals": "Click a goal to edit it. Its switch only hides it on stream: it keeps counting."
     },
     "theme": { "main": "The look every alert uses, unless an alert has its own theme. Hover a card to preview it, click it to use it." },
     "alert": {
@@ -559,10 +564,10 @@
         "intro": "Jarchi runs on your own PC and shows alerts, a chat box and goals in OBS. No account and no login: your Kick and Twitch channel names are enough for real alerts.",
         "steps": [
           ["Keep Jarchi running", "Start Jarchi and leave its window open while you stream. This panel is at `{panelUrl}`."],
-          ["Type your channel names", "Open **Chat** under Widgets and type your Kick and/or Twitch channel. Each name also brings that platform's real alerts."],
-          ["Pick a theme", "Click **Theme** at the top of the list. Every alert uses it, unless you give an alert its own."],
+          ["Type your channel names", "Open **Chat** in the menu and type your Kick and/or Twitch channel. Each name also brings that platform's real alerts."],
+          ["Pick a theme", "Open **Alerts** and click **Theme** at the top. Every alert uses it, unless you give an alert its own."],
           ["Add Jarchi to OBS", "Add the alerts to OBS as a Browser Source. The next topic shows how."],
-          ["Test it", "Pick an alert in the list and press **Test in OBS**. It plays in OBS and shows up in the alert queue."]
+          ["Test it", "In **Alerts**, pick an alert in the list and press **Test in OBS**. It plays in OBS and shows up in the alert queue."]
         ],
         "tip": "Start Jarchi before OBS. If OBS was open first, right-click the Jarchi source in OBS and choose **Refresh**."
       },
@@ -570,7 +575,7 @@
         "title": "Add Jarchi to OBS",
         "intro": "Every part of Jarchi is a web page that OBS shows as a Browser Source. The alerts, the chat and each goal have their own link.",
         "steps": [
-          ["Copy the link", "Click **Copy OBS link** in the top bar. The alerts link is `{alertsUrl}`."],
+          ["Copy the link", "On the **Alerts** page, click **Copy OBS link**. The alerts link is `{alertsUrl}`."],
           ["Add a Browser Source", "In OBS: **Sources → + → Browser**. Give it a name, for example \"Jarchi Alerts\"."],
           ["Paste it and set the size", "Paste the link into **URL**. Width **1920**, height **1080**."],
           ["Turn on the sound", "Tick **Control audio via OBS**, so alert sounds go through the OBS mixer to your stream. Then click **OK**."],
@@ -594,11 +599,11 @@
         "title": "Goals",
         "intro": "Two goals for your stream: a Sub goal (subs, resubs and gifted subs from Kick, and from Twitch if you turn that on) and a Kicks goal. They count real events by themselves.",
         "steps": [
-          ["Open a goal", "Under **Widgets**, click **Sub goal** or **Kicks goal**."],
+          ["Open a goal", "Open **Goals** and click **Sub goal** or **Kicks goal** in the list."],
           ["Title and target", "Type the title viewers see and the number to reach."],
           ["Fix the count", "Use **−** and **+**, type a number, or **Reset to 0** for a new goal. The count is kept when Jarchi restarts."],
           ["Pick a look", "Choose a style, then change colors, box, font and size in **More options**. **Reset style** brings the style's own look back."],
-          ["Add it to OBS", "Click **Copy this goal's OBS link** and add it as a Browser Source, 800 × 200 (Circle style: 400 × 400)."]
+          ["Add it to OBS", "Click **Copy OBS link** and add it as a Browser Source, 800 × 200 (Circle style: 400 × 400)."]
         ],
         "tip": "When the target is reached, the bar turns the \"full\" color and celebrates once. The switch in the list only hides the goal on stream; it keeps counting."
       },
@@ -606,24 +611,24 @@
         "title": "Chat widget",
         "intro": "Kick and Twitch chat together in one box on your stream, with Kick, Twitch and 7TV emotes.",
         "steps": [
-          ["Type your channels", "Under **Widgets → Chat**, type your Kick and/or Twitch channel name. No login. Each one says **Connected** when it works."],
+          ["Type your channels", "On the **Chat** page, type your Kick and/or Twitch channel name. No login. Each one says **Connected** when it works."],
           ["Pick a style", "18 vertical styles and 9 horizontal bars. A style is a starting point: every option works with every style."],
           ["Try it", "**Send test message**, **Send 10 messages** and **Show all effects** fill the preview and OBS with sample messages."],
           ["Fine-tune it", "**More options**: size, fonts, colors, badges, emotes, motion, filters and effects."],
-          ["Add it to OBS", "Click **Copy chat OBS link** and add it as a Browser Source, 420 × 600. Make it at least as big as the chat's width and height; the horizontal bars need width 1920."]
+          ["Add it to OBS", "Click **Copy OBS link** and add it as a Browser Source, 420 × 600. Make it at least as big as the chat's width and height; the horizontal bars need width 1920."]
         ],
-        "tip": "The switch in the list only hides the chat on stream. Real Kick and Twitch alerts keep coming either way."
+        "tip": "The switch next to **Chat** only hides the chat on stream. Real Kick and Twitch alerts keep coming either way."
       },
       "queue": {
         "title": "Alert queue",
-        "intro": "Alerts play one after another, never on top of each other. The queue column on the right shows what's playing and what's waiting.",
+        "intro": "Alerts play one after another, never on top of each other. The **Alert queue** page shows what's playing and what's waiting.",
         "steps": [
           ["Now playing", "The alert on screen, with a bar for the time it has left."],
           ["Pause, Skip, Clear", "**Pause** lets the current alert finish and holds the rest. **Skip** ends the current one. **Clear queue** (click twice) removes everything waiting."],
           ["Waiting and Replay", "× takes one waiting alert out. **Last played** keeps the last 10, each with **Replay**."],
           ["Gap between alerts", "In **Settings**, choose how many seconds pass between two alerts."]
         ],
-        "tip": "If OBS is closed, alerts wait and play when it opens again; the column says so at the bottom. The arrow folds the column into a thin strip; in small windows the queue opens from the round button in the corner."
+        "tip": "If OBS is closed, alerts wait and play when it opens again; the page says so at the top. In the menu, the number next to **Alert queue** is how many alerts are waiting."
       },
       "proxy": {
         "title": "Proxy & VPN",
@@ -643,7 +648,7 @@
         "faq": [
           { "q": "The alert doesn't show in OBS", "a": [
             "Is Jarchi running? Start it before OBS, or right-click the source in OBS and choose **Refresh**.",
-            "If the queue column says the OBS overlay isn't open, OBS hasn't loaded the page. Check that the URL is exactly `{alertsUrl}`.",
+            "If the **Alert queue** page says the OBS overlay isn't open, OBS hasn't loaded the page. Check that the URL is exactly `{alertsUrl}`.",
             "The source should be 1920 × 1080, visible, and in the scene you're live on.",
             "Is the alert switched on in the list? Is the queue paused? Kicks below the **Minimum amount** (10 by default) don't play."
           ] },
@@ -659,7 +664,7 @@
             "Jarchi keeps retrying by itself; there's no need to restart it."
           ] },
           { "q": "The chat shows nothing", "a": [
-            "Does the channel say **Connected** under **Chat**? Is the chat switched on in the list?",
+            "Does the channel say **Connected** under **Chat**? Is the chat switched on?",
             "Send a test message. If it shows here but not in OBS, refresh the source in OBS and make it at least as big as the chat (420 × 600 is enough for the default style).",
             "Check the filters: **Show from**, **Hidden users**, **Blocked words** and **Hide each message after**."
           ] },

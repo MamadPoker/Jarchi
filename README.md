@@ -18,25 +18,26 @@ Optional: copy `.env.example` to `.env` to change the port or the data folder.
 ## Add the alerts to OBS
 
 1. In OBS, go to **Sources → + → Browser**, name it e.g. "Jarchi Alerts".
-2. URL: `http://127.0.0.1:3000/widgets/alerts` (the panel's **Copy OBS link** button).
+2. URL: `http://127.0.0.1:3000/widgets/alerts` (**Copy OBS link** on the panel's **Alerts** page).
 3. Width **1920**, height **1080**.
 4. Tick **Control audio via OBS** so alert sounds show up in the OBS mixer.
-5. Click OK, then pick an alert in the panel and press **Test in OBS**.
+5. Click OK, then pick an alert on the panel's **Alerts** page and press **Test in OBS**.
 
 Jarchi must be running before OBS loads the source. If you started OBS first, right-click the source and choose **Refresh**. Once loaded, the overlay reconnects by itself if Jarchi restarts.
 
 ## The panel
 
-- **Top bar**: the **فا | EN** language switch and **Copy OBS link**.
-- **Right column, on every page: Alert queue**. Now playing (with a bar for the time left), **Pause / Resume**, **Skip**, **Clear queue** (click twice), the waiting alerts in order (× removes one), the last 10 played (each with **Replay**), and a notice when no OBS alerts overlay is open. The arrow collapses it to a thin strip with the waiting count (remembered); on narrow windows it opens as a drawer from the round button at the bottom right.
-- **Left column**: **Theme** at the top (opens a page with a live card per theme; click one to use it), then the alerts, each with an on/off switch; **Guide** and **Settings** at the bottom (badge switch, test platform, gap between alerts, connection / proxy, reset everything).
+- **Sidebar**: **Jarchi** at the top, then one item per page: **Home**, **Alerts**, **Chat**, **Goals**; under **Live**: **Alert queue** (with the number of waiting alerts), **Event log**; under **Setup**: **Connections**, **Appearance**, **Settings** (badge switch, test platform, gap between alerts, connection / proxy, reset everything), **Guide**. Home, Event log, Connections and Appearance say "Coming soon" for now.
+- **Top bar**: the page's title; **Kick** and **Twitch** with a green dot when their chat connection is up (a click opens Connections); the **Dark / Light / Same as Windows** colors switch; the **فا | EN** language switch.
+- **Alerts**: the main **Theme** on top (opens a page with a live card per theme; click one to use it) and **Copy OBS link**; the alert list, each with an on/off switch; next to it the selected alert: live preview with Play, its own theme (or the main one), then image/GIF/video, sound and text, **Different media by amount** (Kicks, gifted subs, bits); **More options** opens frame, colors, font size, text position, text alignment (left/center/right), duration, volume, minimum amount and video sound.
+- **Goals**: the two goals, each with an on/off switch, next to the selected goal. **Chat**: the chat widget, with its on/off switch next to the title. Each has its own **Copy OBS link**.
+- **Alert queue**: now playing (with a bar for the time left), **Pause / Resume**, **Skip**, **Clear queue** (click twice), the waiting alerts in order (× removes one), the last 10 played (each with **Replay**), and a notice when no OBS alerts overlay is open.
 - **?** next to every setting: a short explanation on hover, keyboard focus or a tap.
 - **Guide**: Getting started, Add Jarchi to OBS, Alerts, Goals, Chat widget, Alert queue, Proxy & VPN, and If something doesn't work (questions that open their answers). The links in it are this PC's real ones.
-- **Right side**: the selected alert: live preview with Play, its own theme (or the main one), then image/GIF/video, sound and text, **Different media by amount** (Kicks, gifted subs, bits); **More options** opens frame, colors, font size, text position, text alignment (left/center/right), duration, volume, minimum amount and video sound.
 
 ### Persian (فارسی)
 
-The **فا | EN** switch (remembered in the browser) puts the whole panel in Persian, right to left, in the bundled Vazirmatn font with Persian digits: the list moves to the right, the alert queue to the left. Fields for links, `{user}`-style variables, channel names and numbers stay left to right. It changes only the panel: alert texts, chat and goals in OBS stay exactly as you wrote them (English by default). Panel strings live in `i18n/en.json` and `i18n/fa.json`; a test fails if `fa.json` misses a key.
+The **فا | EN** switch (remembered in the browser) puts the whole panel in Persian, right to left, in the bundled Vazirmatn font with Persian digits: the sidebar moves to the right. Fields for links, `{user}`-style variables, channel names and numbers stay left to right. It changes only the panel: alert texts, chat and goals in OBS stay exactly as you wrote them (English by default). Panel strings live in `i18n/en.json` and `i18n/fa.json`; a test fails if `fa.json` misses a key.
 
 ## Alerts
 
@@ -59,7 +60,7 @@ The **فا | EN** switch (remembered in the browser) puts the whole panel in Per
 
 ### Real Kick alerts (no login)
 
-The Kick channel you type in **Widgets → Chat** also brings real alerts, read from Kick's public chat socket. This works with the chat widget switched off too (the switch only hides the chat).
+The Kick channel you type in **Chat** also brings real alerts, read from Kick's public chat socket. This works with the chat widget switched off too (the switch only hides the chat).
 
 | Kick event | Alert | How |
 |---|---|---|
@@ -76,7 +77,7 @@ Every Kick event has a key (Kick's own id where there is one), so an event that 
 
 ### Real Twitch alerts (no login)
 
-The Twitch channel in **Widgets → Chat** brings real alerts the same way, from Twitch's anonymous chat connection.
+The Twitch channel in **Chat** brings real alerts the same way, from Twitch's anonymous chat connection.
 
 | Twitch event | Alert | How |
 |---|---|---|
@@ -99,7 +100,7 @@ Alerts play one after another from Jarchi itself, not from the OBS page:
 - If OBS is closed, alerts wait; when OBS opens the overlay again they continue in order. An alert that was playing when OBS closed plays again.
 - If the overlay refreshes, it picks up the alert that's on now with the time it has left (no sound again), so nothing replays.
 - Several alerts overlays (e.g. two scenes) each play every alert once, in the same order, at the same time.
-- **Settings → Gap between alerts** (seconds). The panel's right column shows the queue and has **Pause / Resume**, **Skip**, **Clear queue**, × per waiting alert and **Replay** for the last 10.
+- **Settings → Gap between alerts** (seconds). The panel's **Alert queue** page shows the queue and has **Pause / Resume**, **Skip**, **Clear queue**, × per waiting alert and **Replay** for the last 10.
 
 ## Connection (proxy)
 
@@ -122,7 +123,7 @@ They listen to the same event bus as the alerts, so they'll move by themselves o
 
 In OBS: **Sources → + → Browser**, paste the goal's URL (the panel has **Copy this goal's OBS link**), width **800**, height **200** (Circle style: **400** × **400**). The goal sits in the middle; use the panel's **Size** option or OBS to scale it.
 
-In the panel (left list → **Widgets**): title, target, current count (−, +, number, **Reset to 0**), **Test**, 6 styles (Classic, Pill, Neon, Circle, Text only, Retro), colors, and **More options** for background, border, corners, size, font, title position, percentage/numbers and the celebration. A style is a starting point: every option works with every style, and **Reset style** brings the style's own look back.
+In the panel (**Goals**): title, target, current count (−, +, number, **Reset to 0**), **Test**, 6 styles (Classic, Pill, Neon, Circle, Text only, Retro), colors, and **More options** for background, border, corners, size, font, title position, percentage/numbers and the celebration. A style is a starting point: every option works with every style, and **Reset style** brings the style's own look back.
 
 When a goal is reached, the bar switches to the "full" color, plays a short celebration (confetti + glow) and the celebration sound once, and stays full until **Reset to 0** or a new target. Counts above the target keep counting (e.g. 53 / 50). Counts are saved in `data/goals.json`, so they survive restarts. Turning a goal off hides it on stream; it keeps counting.
 
@@ -132,8 +133,8 @@ Settings and uploads live in `data/` (gitignored). Delete that folder to start f
 
 Kick and Twitch chat in one box: `http://127.0.0.1:3000/widgets/chat` (transparent background).
 
-1. In the panel, open **Widgets → Chat** and type your **Kick channel** and/or **Twitch channel** (just the names, no login). Each shows Connected / Connecting / Error and reconnects by itself.
-2. In OBS: **Sources → + → Browser**, paste the link from **Copy chat OBS link**. Make the source at least as big as the chat's width × height (More options → Box & messages); the chat sits in the top-left corner.
+1. In the panel, open **Chat** and type your **Kick channel** and/or **Twitch channel** (just the names, no login). Each shows Connected / Connecting / Error and reconnects by itself.
+2. In OBS: **Sources → + → Browser**, paste the link from **Copy OBS link** on the panel's Chat page. Make the source at least as big as the chat's width × height (More options → Box & messages); the chat sits in the top-left corner.
 3. **Send test message** and **Send 10 messages** mix in the fancy effects (sub glow, first message, rainbow VIP, mention, emote combo, profile picture); **Show all effects** sends one of each in a row. If an effect is off in the settings, its message still comes, without the effect, and the panel says so.
 
 - 27 styles. Vertical: **Kick default** (looks like Kick's own chat: its 340px width, Inter font, dark surface, badges before the name, a colon, emotes in the line, Kick's green for mentions, subs, first messages and combos; the style new users start with), Classic box, Bubbles, Floating, Neon, Terminal, Retro, Glass, Pop-in, Side column, Cyberpunk, Comic, Gamer HUD, Sticky notes, Pastel, Galaxy, RPG dialog (types out the newest message; optional typing sound), Persian tile (Vazirmatn font, Persian lines right-aligned). Horizontal bars: Ticker, News ticker, Neon strip, Pills, Minimal, LED board, Cyberpunk bar, Pastel candy, Glass bar. The new bars keep looping the recent messages when chat is quiet; **Bar position** puts a bar at the top or bottom of a taller OBS source. A style is a starting point: every option works with every style, **Reset style** brings the style's own look back. Fonts are bundled in `assets/fonts` (free, SIL Open Font License), so they work offline.

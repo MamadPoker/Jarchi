@@ -1,10 +1,10 @@
 // Settings panel. All visible text comes from /i18n/en.json, or /i18n/fa.json in Persian (the "فا | EN" switch).
 // The language is the panel's only: overlays, and their previews here, always use en.json.
-// Layout: left column lists items in groups (GROUPS below); the right side shows the editor for the selected item.
-// Previews are the real overlays in scaled iframes: alerts are driven by postMessage, the goal by its own live socket.
+// Layout: a sidebar with one item per page (a <section data-view>), a top bar with the page's title. Alerts and Goals
+// have their own list (LISTS below) next to the editor of the selected item. Previews are the real overlays in scaled iframes: alerts are driven by postMessage, the goal by its own live socket.
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
-// Remembered in this browser: the language, the queue column folded.
+// Remembered in this browser: the language, the colors.
 const remember = {
   get: (k) => { try { return localStorage.getItem(k); } catch { return null; } },
   set: (k, v) => { try { localStorage.setItem(k, v); } catch {} },
@@ -30,7 +30,7 @@ const ltr = (s) => (FA ? `\u2066${s}\u2069` : s); // an address inside a Persian
 let S, EN, settings, samples, goalData; // S: the panel's strings, EN: English for the overlays. goalData = { state, styles, fonts } from /api/goals; state then follows the socket
 let chatStyles, chatFonts, chatStatus; // chat style looks and fonts (/api/chat/styles), connection status (follows the socket)
 let chatThumbs; // sample messages for the chat style thumbnails (/api/chat/thumbs: random viewers and badges each visit)
-let view = 'alert', cur = 'follow', curGoal = 'subs', topic = 'start'; // what's selected: an alert, a goal, a guide topic, or the theme / settings view
+let view = 'home', cur = 'follow', curGoal = 'subs', topic = 'start'; // the open page, and the alert, goal and guide topic selected in theirs
 let queue = { paused: false, overlays: 0, waiting: 0, now: null }; // the alert queue (follows the socket)
 
 const pct = (v) => `${Math.round(v * 100)}%`;
@@ -55,16 +55,11 @@ const el = (tag, props = {}, ...kids) => {
   return e;
 };
 
-// Left column groups. Each item opens `view` (a <section data-view>) for its key.
-// An item can bring its own `content` instead of the default dot + label, and a `toggle(on)` for its switch.
-const GROUPS = () => [
-  { title: S.panel.groupTheme, items: [{ view: 'theme', key: 'theme', content: themeRow }] },
-  { title: S.panel.groupAlerts, help: 'groups.alerts', items: Object.keys(settings.alerts).map((t) => ({ view: 'alert', key: t, label: S.types[t], toggle: (on) => patchAlert(t, { enabled: on }) })) },
-  { title: S.panel.groupWidgets, help: 'groups.widgets', items: [
-    ...Object.keys(settings.goals).map((id) => ({ view: 'goal', key: id, label: S.goals[id].name, toggle: (on) => patchGoal(id, { enabled: on }) })),
-    { view: 'chat', key: 'chat', label: S.panel.chatName, toggle: (on) => patchChat({ enabled: on }) },
-  ] },
-];
+// The lists inside the Alerts and Goals pages: a click opens the item, its switch turns it on or off.
+const LISTS = () => ({
+  alert: Object.keys(settings.alerts).map((t) => ({ key: t, label: S.types[t], toggle: (on) => patchAlert(t, { enabled: on }) })),
+  goal: Object.keys(settings.goals).map((id) => ({ key: id, label: S.goals[id].name, toggle: (on) => patchGoal(id, { enabled: on }) })),
+});
 
 // Chat "More options", built from this list: [group label, [[kind, field, options]...]].
 // kind: toggle | range | seg | select | color | text. options.only: shown only when CHAT_ONLY[only] is true.
@@ -153,6 +148,7 @@ function fitChat() {
   Object.assign(f.style, { width: `${W}px`, height: `${H}px`, transform: `translate(${(box.clientWidth - W * k) / 2}px, ${(box.clientHeight - H * k) / 2}px) scale(${k})` });
 }
 
+// Chat page status lines, and the top bar's Kick / Twitch pills (green dot = connected).
 function renderStatus() {
   const names = { off: 'stOff', connecting: 'stConnecting', connected: 'stConnected', error: 'stError' };
   for (const p of ['kick', 'twitch']) {
@@ -160,18 +156,11 @@ function renderStatus() {
     const e = $(`#${p}Status`);
     e.className = `status st-${st.state}`;
     e.textContent = S.panel[names[st.state]] + (st.state === 'error' && st.detail ? ` · ${S.panel[`err_${st.detail}`] ?? st.detail}` : '');
+    const pill = $(`.plat[data-p="${p}"]`);
+    pill.classList.toggle('on', st.state === 'connected');
+    pill.setAttribute('aria-label', (pill.title = `${S.platforms[p]}: ${e.textContent}`));
   }
 }
-
-// THEME row: current theme + "Change", and a strip with every theme's swatch (render() outlines the current one).
-const themeRow = () => [
-  el('span', { className: 'theme-now' }, el('span', { className: 'swatch' }), el('span', { className: 'theme-name' }), el('span', { className: 'change', textContent: S.panel.change })),
-  el('span', { className: 'swatches' }, ...Object.entries(S.themes).map(([id, name]) => {
-    const sw = el('span', { className: `swatch sw-${id}`, title: name });
-    sw.dataset.theme = id;
-    return sw;
-  })),
-];
 
 async function api(method, url, body, headers = {}) {
   const isFile = body instanceof Blob;
@@ -255,15 +244,16 @@ const fit = new ResizeObserver((entries) => {
   for (const e of entries) e.target.style.setProperty('--k', e.contentRect.width / e.target.querySelector('iframe').offsetWidth);
 });
 
+// Open a page (and in Alerts / Goals / Guide, an item of it: without `key`, the one selected before).
 function select(v, key) {
   view = v;
   if (v === 'alert') {
-    cur = key;
-    $('#previewAmount').value = samples[key].amount;
+    cur = key ?? cur;
+    $('#previewAmount').value = samples[cur].amount;
   }
   if (v === 'goal') {
-    curGoal = key;
-    const src = `/widgets/goal/${key}?preview`;
+    curGoal = key ?? curGoal;
+    const src = `/widgets/goal/${curGoal}?preview`;
     if ($('#goalPreview').getAttribute('src') !== src) $('#goalPreview').src = src;
   }
   if (v === 'chat' && !$('#chatPreview').getAttribute('src')) $('#chatPreview').src = '/widgets/chat?preview';
@@ -272,7 +262,10 @@ function select(v, key) {
     if (S.guide.topics[key]) topic = key;
     renderGuide();
   }
-  $$('main .view').forEach((s) => (s.hidden = s.dataset.view !== v));
+  $$('main .view').forEach((s) => (s.hidden = !s.dataset.view.split(' ').includes(v)));
+  const page = v === 'theme' ? 'alert' : v; // the theme page is part of Alerts
+  $$('.nav-item').forEach((b) => b.setAttribute('aria-current', b.dataset.view === page ? 'page' : 'false'));
+  $('#pageTitle').textContent = $(`.nav-item[data-view="${page}"] [data-i18n]`).textContent;
   render();
   preview();
   if (v === 'theme') $$('.theme-tile iframe').forEach((f) => playTile(f));
@@ -282,7 +275,7 @@ function select(v, key) {
   }
 }
 
-// ---------- Alert queue (right column) ----------
+// ---------- Alert queue (its own page) ----------
 // One line icon per alert type, in the type's own color (the --dot colors).
 const TYPE_ICON = {
   follow: 'M15 19v-1a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v1M8.5 10a3 3 0 1 0 0-6 3 3 0 0 0 0 6M19 8v6M22 11h-6',
@@ -309,7 +302,8 @@ function alertRow(a, action) {
 
 function renderQueue() {
   const q = queue, n = q.now;
-  for (const c of $$('#qCount, #qStripCount, #qFabCount')) c.textContent = fd(q.waiting);
+  for (const c of $$('#qCount, #qNavCount')) c.textContent = fd(q.waiting);
+  $('#qNavCount').hidden = !q.waiting; // in the sidebar: only when alerts are waiting
   $('#qPaused').hidden = !q.paused;
   $('#queue').dataset.state = q.paused ? 'paused' : n ? 'playing' : 'idle';
   $('#qNow').replaceChildren(n ? alertRow(n) : el('p', { className: 'q-empty', textContent: S.panel.qIdle }));
@@ -337,17 +331,6 @@ function renderQueue() {
   $('#qNoObs').hidden = q.overlays > 0;
 }
 const queueCall = (method, what, body) => api(method, `/api/alerts/${what}`, body).then((q) => { queue = q; renderQueue(); return q; }, (err) => toast(err.message, true));
-
-// Collapsed to a strip (remembered in this browser), or, on narrow windows, a drawer.
-const narrow = matchMedia('(max-width: 1180px)');
-function setCollapsed(on) {
-  document.body.classList.toggle('q-collapsed', on);
-  remember.set('jarchi.queueCollapsed', on ? '1' : '');
-}
-function setDrawer(open) {
-  document.body.classList.toggle('q-open', open);
-  $('#qBackdrop').hidden = !open;
-}
 
 // Two clicks instead of confirm(): no blocking dialog. The first click arms the button for 3 seconds.
 function twoClick(btn, label, idle, confirm, action) {
@@ -525,29 +508,34 @@ function build() {
   document.documentElement.dir = S.dir;
   document.title = S.panel.title;
 
-  // Left column
-  for (const g of GROUPS()) {
-    const list = el('ul', { className: 'nav' });
-    for (const it of g.items) {
-      const row = el('li', { className: `nav-row row-${it.view}` });
-      Object.assign(row.dataset, { view: it.view, key: it.key });
-      // Default row: dot, label, and a swatch that render() shows when an alert has its own theme.
-      const content = it.content ? it.content() : [el('span', { className: 'dot' }), el('span', { textContent: it.label }), el('span', { className: 'swatch mini', hidden: true })];
-      row.append(el('button', { className: 'nav-btn', onclick: () => select(it.view, it.key) }, ...content));
-      if (it.toggle) {
-        const sw = el('input', { type: 'checkbox', onchange: () => it.toggle(sw.checked) });
-        sw.setAttribute('aria-label', it.label);
-        row.append(el('label', { className: 'switch' }, sw, el('span')));
-      }
-      list.append(row);
-    }
-    const title = el('h2', { className: 'group-title', textContent: g.title });
-    if (g.help) title.dataset.help = g.help;
-    $('#groups').append(title, list);
-  }
-  $$('.side-foot .nav-row').forEach((row) => ($('.nav-btn', row).onclick = () => select(row.dataset.view))); // Guide, Settings
+  // Sidebar: the brand (a gold first letter; in Persian, zero-width joiners keep it joined to the next one) and the pages.
+  const [first, ...rest] = S.panel.title, zwj = FA ? String.fromCharCode(0x200d) : '';
+  $('#brand').append(el('span', { className: 'j', textContent: first + zwj }), zwj + rest.join(''));
+  $$('.nav-item').forEach((b) => (b.onclick = () => select(b.dataset.view)));
 
-  // Top bar: language. The page reloads in the other language and comes back to what was open.
+  // Alerts and Goals pages: their list. An alert's row also gets a swatch that render() shows when it has its own theme.
+  for (const [v, items] of Object.entries(LISTS())) {
+    $(`#${v}List`).append(...items.map((it) => {
+      const sw = el('input', { type: 'checkbox', onchange: () => it.toggle(sw.checked) });
+      sw.setAttribute('aria-label', it.label);
+      const row = el('li', { className: 'nav-row' },
+        el('button', { className: 'nav-btn', onclick: () => select(v, it.key) }, el('span', { textContent: it.label }), v === 'alert' ? el('span', { className: 'swatch mini', hidden: true }) : ''),
+        el('label', { className: 'switch' }, sw, el('span')));
+      row.dataset.key = it.key;
+      return row;
+    }));
+  }
+
+  // Alerts page: the main theme (opens the theme page), with a swatch per theme (render() outlines the current one).
+  $('#themeSwatches').append(...Object.entries(S.themes).map(([id, name]) => {
+    const sw = el('span', { className: `swatch sw-${id}`, title: name });
+    sw.dataset.theme = id;
+    return sw;
+  }));
+  $('#themeRow').onclick = () => select('theme');
+
+  // Top bar: Kick / Twitch status opens Connections. Language: the page reloads in the other language and comes back to what was open.
+  $$('.plat').forEach((b) => (b.onclick = () => select('connections')));
   $$('.lang button').forEach((b) => {
     b.setAttribute('aria-pressed', String(b.dataset.lang === S.lang));
     b.onclick = () => {
@@ -599,7 +587,7 @@ function build() {
   }
   $$('.preview').forEach((p) => fit.observe(p));
 
-  // Top bar: OBS link.
+  // Alerts page: OBS link.
   const obsUrl = `${location.origin}/widgets/alerts`;
   $('#obsUrl').value = obsUrl;
   $('#copy').title = S.panel.copyObsHint;
@@ -652,13 +640,6 @@ function build() {
   $('#qPause').onclick = () => queueCall('POST', 'pause', { paused: !queue.paused });
   $('#qSkip').onclick = () => queueCall('POST', 'skip');
   twoClick($('#qClear'), $('#qClear span'), S.panel.qClear, S.panel.qConfirmClear, () => queueCall('POST', 'clear').then((q) => q && toast(S.panel.qCleared)));
-  setCollapsed(remember.get('jarchi.queueCollapsed') === '1');
-  $('#qExpand').onclick = () => setCollapsed(false);
-  $('#qCollapse').onclick = () => (narrow.matches ? setDrawer(false) : setCollapsed(true));
-  $('#queueFab').onclick = () => setDrawer(true);
-  $('#qBackdrop').onclick = () => setDrawer(false);
-  addEventListener('keydown', (e) => { if (e.key === 'Escape') setDrawer(false); });
-  narrow.addEventListener('change', () => setDrawer(false));
 
   // Chat editor
   for (const [title, controls] of CHAT_GROUPS()) {
@@ -753,27 +734,23 @@ function fill(root, cfg) {
 
 // ---------- Sync UI from settings ----------
 function render() {
-  $$('.nav-row').forEach((row) => {
-    const { view: v, key } = row.dataset;
-    row.classList.toggle('active', v === view && (v === 'alert' ? key === cur : v === 'goal' ? key === curGoal : true));
-    if (v === 'goal' || v === 'chat') {
-      const on = v === 'goal' ? settings.goals[key].enabled : settings.chat.enabled;
-      row.classList.toggle('off', !on);
-      $('input', row).checked = on;
-    }
-    if (v !== 'alert') return;
-    const a = settings.alerts[key];
-    row.classList.toggle('off', !a.enabled);
-    $('input', row).checked = a.enabled;
-    const own = $('.swatch.mini', row);
-    own.hidden = !a.theme;
-    own.className = `swatch mini sw-${a.theme}`;
-    own.title = a.theme ? S.themes[a.theme] : '';
-  });
+  for (const [list, all, selected] of [['#alertList', settings.alerts, cur], ['#goalList', settings.goals, curGoal]]) {
+    $$(`${list} .nav-row`).forEach((row) => {
+      const cfg = all[row.dataset.key];
+      row.classList.toggle('active', row.dataset.key === selected);
+      row.classList.toggle('off', !cfg.enabled);
+      $('input', row).checked = cfg.enabled;
+      const own = $('.swatch.mini', row);
+      if (!own) return;
+      own.hidden = !cfg.theme;
+      own.className = `swatch mini sw-${cfg.theme}`;
+      own.title = cfg.theme ? S.themes[cfg.theme] : '';
+    });
+  }
 
-  $('.theme-now .swatch').className = `swatch sw-${settings.theme}`;
-  $('.theme-now .theme-name').textContent = S.themes[settings.theme];
-  $$('.swatches .swatch').forEach((s) => s.classList.toggle('current', s.dataset.theme === settings.theme));
+  $('#themeSwatch').className = `swatch sw-${settings.theme}`;
+  $('#themeName').textContent = S.themes[settings.theme];
+  $$('#themeSwatches .swatch').forEach((s) => s.classList.toggle('current', s.dataset.theme === settings.theme));
   $$('.theme-tile').forEach((t) => {
     t.classList.toggle('selected', t.dataset.theme === settings.theme);
     t.setAttribute('aria-pressed', String(t.dataset.theme === settings.theme));
@@ -897,6 +874,6 @@ function renderGoal() {
     sessionStorage.removeItem('jarchi.back');
   } catch {}
   const [v, key] = back ?? [];
-  const ok = v === 'alert' ? key in settings.alerts : v === 'goal' ? key in settings.goals : ['chat', 'theme', 'settings', 'guide'].includes(v);
-  select(ok ? v : 'alert', ok ? key : cur);
+  const ok = v === 'alert' ? key in settings.alerts : v === 'goal' ? key in settings.goals : v === 'theme' || $$('.nav-item').some((b) => b.dataset.view === v);
+  select(ok ? v : 'home', ok ? key : undefined);
 })();
