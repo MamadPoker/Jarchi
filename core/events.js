@@ -33,9 +33,21 @@ function emitEvent(e) {
     message: String(e.message ?? '').slice(0, 500),
     test: !!e.test, // so future widgets (leaderboard, recent events) can ignore test events
   };
+  if (!ev.test) count('alerts');
   bus.emit('event', ev);
   return ev;
 }
+
+// The panel's Home numbers: real (not test) alerts and chat messages since local midnight.
+// ponytail: in memory, so a restart starts from 0 again; save them with the goals if that matters.
+let day = { date: '', alerts: 0, chat: 0 };
+function count(kind) {
+  const date = new Date().toDateString();
+  if (day.date !== date) day = { date, alerts: 0, chat: 0 };
+  if (kind) day[kind]++;
+  return { alerts: day.alerts, chat: day.chat };
+}
+const today = () => count();
 
 // Chat. Connectors call emitChat() for every message and emitChatClear() when a moderator removes messages.
 // Message: { id, platform, time (Kick's / Twitch's own), received (by Jarchi), kind: 'message' | 'sub', channel, text, first, action, system, test,
@@ -45,6 +57,7 @@ const https = (v) => typeof v === 'string' && v.startsWith('https://');
 const badgeImg = (v) => https(v) || /^\/assets\/kick-badges\/[\w-]+\.svg$/.test(v); // remote, or Kick's own icons shipped here
 function emitChat(m) {
   const msg = chatMessage(m);
+  if (!msg.test) count('chat');
   bus.emit('chat', msg);
   return msg;
 }
@@ -109,4 +122,4 @@ function logIncoming(platform, name, data) {
   }
 }
 
-module.exports = { bus, emitEvent, emitChat, chatMessage, emitChatClear, setConnected, connectedPlatforms, logIncoming, TYPES, PLATFORMS };
+module.exports = { bus, emitEvent, emitChat, chatMessage, emitChatClear, setConnected, connectedPlatforms, logIncoming, today, TYPES, PLATFORMS };

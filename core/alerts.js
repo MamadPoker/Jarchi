@@ -2,7 +2,8 @@
 // - every overlay shows the same alert at the same time, in the same order, each alert once;
 // - a refreshed overlay gets the alert that's playing now with the time it has left, so nothing replays;
 // - while no overlay is open (OBS closed) alerts wait; an alert that ends with no overlay open goes back to the front.
-// The panel can skip the current alert, clear or remove waiting ones, pause / resume, and replay one of the last played.
+// The panel can skip the current alert, clear or remove waiting ones, pause / resume, and replay one of the last played
+// or of the last events (the Home page's live feed).
 const { EventEmitter } = require('node:events');
 const { randomUUID } = require('node:crypto');
 const { bus } = require('./events');
@@ -11,11 +12,12 @@ const settings = require('./settings');
 const STEPS = { gift_sub: [5, 20], kicks: [100, 1000], bits: [100, 1000] }; // as in widgets/alerts/alerts.js: bigger amounts play longer
 const OUT_MS = 600; // the overlay's exit animation
 const GRACE_MS = 3000; // the last overlay left less than this before the end: a refresh, the alert counts as seen
-const MAX_WAITING = 200, HISTORY = 10;
+const MAX_WAITING = 200, HISTORY = 10, FEED = 20;
 
 const alerts = new EventEmitter(); // 'play' ({ id, ev, left }), 'skip' (id), 'state' (state())
 const queue = []; // { id, ev }
 const history = []; // the last played, newest first: { id, ev }
+const feed = []; // the last events, newest first, also ones that didn't play (switched off, below the minimum)
 let playing = null; // { id, ev, ms, started }
 let busy = false; // an alert is playing, or it's the gap after one
 let paused = false, overlays = 0, goneAt = 0, timer;
@@ -46,6 +48,8 @@ const played = ({ id, ev }) => {
 };
 
 bus.on('event', (ev) => {
+  feed.unshift(ev);
+  feed.length = Math.min(feed.length, FEED);
   const cfg = settings.get().alerts[ev.type];
   if (!ev.test && (!cfg.enabled || ev.amount < (cfg.minAmount ?? 0))) return; // test buttons always play
   queue.push({ id: ev.id, ev });
@@ -113,10 +117,10 @@ function remove(id) {
   changed();
   return state();
 }
-// One of the last played, again, at the end of the queue. Not a new event: goals don't count it twice.
+// One of the last played (or of the feed), again, at the end of the queue. Not a new event: goals don't count it twice.
 function replay(id) {
-  const it = history.find((h) => h.id === id);
-  if (it) queue.push({ id: randomUUID(), ev: it.ev });
+  const ev = history.find((h) => h.id === id)?.ev ?? feed.find((e) => e.id === id);
+  if (ev) queue.push({ id: randomUUID(), ev });
   next();
   return state();
 }
@@ -126,4 +130,4 @@ function pause(on) {
   return state();
 }
 
-module.exports = { join, leave, skip, clear, remove, replay, pause, state, events: alerts };
+module.exports = { join, leave, skip, clear, remove, replay, pause, state, feed: () => feed, events: alerts };

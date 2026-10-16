@@ -27,7 +27,7 @@ fs.writeFileSync(path.join(dataDir, 'settings.json'), JSON.stringify({
 }));
 process.env.JARCHI_PORT = '3997';
 const { server, io } = require('../server');
-const { bus, emitEvent, logIncoming } = require('../core/events');
+const { bus, emitEvent, emitChat, logIncoming } = require('../core/events');
 const kick = require('../connectors/kick-chat');
 const twitch = require('../connectors/twitch-chat');
 const queue = require('../core/alerts');
@@ -415,4 +415,45 @@ test('alert queue: one at a time to every overlay, survives refreshes and OBS cl
   tick(0.2);
   assert.equal(plays.at(-1), 'next');
   queue.leave();
+});
+
+test("Home: the last 20 events (any can replay), today's real alerts and chat, widget pages open right now", async () => {
+  queue.clear();
+  const home = async () => (await call('GET', '/api/home')).json();
+  const before = (await home()).today;
+  for (let i = 1; i <= 22; i++) emitEvent({ platform: 'test', type: 'follow', user: `T${i}`, test: true });
+  emitEvent({ platform: 'kick', type: 'kicks', user: 'Small', amount: 1 }); // below the minimum: no alert, still in the feed
+  emitChat({ platform: 'twitch', user: { name: 'viewer' }, text: 'hi' });
+  emitChat({ platform: 'twitch', user: { name: 'tester' }, text: 'hi', test: true });
+  const h = await home();
+  assert.deepEqual([h.feed.length, ...h.feed.slice(0, 3).map((e) => e.user)], [20, 'Small', 'T22', 'T21'], 'newest first');
+  assert.deepEqual(h.today, { alerts: before.alerts + 1, chat: before.chat + 1 }, 'test alerts and test messages not counted');
+  const q = await (await call('POST', `/api/alerts/replay/${h.feed[0].id}`)).json();
+  assert.equal(q.list.at(-1).user, 'Small', 'replays from the feed, even one that never played');
+  queue.clear();
+
+  // Widget pages say which they are once connected (Socket.IO over a plain WebSocket); closing one counts it out.
+  const seen = [];
+  const sio = (onReady) => {
+    const ws = new WebSocket('ws://127.0.0.1:3997/socket.io/?EIO=4&transport=websocket');
+    ws.onmessage = ({ data }) => {
+      if (data.startsWith('0')) ws.send('40'); // engine.io open -> join the main namespace
+      else if (data.startsWith('40')) onReady?.(ws);
+      else if (data.startsWith('42["widgets"')) seen.push(JSON.parse(data.slice(2))[1]);
+    };
+    return ws;
+  };
+  const until = async (ok) => {
+    for (let i = 0; i < 200 && !ok(); i++) await new Promise((r) => setTimeout(r, 10));
+    assert.ok(ok(), JSON.stringify(seen));
+  };
+  const panel = sio();
+  const chatPage = sio((ws) => ws.send('42["widgetJoin","chat"]'));
+  const stranger = sio((ws) => ws.send('42["widgetJoin","nope"]')); // unknown names are ignored
+  await until(() => seen.at(-1)?.chat === 1);
+  chatPage.close();
+  await until(() => seen.at(-1)?.chat === 0);
+  assert.ok(seen.every((w) => !('nope' in w)));
+  panel.close();
+  stranger.close();
 });

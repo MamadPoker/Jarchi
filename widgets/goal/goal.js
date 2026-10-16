@@ -28,6 +28,7 @@ if (params.has('thumb')) {
   });
 } else {
   const socket = io();
+  if (!params.has('preview')) socket.on('connect', () => socket.emit('widgetJoin', id)); // the panel's Home: open in OBS
   socket.on('settings', (s) => {
     settings = s;
     const next = s.goals[id];

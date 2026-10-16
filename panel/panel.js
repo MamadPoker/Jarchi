@@ -32,6 +32,7 @@ let chatStyles, chatFonts, chatStatus; // chat style looks and fonts (/api/chat/
 let chatThumbs; // sample messages for the chat style thumbnails (/api/chat/thumbs: random viewers and badges each visit)
 let view = 'home', cur = 'follow', curGoal = 'subs', topic = 'start'; // the open page, and the alert, goal and guide topic selected in theirs
 let queue = { paused: false, overlays: 0, waiting: 0, now: null }; // the alert queue (follows the socket)
+let home, open = {}, feedFilter = 'all'; // Home: { feed, today, started } (/api/home, then the socket), widget pages open now (socket)
 
 const pct = (v) => `${Math.round(v * 100)}%`;
 const px = (v) => `${v}px`;
@@ -203,10 +204,10 @@ const patchAlert = (type, fields) => send('PATCH', '/api/settings', { alerts: { 
 const patchGoal = (id, fields) => send('PATCH', '/api/settings', { goals: { [id]: fields } });
 const patchChat = (fields) => send('PATCH', '/api/settings', { chat: fields });
 
-// Change the selected goal's count: { add: n } or { set: n }.
-async function goalCount(body) {
+// Change a goal's count (the selected one's by default): { add: n } or { set: n }.
+async function goalCount(body, id = curGoal) {
   try {
-    goalData.state = await api('PATCH', `/api/goals/${curGoal}`, body);
+    goalData.state = await api('PATCH', `/api/goals/${id}`, body);
   } catch (err) {
     toast(err.message, true);
   }
@@ -257,6 +258,7 @@ function select(v, key) {
     if ($('#goalPreview').getAttribute('src') !== src) $('#goalPreview').src = src;
   }
   if (v === 'chat' && !$('#chatPreview').getAttribute('src')) $('#chatPreview').src = '/widgets/chat?preview';
+  if (v === 'home') api('GET', '/api/home').then((h) => { home = h; if (view === 'home') renderHome(); }, () => {}); // today's numbers may have rolled over
   if (v === 'settings') showProxyNow();
   if (v === 'guide') {
     if (S.guide.topics[key]) topic = key;
@@ -331,6 +333,89 @@ function renderQueue() {
   $('#qNoObs').hidden = q.overlays > 0;
 }
 const queueCall = (method, what, body) => api(method, `/api/alerts/${what}`, body).then((q) => { queue = q; renderQueue(); return q; }, (err) => toast(err.message, true));
+
+// ---------- Home ----------
+const COPY_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h8"/></svg>';
+const copyLink = (url, msg = S.panel.copied) => navigator.clipboard.writeText(url).then(() => toast(msg));
+// The widget pages: [id the server counts them by, name, OBS link].
+const widgetPages = () => [
+  ['alerts', S.panel.groupAlerts, `${location.origin}/widgets/alerts`],
+  ['chat', S.panel.chatName, `${location.origin}/widgets/chat`],
+  ...Object.keys(settings.goals).map((id) => [id, S.goals[id].name, `${location.origin}/widgets/goal/${id}`]),
+];
+const FEED_FILTERS = { all: null, subs: ['sub', 'resub', 'gift_sub'], kicks: ['kicks'], raids: ['raid'], follows: ['follow'] };
+
+// What's missing before going live: [text, the page (and item) that fixes it]. Widgets switched off aren't needed.
+function issues() {
+  const out = ['kick', 'twitch'].filter((p) => chatStatus[p].state !== 'connected')
+    .map((p) => [tpl(S.panel.issuePlatform, { platform: S.platforms[p] }), ['chat']]); // the channel names are on the Chat page for now
+  if (!open.alerts) out.push([S.panel.issueAlerts, ['alert']]);
+  if (settings.chat.enabled && !open.chat) out.push([S.panel.issueChat, ['chat']]);
+  for (const [id, g] of Object.entries(settings.goals)) if (g.enabled && !open[id]) out.push([tpl(S.panel.issueGoal, { goal: S.goals[id].name }), ['goal', id]]);
+  return out;
+}
+
+// "gifted 5 subs", "sent 100 Kicks"; feedDidOne for 1 (and a resub without its months).
+function did(ev) {
+  const n = ev.type === 'resub' ? ev.months : ev.amount;
+  const one = S.panel.feedDidOne[ev.type];
+  return one && (n === 1 || (ev.type === 'resub' && !n)) ? one : tpl(S.panel.feedDid[ev.type], { n: fmt(n) });
+}
+const since = new Intl.RelativeTimeFormat(FA ? 'fa' : 'en', { numeric: 'auto', style: 'short' });
+function ago(t) {
+  const s = (Date.now() - t) / 1000;
+  return s < 60 ? since.format(0, 'second') : s < 3600 ? since.format(-Math.floor(s / 60), 'minute')
+    : s < 86400 ? since.format(-Math.floor(s / 3600), 'hour') : since.format(-Math.floor(s / 86400), 'day');
+}
+function uptime() {
+  const m = Math.floor((Date.now() - home.started) / 60000);
+  return fd(tpl(S.panel[m < 60 ? 'uptimeM' : 'uptimeHM'], { h: Math.floor(m / 60), m: m % 60 }));
+}
+
+function renderHome() {
+  const missing = issues();
+  $('#banner').classList.toggle('ready', !missing.length);
+  $('#bannerTitle').textContent = S.panel[missing.length ? 'notReadyTitle' : 'readyTitle'];
+  $('#bannerHint').hidden = missing.length > 0;
+  $('#issues').replaceChildren(...missing.map(([text, page]) => el('li', {}, el('span', { textContent: text }),
+    el('button', { textContent: S.panel.fix, onclick: () => select(...page) }))));
+
+  // Live feed: newest first; a test button's alert says so.
+  $$('#feedChips button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.filter === feedFilter)));
+  const types = FEED_FILTERS[feedFilter];
+  const rows = home.feed.filter((ev) => !types || types.includes(ev.type));
+  $('#feedList').replaceChildren(...rows.map((ev) => el('li', { className: 'feed-row' },
+    ev.platform === 'test' ? typeIcon(ev.type) : el('img', { className: 'feed-logo', src: `/assets/platform-logos/${ev.platform}.svg`, alt: S.platforms[ev.platform], title: S.platforms[ev.platform] }),
+    el('span', { className: 'feed-what' }, el('b', { textContent: ev.user, dir: 'auto' }), ` ${did(ev)}`, ev.test ? el('span', { className: 'pill', textContent: S.platforms.test }) : ''),
+    el('small', { textContent: ago(ev.time) }),
+    el('button', { className: 'replay', textContent: S.panel.qReplay, onclick: () => queueCall('POST', `replay/${encodeURIComponent(ev.id)}`).then((q) => q && toast(S.panel.qReplayed)) }))));
+  $('#feedEmpty').hidden = rows.length > 0;
+
+  // Widgets: green when a page of it is open (in OBS) right now.
+  $('#widgetList').replaceChildren(...widgetPages().map(([id, name, url]) => {
+    const copy = el('button', { className: 'icon-btn', title: S.panel.copyObs, ariaLabel: `${S.panel.copyObs}: ${name}`, onclick: () => copyLink(url) });
+    copy.innerHTML = COPY_ICON; // fixed markup
+    return el('li', { className: `widget-row${open[id] ? ' on' : ''}` }, el('i', { className: 'state-dot' }),
+      el('span', { className: 'stack' }, el('b', { textContent: name }), el('small', { textContent: S.panel[open[id] ? 'widgetOpen' : 'widgetClosed'] })), copy);
+  }));
+
+  // Goals: count / target, a bar, and − / + by one step.
+  $('#homeGoals').replaceChildren(...Object.entries(settings.goals).map(([id, g]) => {
+    const { current } = goalData.state[id], step = GOAL_STEP[id];
+    const bar = el('i');
+    bar.style.width = `${Math.min(100, (current / g.target) * 100)}%`;
+    return el('div', { className: `home-goal${current >= g.target ? ' full' : ''}` },
+      el('div', { className: 'row' }, el('b', { textContent: S.goals[id].name }), el('small', { textContent: `${fmt(current)} / ${fmt(g.target)}` }),
+        el('span', { className: 'stepper' },
+          el('button', { textContent: '−', title: fd(`−${step}`), ariaLabel: fd(`−${step}`), onclick: () => goalCount({ add: -step }, id) }),
+          el('button', { textContent: '+', title: fd(`+${step}`), ariaLabel: fd(`+${step}`), onclick: () => goalCount({ add: step }, id) }))),
+      el('div', { className: 'goal-bar' }, bar));
+  }));
+
+  $('#statAlerts').textContent = fmt(home.today.alerts);
+  $('#statChat').textContent = fmt(home.today.chat);
+  $('#statUptime').textContent = uptime();
+}
 
 // Two clicks instead of confirm(): no blocking dialog. The first click arms the button for 3 seconds.
 function twoClick(btn, label, idle, confirm, action) {
@@ -534,6 +619,30 @@ function build() {
   }));
   $('#themeRow').onclick = () => select('theme');
 
+  // Home: feed filters, a test alert of any type, and the OBS links menu (closes on a click elsewhere or Escape).
+  $('#feedChips').append(...Object.keys(FEED_FILTERS).map((f) => {
+    const b = el('button', { textContent: S.panel.feedFilters[f], onclick: () => { feedFilter = f; renderHome(); } });
+    b.dataset.filter = f;
+    return b;
+  }));
+  $('#homeTest').onclick = () => {
+    const types = Object.keys(settings.alerts);
+    api('POST', `/api/test/${types[Math.floor(Math.random() * types.length)]}`, { platform: $('#testAs').value }).then(() => toast(S.panel.testSent), (err) => toast(err.message, true));
+  };
+  const showMenu = (on) => {
+    $('#obsMenu').hidden = !on;
+    $('#obsMenuBtn').setAttribute('aria-expanded', String(on));
+  };
+  $('#obsMenu').append(...widgetPages().map(([, name, url]) => {
+    const b = el('button', { onclick: () => { showMenu(false); copyLink(url); } }, el('span', { textContent: name }));
+    b.insertAdjacentHTML('beforeend', COPY_ICON);
+    return b;
+  }));
+  $('#obsMenuBtn').onclick = () => showMenu($('#obsMenu').hidden);
+  addEventListener('click', (e) => { if (!e.target.closest?.('.menu')) showMenu(false); });
+  addEventListener('keydown', (e) => { if (e.key === 'Escape') showMenu(false); });
+  setInterval(() => view === 'home' && renderHome(), 30000); // "2 min ago", uptime
+
   // Top bar: Kick / Twitch status opens Connections. Language: the page reloads in the other language and comes back to what was open.
   $$('.plat').forEach((b) => (b.onclick = () => select('connections')));
   $$('.lang button').forEach((b) => {
@@ -591,7 +700,7 @@ function build() {
   const obsUrl = `${location.origin}/widgets/alerts`;
   $('#obsUrl').value = obsUrl;
   $('#copy').title = S.panel.copyObsHint;
-  $('#copy').onclick = () => navigator.clipboard.writeText(obsUrl).then(() => toast(S.panel.copied));
+  $('#copy').onclick = () => copyLink(obsUrl);
 
   // Alert editor: every [data-f] input saves its field for the selected alert.
   const editor = $('main [data-view=alert]');
@@ -622,7 +731,7 @@ function build() {
   $('#goalZero').onclick = () => goalCount({ set: 0 });
   $('#goalResetStyle').onclick = () => send('POST', `/api/goals/${curGoal}/reset-style`);
   $('#goalCopy').title = S.panel.goalCopyHint;
-  $('#goalCopy').onclick = () => navigator.clipboard.writeText(`${location.origin}/widgets/goal/${curGoal}`).then(() => toast(S.panel.goalCopied));
+  $('#goalCopy').onclick = () => copyLink(`${location.origin}/widgets/goal/${curGoal}`, S.panel.goalCopied);
   // Counts and chat status change on their own (events, connections), so follow them live.
   const socket = io();
   socket.on('goals', (state) => {
@@ -632,6 +741,19 @@ function build() {
   socket.on('chatStatus', (st) => {
     chatStatus = st;
     renderStatus();
+    if (view === 'home') renderHome();
+  });
+  // Home: new events (also from the test buttons), today's chat count, widget pages opening and closing.
+  socket.on('event', (ev) => {
+    home.feed.unshift(ev);
+    home.feed.length = Math.min(home.feed.length, 20);
+    if (!ev.test) home.today.alerts++;
+    if (view === 'home') renderHome();
+  });
+  socket.on('chat', (m) => { if (!m.test) $('#statChat').textContent = fmt(++home.today.chat); });
+  socket.on('widgets', (o) => {
+    open = o;
+    if (view === 'home') renderHome();
   });
   socket.on('alertQueue', (q) => {
     queue = q;
@@ -673,7 +795,7 @@ function build() {
   $('#chatAllFx').onclick = () => sendTest('all');
   $('#chatResetStyle').onclick = () => send('POST', '/api/chat/reset-style');
   $('#chatCopy').title = S.panel.chatCopyHint;
-  $('#chatCopy').onclick = () => navigator.clipboard.writeText(`${location.origin}/widgets/chat`).then(() => toast(S.panel.chatCopied));
+  $('#chatCopy').onclick = () => copyLink(`${location.origin}/widgets/chat`, S.panel.chatCopied);
   new ResizeObserver(() => { if (view === 'chat') fitChat(); }).observe($('.chat-preview'));
   renderStatus();
 
@@ -762,6 +884,7 @@ function render() {
   if (view === 'alert') renderAlert();
   if (view === 'goal') renderGoal();
   if (view === 'chat') renderChat();
+  if (view === 'home') renderHome();
 }
 
 function renderSettings() {
@@ -860,8 +983,8 @@ function renderGoal() {
   EN = await (await fetch('/i18n/en.json')).json();
   S = FA ? await (await fetch('/i18n/fa.json')).json() : EN;
   try {
-    [settings, samples, goalData, { styles: chatStyles, fonts: chatFonts }, chatStatus] = await Promise.all([
-      api('GET', '/api/settings'), api('GET', '/api/samples'), api('GET', '/api/goals'), api('GET', '/api/chat/styles'), api('GET', '/api/chat/status'),
+    [settings, samples, goalData, { styles: chatStyles, fonts: chatFonts }, chatStatus, home] = await Promise.all([
+      api('GET', '/api/settings'), api('GET', '/api/samples'), api('GET', '/api/goals'), api('GET', '/api/chat/styles'), api('GET', '/api/chat/status'), api('GET', '/api/home'),
     ]);
   } catch (err) {
     return toast(err.message, true);

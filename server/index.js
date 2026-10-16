@@ -4,7 +4,7 @@ const { execFile } = require('node:child_process');
 const express = require('express');
 const { Server } = require('socket.io');
 const { HOST, PORT, UPLOADS_DIR } = require('../core/config');
-const { bus, emitEvent, connectedPlatforms, TYPES, PLATFORMS } = require('../core/events');
+const { bus, emitEvent, connectedPlatforms, today, TYPES, PLATFORMS } = require('../core/events');
 const settings = require('../core/settings');
 const net = require('../core/net'); // first: every outgoing connection after this goes through the proxy setting
 const goals = require('../core/goals');
@@ -68,6 +68,10 @@ app.post('/api/alerts/clear', (req, res) => res.json(alertQueue.clear()));
 app.post('/api/alerts/pause', (req, res) => res.json(alertQueue.pause(req.body?.paused === true)));
 app.delete('/api/alerts/queue/:id', (req, res) => res.json(alertQueue.remove(req.params.id)));
 app.post('/api/alerts/replay/:id', (req, res) => res.json(alertQueue.replay(req.params.id)));
+
+// The panel's Home page: the last events, today's numbers and when Jarchi started (uptime). Open widgets come by socket.
+const STARTED = Date.now();
+app.get('/api/home', (req, res) => res.json({ feed: alertQueue.feed(), today: today(), started: STARTED }));
 
 // Proxy: "Test connection" (Kick, Twitch, 7TV), and which proxy is in use right now.
 app.post('/api/net/test', async (req, res) => res.json(await chat.check()));
@@ -153,6 +157,18 @@ app.use((err, req, res, next) => {
   res.status(err.status || 500).json({ error: code });
 });
 
+// Widget pages open right now, in OBS or a browser (the panel's previews don't count): the Home page's green dots.
+const WIDGETS = ['alerts', 'chat', ...settings.GOAL_IDS];
+const open = Object.fromEntries(WIDGETS.map((w) => [w, 0]));
+function opened(socket, w) {
+  open[w]++;
+  io.emit('widgets', open);
+  socket.once('disconnect', () => {
+    open[w]--;
+    io.emit('widgets', open);
+  });
+}
+
 io.on('connection', (socket) => {
   socket.emit('strings', strings);
   socket.emit('settings', view());
@@ -160,12 +176,16 @@ io.on('connection', (socket) => {
   socket.emit('chatStatus', chat.status());
   socket.emit('chatHistory', chat.recent());
   socket.emit('alertQueue', alertQueue.state());
+  socket.emit('widgets', open);
   // The alerts overlay joins to get alerts from the queue (the panel's previews don't).
   socket.once('alertsJoin', () => {
     socket.join('alerts');
     alertQueue.join((now) => socket.emit('alert', now));
     socket.once('disconnect', alertQueue.leave);
+    opened(socket, 'alerts');
   });
+  socket.once('widgetJoin', (w) => w !== 'alerts' && WIDGETS.includes(w) && opened(socket, w)); // chat, a goal
+
   // "Show chat timing": a chat widget says when it drew a live message; core/chat prints how long each step took.
   socket.on('chatShown', (r) => chat.timing(r, socket.conn.transport.name));
 });

@@ -72,6 +72,7 @@ if (params.has('thumb')) {
   // WebSocket first: over HTTP polling, chat waited behind profile pictures and emotes still downloading (a browser
   // opens only 6 connections to this PC at a time). Polling stays as the fallback if WebSocket can't connect.
   socket = io({ transports: ['websocket', 'polling'], tryAllTransports: true });
+  if (!params.has('preview')) socket.on('connect', () => socket.emit('widgetJoin', 'chat')); // the panel's Home: open in OBS
   socket.on('strings', (s) => (S = s));
   socket.on('settings', (s) => {
     mainSettings = s;
