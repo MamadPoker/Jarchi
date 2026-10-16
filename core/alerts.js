@@ -4,10 +4,13 @@
 // - while no overlay is open (OBS closed) alerts wait; an alert that ends with no overlay open goes back to the front.
 // The panel can skip the current alert, clear or remove waiting ones, pause / resume, and replay one of the last played
 // or of the last events (the Home page's live feed).
+const path = require('node:path');
 const { EventEmitter } = require('node:events');
 const { randomUUID } = require('node:crypto');
-const { bus } = require('./events');
+const { DATA_DIR } = require('./config');
+const { bus, TYPES, PLATFORMS } = require('./events');
 const settings = require('./settings');
+const store = require('./store');
 
 const STEPS = { gift_sub: [5, 20], kicks: [100, 1000], bits: [100, 1000] }; // as in widgets/alerts/alerts.js: bigger amounts play longer
 const OUT_MS = 600; // the overlay's exit animation
@@ -17,7 +20,11 @@ const MAX_WAITING = 200, HISTORY = 10, FEED = 20;
 const alerts = new EventEmitter(); // 'play' ({ id, ev, left }), 'skip' (id), 'state' (state())
 const queue = []; // { id, ev }
 const history = []; // the last played, newest first: { id, ev }
-const feed = []; // the last events, newest first, also ones that didn't play (switched off, below the minimum)
+// The last events, newest first, also ones that didn't play (switched off, below the minimum). Kept in feed.json, so
+// the Home page still has them after a restart.
+const FEED_FILE = path.join(DATA_DIR, 'feed.json');
+const savedFeed = store.load(FEED_FILE);
+const feed = (Array.isArray(savedFeed) ? savedFeed : []).filter((e) => TYPES.includes(e?.type) && PLATFORMS.includes(e.platform)).slice(0, FEED);
 let playing = null; // { id, ev, ms, started }
 let busy = false; // an alert is playing, or it's the gap after one
 let paused = false, overlays = 0, goneAt = 0, timer;
@@ -50,6 +57,7 @@ const played = ({ id, ev }) => {
 bus.on('event', (ev) => {
   feed.unshift(ev);
   feed.length = Math.min(feed.length, FEED);
+  store.save(FEED_FILE, feed);
   const cfg = settings.get().alerts[ev.type];
   if (!ev.test && (!cfg.enabled || ev.amount < (cfg.minAmount ?? 0))) return; // test buttons always play
   queue.push({ id: ev.id, ev });

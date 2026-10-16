@@ -214,6 +214,15 @@ async function goalCount(body, id = curGoal) {
   render();
 }
 
+// A goal's row in the Goals list: its count (click it and type another), "/ target", and Reset to 0 (click twice).
+function goalCountRow(id) {
+  const input = el('input', { type: 'number', min: 0, step: 1, className: 'count-input', onchange: () => goalCount({ set: Math.max(0, Math.round(Number(input.value) || 0)) }, id) });
+  input.setAttribute('aria-label', `${S.goals[id].name}: ${S.panel.goalCurrent}`);
+  const zero = el('button', { className: 'ghost zero', textContent: S.panel.goalZero });
+  twoClick(zero, zero, S.panel.goalZero, S.panel.confirmZero, () => goalCount({ set: 0 }, id));
+  return el('div', { className: 'goal-count' }, input, el('small', { className: 'of' }), zero);
+}
+
 // ---------- Previews ----------
 const sample = (type, amount) => ({ ...samples[type], type, platform: $('#testAs').value, test: true, ...(amount !== undefined && { amount }) });
 const previewAmount = () => (samples[cur].amount > 0 ? Number($('#previewAmount').value) || 0 : undefined);
@@ -258,7 +267,7 @@ function select(v, key) {
     if ($('#goalPreview').getAttribute('src') !== src) $('#goalPreview').src = src;
   }
   if (v === 'chat' && !$('#chatPreview').getAttribute('src')) $('#chatPreview').src = '/widgets/chat?preview';
-  if (v === 'home') api('GET', '/api/home').then((h) => { home = h; if (view === 'home') renderHome(); }, () => {}); // today's numbers may have rolled over
+  if (v === 'home') loadHome(); // today's numbers may have started again at midnight
   if (v === 'settings') showProxyNow();
   if (v === 'guide') {
     if (S.guide.topics[key]) topic = key;
@@ -372,6 +381,8 @@ function uptime() {
   return fd(tpl(S.panel[m < 60 ? 'uptimeM' : 'uptimeHM'], { h: Math.floor(m / 60), m: m % 60 }));
 }
 
+const loadHome = () => api('GET', '/api/home').then((h) => { home = h; if (view === 'home') renderHome(); }, () => {});
+
 function renderHome() {
   const missing = issues();
   $('#banner').classList.toggle('ready', !missing.length);
@@ -399,16 +410,13 @@ function renderHome() {
       el('span', { className: 'stack' }, el('b', { textContent: name }), el('small', { textContent: S.panel[open[id] ? 'widgetOpen' : 'widgetClosed'] })), copy);
   }));
 
-  // Goals: count / target, a bar, and − / + by one step.
+  // Goals: count / target and a bar. They move by themselves; a count is fixed by hand on the Goals page.
   $('#homeGoals').replaceChildren(...Object.entries(settings.goals).map(([id, g]) => {
-    const { current } = goalData.state[id], step = GOAL_STEP[id];
+    const { current } = goalData.state[id];
     const bar = el('i');
     bar.style.width = `${Math.min(100, (current / g.target) * 100)}%`;
     return el('div', { className: `home-goal${current >= g.target ? ' full' : ''}` },
-      el('div', { className: 'row' }, el('b', { textContent: S.goals[id].name }), el('small', { textContent: `${fmt(current)} / ${fmt(g.target)}` }),
-        el('span', { className: 'stepper' },
-          el('button', { textContent: '−', title: fd(`−${step}`), ariaLabel: fd(`−${step}`), onclick: () => goalCount({ add: -step }, id) }),
-          el('button', { textContent: '+', title: fd(`+${step}`), ariaLabel: fd(`+${step}`), onclick: () => goalCount({ add: step }, id) }))),
+      el('div', { className: 'row' }, el('b', { textContent: S.goals[id].name }), el('small', { textContent: `${fmt(current)} / ${fmt(g.target)}` })),
       el('div', { className: 'goal-bar' }, bar));
   }));
 
@@ -607,6 +615,7 @@ function build() {
         el('button', { className: 'nav-btn', onclick: () => select(v, it.key) }, el('span', { textContent: it.label }), v === 'alert' ? el('span', { className: 'swatch mini', hidden: true }) : ''),
         el('label', { className: 'switch' }, sw, el('span')));
       row.dataset.key = it.key;
+      if (v === 'goal') row.append(goalCountRow(it.key));
       return row;
     }));
   }
@@ -641,7 +650,7 @@ function build() {
   $('#obsMenuBtn').onclick = () => showMenu($('#obsMenu').hidden);
   addEventListener('click', (e) => { if (!e.target.closest?.('.menu')) showMenu(false); });
   addEventListener('keydown', (e) => { if (e.key === 'Escape') showMenu(false); });
-  setInterval(() => view === 'home' && renderHome(), 30000); // "2 min ago", uptime
+  setInterval(() => view === 'home' && loadHome(), 30000); // "2 min ago", uptime, and today's numbers from 0 after midnight
 
   // Top bar: Kick / Twitch status opens Connections. Language: the page reloads in the other language and comes back to what was open.
   $$('.plat').forEach((b) => (b.onclick = () => select('connections')));
@@ -728,7 +737,7 @@ function build() {
   $('#goalPlus').onclick = () => goalCount({ add: GOAL_STEP[curGoal] });
   $('#goalMinus').onclick = () => goalCount({ add: -GOAL_STEP[curGoal] });
   $('#goalCurrent').onchange = (e) => goalCount({ set: Math.max(0, Math.round(Number(e.target.value) || 0)) });
-  $('#goalZero').onclick = () => goalCount({ set: 0 });
+  twoClick($('#goalZero'), $('#goalZero'), S.panel.goalZero, S.panel.confirmZero, () => goalCount({ set: 0 }));
   $('#goalResetStyle').onclick = () => send('POST', `/api/goals/${curGoal}/reset-style`);
   $('#goalCopy').title = S.panel.goalCopyHint;
   $('#goalCopy').onclick = () => copyLink(`${location.origin}/widgets/goal/${curGoal}`, S.panel.goalCopied);
@@ -862,6 +871,11 @@ function render() {
       row.classList.toggle('active', row.dataset.key === selected);
       row.classList.toggle('off', !cfg.enabled);
       $('input', row).checked = cfg.enabled;
+      const count = $('.count-input', row); // goals: the count, never under the cursor
+      if (count) {
+        if (count !== document.activeElement) count.value = goalData.state[row.dataset.key].current;
+        $('.of', row).textContent = `/ ${fmt(cfg.target)}`;
+      }
       const own = $('.swatch.mini', row);
       if (!own) return;
       own.hidden = !cfg.theme;

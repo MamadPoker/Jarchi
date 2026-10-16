@@ -1,4 +1,4 @@
-// Small JSON files in the data dir (settings.json, goals.json).
+// Small JSON files in the data dir (settings.json, goals.json, feed.json, today.json).
 const fs = require('node:fs');
 const path = require('node:path');
 

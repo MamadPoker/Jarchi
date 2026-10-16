@@ -243,6 +243,7 @@
     "goalTarget": "Target",
     "goalCurrent": "Current",
     "goalZero": "Reset to 0",
+    "confirmZero": "Confirm",
     "goalStyle": "Style",
     "goalStyleHint": "A starting point: every option below works with every style.",
     "goalColors": "Colors",
@@ -624,7 +625,7 @@
         "steps": [
           ["Open a goal", "Open **Goals** and click **Sub goal** or **Kicks goal** in the list."],
           ["Title and target", "Type the title viewers see and the number to reach."],
-          ["Fix the count", "Use **−** and **+**, type a number, or **Reset to 0** for a new goal. The count is kept when Jarchi restarts."],
+          ["Fix the count", "In the list, click a goal's number and type another one, or press **Reset to 0** (twice) for a new goal. In the editor, **−** and **+** change it by one step. The count is kept when Jarchi restarts."],
           ["Pick a look", "Choose a style, then change colors, box, font and size in **More options**. **Reset style** brings the style's own look back."],
           ["Add it to OBS", "Click **Copy OBS link** and add it as a Browser Source, 800 × 200 (Circle style: 400 × 400)."]
         ],

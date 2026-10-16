@@ -13,6 +13,9 @@ fs.writeFileSync(path.join(dataDir, 'settings.json'), JSON.stringify({
   theme: 'fun',
   alerts: { sub: { volume: 0.4, sound: { file: 'sub-sound-1.wav', name: 'old.wav' } } },
 }));
+// The Home page's feed and today's numbers from before a restart (a broken feed entry is dropped).
+fs.writeFileSync(path.join(dataDir, 'feed.json'), JSON.stringify([{ id: 'old', time: 1, platform: 'kick', type: 'sub', user: 'Saved', amount: 0, months: 0, message: '', test: false }, { type: 'nope' }]));
+fs.writeFileSync(path.join(dataDir, 'today.json'), JSON.stringify({ date: new Date().toDateString(), alerts: 5, chat: 7 }));
 process.env.JARCHI_DATA_DIR = dataDir;
 process.env.JARCHI_PORT = '3999';
 const { server, io } = require('../server');
@@ -32,6 +35,10 @@ const patch = (fields) => call('PATCH', '/api/settings', { alerts: { follow: fie
 
 test('migration, settings, uploads, reset, events', async () => {
   if (!server.listening) await new Promise((r) => server.once('listening', r));
+
+  // Home: the feed and today's numbers are back after a restart.
+  const home = await (await call('GET', '/api/home')).json();
+  assert.deepEqual([home.feed.map((e) => e.user), home.today], [['Saved'], { alerts: 5, chat: 7 }]);
 
   // v1 -> v2: old custom sound keeps playing, old values kept, file still served.
   let s = await (await call('GET', '/api/settings')).json();
@@ -189,4 +196,13 @@ test('goals: count from events, latch when reached, saved, styles', async () => 
   assert.equal((await fetch(`${base}/widgets/goal/subs`)).status, 200);
   assert.equal((await fetch(`${base}/widgets/goal/kicks/`)).status, 200);
   assert.equal((await fetch(`${base}/widgets/goal/nope`)).status, 404);
+});
+
+test("Home: each event goes into feed.json at once, today's numbers into today.json within 2 s", async () => {
+  const read = (name) => JSON.parse(fs.readFileSync(path.join(dataDir, name)));
+  emitEvent({ platform: 'twitch', type: 'raid', user: 'Saver', amount: 3 });
+  assert.equal(read('feed.json')[0].user, 'Saver');
+  const { today } = await (await call('GET', '/api/home')).json();
+  for (let i = 0; i < 40 && read('today.json').alerts !== today.alerts; i++) await new Promise((r) => setTimeout(r, 100));
+  assert.deepEqual(read('today.json'), { date: new Date().toDateString(), ...today });
 });

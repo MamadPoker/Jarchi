@@ -4,6 +4,7 @@ const { randomUUID } = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
 const { DATA_DIR } = require('./config');
+const store = require('./store');
 
 const TYPES = ['follow', 'sub', 'resub', 'gift_sub', 'kicks', 'bits', 'raid'];
 const PLATFORMS = ['kick', 'twitch', 'test'];
@@ -38,13 +39,23 @@ function emitEvent(e) {
   return ev;
 }
 
-// The panel's Home numbers: real (not test) alerts and chat messages since local midnight.
-// ponytail: in memory, so a restart starts from 0 again; save them with the goals if that matters.
-let day = { date: '', alerts: 0, chat: 0 };
+// The panel's Home numbers: real (not test) alerts and chat messages since local midnight, kept in today.json across
+// restarts. Saved at most every 2 s (a busy chat would write all the time); a crash loses those last seconds.
+const TODAY_FILE = path.join(DATA_DIR, 'today.json');
+const saved = store.load(TODAY_FILE);
+let day = { date: String(saved.date ?? ''), alerts: Number(saved.alerts) || 0, chat: Number(saved.chat) || 0 };
+let saving = null;
 function count(kind) {
   const date = new Date().toDateString();
-  if (day.date !== date) day = { date, alerts: 0, chat: 0 };
-  if (kind) day[kind]++;
+  if (day.date !== date) day = { date, alerts: 0, chat: 0 }; // a new day
+  if (kind) {
+    day[kind]++;
+    saving ??= setTimeout(() => {
+      saving = null;
+      store.save(TODAY_FILE, day);
+    }, 2000);
+    saving.unref?.(); // never what keeps Jarchi from closing
+  }
   return { alerts: day.alerts, chat: day.chat };
 }
 const today = () => count();
