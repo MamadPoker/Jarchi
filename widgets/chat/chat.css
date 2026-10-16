@@ -158,6 +158,9 @@ body.preview, body.thumb { display: grid; place-items: center; }
    it stays sharp), here and on the other light message backgrounds (Cyberpunk bar's yellow pills, Cyberpunk's newest
    message). With "Make names readable" on, platform colors are already made to read, so this is rarely needed. */
 .light .bt-other { background: rgba(0, 0, 0, 0.12); }
+/* A message on a light background (measured in chat.js: .on-light): Kick's and Twitch's badges, made for dark chats,
+   each on a small dark tile like the platform logo. The OG hat (also a .badge) stays as it is. */
+.on-light .badge:not(.hat) { box-sizing: border-box; height: calc(1.15em * var(--badge, 1)); padding: calc(0.13em * var(--badge, 1)); border-radius: 0.25em; background: #000; }
 .light .name.lname:not(.rainbow), .style-cyberbar .tick .name.lname,
 .chat.style-cyberpunk.new-bottom .row:last-child .name.lname, .chat.style-cyberpunk.new-top .row:first-child .name.lname, .chat.style-cyberpunk .tick:last-child .name.lname {
   text-shadow: 1px 0 0 rgba(0, 0, 0, 0.75), -1px 0 0 rgba(0, 0, 0, 0.75), 0 1px 0 rgba(0, 0, 0, 0.75), 0 -1px 0 rgba(0, 0, 0, 0.75);

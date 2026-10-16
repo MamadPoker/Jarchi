@@ -318,16 +318,30 @@ test('Twitch profile pictures without a key: decapi.me (plain text), else api.iv
 });
 
 test('readable names: a platform color too close to its background keeps its hue, just lighter or darker', () => {
-  // The widget's color code, run here as it is (between its two comments).
+  // The widget's color code, run here as it is (from its section comment up to behind(), which needs a page).
   const src = fs.readFileSync(path.join(__dirname, '..', 'widgets', 'chat', 'chat.js'), 'utf8');
-  const code = src.slice(src.indexOf('// ---------- Readable names'), src.indexOf("// What's behind a name"));
-  const { readable, contrast, toHsl } = require('node:vm').runInNewContext(`${code}; ({ readable, contrast, toHsl })`);
-  for (const [color, bg] of [['#4CFF75', '#ffffff'], ['#0000FF', '#14141c'], ['#FFFFFF', '#ffe14d'], ['#E5FFAB', '#a5e4ff'], ['#FF0000', '#ffffff'], ['#000000', '#111111']]) {
+  const code = src.slice(src.indexOf('// ---------- Readable names'), src.indexOf('function behind('));
+  const { readable, contrast, toHsl, gradientAt } = require('node:vm').runInNewContext(`${code}; ({ readable, contrast, toHsl, gradientAt })`);
+  for (const [color, bg] of [['#4CFF75', '#ffffff'], ['#0000FF', '#14141c'], ['#FFFFFF', '#ffe14d'], ['#E5FFAB', '#a5e4ff'], ['#FF0000', '#ffffff'], ['#000000', '#111111'], ['#e6c200', '#a5e4ff'], ['#e6c200', '#ffffff']]) {
     const out = readable(color, bg);
-    assert.ok(contrast(out, bg) >= 4.5 && contrast(out, bg) < 4.8, `${color} on ${bg} -> ${out}: readable, and only just`);
+    assert.ok(contrast(out, bg) >= 4.5 && contrast(out, bg) < 5.1, `${color} on ${bg} -> ${out}: readable, and only just`);
     if (toHsl(color)[1] > 0.1) assert.ok(Math.abs(toHsl(out)[0] - toHsl(color)[0]) < 4, `${color} -> ${out}: same hue`);
   }
   assert.equal(readable('#FF6B6B', '#14141c'), '#FF6B6B', 'already readable: unchanged');
+
+  // What's behind a name includes gradients, at the name's spot: Cyberpunk's sub glow is strong on the left only,
+  // Galaxy's purple glow sits in the top-left corner.
+  const box = { left: 0, top: 0, width: 400, height: 40 };
+  const alpha = (kind, g, x, y) => Math.round(gradientAt(kind, g, box, x, y)[3] * 1000) / 1000;
+  const glow = '90deg, rgba(255, 213, 77, 0.35), rgba(0, 0, 0, 0) 70%';
+  assert.deepEqual(gradientAt('linear', glow, box, 0, 20).slice(0, 3).map(Math.round), [255, 213, 77]);
+  assert.equal(alpha('linear', glow, 0, 20), 0.35);
+  assert.equal(alpha('linear', glow, 140, 20), 0.175, 'halfway to the 70% stop');
+  assert.equal(alpha('linear', glow, 390, 20), 0);
+  assert.equal(alpha('linear', 'rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0.06)', 200, 0), 0.3, 'no angle: top to bottom');
+  const galaxy = 'at 15% 0%, rgba(140, 80, 255, 0.3), rgba(0, 0, 0, 0) 60%';
+  assert.equal(alpha('radial', galaxy, 60, 0), 0.3, 'at its center');
+  assert.equal(alpha('radial', galaxy, 400, 40), 0, 'far corner');
 });
 
 test('"Show chat timing": a widget\'s "shown" becomes one server line with each step; nothing while off', async () => {

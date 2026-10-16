@@ -23,10 +23,8 @@ const BADGE_KEY = { broadcaster: 'badgeBroadcaster', moderator: 'badgeMod', vip:
 // "Badges: Important only": roles and statuses (Twitch's "partner" is its verified check), and Kick's sub gifter. Twitch's
 // gifter tiers, Prime, levels and the like only with "All".
 const IMPORTANT = new Set(['broadcaster', 'moderator', 'vip', 'og', 'founder', 'subscriber', 'verified', 'partner', 'staff', 'sub_gifter']);
-// "Make names readable": what's behind a see-through chat is the stream, taken as dark (like the text shadow does), and
-// the styles whose messages are filled with their turn color.
+// "Make names readable": what's behind a see-through chat is the stream, taken as dark (like the text shadow does).
 const STREAM = '#111111';
-const TURN_FILL = new Set(['comic', 'sticky', 'pastel', 'candy']);
 // Per style: name colors for "Style colors", and colors that messages take turns with (null = the box color option).
 const STYLE_NAMES = { kick: ['#00F1FF', '#4CFF75', '#55FFC7', '#6F87FF', '#AAA9FF', '#BDFF28', '#E26EFF', '#E4D88F', '#E5FFAB', '#FEA0CF', '#FF2C56', '#FF4117', '#FF55B3', '#FFA600', '#FFAE76', '#FFFFFF'], cyberpunk: ['#fcee0a', '#00f0ff'], comic: ['#e63946', '#1d4ed8', '#059669', '#9333ea', '#ea580c'], galaxy: ['#c9a8ff', '#8fb8ff', '#ff9ad5'], persian: ['#e9c46a', '#2ec4b6'], led: ['#ffb000', '#ff8c1a', '#ffd34d'] };
 const STYLE_TURNS = { comic: [null, '#ffe14d', '#a5e4ff'], sticky: [null, '#ffb3c7', '#b8f2d0', '#a9d8ff', '#ffd59e'], pastel: [null, '#ffc6e0', '#bff0d8', '#ffd9b3', '#c5dcff'], popin: ['#ff4d9d', '#3ee8ff', '#ffd54d', '#7cff6b'], candy: ['#dccbff', '#ffc6e0', '#bff0d8', '#fff1a8'] };
@@ -156,6 +154,7 @@ function rebuild(still = false) {
   filling = true;
   for (const m of keep) add(m, false, still);
   filling = false;
+  refit();
 }
 
 // ---------- Filters ----------
@@ -209,12 +208,12 @@ function nameColor(m) {
 // ---------- Readable names: WCAG contrast, and the same hue lighter or darker ----------
 const rgb = (hex) => { const n = parseInt(hex.slice(1), 16); return [n >> 16, (n >> 8) & 255, n & 255]; };
 const toHex = (c) => `#${c.map((v) => Math.round(v).toString(16).padStart(2, '0')).join('')}`;
-const mix = (a, b, k) => toHex(rgb(a).map((v, i) => v * k + rgb(b)[i] * (1 - k))); // a over b, a at opacity k
 const relLum = (hex) => {
   const [r, g, b] = rgb(hex).map((v) => (v /= 255) <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4);
   return 0.2126 * r + 0.7152 * g + 0.0722 * b;
 };
 const contrast = (a, b) => { const [x, y] = [relLum(a), relLum(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
+const isLight = (bg) => contrast('#000000', bg) > contrast('#ffffff', bg); // dark text reads better on it
 function toHsl(hex) {
   const [r, g, b] = rgb(hex).map((v) => v / 255);
   const max = Math.max(r, g, b), min = Math.min(r, g, b), l = (max + min) / 2, d = max - min;
@@ -228,24 +227,95 @@ function fromHsl(hue, s, l) {
   const [r, g, b] = [[c, x, 0], [x, c, 0], [0, c, x], [0, x, c], [x, 0, c], [c, 0, x]][Math.floor((((hue % 360) + 360) % 360) / 60)];
   return toHex([r, g, b].map((v) => (v + m0) * 255));
 }
-// A color too close to its background (under 4.5:1) keeps its hue and gets just as much lighter or darker as it needs.
+// WCAG's 4.5:1, plus 10% for what's drawn around a name but isn't measured as its background: Comic's halftone dots, the
+// glow of a sub message next to it, a frame seen through RPG's name tab.
+const MIN_CONTRAST = 4.5 * 1.1;
+// A color too close to its background (under MIN_CONTRAST) keeps its hue and gets just as much darker (on a light
+// background) or lighter (on a dark one) as it needs.
 function readable(color, bg) {
-  if (contrast(color, bg) >= 4.5) return color;
+  if (contrast(color, bg) >= MIN_CONTRAST) return color;
   const [hue, s, l] = toHsl(color);
-  const darker = contrast('#000000', bg) > contrast('#ffffff', bg);
+  const darker = isLight(bg);
   let lo = darker ? 0 : l, hi = darker ? l : 1;
   for (let i = 0; i < 14; i++) {
-    const mid = (lo + hi) / 2, ok = contrast(fromHsl(hue, s, mid), bg) >= 4.5;
+    const mid = (lo + hi) / 2, ok = contrast(fromHsl(hue, s, mid), bg) >= MIN_CONTRAST;
     if (ok === darker) lo = mid; else hi = mid;
   }
   return fromHsl(hue, s, darker ? lo : hi);
 }
-// What's behind a name: its message's fill (styles with turn colors), the box, or the stream.
-function behindName(turn) {
-  if (cfg.style === 'cyberbar' && !vertical()) return cfg.borderColor; // its messages sit on tags in the border color
-  if (cfg.bg !== 'color') return STREAM;
-  return mix(TURN_FILL.has(cfg.style) ? turn : cfg.bgColor, STREAM, cfg.bgOpacity);
+
+// What's really drawn behind an element on the page, as #rrggbb: the backgrounds of it and of everything it sits in
+// (bubble, turn color, box, Cyberpunk's yellow newest message...) at its center, over the stream. Gradients (glass
+// sheens, the sub glow, Galaxy's glows) count with their color at that spot, and a ::before that fills a whole message
+// counts as its background (Cyberpunk bar's tags). Small ::befores (tails, tape) don't, and tiny repeated tiles (Comic's
+// dots, Galaxy's stars) are taken as drawn once, so they hardly ever count.
+const rgbaOf = (s) => { const v = s.match(/[\d.]+/g)?.map(Number) ?? []; return [v[0] || 0, v[1] || 0, v[2] || 0, v[3] ?? (v.length ? 1 : 0)]; };
+const GRADIENT = /(linear|radial)-gradient\(((?:[^()]|\([^()]*\))*)\)/g;
+const lengthIn = (v, size) => (v.endsWith('%') ? (parseFloat(v) / 100) * size : { left: 0, top: 0, center: size / 2, right: size, bottom: size }[v] ?? parseFloat(v));
+// A gradient's color at (x, y) of the box it's drawn on, with CSS's geometry: how far along the gradient that spot is
+// (linear: along the angle; radial: out from the center, farthest-corner unless sized), then the stops at that point.
+function gradientAt(kind, args, box, x, y) {
+  const parts = args.split(/,(?![^(]*\))/).map((p) => p.trim());
+  const shape = /^rgba?\(/.test(parts[0]) ? '' : parts.shift();
+  let t, len;
+  if (kind === 'linear') {
+    const dir = /^(-?[\d.]+)deg$|^to (top|right|bottom|left)$/.exec(shape);
+    const rad = ((dir?.[1] ? parseFloat(dir[1]) : { top: 0, right: 90, left: 270 }[dir?.[2]] ?? 180) * Math.PI) / 180;
+    len = Math.abs(box.width * Math.sin(rad)) + Math.abs(box.height * Math.cos(rad)) || 1;
+    t = 0.5 + ((x - box.left - box.width / 2) * Math.sin(rad) - (y - box.top - box.height / 2) * Math.cos(rad)) / len;
+  } else {
+    const [size, at = '50% 50%'] = shape.split(/\s*\bat\s+/);
+    const [px, py = '50%'] = at.split(/\s+/), cx = lengthIn(px, box.width), cy = lengthIn(py, box.height);
+    const r = size.match(/[\d.]+px/g)?.map(parseFloat) ?? [];
+    const far = [Math.max(cx, box.width - cx), Math.max(cy, box.height - cy)];
+    const [rx, ry] = r.length ? [r[0], r[1] ?? r[0]] : /circle/.test(size) ? Array(2).fill(Math.hypot(...far)) : far.map((v) => v * Math.SQRT2);
+    len = rx || 1;
+    t = Math.hypot((x - box.left - cx) / (rx || 1), (y - box.top - cy) / (ry || 1));
+  }
+  const stops = parts.map((p) => {
+    const c = p.match(/rgba?\([^)]*\)/)?.[0] ?? '', at = /(-?[\d.]+)(%|px)$/.exec(p.replace(c, '').trim());
+    return { c: rgbaOf(c), at: at ? (at[2] === '%' ? at[1] / 100 : at[1] / len) : null };
+  });
+  stops[0].at ??= 0;
+  stops[stops.length - 1].at ??= 1;
+  stops.forEach((s, i) => { // stops without a position: spread evenly between their neighbors
+    if (s.at !== null) return;
+    const j = stops.findIndex((n, k) => k > i && n.at !== null);
+    s.at = stops[i - 1].at + (stops[j].at - stops[i - 1].at) / (j - i + 1);
+  });
+  const i = stops.findIndex((s) => s.at >= t);
+  if (i <= 0) return stops[i ? stops.length - 1 : 0].c; // past the last stop, or before the first
+  const [p, q] = [stops[i - 1].c, stops[i].c], k = (t - stops[i - 1].at) / (stops[i].at - stops[i - 1].at || 1);
+  const a = p[3] + (q[3] - p[3]) * k; // CSS mixes stops with their alpha applied
+  return a ? [0, 1, 2].map((j) => (p[j] * p[3] * (1 - k) + q[j] * q[3] * k) / a).concat(a) : [0, 0, 0, 0];
 }
+function behind(target) {
+  const r = target.getBoundingClientRect(), x = r.left + r.width / 2, y = r.top + r.height / 2;
+  const layers = []; // innermost first; CSS lists an element's top image first, its color is under them
+  const paint = (cs, box) => layers.push(...[...cs.backgroundImage.matchAll(GRADIENT)].map((g) => gradientAt(g[1], g[2], box, x, y)), rgbaOf(cs.backgroundColor));
+  for (let e = target; e; e = e.parentElement) {
+    const box = e.getBoundingClientRect();
+    if (e.classList.contains('msg')) {
+      const b = getComputedStyle(e, '::before');
+      if (parseFloat(b.width) >= box.width * 0.9 && parseFloat(b.height) >= box.height * 0.9) paint(b, box);
+    }
+    paint(getComputedStyle(e), box);
+  }
+  return toHex(layers.reduceRight((under, [r0, g, b, a]) => [r0, g, b].map((v, i) => v * a + under[i] * (1 - a)), rgb(STREAM)));
+}
+
+// Once a message is on the page: its name made readable on what's really behind it, and its badges (made by Kick and
+// Twitch for dark chats) on small dark tiles when that is light (.on-light, chat.css).
+function fit(el) {
+  const badges = el.querySelector('.badges'), name = el.querySelector('.name[data-color]');
+  if (badges) el.classList.toggle('on-light', isLight(behind(badges)));
+  if (!name) return;
+  const color = readable(name.dataset.color, behind(name));
+  name.style.color = color;
+  name.classList.toggle('lname', lum(color) > 0.6);
+}
+// Every message again whenever rows come or go: what's behind one can change (Cyberpunk's newest message is yellow).
+const refit = () => { if (!filling) for (const r of rows) fit(r.el); };
 
 // ---------- OG hat: Kick viewers with the OG badge get one (assets/og-hats) ----------
 // Where it sits: 'first' | 'last' (letter of the name) | 'badge' | 'avatar', or null (no hat).
@@ -256,10 +326,11 @@ function hatAt(m) {
 const hatEl = (at) => h('img', { className: `hat hat-${at} hat-${cfg.hatStyle}${at === 'badge' ? ' badge' : ''}`, src: `/assets/og-hats/${cfg.hatStyle}.svg`, alt: at === 'badge' ? 'OG' : '' });
 
 // The name in its color; a light color is marked (lname) so light message backgrounds can outline it.
-function nameEl(m, rainbow, turn, hat) {
-  let color = nameColor(m);
-  if (cfg.readableNames && cfg.nameColorMode === 'user') color = readable(color, behindName(turn));
+// With "Make names readable", fit() adjusts the color once the message is on the page.
+function nameEl(m, rainbow, hat) {
+  const color = nameColor(m);
   const el = h('span', { className: `name${rainbow ? ' rainbow' : ''}${lum(color) > 0.6 ? ' lname' : ''}`, style: `color:${color}` });
+  if (cfg.readableNames && cfg.nameColorMode === 'user') el.dataset.color = color;
   if (hat !== 'first' && hat !== 'last') {
     el.textContent = m.user.name;
     return el;
@@ -360,7 +431,7 @@ function msgEl(m) {
     cfg.showTime && h('time', { textContent: time }),
     cfg.showPlatform && h('img', { className: `platform pl-${m.platform}`, src: `/assets/platform-logos/${m.platform}.svg`, alt: m.platform }),
     badgesEl(m, hat),
-    nameEl(m, rainbow, turn, hat),
+    nameEl(m, rainbow, hat),
     cfg.showColon && m.kind === 'message' && !m.action && h('span', { className: 'colon', textContent: SEPARATOR[cfg.style] ?? ':' }));
   const avatar = cfg.avatars && (hat === 'avatar' ? h('span', { className: 'avatar-box' }, avatarEl(m), hatEl('avatar')) : avatarEl(m));
   const hasText = m.parts.some((p) => p.t !== 'text' || p.v.trim());
@@ -517,6 +588,7 @@ function addRow(m, animate) {
   const live = rows.filter((x) => !x.exiting);
   for (const old of live.slice(0, Math.max(0, live.length - cfg.maxMessages))) leave(old);
   prune();
+  refit();
 }
 
 // Fade out, then close the gap smoothly. For the oldest row nothing else moves: the list is pinned to the other side.
@@ -539,6 +611,7 @@ function leave(r) {
 function drop(r) {
   r.el.remove();
   rows = rows.filter((x) => x !== r);
+  refit();
 }
 
 // Rows that slid completely out of view (past the fade zone) are invisible: remove them to keep OBS light.
@@ -564,12 +637,14 @@ function addTick(m, still, repeat = false) {
     el.style.left = `${rows.reduce((x, o) => x + o.el.offsetWidth + cfg.gap + 24, 0)}px`;
     list.append(el);
     rows.push(r);
+    refit();
     return true;
   }
   if (rows.length >= cfg.maxMessages) return false;
   el.style.visibility = 'hidden';
   list.append(el);
   rows.push(r);
+  refit();
   const fill = filling;
   const ready = imagesReady(el);
   tickChain = tickChain.then(() => ready).then(() => place(r, fill));
