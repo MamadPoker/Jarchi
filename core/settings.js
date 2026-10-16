@@ -198,6 +198,7 @@ const CHAT_DEFAULTS = {
   hideCommands: true, hideBots: true, bots: 'botrix, kickbot', hiddenUsers: '', blockedWords: '', hideLinks: false, source: 'both',
   rainbowUsers: '',
   ogHat: true, hatStyle: 'cap', hatPos: 'first', // Kick's OG viewers get a hat (assets/og-hats): kept when the style changes
+  badgeBg: 'auto', // a dark tile behind the platforms' role badges: auto (light backgrounds only) | always | off; kept when the style changes
   tickerPos: 'top', // where a bar sits in the OBS source: kept when the style changes
   showTiming: false, // debug: how late each message shows (a label in the chat, a line in the server output)
 };
@@ -210,7 +211,7 @@ const CHAT_RULES = {
   emotesKick: bool, emotesTwitch: bool, emotes7tv: bool,
   hideCommands: bool, hideBots: bool, bots: words, hiddenUsers: words, blockedWords: words, hideLinks: bool, source: oneOf('both', 'kick', 'twitch'),
   rainbowUsers: words,
-  ogHat: bool, hatStyle: oneOf('cap', 'beanie', 'fedora'), hatPos: oneOf('first', 'last', 'badge', 'avatar'),
+  ogHat: bool, hatStyle: oneOf('cap', 'beanie', 'fedora'), hatPos: oneOf('first', 'last', 'badge', 'avatar'), badgeBg: oneOf('auto', 'always', 'off'),
   showPlatform: bool, showBadges: bool, badgeMode: oneOf('important', 'all'), badgeSize: num(0.5, 2), badgeBroadcaster: bool, badgeMod: bool, badgeVip: bool, badgeSub: bool, badgeOther: bool, showTime: bool, showColon: bool,
   emotesAnimated: bool, emoteSize: num(12, 112), bigEmotes: bool, bigEmoteSize: num(16, 160),
   font: oneOf(...CHAT_FONTS), fontSize: num(10, 72), nameSize: num(10, 72), nameColorMode: oneOf('user', 'custom', 'style'), readableNames: bool, nameColor: hex, textColor: hex,

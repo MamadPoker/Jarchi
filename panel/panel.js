@@ -70,7 +70,8 @@ const GROUPS = () => [
 // kind: toggle | range | seg | select | color | text. options.only: shown only when CHAT_ONLY[only] is true.
 const CHAT_GROUPS = () => [
   ['chatShow', [['toggle', 'showPlatform'], ['toggle', 'showBadges'], ['seg', 'badgeMode', { options: [['important', 'badgesImportant'], ['all', 'badgesAll']], only: 'badges' }],
-    ['range', 'badgeSize', { min: 0.5, max: 2, step: 0.05, only: 'badges' }], ['toggle', 'badgeBroadcaster', { only: 'badges' }], ['toggle', 'badgeMod', { only: 'badges' }],
+    ['range', 'badgeSize', { min: 0.5, max: 2, step: 0.05, only: 'badges' }],
+    ['seg', 'badgeBg', { options: [['auto', 'badgeBgAuto'], ['always', 'badgeBgAlways'], ['off', 'badgeBgOff']], only: 'badges' }], ['toggle', 'badgeBroadcaster', { only: 'badges' }], ['toggle', 'badgeMod', { only: 'badges' }],
     ['toggle', 'badgeVip', { only: 'badges' }], ['toggle', 'badgeSub', { only: 'badges' }], ['toggle', 'badgeOther', { only: 'badges' }], ['toggle', 'showTime'], ['toggle', 'showColon'],
     ['toggle', 'ogHat'], ['seg', 'hatStyle', { options: [['cap', 'hatCap'], ['beanie', 'hatBeanie'], ['fedora', 'hatFedora']], only: 'hat' }],
     ['select', 'hatPos', { options: [['first', 'hatFirst'], ['last', 'hatLast'], ['badge', 'hatBadge'], ['avatar', 'hatAvatar']], only: 'hat' }]]],

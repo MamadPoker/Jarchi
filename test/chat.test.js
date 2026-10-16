@@ -244,12 +244,13 @@ test('chat styles: all 27 can be picked (Kick default first), new options valida
   assert.equal((await call('PATCH', '/api/settings', { chat: { style: 'rpg' } })).status, 200);
   assert.equal((await (await call('GET', '/api/settings')).json()).chat.typewriter, true, 'RPG dialog types out');
   for (const ok of [{ nameColorMode: 'style' }, { enterAnim: 'drop' }, { typeSound: true }, { font: 'Vazirmatn' }, { badgeMode: 'all' }, { badgeSize: 1.5 }, { readableNames: false },
-    { ogHat: false }, { hatStyle: 'fedora' }, { hatPos: 'avatar' }]) assert.equal((await call('PATCH', '/api/settings', { chat: ok })).status, 200, JSON.stringify(ok));
+    { ogHat: false }, { hatStyle: 'fedora' }, { hatPos: 'avatar' }, { badgeBg: 'off' }]) assert.equal((await call('PATCH', '/api/settings', { chat: ok })).status, 200, JSON.stringify(ok));
   for (const bad of [{ nameColorMode: 'rainbow' }, { enterAnim: 'spin' }, { typewriter: 'yes' }, { font: 'Comic Sans' }, { badgeMode: 'some' }, { badgeSize: 5 },
-    { hatStyle: 'tophat' }, { hatPos: 'middle' }]) assert.equal((await call('PATCH', '/api/settings', { chat: bad })).status, 400, JSON.stringify(bad));
+    { hatStyle: 'tophat' }, { hatPos: 'middle' }, { badgeBg: 'light' }]) assert.equal((await call('PATCH', '/api/settings', { chat: bad })).status, 400, JSON.stringify(bad));
   const fresh = (await (await call('PATCH', '/api/settings', { chat: { style: 'comic' } })).json()).chat;
-  assert.deepEqual([fresh.ogHat, fresh.hatStyle, fresh.hatPos, fresh.badgeMode], [false, 'fedora', 'avatar', 'important'], 'the OG hat stays when the style changes; badges take the style\'s');
-  await call('PATCH', '/api/settings', { chat: { ogHat: true, hatStyle: 'cap', hatPos: 'first' } });
+  assert.deepEqual([fresh.ogHat, fresh.hatStyle, fresh.hatPos, fresh.badgeBg, fresh.badgeMode], [false, 'fedora', 'avatar', 'off', 'important'],
+    'the OG hat and the badge background stay when the style changes; badges take the style\'s');
+  await call('PATCH', '/api/settings', { chat: { ogHat: true, hatStyle: 'cap', hatPos: 'first', badgeBg: 'auto' } });
   for (const hat of ['cap', 'beanie', 'fedora']) assert.equal((await fetch(`${base}/assets/og-hats/${hat}.svg`)).status, 200, hat);
   for (const file of ['press-start-2p/PressStart2P-Regular.ttf', 'bangers/Bangers-Regular.ttf', 'fredoka/Fredoka-Variable.ttf', 'vazirmatn/Vazirmatn-Variable.ttf', 'inter/Inter-Variable.ttf']) {
     assert.equal((await fetch(`${base}/assets/fonts/${file}`)).status, 200, file);

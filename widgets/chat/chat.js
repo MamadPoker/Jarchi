@@ -305,10 +305,11 @@ function behind(target) {
 }
 
 // Once a message is on the page: its name made readable on what's really behind it, and its badges (made by Kick and
-// Twitch for dark chats) on small dark tiles when that is light (.on-light, chat.css).
+// Twitch for dark chats) on small dark tiles (.tiled, chat.css): "Badge background" Auto = when that is light, or
+// Always, or Off.
 function fit(el) {
   const badges = el.querySelector('.badges'), name = el.querySelector('.name[data-color]');
-  if (badges) el.classList.toggle('on-light', isLight(behind(badges)));
+  if (badges) el.classList.toggle('tiled', cfg.badgeBg === 'always' || (cfg.badgeBg !== 'off' && isLight(behind(badges))));
   if (!name) return;
   const color = readable(name.dataset.color, behind(name));
   name.style.color = color;
@@ -356,7 +357,7 @@ function avatarEl(m) {
   return stand;
 }
 
-// The badges that get a small dark tile on a light background (chat.css .on-light): the platforms' own role badges,
+// The badges that get a small dark tile ("Badge background", chat.css .tiled): the platforms' own role badges,
 // drawn for dark chats. Subscriber badges (the channel's own pictures) and the rest stay as they are.
 const TILED = new Set(['og', 'moderator', 'vip', 'verified', 'partner', 'founder', 'broadcaster', 'staff', 'sub_gifter', 'sub-gifter']);
 // The badges to show. With the OG hat on the badges, the hat takes the OG badge's place (shown even with badges off).
