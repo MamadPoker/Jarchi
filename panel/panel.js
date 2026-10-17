@@ -220,8 +220,10 @@ function goalCountRow(id) {
   input.setAttribute('aria-label', `${S.goals[id].name}: ${S.panel.goalCurrent}`);
   const zero = el('button', { className: 'ghost zero', textContent: S.panel.goalZero });
   twoClick(zero, zero, S.panel.goalZero, S.panel.confirmZero, () => goalCount({ set: 0 }, id));
-  // Synced from Kick: Kick's count, read-only, says so instead of Reset to 0.
-  return el('div', { className: 'goal-count' }, input, el('small', { className: 'of' }), el('span', { className: 'pill from-kick', textContent: S.panel.fromKick, hidden: true }), zero);
+  // Synced from Kick: Kick's count, read-only, with Kick's K instead of Reset to 0.
+  const mark = kickMark();
+  mark.hidden = true;
+  return el('div', { className: 'goal-count' }, input, el('small', { className: 'of' }), mark, zero);
 }
 
 // ---------- Previews ----------
@@ -344,6 +346,29 @@ function renderQueue() {
 }
 const queueCall = (method, what, body) => api(method, `/api/alerts/${what}`, body).then((q) => { queue = q; renderQueue(); return q; }, (err) => toast(err.message, true));
 
+// ---------- Goal marks (panel only): an icon per goal in its colour (CSS [data-goal]), Kick's K for "From Kick" ----------
+// Kick's own logo shape (assets/platform-logos/kick.svg), drawn in currentColor so light mode can use a darker green.
+const KICK_K = '<svg class="kick-k" viewBox="0 0 26 26" aria-hidden="true"><path fill-rule="evenodd" d="M1 0H9.76711V5.79452H12.589V2.82193H15.5616V0H24.1781V8.61645H21.3561V11.589H18.3836V14.411H21.3561V17.3836H24.1781V26H15.5616V23.1781H12.589V20.2055H9.76711V26H1V0Z"/></svg>';
+const GOAL_ICON = {
+  subs: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${TYPE_ICON.sub}"/></svg>`, // star
+  kicks: KICK_K,
+  followers: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.5s-7.6-4.5-9.4-9.2C1.4 8.1 3.5 4.7 7 4.7c2 0 3.6 1.1 5 2.9 1.4-1.8 3-2.9 5-2.9 3.5 0 5.6 3.4 4.4 6.6-1.8 4.7-9.4 9.2-9.4 9.2z"/></svg>', // heart
+};
+const svgIn = (cls, markup) => { // fixed markup only
+  const s = el('span', { className: cls });
+  s.innerHTML = markup;
+  return s;
+};
+const goalIcon = (id) => svgIn('goal-icon', GOAL_ICON[id]);
+// "From Kick": the K, with the words as its tooltip and for screen readers.
+function kickMark() {
+  const s = svgIn('from-kick', KICK_K);
+  s.title = S.panel.fromKick;
+  s.setAttribute('role', 'img');
+  s.setAttribute('aria-label', S.panel.fromKick);
+  return s;
+}
+
 // ---------- Home ----------
 const COPY_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h8"/></svg>';
 const copyLink = (url, msg = S.panel.copied) => navigator.clipboard.writeText(url).then(() => toast(msg));
@@ -416,10 +441,11 @@ function renderHome() {
     const { current, target, kick } = goalData.state[id];
     const bar = el('i');
     bar.style.width = `${Math.min(100, (current / target) * 100)}%`;
-    return el('div', { className: `home-goal${current >= target ? ' full' : ''}` },
-      el('div', { className: 'row' }, el('b', { textContent: S.goals[id].name }), el('small', { textContent: `${fmt(current)} / ${fmt(target)}` }),
-        kick ? el('span', { className: 'pill from-kick', textContent: S.panel.fromKick }) : ''),
+    const row = el('div', { className: 'home-goal' },
+      el('div', { className: 'row' }, goalIcon(id), el('b', { textContent: S.goals[id].name }), el('small', { textContent: `${fmt(current)} / ${fmt(target)}` }), kick ? kickMark() : ''),
       el('div', { className: 'goal-bar' }, bar));
+    row.dataset.goal = id; // its colour
+    return row;
   }));
 
   $('#statAlerts').textContent = fmt(home.today.alerts);
@@ -614,10 +640,13 @@ function build() {
       const sw = el('input', { type: 'checkbox', onchange: () => it.toggle(sw.checked) });
       sw.setAttribute('aria-label', it.label);
       const row = el('li', { className: 'nav-row' },
-        el('button', { className: 'nav-btn', onclick: () => select(v, it.key) }, el('span', { textContent: it.label }), v === 'alert' ? el('span', { className: 'swatch mini', hidden: true }) : ''),
+        el('button', { className: 'nav-btn', onclick: () => select(v, it.key) }, v === 'goal' ? goalIcon(it.key) : '', el('span', { textContent: it.label }), v === 'alert' ? el('span', { className: 'swatch mini', hidden: true }) : ''),
         el('label', { className: 'switch' }, sw, el('span')));
       row.dataset.key = it.key;
-      if (v === 'goal') row.append(goalCountRow(it.key));
+      if (v === 'goal') {
+        row.dataset.goal = it.key; // its colour
+        row.append(goalCountRow(it.key));
+      }
       return row;
     }));
   }
@@ -742,6 +771,7 @@ function build() {
   twoClick($('#goalZero'), $('#goalZero'), S.panel.goalZero, S.panel.confirmZero, () => goalCount({ set: 0 }));
   $('#goalResetStyle').onclick = () => send('POST', `/api/goals/${curGoal}/reset-style`);
   $('#kickSync').onchange = (e) => send('PATCH', '/api/settings', { kickGoalSync: e.target.checked });
+  $$('.from-kick', goalEd).forEach((m) => (m.innerHTML = KICK_K)); // Target / Current: Kick's K (tooltip from data-title)
   $('#goalCopy').title = S.panel.goalCopyHint;
   $('#goalCopy').onclick = () => copyLink(`${location.origin}/widgets/goal/${curGoal}`, S.panel.goalCopied);
   // Counts and chat status change on their own (events, connections), so follow them live.
@@ -980,7 +1010,8 @@ function renderAlert() {
 function renderGoal() {
   const ed = $('main [data-view=goal]');
   const g = settings.goals[curGoal];
-  ed.dataset.key = curGoal;
+  ed.dataset.key = ed.dataset.goal = curGoal;
+  $('.title .goal-icon', ed).innerHTML = GOAL_ICON[curGoal]; // fixed markup
   $('.name', ed).textContent = S.goals[curGoal].name;
   $('#goalCounts').textContent = S.goals[curGoal].counts;
   $('#goalTest span').textContent = S.goals[curGoal].test;

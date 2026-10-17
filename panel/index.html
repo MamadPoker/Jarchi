@@ -299,7 +299,7 @@
         </div>
         <div class="editor">
         <div class="row between">
-          <h1 class="title"><span class="dot"></span><span class="name"></span><span class="pill" data-only="off" data-i18n="off"></span></h1>
+          <h1 class="title"><span class="goal-icon"></span><span class="name"></span><span class="pill" data-only="off" data-i18n="off"></span></h1>
           <div class="row">
             <button id="goalCopy">
               <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h8"/></svg>
@@ -326,11 +326,11 @@
             <input type="text" data-f="title" maxlength="60" data-aria="goalTitle" dir="auto">
           </div>
           <div class="box">
-            <div class="row between"><h2 data-i18n="goalTarget" data-help="goal.target"></h2><span class="pill from-kick" data-only="fromKick" data-i18n="fromKick"></span></div>
+            <div class="row between"><h2 data-i18n="goalTarget" data-help="goal.target"></h2><span class="from-kick" data-only="fromKick" data-title="fromKick" role="img"></span></div>
             <input type="number" data-f="target" min="1" step="1" data-aria="goalTarget">
           </div>
           <div class="box">
-            <div class="row between"><h2 data-i18n="goalCurrent" data-help="goal.current"></h2><span class="pill from-kick" data-only="fromKick" data-i18n="fromKick"></span></div>
+            <div class="row between"><h2 data-i18n="goalCurrent" data-help="goal.current"></h2><span class="from-kick" data-only="fromKick" data-title="fromKick" role="img"></span></div>
             <div class="stepper">
               <button id="goalMinus" aria-label="−">−</button>
               <input type="number" id="goalCurrent" min="0" step="1" data-aria="goalCurrent">

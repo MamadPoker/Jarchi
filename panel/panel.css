@@ -20,6 +20,10 @@
   --on-gold: #1b1404;
   --on-color: #fff; /* text and knobs on green / red */
   --j: #c99a2e; /* the J of Jarchi, in every theme */
+  --goal-subs: #d6a83e; /* each goal's icon and bar (panel only): gold, Kick green, a lighter Jarchi green */
+  --goal-kicks: #53fc18;
+  --goal-followers: #3fa76f;
+  --kick-mark: #53fc18; /* "From Kick" */
   --focus: var(--gold);
   --danger: #f43f5e;
   --danger-line: rgba(244, 63, 94, 0.4);
@@ -49,6 +53,10 @@
   --text: #12221a;
   --muted: #5f7266;
   --label: #34463b;
+  --goal-subs: #8a6210; /* 3.5:1 or more on the light cards and background */
+  --goal-kicks: #2a7d0b;
+  --goal-followers: #257a49;
+  --kick-mark: #2a7d0b;
   --green: #17543a;
   --green-soft: rgba(23, 84, 58, 0.14);
   --gold: #b8871f;
@@ -260,12 +268,21 @@ input[type="color"]::-webkit-color-swatch { border: 0; border-radius: 7px; }
 input.count-input { width: 62px; padding: 3px 6px; border-color: transparent; background: transparent; font-weight: 700; } /* input.: beats the input[type="number"] rule */
 input.count-input:hover, input.count-input:focus { border-color: var(--border-hi); background: var(--card2); }
 .goal-count .of { white-space: nowrap; }
-.goal-count .zero, .goal-count .from-kick { margin-inline-start: auto; padding: 3px 10px; font-size: 12px; white-space: nowrap; }
+.goal-count .zero { margin-inline-start: auto; padding: 3px 10px; font-size: 12px; white-space: nowrap; }
+.goal-count .from-kick { margin-inline-start: 4px; }
 input.count-input[readonly]:hover { border-color: transparent; background: transparent; }
-/* "Sync from Kick" under the goals; "From Kick" marks numbers that come from Kick (read-only). */
+/* "Sync from Kick" under the goals; Kick's K ("From Kick" tooltip) marks numbers that come from Kick (read-only). */
 .kick-sync { display: grid; gap: 4px; margin-top: 8px; padding: 10px 10px 2px; border-top: 1px solid var(--border); }
 .kick-sync small { font-size: 12px; line-height: 1.4; }
-.pill.from-kick { border-color: var(--green); color: var(--ok); white-space: nowrap; }
+.from-kick { display: inline-grid; place-items: center; flex: none; color: var(--kick-mark); cursor: help; }
+.from-kick svg { width: 13px; height: 13px; }
+.kick-k { fill: currentColor; stroke: none; } /* a filled logo, not a line icon */
+/* Each goal's colour: its icon (lists, editor title, Home) and its bar on Home. */
+[data-goal="subs"] { --goal: var(--goal-subs); }
+[data-goal="kicks"] { --goal: var(--goal-kicks); }
+[data-goal="followers"] { --goal: var(--goal-followers); }
+.goal-icon { display: inline-grid; place-items: center; flex: none; color: var(--goal); }
+.title .goal-icon svg { width: 22px; height: 22px; }
 input[readonly] { color: var(--muted); cursor: default; }
 .editor { display: grid; gap: 18px; container-type: inline-size; } /* editor rules below follow its width */
 
@@ -429,8 +446,7 @@ main { padding: 24px 28px 64px; container-type: inline-size; } /* editor rules b
 .home-goal { display: grid; gap: 8px; }
 .home-goal .row { flex-wrap: nowrap; }
 .goal-bar { height: 8px; overflow: hidden; border-radius: 99px; background: var(--border); }
-.goal-bar i { display: block; height: 100%; border-radius: inherit; background: var(--green); }
-.home-goal.full .goal-bar i { background: var(--gold); }
+.goal-bar i { display: block; height: 100%; border-radius: inherit; background: var(--goal, var(--green)); }
 .stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
 .stats > div { display: grid; align-content: start; gap: 2px; padding: 12px 8px; border: 1px solid var(--border); border-radius: 14px; background: var(--card); text-align: center; }
 .stats b { font-size: 20px; }
@@ -452,8 +468,6 @@ main { padding: 24px 28px 64px; container-type: inline-size; } /* editor rules b
 .theme-tile.selected .selected-label { display: inline-block; }
 
 /* ---------- Goal editor ---------- */
-[data-key="subs"] { --dot: #38bdf8; }
-[data-key="followers"] { --dot: #22d3ee; }
 /* Goal pages are 1000x400 (not 1920x1080); the ResizeObserver scales them by their own width. */
 .goal-preview iframe, .style-tile iframe { width: 1000px; height: 400px; }
 .goal-preview, .style-tile .preview { aspect-ratio: 5 / 2; }
