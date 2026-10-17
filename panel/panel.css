@@ -381,6 +381,7 @@ main { padding: 24px 28px 64px; container-type: inline-size; } /* editor rules b
 .nav-btn .label { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .plat-marks { display: flex; flex: none; gap: 5px; margin-inline-start: auto; }
 .plat-marks img { width: 14px; height: 14px; }
+.soon-tag { padding: 0 7px; border-color: var(--gold-line); color: var(--gold-text); font-size: 11px; line-height: 1.5; cursor: help; }
 
 .basics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
 

@@ -58,7 +58,8 @@ const el = (tag, props = {}, ...kids) => {
 
 // The lists inside the Alerts and Goals pages: a click opens the item, its switch turns it on or off.
 const ALERT_ORDER = ['follow', 'sub', 'gift_sub', 'resub', 'raid', 'kicks', 'bits'];
-const ALERT_PLATFORMS = { kicks: ['kick'], bits: ['twitch'] }; // who sends it (the list's logos); the others: both
+// Who sends it (the list's logos); the others: both. Follow: none until Kick / Twitch accounts can be connected (then both).
+const ALERT_PLATFORMS = { follow: [], kicks: ['kick'], bits: ['twitch'] };
 const LISTS = () => ({
   alert: ALERT_ORDER.map((t) => ({ key: t, label: S.types[t], toggle: (on) => patchAlert(t, { enabled: on }) })),
   goal: Object.keys(settings.goals).map((id) => ({ key: id, label: S.goals[id].name, toggle: (on) => patchGoal(id, { enabled: on }) })),
@@ -320,9 +321,13 @@ function typeIcon(type) {
   i.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${TYPE_ICON[type]}"/></svg>`; // fixed paths, no user text
   return i;
 }
-// The platforms an alert comes from: their own logos.
-const platMarks = (type) => el('span', { className: 'plat-marks' }, ...(ALERT_PLATFORMS[type] ?? ['kick', 'twitch'])
-  .map((p) => el('img', { src: `/assets/platform-logos/${p}.svg`, alt: S.platforms[p], title: S.platforms[p] })));
+// The platforms an alert comes from: their own logos, or "Soon" when none can send it yet.
+function platMarks(type) {
+  const ps = ALERT_PLATFORMS[type] ?? ['kick', 'twitch'];
+  return el('span', { className: 'plat-marks' }, ...(ps.length
+    ? ps.map((p) => el('img', { src: `/assets/platform-logos/${p}.svg`, alt: S.platforms[p], title: S.platforms[p] }))
+    : [el('span', { className: 'pill soon-tag', textContent: S.panel.soonTag, title: S.panel.followSoon })]));
+}
 // "Rich · Gifted subs · 10": icon, name, type, and the amount (or a resub's months).
 function alertRow(a, action) {
   const amount = a.type === 'resub' && a.months ? tpl(S.panel.qMonths, { n: fmt(a.months) }) : a.amount ? fmt(a.amount) : '';

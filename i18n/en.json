@@ -18,8 +18,8 @@
     "sub": "Sub",
     "resub": "Resub",
     "gift_sub": "Gifted subs",
-    "kicks": "Kicks (Kick)",
-    "bits": "Bits (Twitch)",
+    "kicks": "Kicks",
+    "bits": "Bits",
     "raid": "Raid"
   },
   "templates": {
@@ -64,6 +64,8 @@
     "navAppearance": "Appearance",
     "soonTitle": "Coming soon",
     "soonHint": "This page isn't ready yet.",
+    "soonTag": "Soon",
+    "followSoon": "Follow alerts need your Kick or Twitch account connected. That comes later.",
     "homeTest": "Send test alert",
     "obsLinks": "OBS links",
     "readyTitle": "You're ready to stream",

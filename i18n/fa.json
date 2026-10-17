@@ -18,8 +18,8 @@
     "sub": "ساب",
     "resub": "تمدید ساب",
     "gift_sub": "ساب هدیه",
-    "kicks": "کیکس (Kick)",
-    "bits": "بیتس (Twitch)",
+    "kicks": "کیکس",
+    "bits": "بیتس",
     "raid": "رید"
   },
   "templates": {
@@ -64,6 +64,8 @@
     "navAppearance": "ظاهر",
     "soonTitle": "به‌زودی",
     "soonHint": "این صفحه هنوز آماده نیست.",
+    "soonTag": "به‌زودی",
+    "followSoon": "الرت فالو به اتصال حساب Kick یا Twitch نیاز دارد که بعداً اضافه می‌شود.",
     "homeTest": "ارسال الرت آزمایشی",
     "obsLinks": "لینک‌های OBS",
     "readyTitle": "برای استریم آماده‌اید",
