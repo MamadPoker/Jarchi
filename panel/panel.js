@@ -1181,7 +1181,6 @@ const ART_ICONS = [
   HEART, TYPE_ICON.sub, TYPE_ICON.gift_sub, // heart, star, gift
   'M3 11l18-5v12L3 14zM11.6 16.8a3 3 0 1 1-5.8-1.6', // megaphone
   'M9 18V5l12-2v13M9 18a3 3 0 1 1-6 0 3 3 0 0 1 6 0zM21 16a3 3 0 1 1-6 0 3 3 0 0 1 6 0z', // music note
-  'kick', 'twitch', // their logo files, in their own colors
 ];
 const ART_RING = { kick: '#53fc18', twitch: '#9146ff' };
 const STILL = matchMedia('(prefers-reduced-motion: reduce)');
@@ -1194,27 +1193,37 @@ function artArea() {
   const x = beside && s.left < innerWidth / 2 ? s.right : 0, w = beside ? innerWidth - s.width : innerWidth;
   area = { x: x + 24, y: 70, w: Math.max(1, w - 48), h: Math.max(1, innerHeight - 94) };
 }
-// The pictures' spots, as shares of the area (mirrored in Persian, like the page): four on each half, near every corner
-// and in the middle; the first low on the far side, below the Home page's narrow column, where nothing else is.
-const FACE_SPOTS = [[0.88, 0.85], [0.1, 0.15], [0.82, 0.15], [0.12, 0.85], [0.4, 0.45], [0.62, 0.62], [0.25, 0.62], [0.9, 0.48]];
-// pics: [[platform, url]...]. 22 icons (each kind about twice) and 8 pictures (none without a channel). Spread evenly:
-// rows across the area, the items shared out between them with no gaps (so corners and edges get some too), each
-// somewhere in the middle of its cell. The pictures take the cells nearest their spots, the icons the others.
+// Spots for the pictures and the logos, as shares of the area (mirrored in Persian, like the page), on one 4 x 4
+// pattern where they take turns like a checkerboard, so the logos sit about 2 cells apart. Pictures: four on each half,
+// near the corners and in the middle; the first in the bottom right, below the Home page's narrow column. Logos (their
+// own files and colors): Kick also right and bottom, Twitch also left and top.
+const FACE_SPOTS = [[0.9, 0.88], [0.1, 0.12], [0.37, 0.38], [0.63, 0.12], [0.9, 0.38], [0.1, 0.62], [0.37, 0.88], [0.63, 0.62]];
+const LOGO_SPOTS = [['kick', [0.9, 0.12]], ['twitch', [0.37, 0.12]], ['kick', [0.9, 0.62]], ['twitch', [0.1, 0.38]],
+  ['kick', [0.63, 0.88]], ['twitch', [0.63, 0.38]], ['kick', [0.37, 0.62]], ['twitch', [0.1, 0.88]]];
+// pics: [[platform, url]...]. 8 logos, 8 pictures (none without a channel: 8 more icons then, so the page is as full and
+// the logos keep their spacing) and outline icons, 34 in all. Spread evenly: rows across the area, the items shared out
+// between them with no gaps (so corners and edges get some too), each somewhere in the middle of its cell. The logos,
+// then the pictures, take the cells nearest their spots (a logo never within 1.4 cells of another); the icons the rest.
 function buildArt(pics) {
   artPics = pics;
-  const icons = Array.from({ length: 22 }, (_, i) => ART_ICONS[i % ART_ICONS.length]);
   const faces = pics.length ? Array.from({ length: 8 }, (_, k) => pics[k % pics.length]) : [];
-  const n = icons.length + faces.length, rows = Math.max(1, Math.round(Math.sqrt((n * area.h) / area.w)));
+  const icons = Array.from({ length: 26 - faces.length }, (_, i) => ART_ICONS[i % ART_ICONS.length]);
+  const n = LOGO_SPOTS.length + faces.length + icons.length, rows = Math.max(1, Math.round(Math.sqrt((n * area.h) / area.w)));
   const cells = [];
   for (let r = 0; r < rows; r++) {
     const c = Math.floor(n / rows) + (r < n % rows ? 1 : 0);
     for (let i = 0; i < c; i++) cells.push([(i + rnd(0.3, 0.7)) / c, (r + rnd(0.3, 0.7)) / rows]);
   }
   const dist = ([u, v], [su, sv]) => Math.hypot((u - su) * area.w, (v - sv) * area.h);
-  const take = ([su, sv]) => {
+  const apart = 1.4 * Math.sqrt((area.w * area.h) / n); // 1.4 cells
+  const take = ([su, sv], away = []) => {
     const spot = [FA ? 1 - su : su, sv];
-    return cells.splice(cells.reduce((best, c, j) => (dist(c, spot) < dist(cells[best], spot) ? j : best), 0), 1)[0];
+    const ok = cells.filter((c) => away.every((a) => dist(c, a) >= apart));
+    const best = (ok.length ? ok : cells).reduce((b, c) => (dist(c, spot) < dist(b, spot) ? c : b));
+    return cells.splice(cells.indexOf(best), 1)[0];
   };
+  const logoCells = [];
+  for (const [, spot] of LOGO_SPOTS) logoCells.push(take(spot, logoCells));
   const faceCells = faces.map((_, k) => take(FACE_SPOTS[k]));
   cells.sort(() => Math.random() - 0.5);
   const item = (e, [u, v], size, depth, filled) => {
@@ -1234,9 +1243,12 @@ function buildArt(pics) {
       e.style.borderColor = ART_RING[platform];
       return item(e, faceCells[k], big ? 54 : 36, big, true);
     }),
+    ...LOGO_SPOTS.map(([logo], k) => {
+      const size = rnd(44, 110);
+      return item(el('img', { src: `/assets/platform-logos/${logo}.svg`, alt: '' }), logoCells[k], size, (size - 44) / 66, true);
+    }),
     ...icons.map((icon, i) => {
       const size = rnd(44, 110), depth = (size - 44) / 66;
-      if (icon in ART_RING) return item(el('img', { src: `/assets/platform-logos/${icon}.svg`, alt: '' }), cells[i], size, depth, true);
       const e = el('span', { className: (i + Math.floor(i / ART_ICONS.length)) % 2 ? 'gold' : 'main' }); // each kind once in each color
       e.innerHTML = `<svg viewBox="0 0 24 24"><path d="${icon}"/></svg>`; // fixed paths
       return item(e, cells[i], size, depth, false);
