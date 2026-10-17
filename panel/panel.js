@@ -1186,27 +1186,44 @@ const ART_ICONS = [
 const ART_RING = { kick: '#53fc18', twitch: '#9146ff' };
 const STILL = matchMedia('(prefers-reduced-motion: reduce)');
 const rnd = (a, b) => a + Math.random() * (b - a);
-let art = [], artPics = [], artChannels, artMouse = null, artFrame = 0, vw = innerWidth, vh = innerHeight;
-// pics: [[platform, url]...]. 22 icons (each kind about twice) and 8 pictures (none without a channel), spread evenly:
-// a grid with a cell per item (and a few spare), each item somewhere in the middle of its cell, the grid kept away from
-// the window's edges. The pictures take evenly spaced cells, the icons the others.
+let art = [], artPics = [], artChannels, artMouse = null, artFrame = 0, area;
+// Where the items go: beside the sidebar (all the width on a narrow window, where the sidebar is a bar on top), below
+// the top bar, a little in from the edges. Nothing behind the sidebar: it would barely show through.
+function artArea() {
+  const s = $('.side').getBoundingClientRect(), beside = s.height >= innerHeight - 1;
+  const x = beside && s.left < innerWidth / 2 ? s.right : 0, w = beside ? innerWidth - s.width : innerWidth;
+  area = { x: x + 24, y: 70, w: Math.max(1, w - 48), h: Math.max(1, innerHeight - 94) };
+}
+// The pictures' spots, as shares of the area (mirrored in Persian, like the page): four on each half, near every corner
+// and in the middle; the first low on the far side, below the Home page's narrow column, where nothing else is.
+const FACE_SPOTS = [[0.88, 0.85], [0.1, 0.15], [0.82, 0.15], [0.12, 0.85], [0.4, 0.45], [0.62, 0.62], [0.25, 0.62], [0.9, 0.48]];
+// pics: [[platform, url]...]. 22 icons (each kind about twice) and 8 pictures (none without a channel). Spread evenly:
+// rows across the area, the items shared out between them with no gaps (so corners and edges get some too), each
+// somewhere in the middle of its cell. The pictures take the cells nearest their spots, the icons the others.
 function buildArt(pics) {
   artPics = pics;
   const icons = Array.from({ length: 22 }, (_, i) => ART_ICONS[i % ART_ICONS.length]);
   const faces = pics.length ? Array.from({ length: 8 }, (_, k) => pics[k % pics.length]) : [];
-  const n = icons.length + faces.length, cols = Math.min(n, Math.max(1, Math.round(Math.sqrt((n * vw) / Math.max(1, vh))))), rows = Math.ceil(n / cols);
-  const cells = [...Array(cols * rows).keys()];
-  const faceCells = faces.map((_, k) => Math.floor(((k + 0.5) * cells.length) / faces.length));
-  const iconCells = cells.filter((c) => !faceCells.includes(c)).sort(() => Math.random() - 0.5);
-  const item = (e, cell, size, depth, filled) => {
+  const n = icons.length + faces.length, rows = Math.max(1, Math.round(Math.sqrt((n * area.h) / area.w)));
+  const cells = [];
+  for (let r = 0; r < rows; r++) {
+    const c = Math.floor(n / rows) + (r < n % rows ? 1 : 0);
+    for (let i = 0; i < c; i++) cells.push([(i + rnd(0.3, 0.7)) / c, (r + rnd(0.3, 0.7)) / rows]);
+  }
+  const dist = ([u, v], [su, sv]) => Math.hypot((u - su) * area.w, (v - sv) * area.h);
+  const take = ([su, sv]) => {
+    const spot = [FA ? 1 - su : su, sv];
+    return cells.splice(cells.reduce((best, c, j) => (dist(c, spot) < dist(cells[best], spot) ? j : best), 0), 1)[0];
+  };
+  const faceCells = faces.map((_, k) => take(FACE_SPOTS[k]));
+  cells.sort(() => Math.random() - 0.5);
+  const item = (e, [u, v], size, depth, filled) => {
     // depth 0..1: the bigger, the more blurred and the fainter. Filled shapes (logos, pictures) stay fainter than
     // outlines, so text over them still reads.
     const opacity = filled ? 0.2 - 0.05 * depth : 0.3 - 0.15 * depth;
     Object.assign(e.style, { width: px(size), height: px(size), opacity: opacity.toFixed(2), filter: `blur(${(1.2 + 1.8 * depth).toFixed(1)}px)` });
     return {
-      e, size, ox: 0, oy: 0, rot: rnd(-15, 15),
-      u: 0.06 + (0.88 * ((cell % cols) + rnd(0.25, 0.75))) / cols, // the spot, as a share of the window
-      v: 0.08 + (0.84 * (Math.floor(cell / cols) + rnd(0.25, 0.75))) / rows,
+      e, size, u, v, ox: 0, oy: 0, rot: rnd(-15, 15), // u, v: the spot, as shares of the area
       ph: [rnd(0, 7), rnd(0, 7), rnd(0, 7)], sp: [rnd(1.2, 2.5) / 1e4, rnd(1.2, 2.5) / 1e4, rnd(1.2, 2.5) / 1e4], // slow: 25-50 s a swing
     };
   };
@@ -1219,10 +1236,10 @@ function buildArt(pics) {
     }),
     ...icons.map((icon, i) => {
       const size = rnd(44, 110), depth = (size - 44) / 66;
-      if (icon in ART_RING) return item(el('img', { src: `/assets/platform-logos/${icon}.svg`, alt: '' }), iconCells[i], size, depth, true);
+      if (icon in ART_RING) return item(el('img', { src: `/assets/platform-logos/${icon}.svg`, alt: '' }), cells[i], size, depth, true);
       const e = el('span', { className: (i + Math.floor(i / ART_ICONS.length)) % 2 ? 'gold' : 'main' }); // each kind once in each color
       e.innerHTML = `<svg viewBox="0 0 24 24"><path d="${icon}"/></svg>`; // fixed paths
-      return item(e, iconCells[i], size, depth, false);
+      return item(e, cells[i], size, depth, false);
     }),
   ];
   $('#bgArt').replaceChildren(...art.map((a) => a.e));
@@ -1230,7 +1247,7 @@ function buildArt(pics) {
 }
 function drawArt(t) {
   for (const a of art) {
-    const x = a.u * vw + 14 * Math.sin(t * a.sp[0] + a.ph[0]), y = a.v * vh + 14 * Math.sin(t * a.sp[1] + a.ph[1]);
+    const x = area.x + a.u * area.w + 14 * Math.sin(t * a.sp[0] + a.ph[0]), y = area.y + a.v * area.h + 14 * Math.sin(t * a.sp[1] + a.ph[1]);
     let tx = 0, ty = 0; // out of the mouse's way: 70 px when it's right on top, less and less up to 170 px away
     if (artMouse) {
       const dx = x - artMouse.x, dy = y - artMouse.y, d = Math.hypot(dx, dy) || 1;
@@ -1262,12 +1279,12 @@ function artFaces() {
 }
 addEventListener('pointermove', (e) => (artMouse = { x: e.clientX, y: e.clientY }), { passive: true });
 document.documentElement.addEventListener('pointerleave', () => (artMouse = null));
-addEventListener('resize', () => {
-  [vw, vh] = [innerWidth, innerHeight];
-  drawArt(performance.now());
-});
+const relayout = () => (artArea(), drawArt(performance.now())); // the window, or the sidebar (text size), changed size
+addEventListener('resize', relayout);
+new ResizeObserver(relayout).observe($('.side'));
 document.addEventListener('visibilitychange', artRun);
 STILL.addEventListener('change', artRun);
+artArea();
 buildArt([]);
 artRun();
 
