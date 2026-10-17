@@ -109,7 +109,8 @@
         <small data-i18n="soonHint"></small>
       </section>
 
-      <!-- ===== Alerts: the main theme and the OBS link on top, then the alert list (with switches) next to the selected alert ===== -->
+      <!-- ===== Alerts: the main theme and the OBS link on top, then the alert list (switches, platforms) next to the selected alert:
+           its live preview, then its settings in four tabs. No Save button: every change saves by itself (send(), the "Saved" note). ===== -->
       <section class="view split" data-view="alert" hidden>
         <div class="page-head">
           <button id="themeRow" class="theme-row">
@@ -127,40 +128,43 @@
         <div class="list"><h2 class="group-title" data-i18n="groupAlerts" data-help="groups.alerts"></h2><ul id="alertList" class="nav-list"></ul></div>
         <div class="editor">
         <div class="row between">
-          <h1 class="title"><span class="dot"></span><span class="name"></span><span class="pill" data-only="off" data-i18n="off"></span></h1>
+          <h1 class="title"><span class="q-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path/></svg></span><span class="name"></span><span class="pill" data-only="off" data-i18n="off"></span></h1>
           <div class="row">
+            <span id="saveNote" class="save-note" role="status"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span></span></span>
             <button id="test" data-i18n="testObs"></button>
             <button id="reset" class="ghost" data-i18n="resetAlert"></button>
           </div>
         </div>
 
-        <div class="stage">
-          <div class="preview"><iframe id="preview" src="/widgets/alerts/?preview" data-title="alertPreview" allow="autoplay"></iframe></div>
-          <div class="stage-ctrl">
-            <label class="pill-ctrl" data-only="amount"><span data-i18n="previewAmount"></span><input type="number" id="previewAmount" min="0" step="1"></label>
-            <label class="pill-ctrl"><input type="checkbox" id="previewSound" checked><span data-i18n="previewSound"></span></label>
-            <button id="play" class="primary">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5l11 7-11 7z"/></svg>
-              <span data-i18n="play"></span>
-            </button>
+        <div class="stage alert-stage">
+          <div class="preview" id="previewBox"><iframe id="preview" src="/widgets/alerts/?preview" data-title="alertPreview" allow="autoplay"></iframe></div>
+          <div class="stage-bar">
+            <!-- Only the preview's background here; OBS shows the alert over the stream. -->
+            <div class="seg" role="radiogroup" data-aria="previewBg">
+              <label><input type="radio" name="previewBg" value="dark"><span><i class="bg-sw" data-bg="dark"></i><span data-i18n="bgDark"></span></span></label>
+              <label><input type="radio" name="previewBg" value="light"><span><i class="bg-sw" data-bg="light"></i><span data-i18n="bgLight"></span></span></label>
+              <label><input type="radio" name="previewBg" value="checker"><span><i class="bg-sw" data-bg="checker"></i><span data-i18n="bgChecker"></span></span></label>
+            </div>
+            <div class="row">
+              <label class="pill-ctrl" data-only="amount"><span data-i18n="previewAmount"></span><input type="number" id="previewAmount" min="0" step="1"></label>
+              <label class="pill-ctrl"><input type="checkbox" id="previewSound" checked><span data-i18n="previewSound"></span></label>
+              <button id="play" class="primary">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.3-5.7M4 4v5h5"/></svg>
+                <span data-i18n="replay"></span>
+              </button>
+            </div>
           </div>
         </div>
 
-        <div class="box theme-pick">
-          <!-- Kicks only: its own Kick look, or the theme's -->
-          <h2 data-only="look" data-i18n="alertLook" data-help="alert.look"></h2>
-          <div class="seg" data-only="look">
-            <label><input type="radio" name="look" data-f="look" value="kick"><span data-i18n="lookKick"></span></label>
-            <label><input type="radio" name="look" data-f="look" value="theme"><span data-i18n="lookTheme"></span></label>
-          </div>
-          <small data-only="kickLook" data-i18n="lookKickHint"></small>
-          <h2 data-only="themed" data-i18n="alertTheme" data-help="alert.theme"></h2>
-          <span class="swatch" id="alertThemeSwatch" data-only="themed"></span>
-          <select id="alertTheme" data-aria="alertTheme" data-only="themed"></select>
-          <small data-only="themed" data-i18n="alertThemeHint"></small>
+        <div class="tabs" role="tablist" data-aria="alertTabs">
+          <button role="tab" id="tab-media" aria-controls="pane-media" data-tab="media"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 16l5-5 4 4 3-3 6 6M15.5 8.5h.01"/></svg><span data-i18n="tabMedia"></span></button>
+          <button role="tab" id="tab-sound" aria-controls="pane-sound" data-tab="sound"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9zM16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/></svg><span data-i18n="tabSound"></span></button>
+          <button role="tab" id="tab-text" aria-controls="pane-text" data-tab="text"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 6V4h14v2M12 4v16M9 20h6"/></svg><span data-i18n="tabText"></span></button>
+          <button role="tab" id="tab-style" aria-controls="pane-style" data-tab="style"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21a9 9 0 1 1 9-9c0 2-1.6 3-3.2 3H15a1.8 1.8 0 0 0-1.4 2.9A1.8 1.8 0 0 1 12 21zM7.5 11.5h.01M10 7.5h.01M14.5 7.5h.01"/></svg><span data-i18n="tabStyle"></span></button>
         </div>
 
-        <div class="basics">
+        <!-- Media: the picture, how long it plays and from what amount, media by amount -->
+        <div class="pane" role="tabpanel" id="pane-media" aria-labelledby="tab-media" data-tab="media">
           <div class="box">
             <h2 data-i18n="mediaTitle" data-help="alert.media"></h2>
             <div class="file" data-kind="image">
@@ -174,6 +178,28 @@
             <small data-i18n="mediaHint"></small>
           </div>
 
+          <div class="box">
+            <h2 data-i18n="playbackTitle"></h2>
+            <div class="cols">
+              <label class="field"><span data-i18n="duration" data-help="alert.duration"></span><input type="number" data-f="duration" min="1" max="60" step="0.5"></label>
+              <label class="field" data-only="minAmount"><span data-i18n="minAmount" data-help="alert.minAmount"></span><input type="number" data-f="minAmount" min="0" step="1"></label>
+            </div>
+            <small data-only="minAmount" data-i18n="scaleHint"></small>
+          </div>
+
+          <!-- Media by amount (Kicks, gifted subs, bits): fixed tiers, built in panel.js (renderTiers). -->
+          <div class="box wide" data-only="tiers">
+            <label class="row between toggle-row">
+              <span class="stack"><b data-i18n="tiersTitle" data-help="alert.tiers"></b><small data-i18n="tiersHint"></small></span>
+              <span class="switch"><input type="checkbox" data-f="tiersOn"><span></span></span>
+            </label>
+            <small data-only="tiersOn" data-i18n="tiersRule"></small>
+            <div id="tiers" class="tiers" data-only="tiersOn"></div>
+          </div>
+        </div>
+
+        <!-- Sound: which one, how loud, and a video's own sound -->
+        <div class="pane" role="tabpanel" id="pane-sound" aria-labelledby="tab-sound" data-tab="sound" hidden>
           <div class="box">
             <h2 data-i18n="soundTitle" data-help="alert.sound"></h2>
             <div class="seg">
@@ -193,96 +219,95 @@
           </div>
 
           <div class="box">
+            <label class="field"><span data-help="alert.volume"><span data-i18n="volume"></span> <b data-out="volume"></b></span><input type="range" data-f="volume" min="0" max="1" step="0.05"></label>
+            <div class="field" data-only="video">
+              <span data-i18n="videoSound" data-help="alert.videoSound"></span>
+              <div class="seg">
+                <label><input type="radio" name="videoSound" data-f="videoSound" value="off"><span data-i18n="videoSoundOff"></span></label>
+                <label><input type="radio" name="videoSound" data-f="videoSound" value="video"><span data-i18n="videoSoundVideo"></span></label>
+                <label><input type="radio" name="videoSound" data-f="videoSound" value="both"><span data-i18n="videoSoundBoth"></span></label>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Text: what it says, where, how big, what color -->
+        <div class="pane" role="tabpanel" id="pane-text" aria-labelledby="tab-text" data-tab="text" hidden>
+          <div class="box wide">
             <h2 data-i18n="textTitle" data-help="alert.template"></h2>
             <input type="text" data-f="template" maxlength="200" data-aria="textTitle">
             <small data-i18n="templateHint"></small>
           </div>
-        </div>
 
-        <!-- Media by amount (Kicks, gifted subs, bits): fixed tiers, built in panel.js (renderTiers). -->
-        <div class="box" data-only="tiers">
-          <label class="row between toggle-row">
-            <span class="stack"><b data-i18n="tiersTitle" data-help="alert.tiers"></b><small data-i18n="tiersHint"></small></span>
-            <span class="switch"><input type="checkbox" data-f="tiersOn"><span></span></span>
-          </label>
-          <small data-only="tiersOn" data-i18n="tiersRule"></small>
-          <div id="tiers" class="tiers" data-only="tiersOn"></div>
-        </div>
-
-        <details class="more">
-          <summary>
-            <span data-i18n="moreOptions"></span>
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
-          </summary>
-          <div class="more-grid">
-            <div class="box">
-              <h3 data-i18n="lookTitle"></h3>
-              <div class="field">
-                <span data-i18n="frame" data-help="alert.frame"></span>
-                <div class="seg">
-                  <label><input type="radio" name="frame" data-f="frame" value="theme"><span data-i18n="frameTheme"></span></label>
-                  <label><input type="radio" name="frame" data-f="frame" value="custom"><span data-i18n="frameCustom"></span></label>
-                  <label><input type="radio" name="frame" data-f="frame" value="off"><span data-i18n="frameOff"></span></label>
-                </div>
-              </div>
-              <div class="cols" data-only="customFrame">
-                <label class="field"><span data-i18n="frameBg" data-help="alert.frameBg"></span><input type="color" data-f="frameBg"></label>
-                <label class="field"><span data-i18n="frameBorder" data-help="alert.frameBorder"></span><input type="color" data-f="frameBorder"></label>
-                <label class="field"><span data-help="alert.frameOpacity"><span data-i18n="frameOpacity"></span> <b data-out="frameOpacity"></b></span><input type="range" data-f="frameOpacity" min="0" max="1" step="0.05"></label>
-                <label class="field"><span data-help="alert.frameRadius"><span data-i18n="frameRadius"></span> <b data-out="frameRadius"></b></span><input type="range" data-f="frameRadius" min="0" max="60" step="1"></label>
-              </div>
-              <div class="row align-start">
-                <div class="field">
-                  <span data-i18n="textPos" data-help="alert.textPos"></span>
-                  <div class="seg">
-                    <label><input type="radio" name="textPos" data-f="textPos" value="above"><span data-i18n="posAbove"></span></label>
-                    <label><input type="radio" name="textPos" data-f="textPos" value="below"><span data-i18n="posBelow"></span></label>
-                    <label><input type="radio" name="textPos" data-f="textPos" value="over"><span data-i18n="posOver"></span></label>
-                  </div>
-                </div>
-                <div class="field">
-                  <span data-i18n="textAlign" data-help="alert.textAlign"></span>
-                  <div class="seg" dir="ltr">
-                    <label><input type="radio" name="textAlign" data-f="textAlign" value="left"><span data-i18n="alignLeft"></span></label>
-                    <label><input type="radio" name="textAlign" data-f="textAlign" value="center"><span data-i18n="alignCenter"></span></label>
-                    <label><input type="radio" name="textAlign" data-f="textAlign" value="right"><span data-i18n="alignRight"></span></label>
-                  </div>
-                </div>
-              </div>
-              <div class="cols">
-                <label class="field"><span data-help="alert.fontSize"><span data-i18n="fontSize"></span> <b data-out="fontSize"></b></span><input type="range" data-f="fontSize" min="16" max="120" step="1"></label>
-                <div class="field">
-                  <span data-i18n="textColor" data-help="alert.textColor"></span>
-                  <div class="row">
-                    <div class="seg">
-                      <label><input type="radio" name="textColorMode" value="theme"><span data-i18n="colorTheme"></span></label>
-                      <label><input type="radio" name="textColorMode" value="custom"><span data-i18n="colorCustom"></span></label>
-                    </div>
-                    <input type="color" class="swatch-input" data-f="textColor" data-only="customColor" data-aria="textColor">
-                  </div>
-                </div>
+          <div class="box">
+            <div class="field">
+              <span data-i18n="textPos" data-help="alert.textPos"></span>
+              <div class="seg">
+                <label><input type="radio" name="textPos" data-f="textPos" value="above"><span data-i18n="posAbove"></span></label>
+                <label><input type="radio" name="textPos" data-f="textPos" value="below"><span data-i18n="posBelow"></span></label>
+                <label><input type="radio" name="textPos" data-f="textPos" value="over"><span data-i18n="posOver"></span></label>
               </div>
             </div>
-
-            <div class="box">
-              <h3 data-i18n="playbackTitle"></h3>
-              <div class="cols">
-                <label class="field"><span data-i18n="duration" data-help="alert.duration"></span><input type="number" data-f="duration" min="1" max="60" step="0.5"></label>
-                <label class="field"><span data-help="alert.volume"><span data-i18n="volume"></span> <b data-out="volume"></b></span><input type="range" data-f="volume" min="0" max="1" step="0.05"></label>
-                <label class="field" data-only="minAmount"><span data-i18n="minAmount" data-help="alert.minAmount"></span><input type="number" data-f="minAmount" min="0" step="1"></label>
-              </div>
-              <small data-only="minAmount" data-i18n="scaleHint"></small>
-              <div class="field" data-only="video">
-                <span data-i18n="videoSound" data-help="alert.videoSound"></span>
-                <div class="seg">
-                  <label><input type="radio" name="videoSound" data-f="videoSound" value="off"><span data-i18n="videoSoundOff"></span></label>
-                  <label><input type="radio" name="videoSound" data-f="videoSound" value="video"><span data-i18n="videoSoundVideo"></span></label>
-                  <label><input type="radio" name="videoSound" data-f="videoSound" value="both"><span data-i18n="videoSoundBoth"></span></label>
-                </div>
+            <div class="field">
+              <span data-i18n="textAlign" data-help="alert.textAlign"></span>
+              <div class="seg" dir="ltr">
+                <label><input type="radio" name="textAlign" data-f="textAlign" value="left"><span data-i18n="alignLeft"></span></label>
+                <label><input type="radio" name="textAlign" data-f="textAlign" value="center"><span data-i18n="alignCenter"></span></label>
+                <label><input type="radio" name="textAlign" data-f="textAlign" value="right"><span data-i18n="alignRight"></span></label>
               </div>
             </div>
           </div>
-        </details>
+
+          <div class="box">
+            <label class="field"><span data-help="alert.fontSize"><span data-i18n="fontSize"></span> <b data-out="fontSize"></b></span><input type="range" data-f="fontSize" min="16" max="120" step="1"></label>
+            <div class="field">
+              <span data-i18n="textColor" data-help="alert.textColor"></span>
+              <div class="row">
+                <div class="seg">
+                  <label><input type="radio" name="textColorMode" value="theme"><span data-i18n="colorTheme"></span></label>
+                  <label><input type="radio" name="textColorMode" value="custom"><span data-i18n="colorCustom"></span></label>
+                </div>
+                <input type="color" class="swatch-input" data-f="textColor" data-only="customColor" data-aria="textColor">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Style: Kicks' own Kick look, the alert's own theme, the frame -->
+        <div class="pane" role="tabpanel" id="pane-style" aria-labelledby="tab-style" data-tab="style" hidden>
+          <div class="box" data-only="look">
+            <h2 data-i18n="alertLook" data-help="alert.look"></h2>
+            <div class="seg">
+              <label><input type="radio" name="look" data-f="look" value="kick"><span data-i18n="lookKick"></span></label>
+              <label><input type="radio" name="look" data-f="look" value="theme"><span data-i18n="lookTheme"></span></label>
+            </div>
+            <small data-only="kickLook" data-i18n="lookKickHint"></small>
+          </div>
+
+          <div class="box" data-only="themed">
+            <h2 data-i18n="alertTheme" data-help="alert.theme"></h2>
+            <div class="row">
+              <span class="swatch" id="alertThemeSwatch"></span>
+              <select id="alertTheme" data-aria="alertTheme"></select>
+            </div>
+            <small data-i18n="alertThemeHint"></small>
+          </div>
+
+          <div class="box wide">
+            <h2 data-i18n="frame" data-help="alert.frame"></h2>
+            <div class="seg">
+              <label><input type="radio" name="frame" data-f="frame" value="theme"><span data-i18n="frameTheme"></span></label>
+              <label><input type="radio" name="frame" data-f="frame" value="custom"><span data-i18n="frameCustom"></span></label>
+              <label><input type="radio" name="frame" data-f="frame" value="off"><span data-i18n="frameOff"></span></label>
+            </div>
+            <div class="cols4" data-only="customFrame">
+              <label class="field"><span data-i18n="frameBg" data-help="alert.frameBg"></span><input type="color" data-f="frameBg"></label>
+              <label class="field"><span data-i18n="frameBorder" data-help="alert.frameBorder"></span><input type="color" data-f="frameBorder"></label>
+              <label class="field"><span data-help="alert.frameOpacity"><span data-i18n="frameOpacity"></span> <b data-out="frameOpacity"></b></span><input type="range" data-f="frameOpacity" min="0" max="1" step="0.05"></label>
+              <label class="field"><span data-help="alert.frameRadius"><span data-i18n="frameRadius"></span> <b data-out="frameRadius"></b></span><input type="range" data-f="frameRadius" min="0" max="60" step="1"></label>
+            </div>
+          </div>
+        </div>
         </div>
         </div>
       </section>

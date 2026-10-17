@@ -39,6 +39,8 @@
   --shadow: rgba(0, 0, 0, 0.45);
   --checker-a: #16201a; /* behind overlay previews, dark in both themes: overlays are made for a stream */
   --checker-b: #101813;
+  --preview-dark: #0e0e10; /* the alert preview's Dark / Light backgrounds, the same in both themes */
+  --preview-light: #f2f2ee;
   color-scheme: dark;
   accent-color: var(--green); /* native checkboxes */
 }
@@ -120,7 +122,6 @@ button.primary:hover { background: var(--gold); filter: brightness(1.08); }
 button.ghost { background: transparent; }
 button.danger { border-color: var(--danger-line); background: transparent; color: var(--danger); }
 button.armed, button.armed:hover { border-color: transparent; background: var(--danger); color: var(--on-color); } /* twoClick(): click again to confirm */
-#play svg { fill: currentColor; stroke: none; width: 12px; height: 12px; }
 
 input[type="text"], input[type="number"], select {
   width: 100%;
@@ -253,7 +254,7 @@ input[type="color"]::-webkit-color-swatch { border: 0; border-radius: 7px; }
 /* ---------- Alerts and Goals: the page's own list (rows with a switch) next to the selected item's editor ---------- */
 .group-title { margin: 4px 12px 8px; font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
 .view.split { max-width: 1340px; }
-.split-body { display: grid; grid-template-columns: 236px minmax(0, 1fr); gap: 18px; align-items: start; }
+.split-body { display: grid; grid-template-columns: 264px minmax(0, 1fr); gap: 18px; align-items: start; }
 .list { position: sticky; top: 84px; padding: 12px 8px; border: 1px solid var(--border); border-radius: 14px; background: var(--card); }
 .nav-list { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; }
 .nav-row { display: flex; align-items: center; gap: 8px; padding-inline-end: 10px; border-radius: 10px; }
@@ -350,17 +351,38 @@ main { padding: 24px 28px 64px; container-type: inline-size; } /* editor rules b
 }
 .pill-ctrl input[type="number"] { width: 80px; padding: 3px 8px; }
 
-/* Per-alert theme picker: one slim row above the three basic boxes. */
-.theme-pick { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 12px 16px; }
-.theme-pick h2 { margin-inline-end: 4px; }
-.theme-pick .swatch { width: 20px; height: 20px; }
-.theme-pick select { min-width: 220px; }
-.theme-pick small { margin-inline-start: auto; }
 .swatch.mini { width: 11px; height: 11px; border-radius: 3px; }
-.row.align-start { align-items: flex-start; gap: 16px; }
+
+/* ---------- Alert editor: the preview with its bar (background, Replay), then the settings in four tabs ---------- */
+.alert-stage { gap: 0; }
+.stage-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; width: 100%; padding: 10px 12px; border-top: 1px solid var(--border); background: var(--card); }
+.preview[data-bg="dark"] { background: var(--preview-dark); }
+.preview[data-bg="light"] { background: var(--preview-light); }
+.stage-bar .seg span span { display: inline; padding: 0; } /* the word after the swatch */
+.bg-sw { display: inline-block; width: 11px; height: 11px; margin-inline-end: 6px; border-radius: 3px; vertical-align: -1px; box-shadow: inset 0 0 0 1px var(--swatch-edge); }
+.bg-sw[data-bg="dark"] { background: var(--preview-dark); }
+.bg-sw[data-bg="light"] { background: var(--preview-light); }
+.bg-sw[data-bg="checker"] { background: repeating-conic-gradient(var(--muted) 0 25%, var(--card2) 0 50%) 0 0 / 6px 6px; }
+.save-note { display: inline-flex; align-items: center; gap: 6px; padding-inline-end: 4px; color: var(--muted); font-size: 13px; font-weight: 600; }
+.save-note svg { width: 14px; height: 14px; color: var(--ok); stroke-width: 2.5; }
+.save-note:not([data-state="saved"]) svg { display: none; }
+.save-note[data-state="notSaved"] { color: var(--danger); }
+.tabs { display: flex; flex-wrap: wrap; gap: 4px; border-bottom: 1px solid var(--border); }
+.tabs button { margin-bottom: -1px; padding: 10px 16px; border: 0; border-bottom: 2px solid transparent; border-radius: 10px 10px 0 0; background: none; color: var(--muted); }
+.tabs button:hover { background: var(--hover); color: var(--text); }
+.tabs button[aria-selected="true"] { border-bottom-color: var(--gold); color: var(--text); }
+.tabs button[aria-selected="true"] svg { color: var(--gold-text); }
+.pane { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; align-items: start; margin-top: -4px; }
+.pane .wide { grid-column: 1 / -1; }
+#alertThemeSwatch { width: 20px; height: 20px; }
+#alertTheme { flex: 1; min-width: 0; }
+/* The Alerts list: type icon, name, own-theme swatch, platform logos, switch. */
+.nav-btn .q-icon { width: 26px; height: 26px; }
+.nav-btn .label { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.plat-marks { display: flex; flex: none; gap: 5px; margin-inline-start: auto; }
+.plat-marks img { width: 14px; height: 14px; }
 
 .basics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
-.basics .seg span { padding-inline: 7px; } /* "Theme default / My sound / No sound" stays on one line in a narrow editor */
 
 .more { border: 1px solid var(--border); border-radius: 14px; background: var(--card); }
 .more summary { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; font-weight: 700; cursor: pointer; list-style: none; }
@@ -636,7 +658,7 @@ code { padding: 1px 6px; border-radius: 6px; background: var(--card2); font: 0.9
 .faq ul { display: grid; gap: 8px; margin: 0; padding-block: 0 16px; padding-inline: 36px 16px; }
 
 /* ---------- Narrower screens ---------- */
-@container (max-width: 940px) { /* an editor narrower than this gets fewer columns ("Theme default / My sound / No sound" wraps below it) */
+@container (max-width: 940px) { /* an editor narrower than this gets fewer columns */
   .basics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .proxy-manual { grid-template-columns: 1fr 1fr; }
   .tier-files { grid-template-columns: 1fr; gap: 4px; }
@@ -656,11 +678,11 @@ code { padding: 1px 6px; border-radius: 6px; background: var(--card2); font: 0.9
   .nav { display: flex; flex-wrap: wrap; }
   .nav .group-title { display: none; }
   .list { position: static; }
-  .basics, .cols { grid-template-columns: 1fr; }
+  .basics, .cols, .pane { grid-template-columns: 1fr; }
   main { padding: 18px 16px 48px; }
   .topbar { flex-wrap: wrap; height: auto; min-height: 60px; padding: 8px 16px; }
   .theme-grid { grid-template-columns: 1fr 1fr; }
   .stage-ctrl { position: static; justify-content: flex-end; }
   .fx-hint { position: static; max-width: none; }
-  .stage { height: auto; padding: 12px; gap: 10px; }
+  .stage:not(.alert-stage) { height: auto; padding: 12px; gap: 10px; }
 }

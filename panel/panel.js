@@ -57,8 +57,10 @@ const el = (tag, props = {}, ...kids) => {
 };
 
 // The lists inside the Alerts and Goals pages: a click opens the item, its switch turns it on or off.
+const ALERT_ORDER = ['follow', 'sub', 'gift_sub', 'resub', 'raid', 'kicks', 'bits'];
+const ALERT_PLATFORMS = { kicks: ['kick'], bits: ['twitch'] }; // who sends it (the list's logos); the others: both
 const LISTS = () => ({
-  alert: Object.keys(settings.alerts).map((t) => ({ key: t, label: S.types[t], toggle: (on) => patchAlert(t, { enabled: on }) })),
+  alert: ALERT_ORDER.map((t) => ({ key: t, label: S.types[t], toggle: (on) => patchAlert(t, { enabled: on }) })),
   goal: Object.keys(settings.goals).map((id) => ({ key: id, label: S.goals[id].name, toggle: (on) => patchGoal(id, { enabled: on }) })),
 });
 
@@ -190,15 +192,27 @@ function toast(msg, isError) {
 }
 
 // Any call that returns settings: store them, re-sync the UI (also reverts rejected values), replay the preview.
+// The Alerts page says "Saved" in its note (showSaveNote), the other pages in a toast. Errors are always a toast.
+let saving = 0, saveFailed = false, typing = null; // saves on the way, the last one failed, typed text waiting for its save
 async function send(method, url, body, headers) {
+  const note = view === 'alert';
+  if (note) saving++, showSaveNote();
   try {
     settings = await api(method, url, body, headers);
-    toast(S.panel.saved);
+    if (note) saveFailed = false;
+    else toast(S.panel.saved);
     preview();
   } catch (err) {
+    if (note) saveFailed = true;
     toast(err.message, true);
   }
+  if (note) saving--;
   render();
+}
+function showSaveNote() {
+  const state = saving || typing ? 'saving' : saveFailed ? 'notSaved' : 'saved';
+  $('#saveNote').dataset.state = state;
+  $('#saveNote span').textContent = S.panel[state];
 }
 const patchAlert = (type, fields) => send('PATCH', '/api/settings', { alerts: { [type]: fields } });
 const patchGoal = (id, fields) => send('PATCH', '/api/settings', { goals: { [id]: fields } });
@@ -306,6 +320,9 @@ function typeIcon(type) {
   i.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${TYPE_ICON[type]}"/></svg>`; // fixed paths, no user text
   return i;
 }
+// The platforms an alert comes from: their own logos.
+const platMarks = (type) => el('span', { className: 'plat-marks' }, ...(ALERT_PLATFORMS[type] ?? ['kick', 'twitch'])
+  .map((p) => el('img', { src: `/assets/platform-logos/${p}.svg`, alt: S.platforms[p], title: S.platforms[p] })));
 // "Rich · Gifted subs · 10": icon, name, type, and the amount (or a resub's months).
 function alertRow(a, action) {
   const amount = a.type === 'resub' && a.months ? tpl(S.panel.qMonths, { n: fmt(a.months) }) : a.amount ? fmt(a.amount) : '';
@@ -634,13 +651,15 @@ function build() {
   $('#brand').append(el('span', { className: 'j', textContent: first + zwj }), zwj + rest.join(''));
   $$('.nav-item').forEach((b) => (b.onclick = () => select(b.dataset.view)));
 
-  // Alerts and Goals pages: their list. An alert's row also gets a swatch that render() shows when it has its own theme.
+  // Alerts and Goals pages: their list. An alert's row also gets a swatch that render() shows when it has its own theme,
+  // and the logos of the platforms it comes from.
   for (const [v, items] of Object.entries(LISTS())) {
     $(`#${v}List`).append(...items.map((it) => {
       const sw = el('input', { type: 'checkbox', onchange: () => it.toggle(sw.checked) });
       sw.setAttribute('aria-label', it.label);
       const row = el('li', { className: 'nav-row' },
-        el('button', { className: 'nav-btn', onclick: () => select(v, it.key) }, v === 'goal' ? goalIcon(it.key) : '', el('span', { textContent: it.label }), v === 'alert' ? el('span', { className: 'swatch mini', hidden: true }) : ''),
+        el('button', { className: 'nav-btn', onclick: () => select(v, it.key) }, v === 'goal' ? goalIcon(it.key) : typeIcon(it.key), el('span', { className: 'label', textContent: it.label }),
+          ...(v === 'alert' ? [el('span', { className: 'swatch mini', hidden: true }), platMarks(it.key)] : [])),
         el('label', { className: 'switch' }, sw, el('span')));
       row.dataset.key = it.key;
       if (v === 'goal') {
@@ -742,9 +761,48 @@ function build() {
   $('#copy').title = S.panel.copyObsHint;
   $('#copy').onclick = () => copyLink(obsUrl);
 
-  // Alert editor: every [data-f] input saves its field for the selected alert.
+  // Alert editor: every [data-f] input saves its field for the selected alert by itself. Typed text saves a moment
+  // after the last key (for the alert it was typed in), and at once when the field is left (its change event).
   const editor = $('main [data-view=alert]');
-  $$('[data-f]', editor).forEach((inp) => inp.addEventListener('change', () => patchAlert(cur, { [inp.dataset.f]: valueOf(inp) })));
+  const saveField = (inp, type = cur) => {
+    clearTimeout(typing);
+    typing = null;
+    if (valueOf(inp) !== settings.alerts[type][inp.dataset.f]) patchAlert(type, { [inp.dataset.f]: valueOf(inp) });
+    else showSaveNote();
+  };
+  $$('[data-f]', editor).forEach((inp) => inp.addEventListener('change', () => saveField(inp)));
+  $$('input[type=text][data-f]', editor).forEach((inp) => inp.addEventListener('input', () => {
+    const type = cur;
+    clearTimeout(typing);
+    typing = setTimeout(() => saveField(inp, type), 700);
+    showSaveNote();
+  }));
+  // Its tabs (Media, Sound, Text, Style): the open one stays open from alert to alert, and next time. Arrow keys move between them.
+  const tabs = $$('.tabs [role=tab]', editor);
+  const showTab = (t) => {
+    remember.set('jarchi.alertTab', t);
+    tabs.forEach((b) => {
+      b.setAttribute('aria-selected', String(b.dataset.tab === t));
+      b.tabIndex = b.dataset.tab === t ? 0 : -1;
+    });
+    $$('.pane', editor).forEach((p) => (p.hidden = p.dataset.tab !== t));
+  };
+  tabs.forEach((b) => (b.onclick = () => showTab(b.dataset.tab)));
+  showTab(tabs.some((b) => b.dataset.tab === remember.get('jarchi.alertTab')) ? remember.get('jarchi.alertTab') : 'media');
+  $('.tabs', editor).onkeydown = (e) => {
+    const step = { ArrowRight: 1, ArrowLeft: -1 }[e.key] * (FA ? -1 : 1), i = tabs.indexOf(e.target);
+    if (!step || i < 0) return;
+    const next = tabs[(i + step + tabs.length) % tabs.length];
+    showTab(next.dataset.tab);
+    next.focus();
+  };
+  // Preview background: dark, light or checkered (remembered in this browser).
+  const bg = ['dark', 'light', 'checker'].includes(remember.get('jarchi.previewBg')) ? remember.get('jarchi.previewBg') : 'checker';
+  $('#previewBox').dataset.bg = bg;
+  $$('[name=previewBg]').forEach((r) => {
+    r.checked = r.value === bg;
+    r.onchange = () => remember.set('jarchi.previewBg', ($('#previewBox').dataset.bg = r.value));
+  });
   $$('input[type=range]', editor).forEach((inp) => inp.addEventListener('input', () => showRange(inp)));
   $$('[name=textColorMode]').forEach((r) => (r.onchange = () => patchAlert(cur, { textColor: r.value === 'custom' ? $('[data-f=textColor]', editor).value : null })));
   // Per-alert theme: "" = same as the main theme.
@@ -973,8 +1031,10 @@ function renderChat() {
 function renderAlert() {
   const editor = $('main [data-view=alert]');
   const cfg = settings.alerts[cur];
-  editor.dataset.key = cur;
+  editor.dataset.key = cur; // the type's colour
+  $('.title path', editor).setAttribute('d', TYPE_ICON[cur]);
   $('.name', editor).textContent = S.types[cur];
+  showSaveNote();
   fill(editor, cfg);
   $$('[name=textColorMode]').forEach((r) => (r.checked = (r.value === 'custom') === (cfg.textColor !== null)));
   $('#alertTheme').options[0].textContent = S.panel.sameAsMain.replace('{theme}', S.themes[settings.theme]);

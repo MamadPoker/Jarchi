@@ -283,7 +283,11 @@
     "celebrateSound": "Celebration sound",
     "settings": "Settings",
     "off": "Off",
-    "play": "Play",
+    "replay": "Replay",
+    "previewBg": "Preview background",
+    "bgDark": "Dark",
+    "bgLight": "Light",
+    "bgChecker": "Checkered",
     "previewAmount": "Amount",
     "previewSound": "Sound",
     "testObs": "Test in OBS",
@@ -312,7 +316,11 @@
     "textTitle": "Text",
     "templateHint": "Variables: {user} {amount} {months} {platform}",
     "moreOptions": "More options",
-    "lookTitle": "Frame & text",
+    "alertTabs": "Alert settings",
+    "tabMedia": "Media",
+    "tabSound": "Sound",
+    "tabText": "Text",
+    "tabStyle": "Style",
     "frame": "Frame",
     "frameTheme": "Theme",
     "frameCustom": "Custom",
@@ -357,6 +365,8 @@
     "resetAll": "Reset everything",
     "confirmResetAll": "Click again to confirm",
     "saved": "Saved",
+    "saving": "Saving…",
+    "notSaved": "Not saved",
     "testSent": "Test alert sent to OBS",
     "qIdle": "No alert playing",
     "qNow": "Now playing",
@@ -442,7 +452,7 @@
   },
   "help": {
     "groups": {
-      "alerts": "Click an alert to edit it. Its switch turns it on or off.",
+      "alerts": "Click an alert to edit it. Its switch turns it on or off; the logos show where it comes from (Kick, Twitch).",
       "goals": "Click a goal to edit it. Its switch only hides it on stream: it keeps counting."
     },
     "theme": { "main": "The look every alert uses, unless an alert has its own theme. Hover a card to preview it, click it to use it." },
@@ -618,11 +628,11 @@
         "title": "Alerts",
         "intro": "Seven alerts: follow, sub, resub, gifted subs, Kicks, bits and raid. Each has its own picture, sound and text.",
         "steps": [
-          ["Pick an alert", "Click it in the **Alerts** list. The switch next to it turns it on or off."],
-          ["Preview it", "The preview plays the alert exactly as OBS will. **Play** replays it; **Test in OBS** sends it to OBS."],
-          ["Picture, sound and text", "Upload your own image, GIF, video or sound, or keep the theme's. In the text, `{user}` `{amount}` `{months}` `{platform}` become the real values."],
-          ["Different media by amount", "Kicks, gifted subs and bits can play their own picture and sound for bigger amounts. Turn it on and upload per amount."],
-          ["More options", "Frame, text position and color, font size, duration, volume, minimum amount and video sound."]
+          ["Pick an alert", "Click it in the **Alerts** list. The switch next to it turns it on or off; the Kick and Twitch logos show where it comes from."],
+          ["Preview it", "The preview plays the alert exactly as OBS will, and again after every change. **Replay** plays it once more, **Dark**, **Light** and **Checkered** change only the preview's background, and **Test in OBS** sends it to OBS."],
+          ["Media, Sound, Text, Style", "The four tabs under the preview. **Media**: your own image, GIF or video (or the theme's), how long it stays, the minimum amount. **Sound**: the theme's, your own or none, the volume, a video's sound. **Text**: the words (`{user}` `{amount}` `{months}` `{platform}` become the real values), position, size and color. **Style**: a theme for this alert only, and the frame."],
+          ["Different media by amount", "In **Media**, Kicks, gifted subs and bits can play their own picture and sound for bigger amounts. Turn it on and upload per amount."],
+          ["No Save button", "Every change saves by itself, text a moment after you stop typing. **Saved** next to **Test in OBS** says it's done."]
         ],
         "tip": "Real Kick alerts (subs, resubs, gifted subs, Kicks and hosts) come from your Kick channel name in **Chat**, with no login. Real Twitch alerts (subs, resubs, gifted subs, raids and bits) come from your Twitch channel name the same way. Follows need a Kick or Twitch login, which comes later. The **Test** buttons work for every alert."
       },
@@ -685,9 +695,9 @@
           ] },
           { "q": "There's no sound", "a": [
             "In the source's properties in OBS, tick **Control audio via OBS**, then check that the source isn't muted in the OBS mixer.",
-            "Check that the alert's **Sound** isn't **No sound**, and its **Volume** in More options.",
+            "Check that the alert's **Sound** isn't **No sound**, and its **Volume** in the **Sound** tab.",
             "The **Sound** box under the preview only mutes the preview here in the panel.",
-            "For a video with its own sound, choose **Video sound** in More options."
+            "For a video with its own sound, choose **Video sound** in the **Sound** tab."
           ] },
           { "q": "Kick won't connect, or it's filtered", "a": [
             "**channel not found**: type the name exactly as in your Kick link, `kick.com/name`.",
