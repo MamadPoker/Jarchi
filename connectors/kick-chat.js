@@ -1,5 +1,5 @@
 // Kick chat, read without a login over Kick's public Pusher socket: messages, sub notices, deleted messages and bans,
-// plus the events that become alerts (subs, resubs, gifted subs, Kicks, hosts; see handle()).
+// plus the events that become alerts (subs, resubs, gifted subs, Kicks, hosts; see handle()) and the channel's goals.
 // Finding a channel's chatroom by name uses Kick's website API (kick.com/api/v2/channels/<name>). It's unofficial and
 // only answers HTTP/2: Kick's firewall blocks HTTP/1.1 clients such as Node's fetch, so this uses node:http2.
 const http2 = require('node:http2');
@@ -144,9 +144,17 @@ async function subMonths(slug, user) {
 // Each of these (not other chat messages) goes to the event log (data/logs/events.log) as it came.
 const ALERT_EVENTS = new Set(['App\\Events\\SubscriptionEvent', 'App\\Events\\ChannelSubscriptionEvent', 'GiftedSubscriptionsEvent',
   'App\\Events\\GiftedSubscriptionsEvent', 'KicksGifted', 'App\\Events\\StreamHostEvent']);
+// The channel's goals (Kick's creator dashboard) on channel_<id>, each with the whole goal as kick.com's /goals lists it:
+// kick.com's own page swaps its goal for the one in the event. Passed on as cb.onGoal(goal); a canceled one says so.
+const GOAL_EVENTS = new Set(['GoalCreatedEvent', 'GoalUpdatedEvent', 'GoalProgressUpdateEvent', 'GoalAchievedEvent', 'GoalCanceledEvent']);
 function handle(event, raw, channel, info, cb) {
   const d = typeof raw === 'string' ? JSON.parse(raw) : raw;
   if (ALERT_EVENTS.has(event) || d?.metadata?.celebration) logIncoming('kick', event, d);
+  const plain = event.replace(/^App\\Events\\/, '');
+  if (GOAL_EVENTS.has(plain)) {
+    logIncoming('kick', event, d);
+    return cb.onGoal?.(plain === 'GoalCanceledEvent' ? { ...d, status: 'canceled' } : d);
+  }
   const name = (n) => ({ name: n, login: n });
   const login = (n) => String(n ?? '').toLowerCase();
   const sub = (user, months, message = '') => {
@@ -205,14 +213,27 @@ function handle(event, raw, channel, info, cb) {
   }
 }
 
-// cb: { onStatus(state, detail), onMessage(msg), onClear(clear), onChannel({ userId, subBadges }), onAlert(alert) }. Returns { stop() }.
+// The channel's goals from kick.com (no login; [] when there are none) -> send(list). If Kick can't be reached,
+// nothing is sent, so the last ones stay.
+async function readGoals(slug, send) {
+  try {
+    const { status, json } = await module.exports.kickGet(`/api/v2/channels/${encodeURIComponent(slug)}/goals`);
+    if (status === 200 && Array.isArray(json)) send(json);
+  } catch {}
+}
+
+// cb: { onStatus(state, detail), onMessage(msg), onClear(clear), onChannel({ userId, subBadges }), onAlert(alert),
+// onGoals(list), onGoal(goal) }. Goals are read now and every minute, besides their live events. Returns { stop() }.
 function connect(slug, cb) {
   let ws, timer, info, last = Date.now(), retry = 0, stopped = false;
   const again = (ms) => { if (!stopped) timer = setTimeout(open, ms); };
+  const goals = () => readGoals(slug, (list) => !stopped && cb.onGoals?.(list)); // never after stop(): another channel by then
   const keepAlive = setInterval(() => {
     if (ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ event: 'pusher:ping', data: {} }));
     if (Date.now() - last > QUIET_MS) ws?.close();
+    goals();
   }, 60000);
+  goals();
   async function open() {
     cb.onStatus('connecting');
     try {

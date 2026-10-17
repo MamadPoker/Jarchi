@@ -45,6 +45,7 @@ app.get('/api/system-theme', (req, res) => {
 app.patch('/api/settings', (req, res) => {
   const s = settings.update(req.body);
   for (const [id, fields] of Object.entries(req.body.goals ?? {})) if ('target' in fields) goals.retarget(id);
+  if ('kickGoalSync' in req.body) goals.refresh(); // widgets switch between Kick's numbers and their own
   if (Object.keys(req.body).some((k) => k.startsWith('proxy'))) chat.restart(); // reconnect through the new proxy
   else if (req.body.chat) chat.sync(); // channel names may have changed
   res.json(changed(s));

@@ -11,10 +11,12 @@ const VERSION = 5;
 const THEMES = ['neon', 'minimal', 'fun', 'retro', 'glass', 'fire', 'ice', 'galaxy', 'comic'];
 // App-wide settings (not per alert). showBadge: platform badge on alerts; it still needs both Kick and Twitch connected.
 // alertGap: seconds between two alerts. proxy*: how Jarchi reaches Kick, Twitch and 7TV (core/net.js).
-const GLOBAL = { theme: 'neon', showBadge: true, alertGap: 0.5, proxyMode: 'system', proxyType: 'http', proxyHost: '', proxyPort: 0 };
+// kickGoalSync: goals set on the Kick channel (creator dashboard) show Kick's numbers (core/goals.js).
+const GLOBAL = { theme: 'neon', showBadge: true, alertGap: 0.5, proxyMode: 'system', proxyType: 'http', proxyHost: '', proxyPort: 0, kickGoalSync: true };
 const GLOBAL_RULES = {
   theme: (v) => THEMES.includes(v),
   showBadge: (v) => typeof v === 'boolean',
+  kickGoalSync: (v) => typeof v === 'boolean',
   alertGap: (v) => typeof v === 'number' && v >= 0 && v <= 60,
   proxyMode: (v) => ['off', 'system', 'manual'].includes(v),
   proxyType: (v) => ['http', 'socks5'].includes(v),
@@ -88,7 +90,7 @@ const RULES = {
   textColor: (v) => v === null || hex(v),
 };
 // ---------- Goals ----------
-const GOAL_IDS = ['subs', 'kicks'];
+const GOAL_IDS = ['subs', 'kicks', 'followers']; // followers: Kick's only, and only from Kick's own goal (no public follow events)
 const FONTS = ['Segoe UI', 'Arial Black', 'Impact', 'Trebuchet MS', 'Georgia', 'Consolas'];
 // Each style is a complete set of look values; users then tweak any of them. Picking a style or "Reset style" restores these.
 const GOAL_STYLES = {
@@ -101,9 +103,9 @@ const GOAL_STYLES = {
 };
 const GOAL_LOOK = Object.keys(GOAL_STYLES.classic); // the fields a style sets
 const GOAL_DEFAULTS = Object.fromEntries(GOAL_IDS.map((id) => [id, {
-  enabled: true,
+  enabled: id !== 'followers', // new: off, so the Home page doesn't ask existing users to add it to OBS
   title: strings.goals[id].title,
-  target: id === 'subs' ? 50 : 1000,
+  target: { subs: 50, kicks: 1000, followers: 100 }[id],
   style: 'classic',
   celebrate: true,
   celebrateSound: 'theme',

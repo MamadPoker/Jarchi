@@ -290,7 +290,13 @@
       <!-- ===== Goals: the goal list (with switches) next to the selected goal ===== -->
       <section class="view split" data-view="goal" hidden>
         <div class="split-body">
-        <div class="list"><h2 class="group-title" data-i18n="navGoals" data-help="groups.goals"></h2><ul id="goalList" class="nav-list"></ul></div>
+        <div class="list"><h2 class="group-title" data-i18n="navGoals" data-help="groups.goals"></h2><ul id="goalList" class="nav-list"></ul>
+          <!-- Goals set on the Kick channel show Kick's numbers (core/goals.js) -->
+          <div class="kick-sync">
+            <label class="row between toggle-row"><span data-i18n="kickSync" data-help="goal.kickSync"></span><span class="switch"><input type="checkbox" id="kickSync"><span></span></span></label>
+            <small id="kickSyncHint"></small>
+          </div>
+        </div>
         <div class="editor">
         <div class="row between">
           <h1 class="title"><span class="dot"></span><span class="name"></span><span class="pill" data-only="off" data-i18n="off"></span></h1>
@@ -320,17 +326,17 @@
             <input type="text" data-f="title" maxlength="60" data-aria="goalTitle" dir="auto">
           </div>
           <div class="box">
-            <h2 data-i18n="goalTarget" data-help="goal.target"></h2>
+            <div class="row between"><h2 data-i18n="goalTarget" data-help="goal.target"></h2><span class="pill from-kick" data-only="fromKick" data-i18n="fromKick"></span></div>
             <input type="number" data-f="target" min="1" step="1" data-aria="goalTarget">
           </div>
           <div class="box">
-            <h2 data-i18n="goalCurrent" data-help="goal.current"></h2>
+            <div class="row between"><h2 data-i18n="goalCurrent" data-help="goal.current"></h2><span class="pill from-kick" data-only="fromKick" data-i18n="fromKick"></span></div>
             <div class="stepper">
               <button id="goalMinus" aria-label="−">−</button>
               <input type="number" id="goalCurrent" min="0" step="1" data-aria="goalCurrent">
               <button id="goalPlus" aria-label="+">+</button>
             </div>
-            <div><button id="goalZero" class="ghost" data-i18n="goalZero"></button></div>
+            <div data-only="manual"><button id="goalZero" class="ghost" data-i18n="goalZero"></button></div>
           </div>
         </div>
 

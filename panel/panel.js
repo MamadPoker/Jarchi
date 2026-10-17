@@ -41,8 +41,8 @@ const FORMAT = {
   emoteSize: px, bigEmoteSize: px, badgeSize: pct, nameSize: px, padding: px, gap: px, width: px, height: px, fadeZone: px, blur: px,
   tickerSpeed: (v) => `${v} px/s`, maxMessages: (v) => String(v), hideAfter: (v) => (Number(v) ? tpl(S.panel.seconds, { n: v }) : S.panel.never), animSpeed: (v) => `×${v}`,
 };
-const GOAL_STEP = { subs: 1, kicks: 100 }; // what "Test", "+" and "−" add
-const GOAL_SAMPLE = { subs: { current: 32, target: 50 }, kicks: { current: 640, target: 1000 } }; // numbers on style thumbnails
+const GOAL_STEP = { subs: 1, kicks: 100, followers: 1 }; // what "Test", "+" and "−" add
+const GOAL_SAMPLE = { subs: { current: 32, target: 50 }, kicks: { current: 640, target: 1000 }, followers: { current: 374, target: 500 } }; // numbers on style thumbnails
 const isVideo = (file) => /\.(webm|mp4)$/.test(file ?? '');
 const tpl = (s, v) => s.replace(/\{(\w+)\}/g, (m, k) => v[k] ?? m);
 const kickLook = (type, cfg) => type === 'kicks' && cfg.look === 'kick';
@@ -220,7 +220,8 @@ function goalCountRow(id) {
   input.setAttribute('aria-label', `${S.goals[id].name}: ${S.panel.goalCurrent}`);
   const zero = el('button', { className: 'ghost zero', textContent: S.panel.goalZero });
   twoClick(zero, zero, S.panel.goalZero, S.panel.confirmZero, () => goalCount({ set: 0 }, id));
-  return el('div', { className: 'goal-count' }, input, el('small', { className: 'of' }), zero);
+  // Synced from Kick: Kick's count, read-only, says so instead of Reset to 0.
+  return el('div', { className: 'goal-count' }, input, el('small', { className: 'of' }), el('span', { className: 'pill from-kick', textContent: S.panel.fromKick, hidden: true }), zero);
 }
 
 // ---------- Previews ----------
@@ -410,13 +411,14 @@ function renderHome() {
       el('span', { className: 'stack' }, el('b', { textContent: name }), el('small', { textContent: S.panel[open[id] ? 'widgetOpen' : 'widgetClosed'] })), copy);
   }));
 
-  // Goals: count / target and a bar. They move by themselves; a count is fixed by hand on the Goals page.
-  $('#homeGoals').replaceChildren(...Object.entries(settings.goals).map(([id, g]) => {
-    const { current } = goalData.state[id];
+  // Goals: count / target (Kick's when synced) and a bar. They move by themselves; a count is fixed by hand on the Goals page.
+  $('#homeGoals').replaceChildren(...Object.keys(settings.goals).map((id) => {
+    const { current, target, kick } = goalData.state[id];
     const bar = el('i');
-    bar.style.width = `${Math.min(100, (current / g.target) * 100)}%`;
-    return el('div', { className: `home-goal${current >= g.target ? ' full' : ''}` },
-      el('div', { className: 'row' }, el('b', { textContent: S.goals[id].name }), el('small', { textContent: `${fmt(current)} / ${fmt(g.target)}` })),
+    bar.style.width = `${Math.min(100, (current / target) * 100)}%`;
+    return el('div', { className: `home-goal${current >= target ? ' full' : ''}` },
+      el('div', { className: 'row' }, el('b', { textContent: S.goals[id].name }), el('small', { textContent: `${fmt(current)} / ${fmt(target)}` }),
+        kick ? el('span', { className: 'pill from-kick', textContent: S.panel.fromKick }) : ''),
       el('div', { className: 'goal-bar' }, bar));
   }));
 
@@ -739,6 +741,7 @@ function build() {
   $('#goalCurrent').onchange = (e) => goalCount({ set: Math.max(0, Math.round(Number(e.target.value) || 0)) });
   twoClick($('#goalZero'), $('#goalZero'), S.panel.goalZero, S.panel.confirmZero, () => goalCount({ set: 0 }));
   $('#goalResetStyle').onclick = () => send('POST', `/api/goals/${curGoal}/reset-style`);
+  $('#kickSync').onchange = (e) => send('PATCH', '/api/settings', { kickGoalSync: e.target.checked });
   $('#goalCopy').title = S.panel.goalCopyHint;
   $('#goalCopy').onclick = () => copyLink(`${location.origin}/widgets/goal/${curGoal}`, S.panel.goalCopied);
   // Counts and chat status change on their own (events, connections), so follow them live.
@@ -871,10 +874,14 @@ function render() {
       row.classList.toggle('active', row.dataset.key === selected);
       row.classList.toggle('off', !cfg.enabled);
       $('input', row).checked = cfg.enabled;
-      const count = $('.count-input', row); // goals: the count, never under the cursor
+      const count = $('.count-input', row); // goals: the count (never under the cursor), Kick's when synced
       if (count) {
-        if (count !== document.activeElement) count.value = goalData.state[row.dataset.key].current;
-        $('.of', row).textContent = `/ ${fmt(cfg.target)}`;
+        const st = goalData.state[row.dataset.key];
+        if (count !== document.activeElement) count.value = st.current;
+        count.readOnly = st.kick;
+        $('.of', row).textContent = `/ ${fmt(st.target)}`;
+        $('.from-kick', row).hidden = !st.kick;
+        $('.zero', row).hidden = st.kick;
       }
       const own = $('.swatch.mini', row);
       if (!own) return;
@@ -891,6 +898,12 @@ function render() {
     t.classList.toggle('selected', t.dataset.theme === settings.theme);
     t.setAttribute('aria-pressed', String(t.dataset.theme === settings.theme));
   });
+
+  // Goals page: "Sync from Kick", and which goals the Kick channel has.
+  $('#kickSync').checked = settings.kickGoalSync;
+  const onKick = Object.keys(settings.goals).filter((id) => goalData.state[id].onKick).map((id) => S.goals[id].name);
+  $('#kickSyncHint').textContent = !settings.chat.kickChannel ? S.panel.kickSyncNoChannel
+    : onKick.length ? tpl(S.panel.kickSyncOnKick, { goals: onKick.join(FA ? '، ' : ', ') }) : S.panel.kickSyncNone;
 
   $('#showBadge').checked = settings.showBadge;
   $('#connectedList').textContent = settings.connected.map((p) => S.platforms[p]).join(FA ? '، ' : ', ') || S.panel.connectedNone;
@@ -972,7 +985,12 @@ function renderGoal() {
   $('#goalCounts').textContent = S.goals[curGoal].counts;
   $('#goalTest span').textContent = S.goals[curGoal].test;
   fill(ed, g);
-  if (document.activeElement !== $('#goalCurrent')) $('#goalCurrent').value = goalData.state[curGoal].current;
+  // Synced from Kick: Kick's count and target, read-only (no −, +, Test or Reset to 0).
+  const st = goalData.state[curGoal], target = $('[data-f=target]', ed);
+  if (st.kick) target.value = st.target;
+  target.readOnly = $('#goalCurrent').readOnly = st.kick;
+  $('#goalMinus').disabled = $('#goalPlus').disabled = $('#goalTest').disabled = st.kick;
+  if (document.activeElement !== $('#goalCurrent')) $('#goalCurrent').value = st.current;
   $('#goalPlus').title = fd(`+${GOAL_STEP[curGoal]}`);
   $('#goalMinus').title = fd(`−${GOAL_STEP[curGoal]}`);
   $$('.goal-tile').forEach((t) => t.classList.toggle('selected', t.dataset.style === g.style));
@@ -985,6 +1003,8 @@ function renderGoal() {
     borderOn: g.bg !== 'off' && g.border,
     goalCustomSound: g.celebrateSound === 'custom',
     subsGoal: curGoal === 'subs', // "Also count Twitch subs": the Kicks goal is Kick's only
+    fromKick: st.kick,
+    manual: !st.kick,
   };
   $$('[data-only]', ed).forEach((e) => (e.hidden = !show[e.dataset.only]));
   const fname = $('.file .fname', ed);

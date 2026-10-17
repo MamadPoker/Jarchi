@@ -4,6 +4,7 @@
 const { EventEmitter } = require('node:events');
 const { bus, emitChat, chatMessage, emitChatClear, emitEvent } = require('./events');
 const settings = require('./settings');
+const goals = require('./goals');
 const net = require('./net');
 const seventv = require('./seventv');
 const strings = require('../i18n/en.json');
@@ -36,6 +37,7 @@ function sync() {
     running[platform] = null;
     if (!want) {
       setStatus(platform, 'off');
+      if (platform === 'kick') goals.kickGoals(null); // no Kick channel: no Kick goals
       continue;
     }
     if (!globalRequested) { globalRequested = true; seventv.loadGlobal(); }
@@ -46,6 +48,8 @@ function sync() {
         onMessage: publish,
         onClear: emitChatClear,
         onAlert: (a) => emitEvent({ ...a, platform }),
+        onGoals: goals.kickGoals, // Kick: the channel's goals (creator dashboard), read every minute
+        onGoal: goals.kickGoal, // Kick: one of them changed (live event)
         onChannel: ({ userId, subBadges }) => {
           seventv.loadChannel(platform, userId);
           if (platform === 'twitch') twitchBadges.loadChannel(userId);

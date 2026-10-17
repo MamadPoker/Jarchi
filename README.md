@@ -31,7 +31,7 @@ Jarchi must be running before OBS loads the source. If you started OBS first, ri
 - **Top bar**: the page's title; **Kick** and **Twitch** with a green dot when their chat connection is up (a click opens Connections); the **Dark / Light / Same as Windows** colors switch; the **فا | EN** language switch.
 - **Home**: a banner that says **You're ready to stream** when Kick and Twitch are connected and every widget that's switched on is open in OBS, or lists what's missing, each with **Fix** (opens the right page); **Send test alert** (a random type) and **OBS links** (copy any widget's link). **Live feed**: the last 20 events, newest first (platform, name, what they did, how long ago; test ones say so), filters All / Subs / Kicks / Raids / Follows, **Replay** on each. **Widgets**: Alerts, Chat and each goal, green while a page of it is open in OBS, with a copy button. **Goals**: both goals with their bar (they move by themselves). Then alerts today, chat messages today (real ones, not tests; from midnight) and Jarchi's uptime. The feed and today's numbers are kept across restarts in `data/feed.json` and `data/today.json`.
 - **Alerts**: the main **Theme** on top (opens a page with a live card per theme; click one to use it) and **Copy OBS link**; the alert list, each with an on/off switch; next to it the selected alert: live preview with Play, its own theme (or the main one), then image/GIF/video, sound and text, **Different media by amount** (Kicks, gifted subs, bits); **More options** opens frame, colors, font size, text position, text alignment (left/center/right), duration, volume, minimum amount and video sound.
-- **Goals**: the two goals, each with an on/off switch, its count (click it and type another) and **Reset to 0** (click twice), next to the selected goal. **Chat**: the chat widget, with its on/off switch next to the title. Each has its own **Copy OBS link**.
+- **Goals**: the three goals, each with an on/off switch, its count (click it and type another) and **Reset to 0** (click twice), next to the selected goal. **Chat**: the chat widget, with its on/off switch next to the title. Each has its own **Copy OBS link**.
 - **Alert queue**: now playing (with a bar for the time left), **Pause / Resume**, **Skip**, **Clear queue** (click twice), the waiting alerts in order (× removes one), the last 10 played (each with **Replay**), and a notice when no OBS alerts overlay is open.
 - **?** next to every setting: a short explanation on hover, keyboard focus or a tap.
 - **Guide**: Getting started, Add Jarchi to OBS, Alerts, Goals, Chat widget, Alert queue, Proxy & VPN, and If something doesn't work (questions that open their answers). The links in it are this PC's real ones.
@@ -115,14 +115,17 @@ Everything Jarchi reaches online goes through it: Kick, Twitch, 7TV, and the emo
 
 ## Goals
 
-Two goal widgets, each with its own OBS URL (transparent background):
+Three goal widgets, each with its own OBS URL (transparent background):
 
 - **Sub goal**: `http://127.0.0.1:3000/widgets/goal/subs` counts Kick subs, resubs and gifted subs (a gift of 5 subs = 5). With **Also count Twitch subs** on (off by default), Twitch's count the same way.
 - **Kicks goal**: `http://127.0.0.1:3000/widgets/goal/kicks` counts Kicks from Kick.
+- **Followers goal**: `http://127.0.0.1:3000/widgets/goal/followers` (Kick; off until you switch it on). Kick doesn't say publicly who follows, so it shows the followers goal set on your Kick channel, or a number you type.
+
+**Sync from Kick** (Goals page, on by default): a goal you also set on your Kick channel (Kick's creator dashboard: followers, subscriptions, KICKs) shows Kick's own count and target, in the panel (marked **From Kick**, read-only) and on stream. Jarchi reads `kick.com/api/v2/channels/<channel>/goals` (no login) when it connects and every minute, and takes Kick's live goal events (`GoalProgressUpdateEvent` and the others) from the same public socket as the alerts. A goal with nothing set on Kick stays manual, and its own count goes on underneath. If Kick can't be reached, the last numbers stay.
 
 They listen to the same event bus as the alerts, so they'll move by themselves once Kick and Twitch are connected. Until then, test alerts and the panel's buttons move them.
 
-In OBS: **Sources → + → Browser**, paste the goal's URL (the panel has **Copy this goal's OBS link**), width **800**, height **200** (Circle style: **400** × **400**). The goal sits in the middle; use the panel's **Size** option or OBS to scale it.
+In OBS: **Sources → + → Browser**, paste the goal's URL (the panel has **Copy OBS link**), width **800**, height **200** (Circle style: **400** × **400**). The goal sits in the middle; use the panel's **Size** option or OBS to scale it.
 
 In the panel (**Goals**): title, target, current count (−, +, number, **Reset to 0** with a second click to confirm), **Test**, 6 styles (Classic, Pill, Neon, Circle, Text only, Retro), colors, and **More options** for background, border, corners, size, font, title position, percentage/numbers and the celebration. A style is a starting point: every option works with every style, and **Reset style** brings the style's own look back.
 
@@ -163,7 +166,7 @@ core/events.js       event bus + the normalized event shape
 core/settings.js     defaults, user changes, uploads (alerts, tiers and goal looks)
 core/alerts.js       the alert queue: what plays when, for every overlay
 core/net.js          proxy: every outgoing connection goes through it
-core/goals.js        goal counters, fed by the event bus
+core/goals.js        goal counters, fed by the event bus; Kick's own goals with Sync from Kick
 core/store.js        JSON files in the data folder
 core/chat.js         runs the chat connectors, adds 7TV emotes, test messages
 core/seventv.js      7TV emote sets (cached)

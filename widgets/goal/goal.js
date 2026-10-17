@@ -86,10 +86,13 @@ function ring() {
   return h('div', { className: 'ring' }, svg, h('div', { className: 'ring-pct' }));
 }
 
+// The server's target (Kick's, for a goal synced from Kick), else the goal's own (thumbnails).
+const target = () => state.target || cfg.target;
+
 // Show the latest count: bar/ring/blocks via --fill (CSS transitions), numbers count up, celebrate on a fresh hit.
 function update(reached = false, instant = false) {
   if (!cfg) return;
-  const fill = state.reached ? 1 : Math.min(state.current / cfg.target, 1);
+  const fill = state.reached ? 1 : Math.min(state.current / target(), 1);
   root.classList.toggle('full', state.reached);
   root.style.setProperty('--fill', fill);
   root.querySelectorAll('.blocks i').forEach((b, i) => b.classList.toggle('on', i < Math.floor(fill * BLOCKS + 1e-9)));
@@ -110,8 +113,8 @@ function countTo(to, instant) {
 }
 
 function writeNumbers(n) {
-  const nums = `${n.toLocaleString()} / ${cfg.target.toLocaleString()}`;
-  const pct = `${Math.floor((n / cfg.target) * 100)}%`; // can pass 100% when the count goes over the target
+  const nums = `${n.toLocaleString()} / ${target().toLocaleString()}`;
+  const pct = `${Math.floor((n / target()) * 100)}%`; // can pass 100% when the count goes over the target
   root.querySelectorAll('.nums').forEach((e) => (e.textContent = nums));
   root.querySelectorAll('.pct, .ring-pct').forEach((e) => (e.textContent = pct));
 }

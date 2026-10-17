@@ -206,3 +206,48 @@ test("Home: each event goes into feed.json at once, today's numbers into today.j
   for (let i = 0; i < 40 && read('today.json').alerts !== today.alerts; i++) await new Promise((r) => setTimeout(r, 100));
   assert.deepEqual(read('today.json'), { date: new Date().toDateString(), ...today });
 });
+
+test("Kick goals: a goal set on Kick shows Kick's numbers (live events too), the others stay manual; Sync from Kick off", async () => {
+  const kick = require('../connectors/kick-chat');
+  const reached = [];
+  const onChange = (id) => reached.push(id);
+  goals.events.on('change', onChange);
+  // The Kick connector passes goal events on as they come (kick.com's real names, with or without App\Events\).
+  const got = [];
+  const cb = { onGoal: (g) => got.push(g) };
+  kick.handle('GoalProgressUpdateEvent', JSON.stringify({ id: 'g1', current_value: 375 }), 'me', {}, cb);
+  kick.handle('App\\Events\\GoalCanceledEvent', { id: 'g2' }, 'me', {}, cb);
+  assert.deepEqual(got, [{ id: 'g1', current_value: 375 }, { id: 'g2', status: 'canceled' }]);
+
+  // kick.com/api/v2/channels/<slug>/goals, as it answered for a real channel (2026-10-17), plus a canceled one.
+  goals.kickGoals([
+    { id: 'g1', type: 'followers', status: 'active', target_value: 500, current_value: 374 },
+    { id: 'g2', type: 'kicks', status: 'active', target_value: 10000, current_value: 330 },
+    { id: 'g3', type: 'subscriptions', status: 'canceled', target_value: 5, current_value: 1 },
+  ]);
+  let a = goals.all();
+  assert.deepEqual([a.followers.current, a.followers.target, a.followers.kick, a.kicks.kick, a.subs.kick], [374, 500, true, true, false]);
+  const subs = a.subs.current;
+  emitEvent({ platform: 'kick', type: 'sub', user: 'x' });
+  emitEvent({ platform: 'kick', type: 'kicks', user: 'x', amount: 100 });
+  assert.deepEqual([goals.all().subs.current, goals.all().kicks.current], [subs + 1, 330], 'manual counts on; Kick shows its own');
+
+  // Live: a progress event with only the number, then the goal reached celebrates once; canceled -> manual again.
+  goals.kickGoal({ id: 'g1', current_value: 499 });
+  assert.deepEqual([goals.all().followers.current, goals.all().followers.target], [499, 500]);
+  goals.kickGoal({ id: 'g1', type: 'followers', status: 'achieved', current_value: 500, target_value: 500 });
+  assert.deepEqual([goals.all().followers.reached, reached.at(-1)], [true, 'followers']);
+  goals.kickGoal({ id: 'g2', type: 'kicks', status: 'canceled' });
+  assert.equal(goals.all().kicks.kick, false);
+
+  // Sync from Kick off: every goal manual (Kick's is still known), and widgets hear about it.
+  const before = reached.length;
+  assert.equal((await call('PATCH', '/api/settings', { kickGoalSync: false })).status, 200);
+  a = goals.all();
+  assert.deepEqual([a.followers.kick, a.followers.onKick, a.followers.target, reached.length], [false, true, 100, before + 1]);
+  await call('PATCH', '/api/settings', { kickGoalSync: true });
+  // No Kick channel any more: no Kick goals.
+  goals.kickGoals(null);
+  assert.equal(goals.all().followers.onKick, false);
+  goals.events.off('change', onChange);
+});
