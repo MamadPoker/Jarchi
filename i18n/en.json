@@ -355,7 +355,6 @@
     "upload": "Upload",
     "remove": "Remove",
     "obsTitle": "OBS Browser Source",
-    "badgeTitle": "Kick/Twitch badge",
     "badgeLabel": "Show the platform badge on alerts",
     "badgeHint": "Only appears when both your Kick and Twitch accounts are connected.",
     "connected": "Connected accounts:",
@@ -414,10 +413,15 @@
     "netTest": "Test connection",
     "netTesting": "Testing…",
     "language": "Language",
-    "colorMode": "Colors",
+    "colorMode": "Mode",
     "modeDark": "Dark",
     "modeLight": "Light",
     "modeWindows": "Same as Windows",
+    "lookPanel": "Panel",
+    "lookPanelHint": "How this panel looks in this browser. Your stream doesn't change.",
+    "lookWidgetsHint": "The look your widgets share in OBS: the main theme and the platform badge.",
+    "mainTheme": "Main theme",
+    "ownStyles": "Own styles",
     "guide": "Guide",
     "guideTopics": "Guide topics",
     "help": "Help",
@@ -456,6 +460,12 @@
       "goals": "Click a goal to edit it. Its switch only hides it on stream: it keeps counting."
     },
     "theme": { "main": "The look every alert uses, unless an alert has its own theme. Hover a card to preview it, click it to use it." },
+    "appearance": {
+      "mode": "Dark, Light, or the same as Windows (it changes when you change it in Windows). Only this panel changes, in this browser: OBS and your stream stay as they are.",
+      "language": "The panel's language. The page reloads and comes back here. The text of your widgets in OBS doesn't change.",
+      "theme": "The look every alert uses, unless an alert has its own theme. The goals' celebration sound comes from it too. Point at a theme to preview it, click it to use it.",
+      "ownStyles": "The chat and each goal have their own style, font and colors. Click one to change it on its page."
+    },
     "alert": {
       "look": "**Kick gift** shows Kick's own picture of the gift with Kick-style text. **Use theme** shows it like the other alerts.",
       "theme": "A theme for this alert only. Keep \"Same as main\" to follow the main theme.",

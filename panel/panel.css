@@ -1,6 +1,7 @@
 /* Panel colors: every color the panel uses lives here. Dark is the default; data-theme="light" on <html> swaps them
-   (set by panel.js: Dark, Light, or Same as Windows). Green = active menu items, progress. Gold = main buttons, switches (on), highlights. */
-:root {
+   (set by panel.js: Dark, Light, or Same as Windows). Green = active menu items, progress. Gold = main buttons, switches (on), highlights.
+   data-theme="dark" / "light" on any element gives it that mode's colors too (the mode cards on Appearance). */
+:root, [data-theme="dark"] {
   --bg: #0a110d;
   --sidebar: #0d1611;
   --card: #111c16;
@@ -44,7 +45,7 @@
   color-scheme: dark;
   accent-color: var(--green); /* native checkboxes */
 }
-:root[data-theme="light"] {
+:root[data-theme="light"], [data-theme="light"] {
   --bg: #d8d6cc;
   --sidebar: #cdd1c5;
   --card: #e4e2da;
@@ -628,11 +629,46 @@ button:disabled { opacity: 0.4; cursor: default; pointer-events: none; }
 code { padding: 1px 6px; border-radius: 6px; background: var(--card2); font: 0.9em Consolas, ui-monospace, monospace; overflow-wrap: anywhere; }
 #tip code { background: var(--bg); }
 
-/* ---------- Top bar: colors and language switches ---------- */
-.lang, .mode { display: flex; gap: 2px; padding: 3px; border: 1px solid var(--border); border-radius: 10px; background: var(--card2); }
-.lang button, .mode button { padding: 4px 10px; border: 0; border-radius: 7px; background: none; color: var(--muted); font-size: 13px; }
-.lang button:hover, .mode button:hover { color: var(--text); }
-.lang button[aria-pressed="true"], .mode button[aria-pressed="true"] { background: var(--green); color: var(--on-color); }
+/* ---------- Top bar: language switch ---------- */
+.lang { display: flex; gap: 2px; padding: 3px; border: 1px solid var(--border); border-radius: 10px; background: var(--card2); }
+.lang button { padding: 4px 10px; border: 0; border-radius: 7px; background: none; color: var(--muted); font-size: 13px; }
+.lang button:hover { color: var(--text); }
+.lang button[aria-pressed="true"] { background: var(--green); color: var(--on-color); }
+
+/* ---------- Appearance: the panel's mode and language, the widgets' shared look next to a live mini alert ---------- */
+.view.appearance { max-width: 980px; }
+.card-head { display: flex; align-items: center; gap: 12px; }
+.card-icon { display: grid; place-items: center; width: 36px; height: 36px; flex: none; border-radius: 10px; background: var(--gold-soft); color: var(--gold-text); }
+.card-icon svg { width: 19px; height: 19px; }
+.modes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; max-width: 560px; }
+.mode-card { position: relative; cursor: pointer; }
+.mode-card input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.mode-body { display: grid; gap: 8px; padding: 8px; border: 1px solid var(--border); border-radius: 12px; background: var(--card2); color: var(--muted); font-size: 13px; font-weight: 600; text-align: center; }
+.mode-card:hover .mode-body { border-color: var(--border-hi); color: var(--text); }
+.mode-card input:checked + .mode-body { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold); color: var(--text); }
+.mode-card input:focus-visible + .mode-body { outline: 2px solid var(--focus); outline-offset: 2px; }
+/* A tiny panel: sidebar, a card with two lines of text, a gold button. In its own mode's colors (data-theme). */
+.mini { position: relative; display: block; height: 62px; overflow: hidden; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); }
+.mini i { position: absolute; }
+.mini i:nth-child(1) { inset-block: 0; inset-inline-start: 0; width: 24%; border-inline-end: 1px solid var(--border); background: var(--sidebar); }
+.mini i:nth-child(2) { inset-block: 9px; inset-inline: calc(24% + 7px) 7px; border: 1px solid var(--border); border-radius: 5px; background: var(--card); }
+.mini i:nth-child(2)::before, .mini i:nth-child(2)::after { content: ""; position: absolute; inset-inline-start: 7px; height: 4px; border-radius: 2px; }
+.mini i:nth-child(2)::before { top: 8px; width: 50%; background: var(--text); }
+.mini i:nth-child(2)::after { top: 17px; width: 34%; background: var(--muted); }
+.mini i:nth-child(3) { bottom: 16px; inset-inline-end: 14px; width: 20%; height: 8px; border-radius: 99px; background: var(--gold); }
+.mini.split { border: 0; background: none; } /* Same as Windows: half dark, half light */
+.mini.split .mini { position: absolute; inset: 0; height: auto; }
+.mini.split .mini + .mini { clip-path: polygon(100% 0, 100% 100%, 0 100%); }
+.look-body { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 18px; align-items: start; }
+.look-settings { display: grid; gap: 16px; }
+.look-stage { gap: 0; }
+.look-stage .preview { width: min(100%, 420px); }
+.theme-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.theme-chip { gap: 7px; padding: 5px 11px; padding-inline-start: 8px; color: var(--muted); font-size: 13px; }
+.theme-chip:hover { color: var(--text); }
+.theme-chip[aria-pressed="true"] { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold); color: var(--text); }
+.own-style { gap: 6px; padding: 5px 11px; font-size: 13px; }
+.own-style small { font-size: 12px; font-weight: 500; }
 
 /* ---------- Guide: topic list + the topic (intro, numbered step cards, tip, questions) ---------- */
 .guide { display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 24px; align-items: start; }
@@ -665,7 +701,7 @@ code { padding: 1px 6px; border-radius: 6px; background: var(--card2); font: 0.9
   .more-grid, .more-grid.three { grid-template-columns: 1fr; }
   .style-grid, .style-grid.five { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .cols4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .guide, .home-grid { grid-template-columns: 1fr; gap: 16px; }
+  .guide, .home-grid, .look-body { grid-template-columns: 1fr; gap: 16px; }
   .guide-topics { position: static; display: flex; flex-wrap: wrap; gap: 6px; }
   .guide-topics button { border: 1px solid var(--border); border-radius: 99px; }
   .guide-topics button[aria-current="true"], [dir="rtl"] .guide-topics button[aria-current="true"] { border-color: var(--green); box-shadow: none; }

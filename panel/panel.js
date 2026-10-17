@@ -12,15 +12,19 @@ const remember = {
 const FA = remember.get('jarchi.lang') === 'fa';
 document.documentElement.lang = FA ? 'fa' : 'en';
 document.documentElement.dir = FA ? 'rtl' : 'ltr';
-// Colors: Dark (default), Light, or Same as Windows (the server reads Windows' setting). The top bar switch is temporary, for testing.
+// Colors: Dark (default), Light, or Same as Windows (the server reads Windows' setting). Picked on the Appearance page.
 const applyTheme = async () => {
   const mode = remember.get('jarchi.mode') || 'dark';
   const theme = mode !== 'windows' ? mode : (await fetch('/api/system-theme').then((r) => r.json()).catch(() => ({}))).theme === 'light' ? 'light' : 'dark';
   document.documentElement.dataset.theme = theme;
   remember.set('jarchi.theme', theme); // index.html sets it before the first paint
-  $$('.mode button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.mode === mode)));
+  $$('[name=mode]').forEach((r) => (r.checked = r.value === mode));
 };
-$$('.mode button').forEach((b) => (b.onclick = () => (remember.set('jarchi.mode', b.dataset.mode), applyTheme())));
+$$('[name=mode]').forEach((r) => (r.onchange = () => {
+  remember.set('jarchi.mode', r.value);
+  applyTheme();
+  toast(S.panel.saved);
+}));
 addEventListener('focus', () => remember.get('jarchi.mode') === 'windows' && applyTheme()); // Windows' setting may have changed meanwhile
 applyTheme();
 // Persian digits (and ٪ ٫) in labels; inputs keep theirs.
@@ -238,14 +242,24 @@ const previewAmount = () => (samples[cur].amount > 0 ? Number($('#previewAmount'
 
 const post = (frame, s, event, muted, hold = false) => frame.contentWindow?.postMessage({ strings: EN, settings: s, event, muted, hold }, location.origin);
 
-function preview() {
+// opening: the page was just opened (Appearance plays its alert muted then).
+function preview(opening) {
   if (view === 'alert') post($('#preview'), settings, sample(cur, previewAmount()), !$('#previewSound').checked);
+  if (view === 'appearance') playLook(settings.theme, opening);
 }
 
 // Theme cards: the sub alert in that theme with its own look and sound; it stays on the card (hold) until the next play.
-function playTile(frame, muted = true) {
+function playTile(frame, muted = true, extra = {}) {
   const sub = { ...settings.alerts.sub, theme: null, image: null, soundMode: 'theme', frame: 'theme', textColor: null, textPos: 'below', textAlign: 'center' };
-  post(frame, { theme: frame.dataset.theme, alerts: { sub } }, sample('sub'), muted, true);
+  post(frame, { theme: frame.dataset.theme, alerts: { sub }, ...extra }, sample('sub'), muted, true);
+}
+// Appearance: the same card in a theme (the main one, or the one pointed at), with the platform badge as OBS shows it.
+function playLook(theme, muted = false) {
+  const f = $('#lookPreview');
+  f.dataset.theme = theme;
+  playTile(f, muted, { showBadge: settings.showBadge, connected: settings.connected });
+  $('#lookSwatch').className = `swatch sw-${theme}`;
+  $('#lookName').textContent = S.themes[theme];
 }
 
 // Style thumbnails: each style's own look with this goal's title and sample numbers.
@@ -287,7 +301,7 @@ function select(v, key) {
   $$('.nav-item').forEach((b) => b.setAttribute('aria-current', b.dataset.view === page ? 'page' : 'false'));
   $('#pageTitle').textContent = $(`.nav-item[data-view="${page}"] [data-i18n]`).textContent;
   render();
-  preview();
+  preview(true);
   if (v === 'theme') $$('.theme-tile iframe').forEach((f) => playTile(f));
   if (v === 'chat') {
     fitChat();
@@ -703,17 +717,35 @@ function build() {
   addEventListener('keydown', (e) => { if (e.key === 'Escape') showMenu(false); });
   setInterval(() => view === 'home' && loadHome(), 30000); // "2 min ago", uptime, and today's numbers from 0 after midnight
 
-  // Top bar: Kick / Twitch status opens Connections. Language: the page reloads in the other language and comes back to what was open.
+  // Top bar: Kick / Twitch status opens Connections. Language (also on Appearance): the page reloads in the other language and comes back to what was open.
   $$('.plat').forEach((b) => (b.onclick = () => select('connections')));
+  const setLang = (lang) => {
+    if (lang === S.lang) return;
+    remember.set('jarchi.lang', lang);
+    try { sessionStorage.setItem('jarchi.back', JSON.stringify([view, { alert: cur, goal: curGoal, guide: topic }[view]])); } catch {}
+    location.reload();
+  };
   $$('.lang button').forEach((b) => {
     b.setAttribute('aria-pressed', String(b.dataset.lang === S.lang));
-    b.onclick = () => {
-      if (b.dataset.lang === S.lang) return;
-      remember.set('jarchi.lang', b.dataset.lang);
-      try { sessionStorage.setItem('jarchi.back', JSON.stringify([view, { alert: cur, goal: curGoal, guide: topic }[view]])); } catch {}
-      location.reload();
-    };
+    b.onclick = () => setLang(b.dataset.lang);
   });
+  $$('[name=lang]').forEach((r) => {
+    r.checked = r.value === S.lang;
+    r.onchange = () => setLang(r.value);
+  });
+
+  // Appearance: a chip per theme. Pointing at one (or focus) previews it muted, a click uses it; leaving the chips
+  // shows the main theme again. The mini alert follows every change (preview()).
+  $('#themeChips').append(...Object.entries(S.themes).map(([id, name]) => {
+    const b = el('button', { className: 'theme-chip', onclick: () => send('PATCH', '/api/settings', { theme: id }), onmouseenter: () => playLook(id, true), onfocus: () => playLook(id, true) },
+      el('span', { className: `swatch sw-${id}` }), el('span', { textContent: name }));
+    b.dataset.theme = id;
+    return b;
+  }));
+  const backToMain = (e) => { if (!$('#themeChips').contains(e.relatedTarget) && $('#lookPreview').dataset.theme !== settings.theme) playLook(settings.theme, true); };
+  $('#themeChips').onmouseleave = $('#themeChips').onfocusout = backToMain;
+  $('#lookPlay').onclick = () => playLook(settings.theme);
+  $('#lookPreview').onload = () => view === 'appearance' && playLook(settings.theme, true);
 
   // Guide: one button per topic.
   $('#guideTopics').append(...Object.entries(S.guide.topics).map(([id, t]) => {
@@ -996,6 +1028,7 @@ function render() {
   $('#showBadge').checked = settings.showBadge;
   $('#connectedList').textContent = settings.connected.map((p) => S.platforms[p]).join(FA ? '، ' : ', ') || S.panel.connectedNone;
   if (view === 'settings') renderSettings();
+  if (view === 'appearance') renderAppearance();
   if (view === 'alert') renderAlert();
   if (view === 'goal') renderGoal();
   if (view === 'chat') renderChat();
@@ -1012,6 +1045,14 @@ function renderSettings() {
   $$('[name=proxyType]').forEach((r) => (r.checked = r.value === settings.proxyType));
   const show = { proxySystem: settings.proxyMode === 'system', proxyManual: settings.proxyMode === 'manual' };
   $$('[data-only]', ed).forEach((e) => (e.hidden = !show[e.dataset.only]));
+}
+
+// Appearance: the main theme's chip, and where the chat's and each goal's own style is changed.
+function renderAppearance() {
+  $$('.theme-chip').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.theme === settings.theme)));
+  const own = (name, style, open) => el('button', { className: 'own-style', onclick: open }, el('b', { textContent: name }), el('small', { textContent: style }));
+  $('#ownStyles').replaceChildren(own(S.panel.chatName, S.chatStyles[settings.chat.style], () => select('chat')),
+    ...Object.entries(settings.goals).map(([id, g]) => own(S.goals[id].name, S.goalStyles[g.style], () => select('goal', id))));
 }
 
 function renderChat() {
