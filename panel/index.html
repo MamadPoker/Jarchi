@@ -110,7 +110,7 @@
       </section>
 
       <!-- ===== Alerts: the main theme and the OBS link on top, then the alert list (switches, platforms) next to the selected alert:
-           its live preview, then its settings in four tabs. No Save button: every change saves by itself (send(), the "Saved" note). ===== -->
+           its live preview, then its settings in four tabs. No Save button: every change saves by itself (send(), a "Saved" toast). ===== -->
       <section class="view split" data-view="alert" hidden>
         <div class="page-head">
           <button id="themeRow" class="theme-row">
@@ -130,7 +130,6 @@
         <div class="row between">
           <h1 class="title"><span class="q-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path/></svg></span><span class="name"></span><span class="pill" data-only="off" data-i18n="off"></span></h1>
           <div class="row">
-            <span id="saveNote" class="save-note" role="status"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span></span></span>
             <button id="test" data-i18n="testObs"></button>
             <button id="reset" class="ghost" data-i18n="resetAlert"></button>
           </div>

@@ -193,45 +193,15 @@ function toast(msg, isError) {
 }
 
 // Any call that returns settings: store them, re-sync the UI (also reverts rejected values), replay the preview.
-// The Alerts page says "Saved" in its note (showSaveNote), the other pages in a toast. Errors are always a toast.
-let saving = 0, saveFailed = false, typing = null; // saves on the way, the last one failed, typed text waiting for its save
-let busySince = 0, noteTimer; // when "Saving…" appeared
 async function send(method, url, body, headers) {
-  const note = view === 'alert';
-  if (note) saving++, showSaveNote();
   try {
     settings = await api(method, url, body, headers);
-    if (note) saveFailed = false;
-    else toast(S.panel.saved);
+    toast(S.panel.saved);
     preview();
   } catch (err) {
-    if (note) saveFailed = true;
     toast(err.message, true);
   }
-  if (note) saving--;
   render();
-}
-// A save here takes a few ms, so "Saving…" stays at least 0.6 s and "Saved" then lights up: every save is seen.
-function showSaveNote() {
-  clearTimeout(noteTimer);
-  const note = $('#saveNote');
-  let state = saving || typing ? 'saving' : saveFailed ? 'notSaved' : 'saved';
-  if (state === 'saving') {
-    if (!busySince) busySince = Date.now();
-  } else if (busySince) {
-    const left = busySince + 600 - Date.now();
-    if (left > 0) {
-      noteTimer = setTimeout(showSaveNote, left);
-      state = 'saving';
-    } else {
-      busySince = 0;
-      note.classList.remove('done');
-      note.getBoundingClientRect(); // restart its animation
-      note.classList.add('done');
-    }
-  }
-  note.dataset.state = state;
-  $('span', note).textContent = S.panel[state];
 }
 const patchAlert = (type, fields) => send('PATCH', '/api/settings', { alerts: { [type]: fields } });
 const patchGoal = (id, fields) => send('PATCH', '/api/settings', { goals: { [id]: fields } });
@@ -784,21 +754,20 @@ function build() {
   $('#copy').title = S.panel.copyObsHint;
   $('#copy').onclick = () => copyLink(obsUrl);
 
-  // Alert editor: every [data-f] input saves its field for the selected alert by itself. Typed text saves a moment
-  // after the last key (for the alert it was typed in), and at once when the field is left (its change event).
+  // Alert editor: every [data-f] input saves its field for the selected alert by itself, one save (and one "Saved") per
+  // change: a slider when it's let go, typed text a moment after the last key (for the alert it was typed in) or when
+  // the field is left (its change event). A value that's already saved isn't sent again.
   const editor = $('main [data-view=alert]');
+  let typing;
   const saveField = (inp, type = cur) => {
     clearTimeout(typing);
-    typing = null;
     if (valueOf(inp) !== settings.alerts[type][inp.dataset.f]) patchAlert(type, { [inp.dataset.f]: valueOf(inp) });
-    else showSaveNote();
   };
   $$('[data-f]', editor).forEach((inp) => inp.addEventListener('change', () => saveField(inp)));
   $$('input[type=text][data-f]', editor).forEach((inp) => inp.addEventListener('input', () => {
     const type = cur;
     clearTimeout(typing);
     typing = setTimeout(() => saveField(inp, type), 700);
-    showSaveNote();
   }));
   // Its tabs (Media, Sound, Text, Style): the open one stays open from alert to alert, and next time. Arrow keys move between them.
   const tabs = $$('.tabs [role=tab]', editor);
@@ -1057,7 +1026,6 @@ function renderAlert() {
   editor.dataset.key = cur; // the type's colour
   $('.title path', editor).setAttribute('d', TYPE_ICON[cur]);
   $('.name', editor).textContent = S.types[cur];
-  showSaveNote();
   fill(editor, cfg);
   $$('[name=textColorMode]').forEach((r) => (r.checked = (r.value === 'custom') === (cfg.textColor !== null)));
   $('#alertTheme').options[0].textContent = S.panel.sameAsMain.replace('{theme}', S.themes[settings.theme]);

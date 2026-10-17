@@ -367,8 +367,6 @@
     "resetAll": "Reset everything",
     "confirmResetAll": "Click again to confirm",
     "saved": "Saved",
-    "saving": "Saving…",
-    "notSaved": "Not saved",
     "testSent": "Test alert sent to OBS",
     "qIdle": "No alert playing",
     "qNow": "Now playing",
@@ -634,7 +632,7 @@
           ["Preview it", "The preview plays the alert exactly as OBS will, and again after every change. **Replay** plays it once more, **Dark**, **Light** and **Checkered** change only the preview's background, and **Test in OBS** sends it to OBS."],
           ["Media, Sound, Text, Style", "The four tabs under the preview. **Media**: your own image, GIF or video (or the theme's), how long it stays, the minimum amount. **Sound**: the theme's, your own or none, the volume, a video's sound. **Text**: the words (`{user}` `{amount}` `{months}` `{platform}` become the real values), position, size and color. **Style**: a theme for this alert only, and the frame."],
           ["Different media by amount", "In **Media**, Kicks, gifted subs and bits can play their own picture and sound for bigger amounts. Turn it on and upload per amount."],
-          ["No Save button", "Every change saves by itself, text a moment after you stop typing. **Saved** next to **Test in OBS** says it's done."]
+          ["No Save button", "Every change saves by itself, text a moment after you stop typing. A small **Saved** at the bottom of the page says it's done."]
         ],
         "tip": "Real Kick alerts (subs, resubs, gifted subs, Kicks and hosts) come from your Kick channel name in **Chat**, with no login. Real Twitch alerts (subs, resubs, gifted subs, raids and bits) come from your Twitch channel name the same way. Follows need a Kick or Twitch login, which comes later. The **Test** buttons work for every alert."
       },
