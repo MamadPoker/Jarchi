@@ -12,20 +12,65 @@ const remember = {
 const FA = remember.get('jarchi.lang') === 'fa';
 document.documentElement.lang = FA ? 'fa' : 'en';
 document.documentElement.dir = FA ? 'rtl' : 'ltr';
-// Colors: Dark (default), Light, or Same as Windows (the server reads Windows' setting). Picked on the Appearance page.
-const applyTheme = async () => {
-  const mode = remember.get('jarchi.mode') || 'dark';
-  const theme = mode !== 'windows' ? mode : (await fetch('/api/system-theme').then((r) => r.json()).catch(() => ({}))).theme === 'light' ? 'light' : 'dark';
-  document.documentElement.dataset.theme = theme;
-  remember.set('jarchi.theme', theme); // index.html sets it before the first paint
-  $$('[name=mode]').forEach((r) => (r.checked = r.value === mode));
+// Colors, remembered in this browser: the mode (Dark (default), Light, or Same as Windows) and a color theme, picked on
+// the Appearance page (Dark / Light also in the top bar). The server reads Windows' mode and accent color.
+// Color themes: Jarchi is panel.css's own colors; the others are one color each, and panel.css [data-palette] makes the
+// backgrounds, cards and main color from its hue. Windows = the accent color (Jarchi's colors when it can't be read).
+const PALETTES = { jarchi: null, windows: null, teal: '#1f8a85', rose: '#c2416b', ember: '#c0602a', graphite: '#5b6370' };
+let accent; // Windows' accent color (/api/system-theme): undefined until read, null if it can't be
+const palette = () => (Object.hasOwn(PALETTES, remember.get('jarchi.palette')) ? remember.get('jarchi.palette') : 'jarchi');
+const hslRgb = (h, s, l) => { // 0-360, 0-100, 0-100 -> sRGB 0-1
+  const a = (s / 100) * Math.min(l / 100, 1 - l / 100);
+  return [0, 8, 4].map((n) => { const k = (n + h / 30) % 12; return l / 100 - a * Math.max(-1, Math.min(k - 3, 9 - k, 1)); });
 };
-$$('[name=mode]').forEach((r) => (r.onchange = () => {
-  remember.set('jarchi.mode', r.value);
-  applyTheme();
-  toast(S.panel.saved);
-}));
-addEventListener('focus', () => remember.get('jarchi.mode') === 'windows' && applyTheme()); // Windows' setting may have changed meanwhile
+const luminance = (rgb) => rgb.reduce((t, c, i) => t + [0.2126, 0.7152, 0.0722][i] * (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4), 0);
+// A theme's color -> the hue and saturation panel.css works from, and the main color's lightness: as light as Jarchi's
+// green, darker where white text on it would read under 4.5:1 (bright accents like yellow). null: Jarchi's colors.
+function paletteVars(id) {
+  const hex = id === 'windows' ? accent : PALETTES[id];
+  if (!hex) return null;
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
+  const max = Math.max(r, g, b), min = Math.min(r, g, b), d = max - min;
+  const h = (!d ? 0 : max === r ? ((g - b) / d + 6) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4) * 60;
+  const s = Math.min(70, d ? (d / (1 - Math.abs(max + min - 1))) * 100 : 0); // a very bright accent would tint every background
+  let l = 32;
+  while (l > 12 && 1.05 / (luminance(hslRgb(h, s, l)) + 0.05) < 4.5) l--;
+  return { '--h': h.toFixed(1), '--s': `${s.toFixed(1)}%`, '--l': `${l}%` };
+}
+// Put a color theme on an element: <html>, or a mini panel on Appearance.
+function paint(e, id) {
+  const vars = paletteVars(id);
+  if (vars) e.dataset.palette = id;
+  else delete e.dataset.palette;
+  for (const k of ['--h', '--s', '--l']) vars ? e.style.setProperty(k, vars[k]) : e.style.removeProperty(k);
+  return vars;
+}
+// The mini panels on Appearance: the mode cards in the color theme, the color cards in the mode shown now.
+function paintMinis() {
+  $$('.modes:not(.palettes) .mini[data-theme]').forEach((m) => paint(m, palette()));
+  $$('#palettes .mini').forEach((m) => {
+    m.dataset.theme = document.documentElement.dataset.theme;
+    paint(m, m.dataset.id);
+  });
+}
+const applyTheme = async () => {
+  const mode = remember.get('jarchi.mode') || 'dark', id = palette();
+  const sys = mode === 'windows' || id === 'windows' || accent === undefined ? await fetch('/api/system-theme').then((r) => r.json()).catch(() => ({})) : {};
+  if (sys.theme) accent = sys.accent;
+  const theme = mode !== 'windows' ? mode : sys.theme === 'light' ? 'light' : 'dark';
+  const de = document.documentElement;
+  de.dataset.theme = theme;
+  remember.set('jarchi.theme', theme); // index.html puts these on before the first paint
+  remember.set('jarchi.paint', JSON.stringify({ id, ...paint(de, id) }));
+  $$('[name=mode]').forEach((r) => (r.checked = r.value === mode));
+  $$('[name=palette]').forEach((r) => (r.checked = r.value === id));
+  $$('.mode button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.mode === mode))); // Same as Windows: neither
+  paintMinis();
+};
+const setLook = (key, value) => (remember.set(key, value), applyTheme());
+$$('[name=mode]').forEach((r) => (r.onchange = () => (setLook('jarchi.mode', r.value), toast(S.panel.saved))));
+$$('.mode button').forEach((b) => (b.onclick = () => setLook('jarchi.mode', b.dataset.mode)));
+addEventListener('focus', () => [remember.get('jarchi.mode'), palette()].includes('windows') && applyTheme()); // Windows' settings may have changed meanwhile
 applyTheme();
 // Persian digits (and ٪ ٫) in labels; inputs keep theirs.
 const fd = (v) => (FA ? String(v).replace(/(?<=\d)\.(?=\d)/g, '٫').replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[d]).replace(/%/g, '٪') : String(v));
@@ -242,24 +287,14 @@ const previewAmount = () => (samples[cur].amount > 0 ? Number($('#previewAmount'
 
 const post = (frame, s, event, muted, hold = false) => frame.contentWindow?.postMessage({ strings: EN, settings: s, event, muted, hold }, location.origin);
 
-// opening: the page was just opened (Appearance plays its alert muted then).
-function preview(opening) {
+function preview() {
   if (view === 'alert') post($('#preview'), settings, sample(cur, previewAmount()), !$('#previewSound').checked);
-  if (view === 'appearance') playLook(settings.theme, opening);
 }
 
 // Theme cards: the sub alert in that theme with its own look and sound; it stays on the card (hold) until the next play.
-function playTile(frame, muted = true, extra = {}) {
+function playTile(frame, muted = true) {
   const sub = { ...settings.alerts.sub, theme: null, image: null, soundMode: 'theme', frame: 'theme', textColor: null, textPos: 'below', textAlign: 'center' };
-  post(frame, { theme: frame.dataset.theme, alerts: { sub }, ...extra }, sample('sub'), muted, true);
-}
-// Appearance: the same card in a theme (the main one, or the one pointed at), with the platform badge as OBS shows it.
-function playLook(theme, muted = false) {
-  const f = $('#lookPreview');
-  f.dataset.theme = theme;
-  playTile(f, muted, { showBadge: settings.showBadge, connected: settings.connected });
-  $('#lookSwatch').className = `swatch sw-${theme}`;
-  $('#lookName').textContent = S.themes[theme];
+  post(frame, { theme: frame.dataset.theme, alerts: { sub } }, sample('sub'), muted, true);
 }
 
 // Style thumbnails: each style's own look with this goal's title and sample numbers.
@@ -301,7 +336,7 @@ function select(v, key) {
   $$('.nav-item').forEach((b) => b.setAttribute('aria-current', b.dataset.view === page ? 'page' : 'false'));
   $('#pageTitle').textContent = $(`.nav-item[data-view="${page}"] [data-i18n]`).textContent;
   render();
-  preview(true);
+  preview();
   if (v === 'theme') $$('.theme-tile iframe').forEach((f) => playTile(f));
   if (v === 'chat') {
     fitChat();
@@ -734,18 +769,15 @@ function build() {
     r.onchange = () => setLang(r.value);
   });
 
-  // Appearance: a chip per theme. Pointing at one (or focus) previews it muted, a click uses it; leaving the chips
-  // shows the main theme again. The mini alert follows every change (preview()).
-  $('#themeChips').append(...Object.entries(S.themes).map(([id, name]) => {
-    const b = el('button', { className: 'theme-chip', onclick: () => send('PATCH', '/api/settings', { theme: id }), onmouseenter: () => playLook(id, true), onfocus: () => playLook(id, true) },
-      el('span', { className: `swatch sw-${id}` }), el('span', { textContent: name }));
-    b.dataset.theme = id;
-    return b;
+  // Appearance: a card per color theme, with a mini panel in it (paintMinis()).
+  $('#palettes').append(...Object.keys(PALETTES).map((id) => {
+    const mini = el('span', { className: 'mini' }, el('i'), el('i'), el('i'));
+    mini.dataset.id = id;
+    return el('label', { className: 'mode-card' },
+      el('input', { type: 'radio', name: 'palette', value: id, checked: id === palette(), onchange: () => (setLook('jarchi.palette', id), toast(S.panel.saved)) }),
+      el('span', { className: 'mode-body' }, mini, el('span', { textContent: S.panel.palettes[id] })));
   }));
-  const backToMain = (e) => { if (!$('#themeChips').contains(e.relatedTarget) && $('#lookPreview').dataset.theme !== settings.theme) playLook(settings.theme, true); };
-  $('#themeChips').onmouseleave = $('#themeChips').onfocusout = backToMain;
-  $('#lookPlay').onclick = () => playLook(settings.theme);
-  $('#lookPreview').onload = () => view === 'appearance' && playLook(settings.theme, true);
+  paintMinis();
 
   // Guide: one button per topic.
   $('#guideTopics').append(...Object.entries(S.guide.topics).map(([id, t]) => {
@@ -1028,7 +1060,6 @@ function render() {
   $('#showBadge').checked = settings.showBadge;
   $('#connectedList').textContent = settings.connected.map((p) => S.platforms[p]).join(FA ? '، ' : ', ') || S.panel.connectedNone;
   if (view === 'settings') renderSettings();
-  if (view === 'appearance') renderAppearance();
   if (view === 'alert') renderAlert();
   if (view === 'goal') renderGoal();
   if (view === 'chat') renderChat();
@@ -1045,14 +1076,6 @@ function renderSettings() {
   $$('[name=proxyType]').forEach((r) => (r.checked = r.value === settings.proxyType));
   const show = { proxySystem: settings.proxyMode === 'system', proxyManual: settings.proxyMode === 'manual' };
   $$('[data-only]', ed).forEach((e) => (e.hidden = !show[e.dataset.only]));
-}
-
-// Appearance: the main theme's chip, and where the chat's and each goal's own style is changed.
-function renderAppearance() {
-  $$('.theme-chip').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.theme === settings.theme)));
-  const own = (name, style, open) => el('button', { className: 'own-style', onclick: open }, el('b', { textContent: name }), el('small', { textContent: style }));
-  $('#ownStyles').replaceChildren(own(S.panel.chatName, S.chatStyles[settings.chat.style], () => select('chat')),
-    ...Object.entries(settings.goals).map(([id, g]) => own(S.goals[id].name, S.goalStyles[g.style], () => select('goal', id))));
 }
 
 function renderChat() {

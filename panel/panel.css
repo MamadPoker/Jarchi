@@ -1,6 +1,7 @@
 /* Panel colors: every color the panel uses lives here. Dark is the default; data-theme="light" on <html> swaps them
-   (set by panel.js: Dark, Light, or Same as Windows). Green = active menu items, progress. Gold = main buttons, switches (on), highlights.
-   data-theme="dark" / "light" on any element gives it that mode's colors too (the mode cards on Appearance). */
+   (set by panel.js: Dark, Light, or Same as Windows). Main (Jarchi green) = active menu items, selected options, progress.
+   Gold = main buttons, switches (on), highlights: the same gold in every color theme (the [data-palette] blocks below).
+   data-theme="dark" / "light" on any element gives it that mode's colors too (the mode and color cards on Appearance). */
 :root, [data-theme="dark"] {
   --bg: #0a110d;
   --sidebar: #0d1611;
@@ -12,8 +13,8 @@
   --text: #e8efe9;
   --muted: #8ea596;
   --label: #b9c9be; /* sidebar group titles: between muted and text */
-  --green: #2c7550;
-  --green-soft: rgba(44, 117, 80, 0.22);
+  --main: #2c7550;
+  --main-soft: rgba(44, 117, 80, 0.22);
   --gold: #d6a83e;
   --gold-text: #d6a83e; /* gold words on the page */
   --gold-soft: rgba(214, 168, 62, 0.07);
@@ -43,7 +44,7 @@
   --preview-dark: #0e0e10; /* the alert preview's Dark / Light backgrounds, the same in both themes */
   --preview-light: #f2f2ee;
   color-scheme: dark;
-  accent-color: var(--green); /* native checkboxes */
+  accent-color: var(--main); /* native checkboxes */
 }
 :root[data-theme="light"], [data-theme="light"] {
   --bg: #d8d6cc;
@@ -60,13 +61,13 @@
   --goal-kicks: #2a7d0b;
   --goal-followers: #257a49;
   --kick-mark: #2a7d0b;
-  --green: #17543a;
-  --green-soft: rgba(23, 84, 58, 0.14);
+  --main: #17543a;
+  --main-soft: rgba(23, 84, 58, 0.14);
   --gold: #b8871f;
   --gold-text: #7d5a12;
   --gold-soft: rgba(184, 135, 31, 0.12);
   --gold-line: rgba(184, 135, 31, 0.45);
-  --focus: var(--green);
+  --focus: var(--main);
   --danger: #c0263f;
   --danger-line: rgba(192, 38, 63, 0.4);
   --danger-text: #9f1d33;
@@ -80,6 +81,44 @@
   --swatch-edge: rgba(0, 0, 0, 0.15);
   --shadow: rgba(40, 50, 40, 0.22);
   color-scheme: light;
+}
+/* Color themes other than Jarchi (Appearance): backgrounds, cards and the main color from one hue. panel.js puts
+   data-palette and --h (hue), --s (saturation, at most 70%), --l (the main color's lightness, dark enough for white text)
+   on <html> and on the cards' mini panels. Gold, danger, ok, warn and the goal colors stay as above. */
+[data-palette] {
+  --bg: hsl(var(--h) calc(var(--s) * 0.55) 5.5%);
+  --sidebar: hsl(var(--h) calc(var(--s) * 0.55) 7%);
+  --card: hsl(var(--h) calc(var(--s) * 0.5) 9%);
+  --card2: hsl(var(--h) calc(var(--s) * 0.5) 11.5%);
+  --border: hsl(var(--h) calc(var(--s) * 0.5) 16.5%);
+  --border-hi: hsl(var(--h) calc(var(--s) * 0.5) 23.5%);
+  --hover: hsl(var(--h) calc(var(--s) * 0.5) 14.5%);
+  --text: hsl(var(--h) calc(var(--s) * 0.4) 92.5%);
+  --muted: hsl(var(--h) calc(var(--s) * 0.25) 62%);
+  --label: hsl(var(--h) calc(var(--s) * 0.28) 76%);
+  --main: hsl(var(--h) var(--s) var(--l));
+  --main-soft: hsl(var(--h) var(--s) var(--l) / 0.22);
+  --topbar: hsl(var(--h) calc(var(--s) * 0.55) 5.5% / 0.92);
+  --glass: hsl(var(--h) calc(var(--s) * 0.55) 5.5% / 0.85);
+  --checker-a: hsl(var(--h) calc(var(--s) * 0.4) 10.5%);
+  --checker-b: hsl(var(--h) calc(var(--s) * 0.45) 7.8%);
+}
+[data-palette][data-theme="light"] {
+  --bg: hsl(var(--h) calc(var(--s) * 0.3) 83%);
+  --sidebar: hsl(var(--h) calc(var(--s) * 0.3) 80%);
+  --card: hsl(var(--h) calc(var(--s) * 0.3) 88%);
+  --card2: hsl(var(--h) calc(var(--s) * 0.3) 84.5%);
+  --border: hsl(var(--h) calc(var(--s) * 0.25) 74%);
+  --border-hi: hsl(var(--h) calc(var(--s) * 0.2) 62%);
+  --hover: hsl(var(--h) calc(var(--s) * 0.35) 91%);
+  --text: hsl(var(--h) calc(var(--s) * 0.6) 10%);
+  --muted: hsl(var(--h) calc(var(--s) * 0.25) 36%);
+  --label: hsl(var(--h) calc(var(--s) * 0.3) 23%);
+  --main: hsl(var(--h) var(--s) calc(var(--l) - 8%));
+  --main-soft: hsl(var(--h) var(--s) calc(var(--l) - 8%) / 0.14);
+  --topbar: hsl(var(--h) calc(var(--s) * 0.3) 83% / 0.92);
+  --glass: hsl(var(--h) calc(var(--s) * 0.3) 88% / 0.9);
+  --shadow: hsl(var(--h) calc(var(--s) * 0.2) 20% / 0.22);
 }
 /* Fonts (assets/fonts, OFL): Manrope for Latin, Vazirmatn for Persian (Manrope has no Persian letters, so they fall through to it). */
 @font-face { font-family: "Manrope"; src: url("/assets/fonts/manrope/Manrope-Variable.ttf") format("truetype"); font-weight: 200 800; font-display: swap; }
@@ -141,22 +180,22 @@ input[type="range"] { -webkit-appearance: none; appearance: none; width: 100%; h
 input[type="range"]::-webkit-slider-runnable-track {
   height: 6px;
   border-radius: 99px;
-  background: linear-gradient(var(--green), var(--green)) 0 / var(--fill, 50%) 100% no-repeat, var(--border);
+  background: linear-gradient(var(--main), var(--main)) 0 / var(--fill, 50%) 100% no-repeat, var(--border);
 }
 input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
   width: 18px;
   height: 18px;
   margin-top: -6px;
-  border: 3px solid var(--green);
+  border: 3px solid var(--main);
   border-radius: 50%;
   background: var(--on-color);
   box-shadow: 0 1px 4px var(--shadow);
 }
 [dir="rtl"] input[type="range"]::-webkit-slider-runnable-track { background-position: 100% 0; } /* the range runs right to left */
 input[type="range"]::-moz-range-track { height: 6px; border-radius: 99px; background: var(--border); }
-input[type="range"]::-moz-range-progress { height: 6px; border-radius: 99px; background: var(--green); }
-input[type="range"]::-moz-range-thumb { width: 12px; height: 12px; border: 3px solid var(--green); border-radius: 50%; background: var(--on-color); }
+input[type="range"]::-moz-range-progress { height: 6px; border-radius: 99px; background: var(--main); }
+input[type="range"]::-moz-range-thumb { width: 12px; height: 12px; border: 3px solid var(--main); border-radius: 50%; background: var(--on-color); }
 
 input[type="color"] { width: 100%; height: 38px; padding: 3px; border: 1px solid var(--border); border-radius: 10px; background: var(--card2); cursor: pointer; }
 input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
@@ -169,7 +208,7 @@ input[type="color"]::-webkit-color-swatch { border: 0; border-radius: 7px; }
 .seg input { position: absolute; width: 1px; height: 1px; opacity: 0; }
 .seg span { display: block; padding: 5px 11px; border-radius: 7px; color: var(--muted); font-size: 13px; font-weight: 600; cursor: pointer; }
 .seg span:hover { color: var(--text); }
-.seg input:checked + span { background: var(--green); color: var(--on-color); }
+.seg input:checked + span { background: var(--main); color: var(--on-color); }
 .seg input:focus-visible + span { outline: 2px solid var(--focus); }
 
 .switch { position: relative; flex: none; width: 40px; height: 22px; }
@@ -214,7 +253,7 @@ input[type="color"]::-webkit-color-swatch { border: 0; border-radius: 7px; }
 [lang="fa"] .nav .group-title { font-size: 13px; }
 .nav-item { gap: 12px; padding: 9px 10px; border: 0; background: none; color: var(--muted); text-align: start; }
 .nav-item:hover { background: var(--hover); color: var(--text); }
-.nav-item[aria-current="page"] { background: var(--green-soft); color: var(--text); }
+.nav-item[aria-current="page"] { background: var(--main-soft); color: var(--text); }
 .nav-item svg { width: 18px; height: 18px; }
 .nav-item .q-count { margin-inline-start: auto; background: var(--gold); color: var(--on-gold); }
 [dir="rtl"] .flip { transform: scaleX(-1); } /* list bullets, and the Persian question mark, on the other side */
@@ -260,7 +299,7 @@ input[type="color"]::-webkit-color-swatch { border: 0; border-radius: 7px; }
 .nav-list { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; }
 .nav-row { display: flex; align-items: center; gap: 8px; padding-inline-end: 10px; border-radius: 10px; }
 .nav-row:hover { background: var(--hover); }
-.nav-row.active { background: var(--green-soft); }
+.nav-row.active { background: var(--main-soft); }
 .nav-btn { flex: 1; min-width: 0; padding: 9px 10px; border: 0; background: none; text-align: start; }
 .nav-btn:hover { background: none; }
 .nav-row.off .nav-btn { color: var(--muted); }
@@ -274,8 +313,8 @@ input.count-input:hover, input.count-input:focus { border-color: var(--border-hi
 .goal-count .from-kick { margin-inline-start: 4px; }
 input.count-input[readonly]:hover { border-color: transparent; background: transparent; }
 /* "Sync from Kick" under the goals; Kick's K ("From Kick" tooltip) marks numbers that come from Kick (read-only). */
-.kick-sync { display: grid; gap: 4px; margin-top: 8px; padding: 10px 10px 2px; border-top: 1px solid var(--border); }
-.kick-sync small { font-size: 12px; line-height: 1.4; }
+.list-foot { display: grid; gap: 4px; margin-top: 8px; padding: 10px 10px 2px; border-top: 1px solid var(--border); }
+.list-foot small { font-size: 12px; line-height: 1.4; }
 .from-kick { display: inline-grid; place-items: center; flex: none; color: var(--kick-mark); cursor: help; }
 .from-kick svg { width: 13px; height: 13px; }
 .kick-k { fill: currentColor; stroke: none; } /* a filled logo, not a line icon */
@@ -425,9 +464,9 @@ main { padding: 24px 28px 64px; container-type: inline-size; } /* editor rules b
 /* ---------- Home: banner, live feed | widgets, goals, today's numbers ---------- */
 .view.home { max-width: 1340px; }
 .banner { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; padding: 18px 20px; border: 1px solid var(--warn-line); border-radius: 14px; background: var(--card); }
-.banner.ready { border-color: var(--green); background: linear-gradient(var(--green-soft), var(--green-soft)), var(--card); }
+.banner.ready { border-color: var(--main); background: linear-gradient(var(--main-soft), var(--main-soft)), var(--card); }
 .banner-icon { display: grid; place-items: center; width: 44px; height: 44px; flex: none; border-radius: 50%; background: var(--warn-soft); color: var(--warn); }
-.banner.ready .banner-icon { background: var(--green); color: var(--on-color); }
+.banner.ready .banner-icon { background: var(--main); color: var(--on-color); }
 .banner-icon svg { width: 24px; height: 24px; stroke-width: 2.5; }
 .banner .i-ok, .banner.ready .i-warn { display: none; }
 .banner.ready .i-ok { display: block; }
@@ -449,7 +488,7 @@ main { padding: 24px 28px 64px; container-type: inline-size; } /* editor rules b
 .home-side { display: grid; gap: 18px; }
 .filters { display: flex; flex-wrap: wrap; gap: 6px; }
 .filters button { padding: 4px 12px; border-radius: 99px; background: none; color: var(--muted); font-size: 13px; }
-.filters button[aria-pressed="true"] { border-color: transparent; background: var(--green); color: var(--on-color); }
+.filters button[aria-pressed="true"] { border-color: transparent; background: var(--main); color: var(--on-color); }
 .feed-list { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; }
 .feed-row { display: flex; align-items: center; gap: 12px; min-width: 0; padding: 8px; border-radius: 10px; }
 .feed-row:hover { background: var(--hover); }
@@ -462,14 +501,14 @@ main { padding: 24px 28px 64px; container-type: inline-size; } /* editor rules b
 .widget-row { display: flex; align-items: center; gap: 12px; padding: 6px 0; }
 .widget-row .stack { flex: 1; gap: 0; line-height: 1.3; }
 .state-dot { width: 10px; height: 10px; flex: none; border-radius: 50%; background: var(--border-hi); }
-.widget-row.on .state-dot { background: var(--ok); box-shadow: 0 0 0 3px var(--green-soft); }
+.widget-row.on .state-dot { background: var(--ok); box-shadow: 0 0 0 3px var(--main-soft); }
 .icon-btn { padding: 7px; }
 
 .home-goals { display: grid; gap: 16px; }
 .home-goal { display: grid; gap: 8px; }
 .home-goal .row { flex-wrap: nowrap; }
 .goal-bar { height: 8px; overflow: hidden; border-radius: 99px; background: var(--border); }
-.goal-bar i { display: block; height: 100%; border-radius: inherit; background: var(--goal, var(--green)); }
+.goal-bar i { display: block; height: 100%; border-radius: inherit; background: var(--goal, var(--main)); }
 .stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
 .stats > div { display: grid; align-content: start; gap: 2px; padding: 12px 8px; border: 1px solid var(--border); border-radius: 14px; background: var(--card); text-align: center; }
 .stats b { font-size: 20px; }
@@ -562,9 +601,9 @@ input.num { width: 110px; }
 
 /* Now playing: the alert, then a bar that fills up over the time it has left. */
 .q-now .q-item { padding: 10px; border: 1px solid var(--border); border-radius: 12px; background: var(--bg); }
-#queue[data-state="playing"] .q-now .q-item { border-color: var(--green); }
+#queue[data-state="playing"] .q-now .q-item { border-color: var(--main); }
 .q-bar { height: 4px; overflow: hidden; border-radius: 99px; background: var(--border); }
-.q-bar i { display: block; width: 0; height: 100%; border-radius: inherit; background: var(--green); }
+.q-bar i { display: block; width: 0; height: 100%; border-radius: inherit; background: var(--main); }
 #queue:not([data-state="playing"]) .q-bar { visibility: hidden; }
 
 .q-buttons { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -629,13 +668,15 @@ button:disabled { opacity: 0.4; cursor: default; pointer-events: none; }
 code { padding: 1px 6px; border-radius: 6px; background: var(--card2); font: 0.9em Consolas, ui-monospace, monospace; overflow-wrap: anywhere; }
 #tip code { background: var(--bg); }
 
-/* ---------- Top bar: language switch ---------- */
-.lang { display: flex; gap: 2px; padding: 3px; border: 1px solid var(--border); border-radius: 10px; background: var(--card2); }
-.lang button { padding: 4px 10px; border: 0; border-radius: 7px; background: none; color: var(--muted); font-size: 13px; }
-.lang button:hover { color: var(--text); }
-.lang button[aria-pressed="true"] { background: var(--green); color: var(--on-color); }
+/* ---------- Top bar: dark / light and language switches ---------- */
+.lang, .mode { display: flex; gap: 2px; padding: 3px; border: 1px solid var(--border); border-radius: 10px; background: var(--card2); }
+.lang button, .mode button { padding: 4px 10px; border: 0; border-radius: 7px; background: none; color: var(--muted); font-size: 13px; }
+.mode button { padding-block: 6px; } /* an icon: as tall as the FA / EN text */
+.mode svg { width: 15px; height: 15px; }
+.lang button:hover, .mode button:hover { color: var(--text); }
+.lang button[aria-pressed="true"], .mode button[aria-pressed="true"] { background: var(--main); color: var(--on-color); }
 
-/* ---------- Appearance: the panel's mode and language, the widgets' shared look next to a live mini alert ---------- */
+/* ---------- Appearance: the panel's mode, color theme and language ---------- */
 .view.appearance { max-width: 980px; }
 .card-head { display: flex; align-items: center; gap: 12px; }
 .card-icon { display: grid; place-items: center; width: 36px; height: 36px; flex: none; border-radius: 10px; background: var(--gold-soft); color: var(--gold-text); }
@@ -659,24 +700,16 @@ code { padding: 1px 6px; border-radius: 6px; background: var(--card2); font: 0.9
 .mini.split { border: 0; background: none; } /* Same as Windows: half dark, half light */
 .mini.split .mini { position: absolute; inset: 0; height: auto; }
 .mini.split .mini + .mini { clip-path: polygon(100% 0, 100% 100%, 0 100%); }
-.look-body { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 18px; align-items: start; }
-.look-settings { display: grid; gap: 16px; }
-.look-stage { gap: 0; }
-.look-stage .preview { width: min(100%, 420px); }
-.theme-chips { display: flex; flex-wrap: wrap; gap: 6px; }
-.theme-chip { gap: 7px; padding: 5px 11px; padding-inline-start: 8px; color: var(--muted); font-size: 13px; }
-.theme-chip:hover { color: var(--text); }
-.theme-chip[aria-pressed="true"] { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold); color: var(--text); }
-.own-style { gap: 6px; padding: 5px 11px; font-size: 13px; }
-.own-style small { font-size: 12px; font-weight: 500; }
+.mini i:nth-child(1)::before { content: ""; position: absolute; top: 10px; inset-inline: 4px; height: 8px; border-radius: 3px; background: var(--main); } /* the open page */
+.modes.palettes { grid-template-columns: repeat(6, minmax(0, 1fr)); max-width: none; }
 
 /* ---------- Guide: topic list + the topic (intro, numbered step cards, tip, questions) ---------- */
 .guide { display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 24px; align-items: start; }
 .guide-topics { position: sticky; top: 84px; display: grid; gap: 2px; }
 .guide-topics button { padding: 9px 12px; border: 0; background: none; color: var(--muted); text-align: start; }
 .guide-topics button:hover { background: var(--card2); color: var(--text); }
-.guide-topics button[aria-current="true"] { background: var(--green-soft); color: var(--text); box-shadow: inset 3px 0 0 var(--green); }
-[dir="rtl"] .guide-topics button[aria-current="true"] { box-shadow: inset -3px 0 0 var(--green); }
+.guide-topics button[aria-current="true"] { background: var(--main-soft); color: var(--text); box-shadow: inset 3px 0 0 var(--main); }
+[dir="rtl"] .guide-topics button[aria-current="true"] { box-shadow: inset -3px 0 0 var(--main); }
 .guide-body { display: grid; gap: 14px; max-width: 760px; }
 .guide-body h2 { font-size: 20px; }
 .guide-body p { margin: 0; }
@@ -701,10 +734,11 @@ code { padding: 1px 6px; border-radius: 6px; background: var(--card2); font: 0.9
   .more-grid, .more-grid.three { grid-template-columns: 1fr; }
   .style-grid, .style-grid.five { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .cols4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .guide, .home-grid, .look-body { grid-template-columns: 1fr; gap: 16px; }
+  .guide, .home-grid { grid-template-columns: 1fr; gap: 16px; }
+  .modes.palettes { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .guide-topics { position: static; display: flex; flex-wrap: wrap; gap: 6px; }
   .guide-topics button { border: 1px solid var(--border); border-radius: 99px; }
-  .guide-topics button[aria-current="true"], [dir="rtl"] .guide-topics button[aria-current="true"] { border-color: var(--green); box-shadow: none; }
+  .guide-topics button[aria-current="true"], [dir="rtl"] .guide-topics button[aria-current="true"] { border-color: var(--main); box-shadow: none; }
 }
 @media (max-width: 860px) {
   /* The sidebar on top: brand and pages in rows. */
