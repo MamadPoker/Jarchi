@@ -127,6 +127,18 @@ async function drain() {
   }
   draining = false;
 }
+// The streamer's own pictures (the panel's background art): { kick, twitch } for the channels set, null where none.
+// Same cache as the chatters'; a failed lookup is tried again next time.
+async function streamer() {
+  const c = settings.get().chat;
+  const one = async (platform, login) => {
+    const key = `${platform}:${login.toLowerCase()}`;
+    if (login && !avatars.get(key)) avatars.set(key, await (platform === 'kick' ? kick.avatar(login) : twitchBadges.avatar(login)).catch(() => null));
+    return (login && avatars.get(key)) || null;
+  };
+  const [k, t] = await Promise.all([one('kick', c.kickChannel), one('twitch', c.twitchChannel)]);
+  return { kick: k, twitch: t };
+}
 function announceAvatar(msg, url) {
   for (const m of recent) if (m.platform === msg.platform && m.user.login === msg.user.login) m.user.avatar = url;
   bus.emit('chatAvatar', { platform: msg.platform, login: msg.user.login, avatar: url });
@@ -287,4 +299,4 @@ function thumbs() {
   return [plain.twitch(viewer), fx.sub(), fx.first(), fx.vip(), fx.mention()].map((m) => chatMessage({ ...m, test: true }));
 }
 
-module.exports = { sync, restart, check, test, thumbs, timing, status: () => status, recent: () => recent, events: chat };
+module.exports = { sync, restart, check, test, thumbs, timing, streamer, status: () => status, recent: () => recent, events: chat };

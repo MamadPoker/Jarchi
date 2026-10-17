@@ -867,7 +867,7 @@ code { padding: 1px 6px; border-radius: 6px; background: var(--card2); font: 0.9
 .lang button:hover, .mode button:hover { color: var(--text); }
 .lang button[aria-pressed="true"], .mode button[aria-pressed="true"] { background: var(--main-fill); color: var(--on-main); }
 
-/* ---------- Appearance: the panel's color theme, text size, compact mode and language ---------- */
+/* ---------- Appearance: the panel's color theme, text size, background art and language ---------- */
 .view.appearance { max-width: 980px; }
 .look-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 18px; }
 .card-head .switch { margin-inline-start: auto; }
@@ -894,32 +894,41 @@ code { padding: 1px 6px; border-radius: 6px; background: var(--card2); font: 0.9
 .mini i:nth-child(2)::after { top: 17px; width: 34%; background: var(--muted); }
 .mini i:nth-child(3) { bottom: 16px; inset-inline-end: 14px; width: 20%; height: 8px; border-radius: 99px; background: var(--gold); }
 .mini i:nth-child(1)::before { content: ""; position: absolute; top: 10px; inset-inline: 4px; height: 8px; border-radius: 3px; background: var(--main); } /* the open page */
+.mini svg { position: absolute; top: 14px; inset-inline-end: 13px; width: 14px; height: 14px; color: var(--text); } /* System: a PC */
 /* Text size and language cards: a sample in the card's size or language. */
 .sample { display: grid; place-items: center; height: 62px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text); font-size: 19px; font-weight: 700; line-height: 1; }
-.sample.small { font-size: 15px; }
+.sample.small { font-size: 17px; }
 .sample.large { font-size: 24px; }
 
 /* Text size (Appearance): the sidebar's contents and the page, zoomed. Not .app or .side themselves: zoom scales their
    100vh too. The tooltip and the toast keep their size. */
-:root[data-size="small"] { --zoom: 0.9; }
+:root[data-size="small"] { --zoom: 0.95; }
 :root[data-size="large"] { --zoom: 1.15; }
 .side > *, .page { zoom: var(--zoom, 1); }
 
-/* Compact mode (Appearance): less space around and between things. :where() keeps each rule as specific as the one it
-   shrinks, so the more specific ones (pills, small buttons) stay as they are. */
-:where([data-compact]) main { padding: 14px 18px 40px; }
-:where([data-compact]) .view, :where([data-compact]) .editor, :where([data-compact]) .split-body,
-:where([data-compact]) .home-grid, :where([data-compact]) .home-side, :where([data-compact]) .look-grid { gap: 12px; }
-:where([data-compact]) .box { gap: 8px; padding: 12px; }
-:where([data-compact]) .field { gap: 4px; }
-:where([data-compact]) .row, :where([data-compact]) .cols { gap: 8px; }
-:where([data-compact]) .topbar { height: 50px; }
-:where([data-compact]) .side { padding: 10px; }
-:where([data-compact]) .brand { padding-bottom: 12px; }
-:where([data-compact]) .nav-item, :where([data-compact]) .nav-btn { padding-block: 6px; }
-:where([data-compact]) .nav .group-title { margin-block: 8px 4px; padding-top: 8px; }
-:where([data-compact]) button { padding: 6px 12px; }
-:where([data-compact]) .feed-row { padding-block: 5px; }
+/* Background art (Appearance): behind everything, never in the mouse's way. panel.js places, sizes, blurs and moves each
+   item; the outline icons take the theme's main color or gold, the logos and pictures keep their own. */
+.bg-art { position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; }
+:root:not([data-art]) .bg-art { display: none; }
+:root[data-theme="light"] .bg-art { opacity: 0.6; } /* dark shapes stand out more on a light page; muted text right over one keeps 3:1 or more */
+.bg-art > * { position: absolute; top: 0; left: 0; will-change: transform; animation: art-in 1.5s ease-out; }
+.bg-art svg { width: 100%; height: 100%; stroke-width: 1.5; }
+.bg-art .main { color: var(--main); }
+.bg-art .gold { color: var(--gold); }
+.bg-art .pic { border: 2px solid; border-radius: 50%; object-fit: cover; }
+@keyframes art-in { from { opacity: 0; } }
+/* With the art on, the sidebar, the top bar and the cards let it show through a little, blurred. At 88% the text on them
+   stays within about 0.2 of its contrast on a solid card, in every theme and mode. Without color-mix: solid. */
+@supports (background: color-mix(in srgb, red 50%, transparent)) {
+  :where(:root[data-art]) { --card-see: color-mix(in srgb, var(--card) 88%, transparent); }
+  :where(:root[data-art]) .side { background: color-mix(in srgb, var(--sidebar) 88%, transparent); backdrop-filter: blur(12px); }
+  :where(:root[data-art]) .topbar { background: color-mix(in srgb, var(--topbar) 88%, transparent); }
+  :where(:root[data-art]) :is(.box, .list, .more, .theme-row, .banner, .stats > div, .step, .faq) { background: var(--card-see); backdrop-filter: blur(12px); }
+  :where(:root[data-art]) .theme-row:hover { background: var(--card-see); }
+  :where(:root[data-art]) .banner.ready { background: linear-gradient(var(--main-soft), var(--main-soft)), var(--card-see); }
+  :where(:root[data-art]) .banner { position: relative; z-index: 1; } /* the blur makes it a layer: its OBS links menu stays over the cards below */
+  .more-grid .box { backdrop-filter: none; } /* solid, inside a card already */
+}
 
 /* ---------- Guide: topic list + the topic (intro, numbered step cards, tip, questions) ---------- */
 .guide { display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 24px; align-items: start; }

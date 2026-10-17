@@ -45,6 +45,8 @@ test('migration, settings, uploads, reset, events', async () => {
   // The panel's System colors: Windows' accent color from the registry, null where it can't be read.
   const { accent } = await (await call('GET', '/api/accent')).json();
   assert.ok(accent === null || /^#[0-9a-f]{6}$/.test(accent), accent);
+  // Background art: no channels set, no profile pictures (and no lookups).
+  assert.deepEqual(await (await call('GET', '/api/streamer')).json(), { kick: null, twitch: null });
   assert.equal(s.theme, 'fun');
   assert.equal(s.alerts.sub.soundMode, 'custom');
   assert.equal(s.alerts.sub.volume, 0.4);

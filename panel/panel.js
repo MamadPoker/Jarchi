@@ -13,7 +13,7 @@ const FA = remember.get('jarchi.lang') === 'fa';
 document.documentElement.lang = FA ? 'fa' : 'en';
 document.documentElement.dir = FA ? 'rtl' : 'ltr';
 // The panel's look, remembered in this browser: Dark (default) or Light (jarchi.theme, the top bar); on Appearance a color
-// theme (jarchi.palette), the text size (jarchi.size) and compact mode (jarchi.compact). index.html puts them on <html>
+// theme (jarchi.palette), the text size (jarchi.size) and the background art (jarchi.art). index.html puts them on <html>
 // before the first paint; panel.css has each theme's colors. A saved theme that no longer exists is Jarchi.
 const PALETTES = ['jarchi', 'system', 'graphite', 'ocean', 'wine', 'aurora', 'obsidian'];
 const SIZES = ['small', 'normal', 'large'];
@@ -43,25 +43,31 @@ const applyLook = () => {
   const de = document.documentElement;
   de.dataset.theme = remember.get('jarchi.theme') === 'light' ? 'light' : 'dark';
   de.dataset.size = SIZES.includes(remember.get('jarchi.size')) ? remember.get('jarchi.size') : 'normal';
-  de.toggleAttribute('data-compact', remember.get('jarchi.compact') === '1');
+  de.toggleAttribute('data-art', remember.get('jarchi.art') !== '0');
   for (const k of ['--h', '--s', '--l']) accent ? de.style.setProperty(k, accent[k]) : de.style.removeProperty(k);
   show(palette());
   $$('[name=palette]').forEach((r) => (r.checked = r.value === palette()));
   $$('[name=size]').forEach((r) => (r.checked = r.value === de.dataset.size));
-  $('#compact').checked = de.hasAttribute('data-compact');
+  $('#bgArtOn').checked = de.hasAttribute('data-art');
   $$('.mode button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.mode === de.dataset.theme)));
   $$('#palettes .mini').forEach((m) => Object.assign(m.dataset, { theme: de.dataset.theme, palette: shown(m.dataset.id) })); // in the mode shown now
 };
 const setLook = (key, value) => (remember.set(key, value), applyLook());
 const readAccent = () => fetch('/api/accent').then((r) => r.json()).then((r) => {
-  accent = r.accent ? accentVars(r.accent) : null;
+  const next = r.accent ? accentVars(r.accent) : null;
+  if (JSON.stringify(next) === JSON.stringify(accent)) return;
+  accent = next;
   remember.set('jarchi.accent', JSON.stringify(accent));
   applyLook();
 }).catch(() => {});
 $$('.mode button').forEach((b) => (b.onclick = () => setLook('jarchi.theme', b.dataset.mode)));
 $$('[name=size]').forEach((r) => (r.onchange = () => (setLook('jarchi.size', r.value), toast(S.panel.saved))));
-$('#compact').onchange = (e) => (setLook('jarchi.compact', e.target.checked ? '1' : '0'), toast(S.panel.saved));
-addEventListener('focus', () => palette() === 'system' && readAccent()); // the accent color may have changed in Windows meanwhile
+$('#bgArtOn').onchange = (e) => (setLook('jarchi.art', e.target.checked ? '1' : '0'), artRun(), toast(S.panel.saved));
+// The accent color can change in Windows any time: looked at again every few seconds while System is in use or on
+// screen (Appearance), and whenever the window comes back to the front.
+const watchAccent = () => !document.hidden && (palette() === 'system' || view === 'appearance') && readAccent();
+setInterval(watchAccent, 4000);
+addEventListener('focus', watchAccent);
 applyLook();
 readAccent();
 // Persian digits (and ٪ ٫) in labels; inputs keep theirs.
@@ -403,10 +409,11 @@ const queueCall = (method, what, body) => api(method, `/api/alerts/${what}`, bod
 // ---------- Goal marks (panel only): an icon per goal in its colour (CSS [data-goal]), Kick's K for "From Kick" ----------
 // Kick's own logo shape (assets/platform-logos/kick.svg), drawn in currentColor so light mode can use a darker green.
 const KICK_K = '<svg class="kick-k" viewBox="0 0 26 26" aria-hidden="true"><path fill-rule="evenodd" d="M1 0H9.76711V5.79452H12.589V2.82193H15.5616V0H24.1781V8.61645H21.3561V11.589H18.3836V14.411H21.3561V17.3836H24.1781V26H15.5616V23.1781H12.589V20.2055H9.76711V26H1V0Z"/></svg>';
+const HEART = 'M12 20.5s-7.6-4.5-9.4-9.2C1.4 8.1 3.5 4.7 7 4.7c2 0 3.6 1.1 5 2.9 1.4-1.8 3-2.9 5-2.9 3.5 0 5.6 3.4 4.4 6.6-1.8 4.7-9.4 9.2-9.4 9.2z';
 const GOAL_ICON = {
   subs: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${TYPE_ICON.sub}"/></svg>`, // star
   kicks: KICK_K,
-  followers: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.5s-7.6-4.5-9.4-9.2C1.4 8.1 3.5 4.7 7 4.7c2 0 3.6 1.1 5 2.9 1.4-1.8 3-2.9 5-2.9 3.5 0 5.6 3.4 4.4 6.6-1.8 4.7-9.4 9.2-9.4 9.2z"/></svg>', // heart
+  followers: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${HEART}"/></svg>`, // heart
 };
 const svgIn = (cls, markup) => { // fixed markup only
   const s = el('span', { className: cls });
@@ -766,6 +773,7 @@ function build() {
   $('#palettes').append(...PALETTES.map((id) => {
     const mini = el('span', { className: 'mini' }, el('i'), el('i'), el('i'));
     mini.dataset.id = id;
+    if (id === 'system') mini.insertAdjacentHTML('beforeend', '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>'); // a PC: Windows' color
     return el('label', { className: 'mode-card', onmouseenter: () => show(id), onmouseleave: () => show(palette()) },
       el('input', { type: 'radio', name: 'palette', value: id, onchange: () => (setLook('jarchi.palette', id), toast(S.panel.saved)) }),
       el('span', { className: 'mode-body' }, mini, el('span', { textContent: S.panel.palettes[id] }),
@@ -1051,6 +1059,7 @@ function render() {
   $('#kickSyncHint').textContent = !settings.chat.kickChannel ? S.panel.kickSyncNoChannel
     : onKick.length ? tpl(S.panel.kickSyncOnKick, { goals: onKick.join(FA ? '، ' : ', ') }) : S.panel.kickSyncNone;
 
+  artFaces();
   $('#showBadge').checked = settings.showBadge;
   $('#connectedList').textContent = settings.connected.map((p) => S.platforms[p]).join(FA ? '، ' : ', ') || S.panel.connectedNone;
   if (view === 'settings') renderSettings();
@@ -1160,6 +1169,107 @@ function renderGoal() {
   fname.classList.toggle('default', !g.sound);
   $('.file .remove', ed).hidden = !g.sound;
 }
+
+// ---------- Background art (Appearance; jarchi.art, on unless '0') ----------
+// Outline icons in the theme's main color and gold, Kick's and Twitch's logos, and the streamer's profile pictures (a
+// ring in the platform's color), faint and blurred behind the whole panel (#bgArt; panel.css draws them). Each drifts
+// and turns a little, and moves out of the mouse's way. One requestAnimationFrame loop, only while it can be seen.
+const ART_ICONS = [
+  'M9 5a3 3 0 0 1 6 0v6a3 3 0 0 1-6 0zM5 10v1a7 7 0 0 0 14 0v-1M12 18v4M8 22h8', // mic
+  'M4 6h10a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2zM16 10.5L22 7v10l-6-3.5', // camera
+  'M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z', // chat
+  HEART, TYPE_ICON.sub, TYPE_ICON.gift_sub, // heart, star, gift
+  'M3 11l18-5v12L3 14zM11.6 16.8a3 3 0 1 1-5.8-1.6', // megaphone
+  'M9 18V5l12-2v13M9 18a3 3 0 1 1-6 0 3 3 0 0 1 6 0zM21 16a3 3 0 1 1-6 0 3 3 0 0 1 6 0z', // music note
+  'kick', 'twitch', // their logo files, in their own colors
+];
+const ART_RING = { kick: '#53fc18', twitch: '#9146ff' };
+const STILL = matchMedia('(prefers-reduced-motion: reduce)');
+const rnd = (a, b) => a + Math.random() * (b - a);
+let art = [], artPics = [], artChannels, artMouse = null, artFrame = 0, vw = innerWidth, vh = innerHeight;
+// pics: [[platform, url]...]. 22 icons (each kind about twice) and 8 pictures (none without a channel), spread evenly:
+// a grid with a cell per item (and a few spare), each item somewhere in the middle of its cell, the grid kept away from
+// the window's edges. The pictures take evenly spaced cells, the icons the others.
+function buildArt(pics) {
+  artPics = pics;
+  const icons = Array.from({ length: 22 }, (_, i) => ART_ICONS[i % ART_ICONS.length]);
+  const faces = pics.length ? Array.from({ length: 8 }, (_, k) => pics[k % pics.length]) : [];
+  const n = icons.length + faces.length, cols = Math.min(n, Math.max(1, Math.round(Math.sqrt((n * vw) / Math.max(1, vh))))), rows = Math.ceil(n / cols);
+  const cells = [...Array(cols * rows).keys()];
+  const faceCells = faces.map((_, k) => Math.floor(((k + 0.5) * cells.length) / faces.length));
+  const iconCells = cells.filter((c) => !faceCells.includes(c)).sort(() => Math.random() - 0.5);
+  const item = (e, cell, size, depth, filled) => {
+    // depth 0..1: the bigger, the more blurred and the fainter. Filled shapes (logos, pictures) stay fainter than
+    // outlines, so text over them still reads.
+    const opacity = filled ? 0.2 - 0.05 * depth : 0.3 - 0.15 * depth;
+    Object.assign(e.style, { width: px(size), height: px(size), opacity: opacity.toFixed(2), filter: `blur(${(1.2 + 1.8 * depth).toFixed(1)}px)` });
+    return {
+      e, size, ox: 0, oy: 0, rot: rnd(-15, 15),
+      u: 0.06 + (0.88 * ((cell % cols) + rnd(0.25, 0.75))) / cols, // the spot, as a share of the window
+      v: 0.08 + (0.84 * (Math.floor(cell / cols) + rnd(0.25, 0.75))) / rows,
+      ph: [rnd(0, 7), rnd(0, 7), rnd(0, 7)], sp: [rnd(1.2, 2.5) / 1e4, rnd(1.2, 2.5) / 1e4, rnd(1.2, 2.5) / 1e4], // slow: 25-50 s a swing
+    };
+  };
+  art = [
+    ...faces.map(([platform, url], k) => {
+      const big = (k >> 1) % 2; // 36 and 54 px, half each
+      const e = el('img', { className: 'pic', src: `/remote?u=${encodeURIComponent(url)}`, alt: '', onerror: () => (e.hidden = true) });
+      e.style.borderColor = ART_RING[platform];
+      return item(e, faceCells[k], big ? 54 : 36, big, true);
+    }),
+    ...icons.map((icon, i) => {
+      const size = rnd(44, 110), depth = (size - 44) / 66;
+      if (icon in ART_RING) return item(el('img', { src: `/assets/platform-logos/${icon}.svg`, alt: '' }), iconCells[i], size, depth, true);
+      const e = el('span', { className: (i + Math.floor(i / ART_ICONS.length)) % 2 ? 'gold' : 'main' }); // each kind once in each color
+      e.innerHTML = `<svg viewBox="0 0 24 24"><path d="${icon}"/></svg>`; // fixed paths
+      return item(e, iconCells[i], size, depth, false);
+    }),
+  ];
+  $('#bgArt').replaceChildren(...art.map((a) => a.e));
+  drawArt(performance.now());
+}
+function drawArt(t) {
+  for (const a of art) {
+    const x = a.u * vw + 14 * Math.sin(t * a.sp[0] + a.ph[0]), y = a.v * vh + 14 * Math.sin(t * a.sp[1] + a.ph[1]);
+    let tx = 0, ty = 0; // out of the mouse's way: 70 px when it's right on top, less and less up to 170 px away
+    if (artMouse) {
+      const dx = x - artMouse.x, dy = y - artMouse.y, d = Math.hypot(dx, dy) || 1;
+      if (d < 170) [tx, ty] = [(dx / d) * 70 * (1 - d / 170), (dy / d) * 70 * (1 - d / 170)];
+    }
+    a.ox += (tx - a.ox) * 0.06; // eases there, and back when the mouse goes
+    a.oy += (ty - a.oy) * 0.06;
+    a.e.style.transform = `translate(${(x + a.ox - a.size / 2).toFixed(1)}px, ${(y + a.oy - a.size / 2).toFixed(1)}px) rotate(${(a.rot + 8 * Math.sin(t * a.sp[2] + a.ph[2])).toFixed(1)}deg)`;
+  }
+}
+function artLoop(t) {
+  drawArt(t);
+  artFrame = requestAnimationFrame(artLoop);
+}
+// Moves only while the art is on, the tab is shown and the system doesn't ask for less motion.
+function artRun() {
+  cancelAnimationFrame(artFrame);
+  if (document.documentElement.hasAttribute('data-art') && !document.hidden && !STILL.matches) artFrame = requestAnimationFrame(artLoop);
+}
+// The streamer's pictures: looked up again when a channel changes (Chat page); Kick's first when both are set.
+function artFaces() {
+  const channels = `${settings.chat.kickChannel}/${settings.chat.twitchChannel}`;
+  if (channels === artChannels) return;
+  artChannels = channels;
+  api('GET', '/api/streamer').then((r) => {
+    const pics = Object.entries(r).filter(([, url]) => url);
+    if (JSON.stringify(pics) !== JSON.stringify(artPics)) buildArt(pics);
+  }, () => {});
+}
+addEventListener('pointermove', (e) => (artMouse = { x: e.clientX, y: e.clientY }), { passive: true });
+document.documentElement.addEventListener('pointerleave', () => (artMouse = null));
+addEventListener('resize', () => {
+  [vw, vh] = [innerWidth, innerHeight];
+  drawArt(performance.now());
+});
+document.addEventListener('visibilitychange', artRun);
+STILL.addEventListener('change', artRun);
+buildArt([]);
+artRun();
 
 (async () => {
   EN = await (await fetch('/i18n/en.json')).json();

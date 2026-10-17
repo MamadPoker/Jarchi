@@ -94,6 +94,8 @@ app.get('/api/chat/styles', (req, res) => res.json({ styles: settings.CHAT_STYLE
 app.post('/api/chat/test', (req, res) => res.json(chat.test(['burst', 'all'].includes(req.body?.kind) ? req.body.kind : 'sample')));
 app.get('/api/chat/thumbs', (req, res) => res.json(chat.thumbs()));
 app.post('/api/chat/reset-style', (req, res) => res.json(changed(settings.resetChatStyle())));
+// The streamer's profile pictures for the panel's background art: { kick, twitch }, null where no channel / picture.
+app.get('/api/streamer', async (req, res) => res.json(await chat.streamer()));
 
 // Goals: counts (current / reached) live in core/goals; their look and target are regular settings.
 app.get('/api/goals', (req, res) => res.json({ state: goals.all(), styles: settings.GOAL_STYLES, fonts: settings.FONTS }));
