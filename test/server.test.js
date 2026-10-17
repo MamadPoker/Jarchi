@@ -42,6 +42,9 @@ test('migration, settings, uploads, reset, events', async () => {
 
   // v1 -> v2: old custom sound keeps playing, old values kept, file still served.
   let s = await (await call('GET', '/api/settings')).json();
+  // The panel's System colors: Windows' accent color from the registry, null where it can't be read.
+  const { accent } = await (await call('GET', '/api/accent')).json();
+  assert.ok(accent === null || /^#[0-9a-f]{6}$/.test(accent), accent);
   assert.equal(s.theme, 'fun');
   assert.equal(s.alerts.sub.soundMode, 'custom');
   assert.equal(s.alerts.sub.volume, 0.4);

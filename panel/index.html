@@ -5,10 +5,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Jarchi</title>
   <link rel="stylesheet" href="panel.css">
-  <!-- The mode and color theme (panel.js), set before the first paint so a light panel doesn't flash dark. -->
+  <!-- The look kept by panel.js (mode, color theme and System's accent, text size, compact), set before the first paint so
+       a light panel doesn't flash dark. System without an accent color is Jarchi. -->
   <script>try {
-    document.documentElement.dataset.theme = localStorage.getItem('jarchi.theme') || 'dark';
-    document.documentElement.dataset.palette = localStorage.getItem('jarchi.palette') || 'jarchi';
+    const de = document.documentElement, ls = localStorage, accent = JSON.parse(ls.getItem('jarchi.accent'));
+    de.dataset.theme = ls.getItem('jarchi.theme') || 'dark';
+    de.dataset.palette = ls.getItem('jarchi.palette') || 'jarchi';
+    de.dataset.size = ls.getItem('jarchi.size') || 'normal';
+    if (ls.getItem('jarchi.compact') === '1') de.dataset.compact = '';
+    if (accent) for (const k in accent) de.style.setProperty(k, accent[k]);
+    else if (de.dataset.palette === 'system') de.dataset.palette = 'jarchi';
   } catch {}</script>
 </head>
 <body>
@@ -126,11 +132,34 @@
             <span data-i18n="colorTheme" data-help="appearance.palette"></span>
             <div id="palettes" class="modes" role="radiogroup" data-aria="colorTheme"></div>
           </div>
-          <div class="field">
-            <span data-i18n="language" data-help="appearance.language"></span>
-            <div class="seg" role="radiogroup" data-aria="language">
-              <label><input type="radio" name="lang" value="fa"><span lang="fa">فارسی</span></label>
-              <label><input type="radio" name="lang" value="en"><span lang="en">English</span></label>
+        </div>
+        <div class="look-grid">
+          <div class="box">
+            <div class="card-head">
+              <span class="card-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7V5h11v2M8.5 5v14M6.5 19h4M14 12v-1.5h7V12M17.5 10.5V19M16 19h3"/></svg></span>
+              <div class="stack"><h2 data-i18n="textSize" data-help="appearance.textSize"></h2><small data-i18n="textSizeHint"></small></div>
+            </div>
+            <div class="modes three" role="radiogroup" data-aria="textSize">
+              <label class="mode-card"><input type="radio" name="size" value="small"><span class="mode-body"><span class="sample small" data-i18n="textSample"></span><span data-i18n="sizeSmall"></span></span></label>
+              <label class="mode-card"><input type="radio" name="size" value="normal"><span class="mode-body"><span class="sample" data-i18n="textSample"></span><span data-i18n="sizeNormal"></span></span></label>
+              <label class="mode-card"><input type="radio" name="size" value="large"><span class="mode-body"><span class="sample large" data-i18n="textSample"></span><span data-i18n="sizeLarge"></span></span></label>
+            </div>
+          </div>
+          <div class="box">
+            <div class="card-head">
+              <span class="card-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h16M12 3v5M9 5.5L12 8l3-2.5M12 21v-5M9 18.5l3-2.5 3 2.5"/></svg></span>
+              <div class="stack"><h2 data-i18n="compact" data-help="appearance.compact"></h2><small data-i18n="compactHint"></small></div>
+              <label class="switch"><input type="checkbox" id="compact" data-aria="compact"><span></span></label>
+            </div>
+          </div>
+          <div class="box">
+            <div class="card-head">
+              <span class="card-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg></span>
+              <div class="stack"><h2 data-i18n="language" data-help="appearance.language"></h2><small data-i18n="languageHint"></small></div>
+            </div>
+            <div class="modes two" role="radiogroup" data-aria="language">
+              <label class="mode-card"><input type="radio" name="lang" value="fa"><span class="mode-body" lang="fa"><span class="sample">فا</span><span>فارسی</span></span></label>
+              <label class="mode-card"><input type="radio" name="lang" value="en"><span class="mode-body" lang="en"><span class="sample">En</span><span>English</span></span></label>
             </div>
           </div>
         </div>

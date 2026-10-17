@@ -12,23 +12,58 @@ const remember = {
 const FA = remember.get('jarchi.lang') === 'fa';
 document.documentElement.lang = FA ? 'fa' : 'en';
 document.documentElement.dir = FA ? 'rtl' : 'ltr';
-// Colors, remembered in this browser: Dark (default) or Light (jarchi.theme, the top bar) and a color theme
-// (jarchi.palette, Appearance). index.html puts both on <html> before the first paint; panel.css has each theme's colors.
-// A saved theme that no longer exists (Windows, Teal, Rose, Ember) is Jarchi; a saved "Same as Windows" mode keeps the
-// mode it last showed (it was saved in jarchi.theme too).
-const PALETTES = ['jarchi', 'graphite', 'ocean', 'wine', 'royal', 'obsidian'];
+// The panel's look, remembered in this browser: Dark (default) or Light (jarchi.theme, the top bar); on Appearance a color
+// theme (jarchi.palette), the text size (jarchi.size) and compact mode (jarchi.compact). index.html puts them on <html>
+// before the first paint; panel.css has each theme's colors. A saved theme that no longer exists is Jarchi.
+const PALETTES = ['jarchi', 'system', 'graphite', 'ocean', 'wine', 'aurora', 'obsidian'];
+const SIZES = ['small', 'normal', 'large'];
 const palette = () => (PALETTES.includes(remember.get('jarchi.palette')) ? remember.get('jarchi.palette') : 'jarchi');
-const applyTheme = () => {
+// System = Windows' accent color (GET /api/accent) -> the hue and saturation panel.css works from, and the main color's
+// lightness: 32%, darker where white text on it would read under 4.5:1 (bright accents like yellow). Kept in jarchi.accent
+// for index.html; null (no accent color found): System shows Jarchi's colors.
+let accent = (() => { try { return JSON.parse(remember.get('jarchi.accent')); } catch { return null; } })();
+const hslRgb = (h, s, l) => { // 0-360, 0-100, 0-100 -> sRGB 0-1
+  const a = (s / 100) * Math.min(l / 100, 1 - l / 100);
+  return [0, 8, 4].map((n) => { const k = (n + h / 30) % 12; return l / 100 - a * Math.max(-1, Math.min(k - 3, 9 - k, 1)); });
+};
+const luminance = (rgb) => rgb.reduce((t, c, i) => t + [0.2126, 0.7152, 0.0722][i] * (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4), 0);
+function accentVars(hex) {
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
+  const max = Math.max(r, g, b), min = Math.min(r, g, b), d = max - min;
+  const h = (!d ? 0 : max === r ? ((g - b) / d + 6) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4) * 60;
+  const s = Math.min(70, d ? (d / (1 - Math.abs(max + min - 1))) * 100 : 0); // a very bright accent would tint every background
+  let l = 32;
+  while (l > 12 && 1.05 / (luminance(hslRgb(h, s, l)) + 0.05) < 4.5) l--;
+  return { '--h': h.toFixed(1), '--s': `${s.toFixed(1)}%`, '--l': `${l}%` };
+}
+const shown = (id) => (id === 'system' && !accent ? 'jarchi' : id);
+// The whole panel in a color theme: the saved one, or (Appearance) the one under the mouse, not saved.
+const show = (id) => (document.documentElement.dataset.palette = shown(id));
+const applyLook = () => {
   const de = document.documentElement;
   de.dataset.theme = remember.get('jarchi.theme') === 'light' ? 'light' : 'dark';
-  de.dataset.palette = palette();
-  $$('[name=palette]').forEach((r) => (r.checked = r.value === de.dataset.palette));
+  de.dataset.size = SIZES.includes(remember.get('jarchi.size')) ? remember.get('jarchi.size') : 'normal';
+  de.toggleAttribute('data-compact', remember.get('jarchi.compact') === '1');
+  for (const k of ['--h', '--s', '--l']) accent ? de.style.setProperty(k, accent[k]) : de.style.removeProperty(k);
+  show(palette());
+  $$('[name=palette]').forEach((r) => (r.checked = r.value === palette()));
+  $$('[name=size]').forEach((r) => (r.checked = r.value === de.dataset.size));
+  $('#compact').checked = de.hasAttribute('data-compact');
   $$('.mode button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.mode === de.dataset.theme)));
-  $$('#palettes .mini').forEach((m) => (m.dataset.theme = de.dataset.theme)); // the color cards, in the mode shown now
+  $$('#palettes .mini').forEach((m) => Object.assign(m.dataset, { theme: de.dataset.theme, palette: shown(m.dataset.id) })); // in the mode shown now
 };
-const setLook = (key, value) => (remember.set(key, value), applyTheme());
+const setLook = (key, value) => (remember.set(key, value), applyLook());
+const readAccent = () => fetch('/api/accent').then((r) => r.json()).then((r) => {
+  accent = r.accent ? accentVars(r.accent) : null;
+  remember.set('jarchi.accent', JSON.stringify(accent));
+  applyLook();
+}).catch(() => {});
 $$('.mode button').forEach((b) => (b.onclick = () => setLook('jarchi.theme', b.dataset.mode)));
-applyTheme();
+$$('[name=size]').forEach((r) => (r.onchange = () => (setLook('jarchi.size', r.value), toast(S.panel.saved))));
+$('#compact').onchange = (e) => (setLook('jarchi.compact', e.target.checked ? '1' : '0'), toast(S.panel.saved));
+addEventListener('focus', () => palette() === 'system' && readAccent()); // the accent color may have changed in Windows meanwhile
+applyLook();
+readAccent();
 // Persian digits (and ٪ ٫) in labels; inputs keep theirs.
 const fd = (v) => (FA ? String(v).replace(/(?<=\d)\.(?=\d)/g, '٫').replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[d]).replace(/%/g, '٪') : String(v));
 const fmt = (n) => n.toLocaleString(FA ? 'fa-IR' : undefined);
@@ -726,15 +761,17 @@ function build() {
     r.onchange = () => setLang(r.value);
   });
 
-  // Appearance: a card per color theme, with a mini panel in it, in that theme (applyTheme() gives it the mode).
+  // Appearance: a card per color theme, with a mini panel in it, in that theme (applyLook()). Pointing at a card shows
+  // the whole panel in its theme; only a click keeps it.
   $('#palettes').append(...PALETTES.map((id) => {
     const mini = el('span', { className: 'mini' }, el('i'), el('i'), el('i'));
-    mini.dataset.palette = id;
-    return el('label', { className: 'mode-card' },
+    mini.dataset.id = id;
+    return el('label', { className: 'mode-card', onmouseenter: () => show(id), onmouseleave: () => show(palette()) },
       el('input', { type: 'radio', name: 'palette', value: id, onchange: () => (setLook('jarchi.palette', id), toast(S.panel.saved)) }),
-      el('span', { className: 'mode-body' }, mini, el('span', { textContent: S.panel.palettes[id] })));
+      el('span', { className: 'mode-body' }, mini, el('span', { textContent: S.panel.palettes[id] }),
+        ...(id === 'system' ? [el('small', { textContent: S.panel.systemHint })] : [])));
   }));
-  applyTheme();
+  applyLook();
 
   // Guide: one button per topic.
   $('#guideTopics').append(...Object.entries(S.guide.topics).map(([id, t]) => {

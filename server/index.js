@@ -1,5 +1,6 @@
 const path = require('node:path');
 const http = require('node:http');
+const { execFile } = require('node:child_process');
 const express = require('express');
 const { Server } = require('socket.io');
 const { HOST, PORT, UPLOADS_DIR } = require('../core/config');
@@ -35,6 +36,13 @@ app.use('/api', (req, res, next) => {
 app.use(express.json());
 
 app.get('/api/settings', (req, res) => res.json(view()));
+// The panel's System colors: Windows' accent color from the registry (0xAABBGGRR), null when it can't be read (or not on
+// Windows): the panel shows Jarchi's colors then.
+app.get('/api/accent', (req, res) => execFile('reg', ['query', 'HKCU\\Software\\Microsoft\\Windows\\DWM', '/v', 'AccentColor'], { windowsHide: true, timeout: 3000 }, (err, out) => {
+  const abgr = !err && /AccentColor\s+REG_DWORD\s+0x([0-9a-f]{1,8})\b/i.exec(out)?.[1];
+  const n = abgr && parseInt(abgr, 16);
+  res.json({ accent: abgr ? `#${[n & 255, (n >>> 8) & 255, (n >>> 16) & 255].map((c) => c.toString(16).padStart(2, '0')).join('')}` : null });
+}));
 app.patch('/api/settings', (req, res) => {
   const s = settings.update(req.body);
   for (const [id, fields] of Object.entries(req.body.goals ?? {})) if ('target' in fields) goals.retarget(id);
