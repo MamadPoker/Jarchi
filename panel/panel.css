@@ -236,13 +236,13 @@
   --shadow: rgba(66, 38, 47, 0.22);
 }
 [data-palette="aurora"] {
-  --bg: #0e0f1f;
-  --sidebar: #111327;
-  --card: #161931;
-  --card2: #1d213e;
-  --border: #2b3058;
-  --border-hi: #3f4369;
-  --hover: #252a4e;
+  --bg: #131427;
+  --sidebar: #16182f;
+  --card: #1b1e39;
+  --card2: #222746;
+  --border: #313662;
+  --border-hi: #444972;
+  --hover: #2b3057;
   --text: #f1f2ff;
   --muted: #a5a9d0;
   --label: #c8cbe6;
@@ -250,10 +250,10 @@
   --main-soft: rgba(192, 76, 240, 0.22);
   --main-fill: linear-gradient(90deg, #e0479e, #7b5cff, #22c4e8);
   --on-main: #fff;
-  --topbar: rgba(14, 15, 31, 0.92);
-  --glass: rgba(14, 15, 31, 0.85);
-  --checker-a: #1a1e39;
-  --checker-b: #13152b;
+  --topbar: rgba(19, 20, 39, 0.92);
+  --glass: rgba(19, 20, 39, 0.85);
+  --checker-a: #1f2341;
+  --checker-b: #181a33;
 }
 [data-palette="aurora"][data-theme="light"] {
   --bg: #e3e3f2;

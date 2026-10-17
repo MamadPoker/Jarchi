@@ -420,7 +420,7 @@
     "lookPanelHint": "How this panel looks in this browser. Your stream doesn't change.",
     "colorTheme": "Colors",
     "palettes": { "jarchi": "Jarchi", "system": "System", "graphite": "Graphite", "ocean": "Ocean", "wine": "Wine", "aurora": "Aurora", "obsidian": "Obsidian" },
-    "systemHint": "Uses your Windows accent colour",
+    "systemHint": "Uses your Windows accent color",
     "textSize": "Text size",
     "textSizeHint": "Everything in the panel, bigger or smaller.",
     "textSample": "Aa",
