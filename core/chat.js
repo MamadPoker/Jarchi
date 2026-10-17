@@ -4,6 +4,7 @@
 const { EventEmitter } = require('node:events');
 const { bus, emitChat, chatMessage, emitChatClear, emitEvent } = require('./events');
 const settings = require('./settings');
+const { KICK_GIFTS } = settings;
 const goals = require('./goals');
 const net = require('./net');
 const seventv = require('./seventv');
@@ -234,7 +235,8 @@ const plain = {
 };
 
 // Messages that trigger each fancy effect: key -> () => a message, or a run of messages (combo). The widget shows an
-// effect only when it's on in the settings; the panel says which ones are off.
+// effect only when it's on in the settings; the panel says which ones are off. The special lines (the chat's Events)
+// come from their amount up, so a test shows one whenever it's on.
 function effects(viewer) {
   const c = settings.get().chat;
   const streamer = c.twitchChannel || c.kickChannel || 'streamer';
@@ -244,7 +246,25 @@ function effects(viewer) {
     sub: () => {
       const months = pick(SUB_MONTHS.slice(1));
       const fan = viewer('twitch', ['subscriber'], months);
-      return { platform: 'twitch', kind: 'sub', user: fan, system: T.subSystem.replace('{user}', fan.name).replace('{months}', months), text: T.subText, parts: text(T.subText) };
+      return { platform: 'twitch', kind: 'sub', user: fan, system: T.subSystem.replace('{user}', fan.name).replace('{months}', months), text: T.subText, parts: text(T.subText),
+        event: { type: 'resub', months } };
+    },
+    kicks: () => {
+      const g = pick(KICK_GIFTS.filter((x) => x.amount >= c.eventKicksMin).slice(0, 5)) ?? KICK_GIFTS.at(-1);
+      return { platform: 'kick', kind: 'event', user: viewer('kick'), text: '', parts: [], event: { type: 'kicks', amount: g.amount, gift: g.id, name: strings.kickGifts[g.id] } };
+    },
+    gift: () => {
+      const platform = pick(PLATFORMS), amount = Math.max(pick([1, 5, 10, 20]), c.eventGiftsMin);
+      const fan = viewer(platform, [platform === 'kick' ? 'sub_gifter' : 'sub-gifter']);
+      return { platform, kind: 'sub', user: fan, system: strings.chatText.kickGift.replace('{user}', fan.name).replace('{count}', amount), text: '', parts: [], event: { type: 'gift_sub', amount } };
+    },
+    bits: () => {
+      const amount = Math.max(pick([100, 500, 1000, 5000]), c.eventBitsMin), v = `Cheer${amount} ${T.bits}`;
+      return { platform: 'twitch', user: viewer('twitch'), text: v, parts: twitch.cheerParts(text(v)), event: { type: 'bits', amount } };
+    },
+    raid: () => {
+      const platform = pick(PLATFORMS);
+      return { platform, kind: 'event', user: viewer(platform, []), text: '', parts: [], event: { type: 'raid', amount: pick([12, 42, 150, 640]) } };
     },
     first: () => ({ platform: 'twitch', first: true, user: viewer('twitch', pick([[], ['premium']])), text: T.first,
       parts: [...text(`${T.first} `), ...(seven ? [{ t: 'emote', name: seven.name, src: seven.src, still: seven.still, provider: '7tv' }] : [])] }),
@@ -268,35 +288,38 @@ function effects(viewer) {
   };
 }
 const EFFECTS = ['sub', 'first', 'vip', 'mention', 'avatar', 'combo'];
+const EVENTS = ['kicks', 'gift', 'bits', 'raid']; // special lines (a sub is one too: the 'sub' effect)
 
-// "Send test message": emotes and 3 random effects. "Send 10 messages": 10 messages, 2 of them (or a combo run) effects.
-// "Show all effects": every effect in a row. A combo run stays together.
+// "Send test message": emotes, 3 random effects and a special line. "Send 10 messages": 10 messages, 2 of them (or a
+// combo run) effects. "Show all effects": every effect in a row, then every special line. A combo run stays together.
 function build(kind) {
   const viewer = viewers();
   const fx = effects(viewer);
   const picked = kind === 'all' ? EFFECTS : shuffled(EFFECTS).slice(0, kind === 'burst' ? 2 : 3);
-  const runs = picked.map((k) => [].concat(fx[k]()));
-  if (kind === 'all') return { list: runs.flat(), effects: picked };
+  const events = kind === 'all' ? EVENTS : kind === 'sample' ? [pick(EVENTS)] : [];
+  const runs = [...picked, ...events].map((k) => [].concat(fx[k]()));
+  if (kind === 'all') return { list: runs.flat(), effects: picked, events };
   const fill = kind === 'burst'
     ? shuffled(T.burst).slice(0, 10 - runs.flat().length).map((v) => { const platform = pick(PLATFORMS); return [{ platform, user: viewer(platform), text: v, parts: [{ t: 'text', v }] }]; })
     : [[plain.twitch(viewer)], [plain.kick(viewer)]];
-  return { list: shuffled([...runs, ...fill]).flat(), effects: picked };
+  return { list: shuffled([...runs, ...fill]).flat(), effects: picked, events };
 }
 
-// kind 'sample' | 'burst' | 'all' -> { sent, effects }.
+// kind 'sample' | 'burst' | 'all' -> { sent, effects, events }.
 function test(kind) {
   if (!globalRequested) { globalRequested = true; seventv.loadGlobal(); }
-  const { list, effects: used } = build(kind);
+  const { list, effects: used, events } = build(kind);
   const c = settings.get().chat;
   list.forEach((m, i) => setTimeout(() => emitChat({ ...m, test: true, channel: m.platform === 'kick' ? c.kickChannel : c.twitchChannel }), i * (kind === 'burst' ? 180 : 450)));
-  return { sent: list.length, effects: used };
+  return { sent: list.length, effects: used, events };
 }
 
-// The panel's style thumbnails (and the preview before any message): emotes and the effects that fit a still picture.
+// The panel's style thumbnails (and the preview before any message): emotes, the effects that fit a still picture and
+// two special lines (a resub, Kicks).
 function thumbs() {
   const viewer = viewers();
   const fx = effects(viewer);
-  return [plain.twitch(viewer), fx.sub(), fx.first(), fx.vip(), fx.mention()].map((m) => chatMessage({ ...m, test: true }));
+  return [plain.twitch(viewer), fx.sub(), fx.first(), fx.vip(), fx.kicks()].map((m) => chatMessage({ ...m, test: true }));
 }
 
 module.exports = { sync, restart, check, test, thumbs, timing, streamer, status: () => status, recent: () => recent, events: chat };

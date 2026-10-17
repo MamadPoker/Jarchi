@@ -121,24 +121,27 @@ function alertOf(command, t, trailing) {
 }
 
 // One IRC line -> callbacks (onMessage / onClear / onChannel / onAlert). Exported for tests.
+// A line that is an alert also carries it (event) for the chat's special lines; a raid gets a chat line of its own.
 function handle(line, channel, cb) {
   const { tags: t, prefix, command, trailing } = parseLine(line);
   const user = () => {
-    const login = prefix.split('!')[0] || t.login || '';
+    const login = t.login || prefix.split('!')[0]; // notices come from tmi.twitch.tv and name the viewer in a tag
     return { id: t['user-id'], login, name: t['display-name'] || login, color: t.color || null, badges: toBadges(t.badges, t['badge-info']) };
   };
   // Alert events (subs, gifts, raids, bits) go to the event log (data/logs/events.log) as they came; chat messages don't.
   if (command === 'USERNOTICE' && (SUB_NOTICES.has(t['msg-id']) || t['msg-id'] === 'raid')) logIncoming('twitch', t['msg-id'], line);
   if (command === 'PRIVMSG' && t.bits) logIncoming('twitch', 'bits', line);
+  const alert = alertOf(command, t, trailing);
+  const event = alert && { type: alert.type, amount: alert.amount, months: alert.months };
   if (command === 'PRIVMSG') {
     let text = trailing ?? '';
     const action = text.startsWith('\u0001ACTION ') && text.endsWith('\u0001');
     if (action) text = text.slice(8, -1);
     const parts = emoteParts(text, t.emotes);
-    cb.onMessage({ platform: 'twitch', id: t.id, channel, time: Number(t['tmi-sent-ts']) || Date.now(), text, action, first: t['first-msg'] === '1', user: user(), parts: t.bits ? cheerParts(parts) : parts });
-  } else if (command === 'USERNOTICE' && SUB_NOTICES.has(t['msg-id'])) {
+    cb.onMessage({ platform: 'twitch', id: t.id, channel, time: Number(t['tmi-sent-ts']) || Date.now(), text, action, first: t['first-msg'] === '1', user: user(), parts: t.bits ? cheerParts(parts) : parts, event });
+  } else if (command === 'USERNOTICE' && (SUB_NOTICES.has(t['msg-id']) || t['msg-id'] === 'raid')) {
     const text = trailing ?? '';
-    cb.onMessage({ platform: 'twitch', id: t.id, channel, kind: 'sub', system: t['system-msg'] || '', time: Number(t['tmi-sent-ts']) || Date.now(), text, user: user(), parts: emoteParts(text, t.emotes) });
+    cb.onMessage({ platform: 'twitch', id: t.id, channel, kind: t['msg-id'] === 'raid' ? 'event' : 'sub', system: t['system-msg'] || '', time: Number(t['tmi-sent-ts']) || Date.now(), text, user: user(), parts: emoteParts(text, t.emotes), event });
   } else if (command === 'CLEARMSG') {
     cb.onClear({ platform: 'twitch', messageId: t['target-msg-id'] });
   } else if (command === 'CLEARCHAT') {
@@ -146,7 +149,6 @@ function handle(line, channel, cb) {
   } else if (command === 'ROOMSTATE' && t['room-id']) {
     cb.onChannel({ userId: t['room-id'] });
   }
-  const alert = alertOf(command, t, trailing);
   if (alert) cb.onAlert?.(alert);
 }
 
@@ -183,4 +185,4 @@ function connect(channel, cb) {
   return { stop() { stopped = true; clearTimeout(timer); clearInterval(watchdog); ws?.close(); } };
 }
 
-module.exports = { connect, handle, parseLine, emoteParts, toBadges };
+module.exports = { connect, handle, parseLine, emoteParts, toBadges, cheerParts };

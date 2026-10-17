@@ -115,42 +115,56 @@ const LISTS = () => ({
   goal: Object.keys(settings.goals).map((id) => ({ key: id, label: S.goals[id].name, toggle: (on) => patchGoal(id, { enabled: on }) })),
 });
 
-// Chat "More options", built from this list: [group label, [[kind, field, options]...]].
-// kind: toggle | range | seg | select | color | text. options.only: shown only when CHAT_ONLY[only] is true.
-const CHAT_GROUPS = () => [
-  ['chatShow', [['toggle', 'showPlatform'], ['toggle', 'showBadges'], ['seg', 'badgeMode', { options: [['important', 'badgesImportant'], ['all', 'badgesAll']], only: 'badges' }],
-    ['range', 'badgeSize', { min: 0.5, max: 2, step: 0.05, only: 'badges' }],
-    ['seg', 'badgeBg', { options: [['auto', 'badgeBgAuto'], ['always', 'badgeBgAlways'], ['off', 'badgeBgOff']], only: 'badges' }], ['toggle', 'badgeBroadcaster', { only: 'badges' }], ['toggle', 'badgeMod', { only: 'badges' }],
-    ['toggle', 'badgeVip', { only: 'badges' }], ['toggle', 'badgeSub', { only: 'badges' }], ['toggle', 'badgeOther', { only: 'badges' }], ['toggle', 'showTime'], ['toggle', 'showColon'],
-    ['toggle', 'ogHat'], ['seg', 'hatStyle', { options: [['cap', 'hatCap'], ['beanie', 'hatBeanie'], ['fedora', 'hatFedora']], only: 'hat' }],
-    ['select', 'hatPos', { options: [['first', 'hatFirst'], ['last', 'hatLast'], ['badge', 'hatBadge'], ['avatar', 'hatAvatar']], only: 'hat' }]]],
-  ['chatEmotes', [['toggle', 'emotesKick'], ['toggle', 'emotesTwitch'], ['toggle', 'emotes7tv'], ['toggle', 'emotesAnimated'], ['range', 'emoteSize', { min: 12, max: 112 }],
-    ['toggle', 'bigEmotes'], ['range', 'bigEmoteSize', { min: 16, max: 160, only: 'big' }]]],
-  ['chatText', [['select', 'font', { options: chatFonts.map((x) => [x, x]) }], ['range', 'fontSize', { min: 10, max: 72, label: 'messageSize' }], ['range', 'nameSize', { min: 10, max: 72 }],
-    ['seg', 'nameColorMode', { label: 'nameColor', options: [['user', 'nameOwn'], ['style', 'nameStyle'], ['custom', 'nameCustom']] }], ['color', 'nameColor', { only: 'nameCustom' }],
-    ['toggle', 'readableNames', { only: 'nameOwn' }],
-    ['color', 'textColor', { label: 'messageColor' }], ['seg', 'namePos', { options: [['inline', 'nameInline'], ['above', 'nameAbove']] }], ['toggle', 'textShadow'],
-    ['select', 'textDir', { options: [['auto', 'dirAuto'], ['ltr', 'dirLtr'], ['rtl', 'dirRtl']] }]]],
-  ['chatBox', [['seg', 'bg', { label: 'bgMode', options: [['color', 'bgColor'], ['transparent', 'bgTransparent'], ['off', 'bgOff']] }], ['color', 'bgColor', { only: 'bgColor' }],
-    ['range', 'bgOpacity', { min: 0, max: 1, step: 0.05, only: 'bgColor' }], ['toggle', 'bubbles', { label: 'bubblesOpt' }], ['toggle', 'border'],
-    ['color', 'borderColor', { only: 'borderOn' }], ['range', 'borderWidth', { min: 1, max: 12, only: 'borderOn' }], ['range', 'radius', { min: 0, max: 40 }],
-    ['range', 'padding', { min: 0, max: 60 }], ['range', 'gap', { min: 0, max: 40 }], ['range', 'width', { min: 200, max: 1920, step: 10, label: 'chatWidth' }],
-    ['range', 'height', { min: 40, max: 1080, step: 10, label: 'chatHeight' }]]],
-  ['chatMotion', [['seg', 'layout', { options: [['vertical', 'layoutVertical'], ['horizontal', 'layoutHorizontal']] }],
-    ['seg', 'tickerDir', { options: [['rtl', 'dirRtlArrow'], ['ltr', 'dirLtrArrow']], only: 'ticker' }], ['range', 'tickerSpeed', { min: 20, max: 600, step: 10, only: 'ticker' }],
-    ['toggle', 'tickerLoop', { only: 'ticker' }], ['seg', 'tickerPos', { options: [['top', 'posTop'], ['bottom', 'posBottom']], only: 'ticker' }],
-    ['seg', 'newAt', { options: [['bottom', 'newBottom'], ['top', 'newTop']], only: 'vertical' }], ['range', 'maxMessages', { min: 1, max: 100 }],
-    ['range', 'hideAfter', { min: 0, max: 600, step: 5 }], ['select', 'enterAnim', { options: [['slide', 'animSlide'], ['fade', 'animFade'], ['pop', 'animPop'], ['float', 'animFloat'], ['bounce', 'animBounce'], ['drop', 'animDrop'], ['none', 'animNone']] }],
-    ['select', 'exitAnim', { options: [['fade', 'animFade'], ['slide', 'animSlide'], ['none', 'animNone']] }], ['range', 'animSpeed', { min: 0.25, max: 3, step: 0.25 }],
-    ['toggle', 'fade'], ['range', 'fadeZone', { min: 0, max: 400, step: 5, only: 'fade' }], ['toggle', 'typewriter'], ['toggle', 'typeSound', { only: 'typewriter' }]]],
-  ['chatFilters', [['toggle', 'hideCommands'], ['toggle', 'hideBots'], ['text', 'bots', { only: 'bots', hint: 'listHint' }], ['text', 'hiddenUsers', { hint: 'listHint' }],
-    ['text', 'blockedWords', { hint: 'listHint', dir: 'auto' }], ['toggle', 'hideLinks'], ['select', 'source', { options: [['both', 'sourceBoth'], ['kick', 'sourceKick'], ['twitch', 'sourceTwitch']] }]]],
-  ['chatFx', [['toggle', 'fxSubGlow'], ['toggle', 'fxFirst'], ['toggle', 'fxRainbowVip'], ['text', 'rainbowUsers', { hint: 'listHint' }], ['toggle', 'fxMention'], ['toggle', 'fxCombo'],
-    ['toggle', 'avatars', { hint: 'avatarsHint' }], ['range', 'blur', { min: 0, max: 40 }]]],
-  ['chatDebug', [['toggle', 'showTiming']]],
-];
+// The Chat page's tabs, built from this list: tab -> [[box title, [[kind, field, options]...]]...].
+// kind: toggle | range | seg | select | color | text | number. options.only: shown only when renderChat()'s show[only] is true.
+const CHAT_TABS = () => ({
+  text: [
+    ['chatText', [['select', 'font', { options: chatFonts.map((x) => [x, x]) }], ['range', 'fontSize', { min: 10, max: 72, label: 'messageSize' }],
+      ['color', 'textColor', { label: 'messageColor' }], ['toggle', 'textShadow'], ['select', 'textDir', { options: [['auto', 'dirAuto'], ['ltr', 'dirLtr'], ['rtl', 'dirRtl']] }],
+      ['toggle', 'showTime'], ['toggle', 'showColon']]],
+    ['chatEmotes', [['toggle', 'emotesKick'], ['toggle', 'emotesTwitch'], ['toggle', 'emotes7tv'], ['toggle', 'emotesAnimated'], ['range', 'emoteSize', { min: 12, max: 112 }],
+      ['toggle', 'bigEmotes'], ['range', 'bigEmoteSize', { min: 16, max: 160, only: 'big' }]]],
+  ],
+  names: [
+    ['nameBox', [['range', 'nameSize', { min: 10, max: 72 }],
+      ['seg', 'nameColorMode', { label: 'nameColor', options: [['user', 'nameOwn'], ['style', 'nameStyle'], ['custom', 'nameCustom']] }], ['color', 'nameColor', { only: 'nameCustom' }],
+      ['toggle', 'readableNames', { only: 'nameOwn' }], ['seg', 'namePos', { options: [['inline', 'nameInline'], ['above', 'nameAbove']] }],
+      ['toggle', 'showPlatform'], ['toggle', 'avatars', { hint: 'avatarsHint' }], ['toggle', 'fxRainbowVip'], ['text', 'rainbowUsers', { hint: 'listHint' }]]],
+    ['badgeBox', [['toggle', 'showBadges'], ['seg', 'badgeMode', { options: [['important', 'badgesImportant'], ['all', 'badgesAll']], only: 'badges' }],
+      ['range', 'badgeSize', { min: 0.5, max: 2, step: 0.05, only: 'badges' }],
+      ['seg', 'badgeBg', { options: [['auto', 'badgeBgAuto'], ['always', 'badgeBgAlways'], ['off', 'badgeBgOff']], only: 'badges' }], ['toggle', 'badgeBroadcaster', { only: 'badges' }], ['toggle', 'badgeMod', { only: 'badges' }],
+      ['toggle', 'badgeVip', { only: 'badges' }], ['toggle', 'badgeSub', { only: 'badges' }], ['toggle', 'badgeOther', { only: 'badges' }],
+      ['toggle', 'ogHat'], ['seg', 'hatStyle', { options: [['cap', 'hatCap'], ['beanie', 'hatBeanie'], ['fedora', 'hatFedora']], only: 'hat' }],
+      ['select', 'hatPos', { options: [['first', 'hatFirst'], ['last', 'hatLast'], ['badge', 'hatBadge'], ['avatar', 'hatAvatar']], only: 'hat' }]]],
+  ],
+  events: [
+    ['eventLines', [['toggle', 'eventKicks'], ['number', 'eventKicksMin', { only: 'evKicks' }], ['toggle', 'eventSubs'], ['toggle', 'eventGifts'], ['number', 'eventGiftsMin', { only: 'evGifts' }],
+      ['toggle', 'eventBits'], ['number', 'eventBitsMin', { only: 'evBits' }], ['toggle', 'eventRaids']]],
+    ['eventLookBox', [['seg', 'eventLook', { options: [['card', 'lookCard'], ['glow', 'lookGlow'], ['line', 'lookLine']] }], ['toggle', 'eventLonger']]],
+    ['chatFx', [['toggle', 'fxSubGlow'], ['toggle', 'fxFirst'], ['toggle', 'fxMention'], ['toggle', 'fxCombo']]],
+  ],
+  filters: [
+    ['chatFilters', [['toggle', 'hideCommands'], ['toggle', 'hideBots'], ['text', 'bots', { only: 'bots', hint: 'listHint' }], ['text', 'hiddenUsers', { hint: 'listHint' }],
+      ['text', 'blockedWords', { hint: 'listHint', dir: 'auto' }], ['toggle', 'hideLinks'], ['select', 'source', { options: [['both', 'sourceBoth'], ['kick', 'sourceKick'], ['twitch', 'sourceTwitch']] }]]],
+  ],
+  layout: [
+    ['chatBox', [['seg', 'bg', { label: 'bgMode', options: [['color', 'bgColor'], ['transparent', 'bgTransparent'], ['off', 'bgOff']] }], ['color', 'bgColor', { only: 'bgColor' }],
+      ['range', 'bgOpacity', { min: 0, max: 1, step: 0.05, only: 'bgColor' }], ['toggle', 'bubbles', { label: 'bubblesOpt' }], ['toggle', 'border'],
+      ['color', 'borderColor', { only: 'borderOn' }], ['range', 'borderWidth', { min: 1, max: 12, only: 'borderOn' }], ['range', 'radius', { min: 0, max: 40 }],
+      ['range', 'padding', { min: 0, max: 60 }], ['range', 'gap', { min: 0, max: 40 }], ['range', 'width', { min: 200, max: 1920, step: 10, label: 'chatWidth' }],
+      ['range', 'height', { min: 40, max: 1080, step: 10, label: 'chatHeight' }], ['range', 'blur', { min: 0, max: 40 }]]],
+    ['chatMotion', [['seg', 'layout', { options: [['vertical', 'layoutVertical'], ['horizontal', 'layoutHorizontal']] }],
+      ['seg', 'tickerDir', { options: [['rtl', 'dirRtlArrow'], ['ltr', 'dirLtrArrow']], only: 'ticker' }], ['range', 'tickerSpeed', { min: 20, max: 600, step: 10, only: 'ticker' }],
+      ['toggle', 'tickerLoop', { only: 'ticker' }], ['seg', 'tickerPos', { options: [['top', 'posTop'], ['bottom', 'posBottom']], only: 'ticker' }],
+      ['seg', 'newAt', { options: [['bottom', 'newBottom'], ['top', 'newTop']], only: 'vertical' }], ['range', 'maxMessages', { min: 1, max: 100 }],
+      ['range', 'hideAfter', { min: 0, max: 600, step: 5 }], ['select', 'enterAnim', { options: [['slide', 'animSlide'], ['fade', 'animFade'], ['pop', 'animPop'], ['float', 'animFloat'], ['bounce', 'animBounce'], ['drop', 'animDrop'], ['none', 'animNone']] }],
+      ['select', 'exitAnim', { options: [['fade', 'animFade'], ['slide', 'animSlide'], ['none', 'animNone']] }], ['range', 'animSpeed', { min: 0.25, max: 3, step: 0.25 }],
+      ['toggle', 'fade'], ['range', 'fadeZone', { min: 0, max: 400, step: 5, only: 'fade' }], ['toggle', 'typewriter'], ['toggle', 'typeSound', { only: 'typewriter' }]]],
+    ['chatDebug', [['toggle', 'showTiming']]],
+  ],
+});
 
-// One "More options" control. Inputs carry data-f like the other editors, so fill() and the save handler just work.
+// One control of a Chat tab. Inputs carry data-f like the other editors, so fill() and the save handler just work.
 function chatControl(kind, f, o) {
   const label = S.panel[o.label ?? f] ?? f;
   const input = (props) => {
@@ -174,6 +188,8 @@ function chatControl(kind, f, o) {
     const sel = input({ tag: 'select' });
     sel.append(...o.options.map(([v, k]) => new Option(S.panel[k] ?? k, v)));
     node = el('label', { className: 'field' }, el('span', { textContent: label }), sel);
+  } else if (kind === 'number') { // a smallest amount, under its line's switch
+    node = el('label', { className: 'row between toggle-row sub-row' }, el('span', { textContent: label }), input({ type: 'number', min: 0, step: 1, className: 'num' }));
   } else {
     node = el('label', { className: 'field' }, el('span', { textContent: label }), input({ type: kind === 'color' ? 'color' : 'text', maxLength: 1000, ...(o.dir && { dir: o.dir }) }), o.hint ? el('small', { textContent: S.panel[o.hint] }) : '');
   }
@@ -182,16 +198,29 @@ function chatControl(kind, f, o) {
   return node;
 }
 
-// Each style's own look with sample messages; filters off so the samples always show.
+// Each style's own look with sample messages; filters off so the samples always show. Only the group on screen: a
+// hidden thumbnail has no size to lay its messages out in (the other group is drawn when it's picked).
 function drawChatThumbs() {
-  if (!chatThumbs) return;
-  for (const f of $$('.chat-tile iframe')) {
+  if (!chatThumbs || view !== 'chat') return;
+  for (const f of $$('.chat-tile:not([hidden]) iframe')) {
     const style = f.dataset.style;
     const ticker = chatStyles[style].layout === 'horizontal';
     const cfg = { ...settings.chat, ...chatStyles[style], style, enabled: true, width: ticker ? 440 : 400, height: ticker ? 64 : 290, maxMessages: 6,
       hideCommands: false, hideBots: false, hiddenUsers: '', blockedWords: '', hideLinks: false, source: 'both', avatars: false, fxMention: false };
     f.contentWindow?.postMessage({ strings: EN, cfg, messages: chatThumbs }, location.origin);
   }
+}
+
+// The style gallery shows one group: vertical styles or bars (horizontal). Starts on the current style's group.
+let styleGroup;
+function showStyleGroup(g) {
+  styleGroup = g;
+  $$('[name=styleGroup]').forEach((r) => (r.checked = r.value === g));
+  $$('.chat-tile').forEach((t) => (t.hidden = chatStyles[t.dataset.style].layout !== g));
+  const grid = $('#chatStyleGrid'), current = $('.chat-tile.selected:not([hidden])', grid);
+  grid.dataset.group = g;
+  grid.scrollTop = current ? current.offsetTop - 8 : 0; // the chat's own style in view
+  drawChatThumbs();
 }
 
 // The chat preview iframe is as big as the chat (+ a margin), scaled down to fit and centered.
@@ -246,7 +275,12 @@ function toast(msg, isError) {
 async function send(method, url, body, headers) {
   try {
     settings = await api(method, url, body, headers);
-    toast(S.panel.saved);
+    if (view === 'chat') { // the Chat page's own "Saved" note lights up instead of the toast
+      const note = $('#chatSaved');
+      note.classList.remove('flash');
+      void note.offsetWidth; // restart its animation
+      note.classList.add('flash');
+    } else toast(S.panel.saved);
     preview();
   } catch (err) {
     toast(err.message, true);
@@ -338,8 +372,55 @@ function select(v, key) {
   if (v === 'theme') $$('.theme-tile iframe').forEach((f) => playTile(f));
   if (v === 'chat') {
     fitChat();
+    if (!styleGroup) showStyleGroup(chatStyles[settings.chat.style].layout);
     api('GET', '/api/chat/thumbs').then((m) => { chatThumbs = m; drawChatThumbs(); }, () => {});
   }
+}
+
+// A page's tabs (Alerts, Chat): the open one stays open from item to item, and next time (remembered under `key`).
+// Arrow keys move between them.
+function wireTabs(root, key) {
+  const tabs = $$('.tabs [role=tab]', root);
+  const showTab = (t) => {
+    remember.set(key, t);
+    tabs.forEach((b) => {
+      b.setAttribute('aria-selected', String(b.dataset.tab === t));
+      b.tabIndex = b.dataset.tab === t ? 0 : -1;
+    });
+    $$('.pane', root).forEach((p) => (p.hidden = p.dataset.tab !== t));
+  };
+  tabs.forEach((b) => (b.onclick = () => showTab(b.dataset.tab)));
+  showTab(tabs.some((b) => b.dataset.tab === remember.get(key)) ? remember.get(key) : tabs[0].dataset.tab);
+  $('.tabs', root).onkeydown = (e) => {
+    const step = { ArrowRight: 1, ArrowLeft: -1 }[e.key] * (FA ? -1 : 1), i = tabs.indexOf(e.target);
+    if (!step || i < 0) return;
+    const next = tabs[(i + step + tabs.length) % tabs.length];
+    showTab(next.dataset.tab);
+    next.focus();
+  };
+}
+
+// A preview's background: dark, light or checkered (radios name=`name`, remembered in this browser under `key`).
+function wireBg(box, name, key) {
+  const bg = ['dark', 'light', 'checker'].includes(remember.get(key)) ? remember.get(key) : 'checker';
+  box.dataset.bg = bg;
+  $$(`[name=${name}]`).forEach((r) => {
+    r.checked = r.value === bg;
+    r.onchange = () => remember.set(key, (box.dataset.bg = r.value));
+  });
+}
+
+// A button that opens a small menu under it (the Home page's OBS links, the Chat page's other tests). A pick, a click
+// anywhere else or Escape closes it.
+function wireMenu(btn, pop) {
+  const show = (on) => {
+    pop.hidden = !on;
+    btn.setAttribute('aria-expanded', String(on));
+  };
+  btn.onclick = () => show(pop.hidden);
+  pop.addEventListener('click', () => show(false));
+  addEventListener('click', (e) => { if (!btn.parentNode.contains(e.target)) show(false); });
+  addEventListener('keydown', (e) => { if (e.key === 'Escape') show(false); });
 }
 
 // ---------- Alert queue (its own page) ----------
@@ -737,18 +818,12 @@ function build() {
     const types = Object.keys(settings.alerts);
     api('POST', `/api/test/${types[Math.floor(Math.random() * types.length)]}`, { platform: $('#testAs').value }).then(() => toast(S.panel.testSent), (err) => toast(err.message, true));
   };
-  const showMenu = (on) => {
-    $('#obsMenu').hidden = !on;
-    $('#obsMenuBtn').setAttribute('aria-expanded', String(on));
-  };
   $('#obsMenu').append(...widgetPages().map(([, name, url]) => {
-    const b = el('button', { onclick: () => { showMenu(false); copyLink(url); } }, el('span', { textContent: name }));
+    const b = el('button', { onclick: () => copyLink(url) }, el('span', { textContent: name }));
     b.insertAdjacentHTML('beforeend', COPY_ICON);
     return b;
   }));
-  $('#obsMenuBtn').onclick = () => showMenu($('#obsMenu').hidden);
-  addEventListener('click', (e) => { if (!e.target.closest?.('.menu')) showMenu(false); });
-  addEventListener('keydown', (e) => { if (e.key === 'Escape') showMenu(false); });
+  wireMenu($('#obsMenuBtn'), $('#obsMenu'));
   setInterval(() => view === 'home' && loadHome(), 30000); // "2 min ago", uptime, and today's numbers from 0 after midnight
 
   // Top bar: Kick / Twitch status opens Connections. Language (also on Appearance): the page reloads in the other language and comes back to what was open.
@@ -843,32 +918,8 @@ function build() {
     clearTimeout(typing);
     typing = setTimeout(() => saveField(inp, type), 700);
   }));
-  // Its tabs (Media, Sound, Text, Style): the open one stays open from alert to alert, and next time. Arrow keys move between them.
-  const tabs = $$('.tabs [role=tab]', editor);
-  const showTab = (t) => {
-    remember.set('jarchi.alertTab', t);
-    tabs.forEach((b) => {
-      b.setAttribute('aria-selected', String(b.dataset.tab === t));
-      b.tabIndex = b.dataset.tab === t ? 0 : -1;
-    });
-    $$('.pane', editor).forEach((p) => (p.hidden = p.dataset.tab !== t));
-  };
-  tabs.forEach((b) => (b.onclick = () => showTab(b.dataset.tab)));
-  showTab(tabs.some((b) => b.dataset.tab === remember.get('jarchi.alertTab')) ? remember.get('jarchi.alertTab') : 'media');
-  $('.tabs', editor).onkeydown = (e) => {
-    const step = { ArrowRight: 1, ArrowLeft: -1 }[e.key] * (FA ? -1 : 1), i = tabs.indexOf(e.target);
-    if (!step || i < 0) return;
-    const next = tabs[(i + step + tabs.length) % tabs.length];
-    showTab(next.dataset.tab);
-    next.focus();
-  };
-  // Preview background: dark, light or checkered (remembered in this browser).
-  const bg = ['dark', 'light', 'checker'].includes(remember.get('jarchi.previewBg')) ? remember.get('jarchi.previewBg') : 'checker';
-  $('#previewBox').dataset.bg = bg;
-  $$('[name=previewBg]').forEach((r) => {
-    r.checked = r.value === bg;
-    r.onchange = () => remember.set('jarchi.previewBg', ($('#previewBox').dataset.bg = r.value));
-  });
+  wireTabs(editor, 'jarchi.alertTab'); // Media, Sound, Text, Style
+  wireBg($('#previewBox'), 'previewBg', 'jarchi.previewBg');
   $$('input[type=range]', editor).forEach((inp) => inp.addEventListener('input', () => showRange(inp)));
   $$('[name=textColorMode]').forEach((r) => (r.onchange = () => patchAlert(cur, { textColor: r.value === 'custom' ? $('[data-f=textColor]', editor).value : null })));
   // Per-alert theme: "" = same as the main theme.
@@ -916,7 +967,7 @@ function build() {
     if (!ev.test) home.today.alerts++;
     if (view === 'home') renderHome();
   });
-  socket.on('chat', (m) => { if (!m.test) $('#statChat').textContent = fmt(++home.today.chat); });
+  socket.on('chat', (m) => { if (!m.test && m.kind !== 'event') $('#statChat').textContent = fmt(++home.today.chat); }); // Kicks / raid lines aren't messages
   socket.on('widgets', (o) => {
     open = o;
     if (view === 'home') renderHome();
@@ -929,36 +980,45 @@ function build() {
   $('#qSkip').onclick = () => queueCall('POST', 'skip');
   twoClick($('#qClear'), $('#qClear span'), S.panel.qClear, S.panel.qConfirmClear, () => queueCall('POST', 'clear').then((q) => q && toast(S.panel.qCleared)));
 
-  // Chat editor
-  for (const [title, controls] of CHAT_GROUPS()) {
-    $('#chatMore').append(el('div', { className: 'box' }, el('h3', { textContent: S.panel[title] }), ...controls.map(([kind, f, o = {}]) => chatControl(kind, f, o))));
-  }
-  for (const layout of ['vertical', 'horizontal']) { // the style picker, in two groups
-    $('#chatStyleGrid').append(el('h3', { className: 'grid-head', textContent: S.panel[layout === 'vertical' ? 'stylesVertical' : 'stylesHorizontal'] }));
-    for (const [id, name] of Object.entries(S.chatStyles).filter(([id]) => chatStyles[id]?.layout === layout)) {
-      const frame = el('iframe', { src: '/widgets/chat?thumb', title: name, tabIndex: -1, onload: drawChatThumbs });
-      frame.dataset.style = id;
-      frame.setAttribute('aria-hidden', 'true');
-      const tile = el('button', { className: 'style-tile chat-tile', onclick: () => patchChat({ style: id }) },
-        el('div', { className: 'preview' }, frame), el('span', { className: 'tile-name', textContent: name }));
-      tile.dataset.style = id;
-      $('#chatStyleGrid').append(tile);
-      fit.observe(tile.querySelector('.preview'));
-    }
-  }
+  // Chat page: the settings in their tabs, and the style gallery (a live thumbnail per style; a click starts the chat
+  // from that style's look). Bars get wide, low thumbnails.
   const chatEd = $('main [data-view=chat]');
-  $$('[data-f]', chatEd).forEach((inp) => inp.addEventListener('change', () => patchChat({ [inp.dataset.f]: valueOf(inp) })));
+  for (const [tab, boxes] of Object.entries(CHAT_TABS())) {
+    $(`#pane-c-${tab}`).append(...boxes.map(([title, controls]) => el('div', { className: 'box' },
+      el('h2', { textContent: S.panel[title] }), ...controls.map(([kind, f, o = {}]) => chatControl(kind, f, o)))));
+  }
+  wireTabs(chatEd, 'jarchi.chatTab');
+  for (const [id, name] of Object.entries(S.chatStyles).filter(([id]) => chatStyles[id])) {
+    const frame = el('iframe', { src: '/widgets/chat?thumb', title: name, tabIndex: -1, onload: drawChatThumbs });
+    frame.dataset.style = id;
+    frame.setAttribute('aria-hidden', 'true');
+    const tile = el('button', { className: `style-tile chat-tile${chatStyles[id].layout === 'horizontal' ? ' bar' : ''}`, onclick: () => patchChat({ style: id }) },
+      el('div', { className: 'preview' }, frame), el('span', { className: 'tile-name', textContent: name }));
+    tile.dataset.style = id;
+    $('#chatStyleGrid').append(tile);
+    fit.observe(tile.querySelector('.preview'));
+  }
+  $$('[name=styleGroup]').forEach((r) => (r.onchange = () => showStyleGroup(r.value)));
+  $$('[data-f]', chatEd).forEach((inp) => inp.addEventListener('change', () => patchChat({
+    [inp.dataset.f]: inp.type === 'number' ? Math.max(0, Math.round(Number(inp.value) || 0)) : valueOf(inp), // amounts: whole numbers
+  })));
   $$('input[type=range]', chatEd).forEach((inp) => inp.addEventListener('input', () => showRange(inp)));
   $$('[data-placeholder]').forEach((e) => (e.placeholder = S.panel[e.dataset.placeholder]));
-  // Test messages. Effects that are off still get their message, just without the effect: say which ones.
-  const FX_SETTING = { sub: 'fxSubGlow', first: 'fxFirst', vip: 'fxRainbowVip', mention: 'fxMention', combo: 'fxCombo', avatar: 'avatars' };
+  wireBg($('#chatPreviewBox'), 'chatPreviewBg', 'jarchi.chatPreviewBg');
+  $('#chatReplay').onclick = () => $('#chatPreview').contentWindow?.postMessage({ replay: true }, location.origin);
+  // Test messages. Effects and special lines that are off still get their message (Kicks and raids: none), just
+  // without that look: say which ones. A sub is a special line, or with those off the usual line with its glow.
+  const OFF = { first: 'fxFirst', vip: 'fxRainbowVip', mention: 'fxMention', combo: 'fxCombo', avatar: 'avatars', kicks: 'eventKicks', gift: 'eventGifts', bits: 'eventBits', raid: 'eventRaids' };
   const sendTest = (kind) => api('POST', '/api/chat/test', { kind }).then((r) => {
-    $('#chatFxHint').textContent = r.effects.map((k) => FX_SETTING[k]).filter((f) => !settings.chat[f]).map((f) => S.panel.fxOff[f]).join(' · ');
+    const c = settings.chat;
+    const off = [...r.effects, ...r.events].map((k) => (k === 'sub' ? !c.eventSubs && 'fxSubGlow' : OFF[k])).filter((f) => f && !c[f]);
+    $('#chatFxHint').textContent = off.map((f) => S.panel.fxOff[f]).join(' · ');
     toast(S.panel.chatTestSent);
   }, (err) => toast(err.message, true));
   $('#chatTest').onclick = () => sendTest('sample');
   $('#chatBurst').onclick = () => sendTest('burst');
   $('#chatAllFx').onclick = () => sendTest('all');
+  wireMenu($('#chatTestMore'), $('#chatTestMenu'));
   $('#chatResetStyle').onclick = () => send('POST', '/api/chat/reset-style');
   $('#chatCopy').title = S.panel.chatCopyHint;
   $('#chatCopy').onclick = () => copyLink(`${location.origin}/widgets/chat`, S.panel.chatCopied);
@@ -1089,9 +1149,10 @@ function renderChat() {
   const show = {
     off: !c.enabled, badges: c.showBadges, big: c.bigEmotes, nameCustom: c.nameColorMode === 'custom', bgColor: c.bg === 'color',
     borderOn: c.border, typewriter: c.typewriter, ticker: c.layout === 'horizontal', vertical: c.layout === 'vertical', fade: c.fade, bots: c.hideBots,
-    nameOwn: c.nameColorMode === 'user', hat: c.ogHat,
+    nameOwn: c.nameColorMode === 'user', hat: c.ogHat, evKicks: c.eventKicks, evGifts: c.eventGifts, evBits: c.eventBits,
   };
   $$('[data-only]', ed).forEach((e) => (e.hidden = !show[e.dataset.only]));
+  ed.dataset.layout = c.layout; // a bar's preview spans the page (panel.css .chat-page)
   fitChat();
 }
 

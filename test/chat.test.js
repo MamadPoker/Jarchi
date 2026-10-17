@@ -51,6 +51,17 @@ test('Twitch IRC lines -> messages, removals, room id', () => {
   twitch.handle('@display-name=Faker;id=b2;user-id=6 :faker!faker@faker.tmi.twitch.tv PRIVMSG #xqc :Cheer10000', 'xqc', cb);
   assert.deepEqual(out.messages[4].parts, [{ t: 'text', v: 'Cheer10000' }]);
 
+  // A line that is an alert carries it, for the chat's special lines (Events); a raid gets a line of its own; the viewers
+  // of a community gift don't (the gift has the line). Notices name their viewer in the login tag.
+  twitch.handle('@display-name=Raider;login=raider;id=r9;msg-id=raid;msg-param-viewerCount=15;room-id=1;system-msg=15\\sraiders\\sfrom\\sRaider\\shave\\sjoined! :tmi.twitch.tv USERNOTICE #xqc', 'xqc', cb);
+  twitch.handle('@display-name=Santa;login=santa;id=g9;msg-id=subgift;msg-param-community-gift-id=1;room-id=1 :tmi.twitch.tv USERNOTICE #xqc', 'xqc', cb);
+  const [raid, giftee] = out.messages.slice(-2).map(chatMessage);
+  assert.deepEqual([raid.kind, raid.user.login, raid.system, raid.event], ['event', 'raider', '15 raiders from Raider have joined!', { type: 'raid', amount: 15, months: 0, gift: null, name: '' }]);
+  assert.deepEqual([giftee.kind, giftee.user.login, giftee.event], ['sub', 'santa', null]);
+  assert.deepEqual(chatMessage(out.messages[3]).event, { type: 'bits', amount: 5351, months: 0, gift: null, name: '' });
+  assert.equal(chatMessage(out.messages[4]).event, null, 'no bits, no special line');
+  out.messages.length = 5;
+
   twitch.handle('@login=bad;target-msg-id=abc-1 :tmi.twitch.tv CLEARMSG #xqc :oops', 'xqc', cb);
   twitch.handle('@ban-duration=600;target-user-id=42 :tmi.twitch.tv CLEARCHAT #xqc :mark', 'xqc', cb);
   twitch.handle(':tmi.twitch.tv CLEARCHAT #xqc', 'xqc', cb);
@@ -100,6 +111,24 @@ test('Kick Pusher events -> messages, badges, removals', () => {
 
   kick.handle('App\\Events\\GiftedSubscriptionsEvent', { gifter_username: 'Rich', gifted_usernames: ['a', 'b', 'c'] }, 'xqc', info, cb);
   assert.deepEqual([out.messages[1].kind, out.messages[1].system], ['sub', 'Rich gifted 3 subs!']);
+  assert.deepEqual(chatMessage(out.messages[1]).event, { type: 'gift_sub', amount: 3, months: 0, gift: null, name: '' }, 'for the special line');
+
+  // Kicks (the same gift twice) and a host: lines of their own, once each. A sub announced in chat carries its months;
+  // one the gift above named is a plain line.
+  const kicks = { gift_transaction_id: 't1', message: 'hi', sender: { id: 7, username: 'LifeWing', username_color: '#E26EFF', profile_picture: 'https://files.kick.com/p.webp' },
+    gift: { gift_id: 'hell_yeah', name: 'Hell Yeah', amount: 1 }, created_at: '2026-10-14T03:20:32.535359344Z' };
+  kick.handle('KicksGifted', kicks, 'xqc', info, cb);
+  kick.handle('KicksGifted', kicks, 'xqc', info, cb);
+  kick.handle('App\\Events\\StreamHostEvent', { number_viewers: 42, host_username: 'Friend', optional_message: '' }, 'xqc', info, cb);
+  kick.handle('App\\Events\\SubscriptionEvent', { username: 'Fan', months: 5 }, 'xqc', info, cb);
+  kick.handle('App\\Events\\SubscriptionEvent', { username: 'b', months: 1 }, 'xqc', info, cb);
+  const [gift, host, fan, giftee] = out.messages.slice(2).map(chatMessage);
+  assert.equal(out.messages.length, 6, 'one line per Kicks gift');
+  assert.deepEqual([gift.kind, gift.user.login, gift.user.color, gift.user.avatar, gift.text, gift.event],
+    ['event', 'lifewing', '#E26EFF', 'https://files.kick.com/p.webp', 'hi', { type: 'kicks', amount: 1, months: 0, gift: 'hell_yeah', name: 'Hell Yeah' }]);
+  assert.deepEqual([host.kind, host.user.name, host.event.type, host.event.amount], ['event', 'Friend', 'raid', 42]);
+  assert.deepEqual([fan.kind, fan.event], ['sub', { type: 'resub', amount: 0, months: 5, gift: null, name: '' }]);
+  assert.deepEqual([giftee.kind, giftee.event], ['sub', null]);
 });
 
 test("Kick's Pusher key comes from Kick (it changes); anything odd falls back to the built-in one", async () => {
@@ -146,26 +175,36 @@ test('chat settings, Reset style, test messages, OBS page and logos', async () =
   const onChat = (m) => seen.push(m);
   bus.on('chat', onChat);
   const wait = (n) => new Promise((r) => setTimeout(r, n * 450 + 400));
-  // "Show all effects": one message per effect, in order, then a combo run of one emote from several viewers.
+  // "Show all effects": one message per effect, in order, then a combo run of one emote from several viewers, then one
+  // special line (Events) of each kind, each from its smallest amount up.
+  await call('PATCH', '/api/settings', { chat: { eventKicksMin: 100, eventBitsMin: 2000 } });
   const all = await (await call('POST', '/api/chat/test', { kind: 'all' })).json();
   assert.deepEqual(all.effects, ['sub', 'first', 'vip', 'mention', 'avatar', 'combo']);
+  assert.deepEqual(all.events, ['kicks', 'gift', 'bits', 'raid']);
   await wait(all.sent);
   assert.equal(seen.length, all.sent);
   assert.ok(seen[0].kind === 'sub' && seen[0].system, 'sub');
+  assert.equal(seen[0].event.type, 'resub', 'a sub is a special line');
   assert.ok(seen[1].first, 'first message');
   assert.ok(seen[2].user.badges.some((b) => b.type === 'vip'), 'VIP');
   assert.match(seen[3].text, /@streamer\b/, 'mention');
   assert.match(seen[4].user.avatar, /^https:\/\/static-cdn\.jtvnw\.net\/user-default-pictures-uv\//, 'profile picture');
-  const run = seen.slice(5);
+  const run = seen.slice(5, -4);
   assert.ok(run.length >= 4 && new Set(run.map((m) => m.user.name)).size === run.length, 'combo: several viewers');
   assert.ok(run.every((m) => m.parts.length === 1 && m.parts[0].t === 'emote' && m.parts[0].name === run[0].parts[0].name), 'combo: the same emote');
-  // "Send test message" (emotes + 3 effects) and "Send 10 messages" (10, 2 of them effects)
+  const [kicks, gift, bits, raid] = seen.slice(-4);
+  assert.deepEqual([kicks.kind, kicks.platform, kicks.event.type], ['event', 'kick', 'kicks']);
+  assert.ok(kicks.event.amount >= 100 && fs.existsSync(path.join(__dirname, '..', 'assets', 'kick-gifts', `${kicks.event.gift}.webp`)), "Kick's gift, its picture");
+  assert.deepEqual([gift.kind, gift.event.type], ['sub', 'gift_sub']);
+  assert.ok(bits.event.amount >= 2000 && bits.parts.some((p) => p.t === 'cheer' && p.amount === bits.event.amount), 'bits: the cheer in the message');
+  assert.deepEqual([raid.kind, raid.event.type], ['event', 'raid']);
+  // "Send test message" (emotes + 3 effects + a special line) and "Send 10 messages" (10, 2 of them effects)
   seen.length = 0;
   const sample = await (await call('POST', '/api/chat/test', { kind: 'sample' })).json();
   const burst = await (await call('POST', '/api/chat/test', { kind: 'burst' })).json();
-  assert.equal(sample.effects.length, 3);
-  assert.ok(sample.sent >= 5);
-  assert.deepEqual([burst.sent, burst.effects.length], [10, 2]);
+  assert.deepEqual([sample.effects.length, sample.events.length], [3, 1]);
+  assert.ok(sample.sent >= 6);
+  assert.deepEqual([burst.sent, burst.effects.length, burst.events.length], [10, 2, 0]);
   await wait(sample.sent);
   bus.off('chat', onChat);
   assert.equal(seen.length, sample.sent + burst.sent);

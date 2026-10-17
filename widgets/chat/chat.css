@@ -362,6 +362,27 @@ body.preview, body.thumb { display: grid; place-items: center; }
 .tick .combo { position: absolute; top: -0.35em; right: -0.5em; margin: 0; font-size: 0.8em; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8); }
 .tick .msg.glow { padding: 0.25em 0.6em; }
 
+/* ---------- Special lines (Events): Kicks, subs, gifted subs, bits, raids ---------- */
+/* Inside the style's own message (bubble, note, strip...): what happened, with the gift / gem / platform logo, over the
+   viewer's message. --ev is the platform's color (--ev-a, --ev-b: see-through), set in chat.js. Text keeps the style's
+   color, so it reads on light and dark styles alike. Card: a tinted card with a bar; Glow: a glowing ring; Simple line: words only. */
+.ev-head { font-weight: 700; }
+.ev-icon { height: 1.6em; margin: -0.2em 0.35em -0.2em 0; vertical-align: middle; }
+.ev-icon.platform { width: 1.2em; height: 1.2em; margin-top: 0; margin-bottom: 0; }
+.ev-gift { font-weight: 900; text-transform: uppercase; }
+.ev-amt { font-weight: 900; }
+.ev-msg { margin-top: 0.25em; }
+.ev-card .ev, .ev-glow .ev { padding: 0.45em 0.7em; border-radius: max(calc(var(--radius) * 0.6), 6px); background: var(--ev-a); }
+.ev-card .ev { box-shadow: inset 4px 0 0 var(--ev); }
+.ev-card [data-dir="rtl"] .ev { box-shadow: inset -4px 0 0 var(--ev); }
+.ev-glow .ev { margin: 3px; box-shadow: 0 0 0 2px var(--ev), 0 0 14px var(--ev-b); animation: ev-glow 1.8s ease-in-out infinite alternate; } /* margin: room for the ring */
+@keyframes ev-glow { to { box-shadow: 0 0 0 2px var(--ev), 0 0 24px var(--ev); } }
+.ev-line .ev-icon { height: 1.3em; }
+/* One line (bars): everything in a row */
+.tick .ev { display: flex; align-items: center; gap: 0.5em; white-space: nowrap; }
+.tick .ev-msg { margin: 0; }
+.ev-card .tick .ev, .ev-glow .tick .ev { padding: 0.2em 0.6em; }
+
 /* ---------- Horizontal (bar) styles ---------- */
 /* OBS source taller than the bar: put the bar at the bottom */
 body.bar-bottom { display: flex; flex-direction: column; justify-content: flex-end; }

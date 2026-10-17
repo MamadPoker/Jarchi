@@ -525,58 +525,97 @@
         </div>
       </section>
 
-      <!-- ===== Chat widget ===== -->
-      <section class="view" data-view="chat" hidden>
-        <div class="row between">
-          <h1 class="title"><span class="dot"></span><span data-i18n="chatName"></span><label class="switch"><input type="checkbox" data-f="enabled" data-aria="chatName"><span></span></label><span class="pill" data-only="off" data-i18n="off"></span></h1>
-          <div class="row">
-            <button id="chatCopy">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h8"/></svg>
-              <span data-i18n="copyObs"></span>
-            </button>
-            <button id="chatResetStyle" class="ghost" data-i18n="chatResetStyle"></button>
-          </div>
-        </div>
-        <small data-i18n="chatHint"></small>
-
-        <div class="basics two">
-          <div class="box">
-            <h2 class="row" data-help="chat.kickChannel"><img class="plat-logo" src="/assets/platform-logos/kick.svg" alt=""><span data-i18n="kickChannel"></span></h2>
-            <input type="text" data-f="kickChannel" maxlength="40" data-aria="kickChannel" data-placeholder="channelPlaceholder">
-            <span class="status" id="kickStatus"></span>
-          </div>
-          <div class="box">
-            <h2 class="row" data-help="chat.twitchChannel"><img class="plat-logo" src="/assets/platform-logos/twitch.svg" alt=""><span data-i18n="twitchChannel"></span></h2>
-            <input type="text" data-f="twitchChannel" maxlength="25" data-aria="twitchChannel" data-placeholder="channelPlaceholder">
-            <span class="status" id="twitchStatus"></span>
-          </div>
-        </div>
-
-        <div class="stage chat-stage">
-          <div class="chat-preview"><iframe id="chatPreview" data-title="chatPreview"></iframe></div>
-          <p id="chatFxHint" class="fx-hint" aria-live="polite"></p>
-          <div class="stage-ctrl">
-            <button id="chatAllFx" data-i18n="chatAllFx"></button>
-            <button id="chatBurst" data-i18n="chatBurst"></button>
-            <button id="chatTest" class="primary">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+      <!-- ===== Chat: "Saved", tests and the OBS link on top; the live preview (left) next to the style gallery and the
+           settings in five tabs (right). No Save button: every change saves by itself (send(), the "Saved" note). ===== -->
+      <section class="view chat-page" data-view="chat" hidden>
+        <div class="page-head">
+          <span id="chatSaved" class="saved-note"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span data-i18n="saved"></span></span>
+          <div class="menu split-btn">
+            <button id="chatTest">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
               <span data-i18n="chatTest"></span>
             </button>
+            <button id="chatTestMore" class="icon-btn" aria-haspopup="true" aria-expanded="false" aria-controls="chatTestMenu" data-title="chatMoreTests"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
+            <div id="chatTestMenu" class="menu-pop" hidden>
+              <button id="chatBurst" data-i18n="chatBurst"></button>
+              <button id="chatAllFx" data-i18n="chatAllFx"></button>
+            </div>
+          </div>
+          <button id="chatCopy" class="primary">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h8"/></svg>
+            <span data-i18n="copyObs"></span>
+          </button>
+        </div>
+
+        <div class="chat-body">
+          <!-- Left: the chat as OBS shows it, then the widget's switch and the channels it reads -->
+          <div class="chat-left">
+            <div class="stage alert-stage chat-stage">
+              <div class="chat-preview" id="chatPreviewBox"><iframe id="chatPreview" data-title="chatPreview"></iframe></div>
+              <div class="stage-bar">
+                <!-- Only the preview's background here; OBS shows the chat over the stream. -->
+                <div class="seg" role="radiogroup" data-aria="previewBg">
+                  <label><input type="radio" name="chatPreviewBg" value="dark"><span><i class="bg-sw" data-bg="dark"></i><span data-i18n="bgDark"></span></span></label>
+                  <label><input type="radio" name="chatPreviewBg" value="light"><span><i class="bg-sw" data-bg="light"></i><span data-i18n="bgLight"></span></span></label>
+                  <label><input type="radio" name="chatPreviewBg" value="checker"><span><i class="bg-sw" data-bg="checker"></i><span data-i18n="bgChecker"></span></span></label>
+                </div>
+                <p id="chatFxHint" class="fx-hint" aria-live="polite"></p>
+                <button id="chatReplay" class="primary">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.3-5.7M4 4v5h5"/></svg>
+                  <span data-i18n="replay"></span>
+                </button>
+              </div>
+            </div>
+
+            <div class="box">
+              <label class="row between toggle-row"><span class="row"><b data-i18n="chatOn" data-help="chat.enabled"></b><span class="pill" data-only="off" data-i18n="off"></span></span><span class="switch"><input type="checkbox" data-f="enabled"><span></span></span></label>
+              <div class="cols">
+                <div class="field">
+                  <span class="row" data-help="chat.kickChannel"><img class="plat-logo" src="/assets/platform-logos/kick.svg" alt=""><span data-i18n="kickChannel"></span></span>
+                  <input type="text" data-f="kickChannel" maxlength="40" data-aria="kickChannel" data-placeholder="channelPlaceholder">
+                  <span class="status" id="kickStatus"></span>
+                </div>
+                <div class="field">
+                  <span class="row" data-help="chat.twitchChannel"><img class="plat-logo" src="/assets/platform-logos/twitch.svg" alt=""><span data-i18n="twitchChannel"></span></span>
+                  <input type="text" data-f="twitchChannel" maxlength="25" data-aria="twitchChannel" data-placeholder="channelPlaceholder">
+                  <span class="status" id="twitchStatus"></span>
+                </div>
+              </div>
+              <small data-i18n="chatHint"></small>
+            </div>
+          </div>
+
+          <!-- Right: the style gallery (vertical or horizontal styles), then the settings in tabs (built in panel.js from CHAT_TABS) -->
+          <div class="chat-right">
+            <div class="box">
+              <div class="row between">
+                <h2 data-i18n="chatStyle" data-help="chat.style"></h2>
+                <div class="row">
+                  <div class="seg" role="radiogroup" data-aria="chatStyle">
+                    <label><input type="radio" name="styleGroup" value="vertical"><span data-i18n="stylesVertical"></span></label>
+                    <label><input type="radio" name="styleGroup" value="horizontal"><span data-i18n="stylesHorizontal"></span></label>
+                  </div>
+                  <button id="chatResetStyle" class="ghost" data-i18n="chatResetStyle"></button>
+                </div>
+              </div>
+              <div id="chatStyleGrid" class="style-grid"></div>
+              <small data-i18n="chatStyleHint"></small>
+            </div>
+
+            <div class="tabs" role="tablist" data-aria="chatTabs">
+              <button role="tab" id="tab-c-text" aria-controls="pane-c-text" data-tab="text"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 6V4h14v2M12 4v16M9 20h6"/></svg><span data-i18n="tabText"></span></button>
+              <button role="tab" id="tab-c-names" aria-controls="pane-c-names" data-tab="names"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 21v-1a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v1M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8"/></svg><span data-i18n="tabNames"></span></button>
+              <button role="tab" id="tab-c-events" aria-controls="pane-c-events" data-tab="events"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/></svg><span data-i18n="tabEvents"></span></button>
+              <button role="tab" id="tab-c-filters" aria-controls="pane-c-filters" data-tab="filters"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5h18l-7 8v6l-4 2v-8z"/></svg><span data-i18n="chatFilters"></span></button>
+              <button role="tab" id="tab-c-layout" aria-controls="pane-c-layout" data-tab="layout"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 9v12"/></svg><span data-i18n="tabLayout"></span></button>
+            </div>
+            <div class="pane" role="tabpanel" id="pane-c-text" aria-labelledby="tab-c-text" data-tab="text"></div>
+            <div class="pane" role="tabpanel" id="pane-c-names" aria-labelledby="tab-c-names" data-tab="names" hidden></div>
+            <div class="pane" role="tabpanel" id="pane-c-events" aria-labelledby="tab-c-events" data-tab="events" hidden></div>
+            <div class="pane" role="tabpanel" id="pane-c-filters" aria-labelledby="tab-c-filters" data-tab="filters" hidden></div>
+            <div class="pane" role="tabpanel" id="pane-c-layout" aria-labelledby="tab-c-layout" data-tab="layout" hidden></div>
           </div>
         </div>
-
-        <div class="box">
-          <div class="row between"><h2 data-i18n="chatStyle" data-help="chat.style"></h2><small data-i18n="chatStyleHint"></small></div>
-          <div id="chatStyleGrid" class="style-grid five"></div>
-        </div>
-
-        <details class="more">
-          <summary>
-            <span data-i18n="moreOptions"></span>
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
-          </summary>
-          <div id="chatMore" class="more-grid three"></div>
-        </details>
       </section>
 
       <!-- ===== Theme ===== -->

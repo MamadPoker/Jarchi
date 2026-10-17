@@ -142,6 +142,8 @@ async function subMonths(slug, user) {
 //   KicksGifted (channel_<id>)                     Kicks, keyed by Kick's gift transaction id
 //   StreamHostEvent (.v2)                          raid (Kick calls it a host), amount = viewers
 // Each of these (not other chat messages) goes to the event log (data/logs/events.log) as it came.
+// Their chat lines carry what happened (event, for the chat's special lines): subs, resubs and gifts on their usual line;
+// Kicks and hosts get a line of their own (kind 'event'), once per gift / host.
 const ALERT_EVENTS = new Set(['App\\Events\\SubscriptionEvent', 'App\\Events\\ChannelSubscriptionEvent', 'GiftedSubscriptionsEvent',
   'App\\Events\\GiftedSubscriptionsEvent', 'KicksGifted', 'App\\Events\\StreamHostEvent']);
 // The channel's goals (Kick's creator dashboard) on channel_<id>, each with the whole goal as kick.com's /goals lists it:
@@ -165,14 +167,16 @@ function handle(event, raw, channel, info, cb) {
   switch (event) {
     case 'App\\Events\\ChatMessageEvent': {
       const s = d.sender ?? {};
+      const c = d.metadata?.celebration;
+      const renewed = d.type === 'celebration' && c?.type === 'subscription_renewed' && (Number(c.total_months) || 2);
       cb.onMessage({
         platform: 'kick', id: d.id, channel, time: Date.parse(d.created_at) || Date.now(),
         text: (d.content ?? '').replace(EMOTE, '$2'),
         user: { id: s.id, login: s.slug, name: s.username, color: s.identity?.color, badges: kickBadges(s.identity, info.subBadges) },
         parts: kickParts(d.content ?? ''),
+        ...(renewed && { event: { type: 'resub', months: renewed } }),
       });
-      const c = d.metadata?.celebration;
-      if (d.type === 'celebration' && c?.type === 'subscription_renewed') sub(s.username, Number(c.total_months) || 2, (d.content ?? '').replace(EMOTE, '$2'));
+      if (renewed) sub(s.username, renewed, (d.content ?? '').replace(EMOTE, '$2'));
       return;
     }
     case 'App\\Events\\MessageDeletedEvent': return cb.onClear({ platform: 'kick', messageId: d.message?.id });
@@ -180,7 +184,11 @@ function handle(event, raw, channel, info, cb) {
     case 'App\\Events\\ChatroomClearEvent': return cb.onClear({ platform: 'kick' });
     case 'App\\Events\\SubscriptionEvent': {
       const months = Number(d.months) || 1;
-      cb.onMessage({ platform: 'kick', channel, kind: 'sub', user: name(d.username), system: fill(strings.chatText.kickSub, { user: d.username, months }), text: '', parts: [] });
+      // A viewer a gift just named got their sub from that gift: a plain line (the gift has the special one).
+      // ponytail: a "subscribed" that comes before its gift still gets the special line (chat lines never wait); if
+      // that shows up, give the gift line its viewers and let the widget turn their lines plain.
+      const own = !isRecent(`to:${login(d.username)}`) && { event: { type: months > 1 ? 'resub' : 'sub', months } };
+      cb.onMessage({ platform: 'kick', channel, kind: 'sub', user: name(d.username), system: fill(strings.chatText.kickSub, { user: d.username, months }), text: '', parts: [], ...own });
       return setTimeout(() => sub(d.username, months), GIFT_WAIT_MS);
     }
     case 'App\\Events\\ChannelSubscriptionEvent': {
@@ -202,14 +210,30 @@ function handle(event, raw, channel, info, cb) {
       mark(`from:${login(d.gifter_username)}`);
       if (!isRecent(key)) { // the chat line once per gift, not per chunk
         mark(key);
-        cb.onMessage({ platform: 'kick', channel, kind: 'sub', user: name(d.gifter_username), system: fill(strings.chatText.kickGift, { user: d.gifter_username, count }), text: '', parts: [] });
+        cb.onMessage({ platform: 'kick', channel, kind: 'sub', user: name(d.gifter_username), system: fill(strings.chatText.kickGift, { user: d.gifter_username, count }), text: '', parts: [],
+          event: { type: 'gift_sub', amount: count } });
       }
       return cb.onAlert?.({ type: 'gift_sub', user: d.gifter_username, amount: count, key });
     }
-    case 'KicksGifted':
-      return cb.onAlert?.({ type: 'kicks', user: d.sender?.username, amount: Number(d.gift?.amount) || 0, message: d.message ?? '', key: d.gift_transaction_id && `kick:kicks:${d.gift_transaction_id}` });
-    case 'App\\Events\\StreamHostEvent':
-      return cb.onAlert?.({ type: 'raid', user: d.host_username, amount: Number(d.number_viewers) || 0, message: d.optional_message ?? '', key: `kick:host:${login(d.host_username)}:${d.number_viewers}` });
+    case 'KicksGifted': {
+      const s = d.sender ?? {}, amount = Number(d.gift?.amount) || 0, message = d.message ?? '';
+      const key = d.gift_transaction_id && `kick:kicks:${d.gift_transaction_id}`;
+      if (!key || !isRecent(key)) {
+        if (key) mark(key);
+        cb.onMessage({ platform: 'kick', id: d.gift_transaction_id, channel, kind: 'event', time: Date.parse(d.created_at) || Date.now(),
+          user: { id: s.id, login: login(s.username), name: s.username, color: s.username_color, avatar: s.profile_picture },
+          text: message.replace(EMOTE, '$2'), parts: kickParts(message), event: { type: 'kicks', amount, gift: d.gift?.gift_id, name: d.gift?.name } });
+      }
+      return cb.onAlert?.({ type: 'kicks', user: s.username, amount, message, key });
+    }
+    case 'App\\Events\\StreamHostEvent': {
+      const viewers = Number(d.number_viewers) || 0, message = d.optional_message ?? '', key = `kick:host:${login(d.host_username)}:${d.number_viewers}`;
+      if (!isRecent(key)) {
+        mark(key);
+        cb.onMessage({ platform: 'kick', channel, kind: 'event', user: name(d.host_username), text: message, parts: kickParts(message), event: { type: 'raid', amount: viewers } });
+      }
+      return cb.onAlert?.({ type: 'raid', user: d.host_username, amount: viewers, message, key });
+    }
   }
 }
 

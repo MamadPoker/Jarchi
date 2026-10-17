@@ -30,6 +30,11 @@ const STYLE_NAMES = { kick: ['#00F1FF', '#4CFF75', '#55FFC7', '#6F87FF', '#AAA9F
 const STYLE_TURNS = { comic: [null, '#ffe14d', '#a5e4ff'], sticky: [null, '#ffb3c7', '#b8f2d0', '#a9d8ff', '#ffd59e'], pastel: [null, '#ffc6e0', '#bff0d8', '#ffd9b3', '#c5dcff'], popin: ['#ff4d9d', '#3ee8ff', '#ffd54d', '#7cff6b'], candy: ['#dccbff', '#ffc6e0', '#bff0d8', '#fff1a8'] };
 const SEPARATOR = { pastel: ' ·' }; // instead of the colon
 const RTL = /[֐-ࣿיִ-﷿ﹰ-﻿]/;
+// Special lines (the chat's Events): the setting that turns each on, and the one with its smallest amount. Kicks and
+// raids are only ever special lines (kind 'event'); a sub notice or a cheer is its usual line again while its type is off.
+const EVENTS = { kicks: ['eventKicks', 'eventKicksMin'], sub: ['eventSubs'], resub: ['eventSubs'], gift_sub: ['eventGifts', 'eventGiftsMin'], bits: ['eventBits', 'eventBitsMin'], raid: ['eventRaids'] };
+const EVENT_COLOR = { kick: '#53fc18', twitch: '#9146ff' }; // the platforms' own colors
+const GEMS = [10000, 5000, 1000, 100, 1]; // Twitch's cheer gems, by amount (assets/twitch-bits)
 let S, cfg, mainSettings, look = '', f = {};
 const recent = []; // known messages, newest last (to rebuild when the look changes)
 let rows = []; // on screen: { el, msg, timer, exiting, combo, count, at }
@@ -54,6 +59,11 @@ const rgba = (hex, a) => {
 const words = (s) => (s || '').toLowerCase().split(/[,\n]+/).map((w) => w.trim()).filter(Boolean);
 const ms = (base) => base / (cfg.animSpeed || 1);
 const vertical = () => cfg.layout !== 'horizontal';
+const special = (m) => {
+  const [on, min] = EVENTS[m.event?.type] ?? [];
+  return !!on && !!cfg[on] && (!min || m.event.amount >= cfg[min]);
+};
+const longer = (m) => cfg.eventLonger && special(m); // "Keep special lines longer"
 
 // ---------- Inputs ----------
 if (params.has('thumb')) {
@@ -63,12 +73,13 @@ if (params.has('thumb')) {
     S = e.data.strings;
     cfg = e.data.cfg;
     recent.splice(0, recent.length, ...e.data.messages);
-    // Vertical thumbnails are still; horizontal ones scroll and loop, like the real bar.
-    if (cfg.layout === 'horizontal') cfg = { ...cfg, tickerLoop: true };
-    apply(cfg.layout !== 'horizontal');
+    apply(true); // vertical thumbnails stand still; a bar's go round (marquee())
   });
 } else {
-  if (params.has('preview')) document.body.classList.add('preview');
+  if (params.has('preview')) {
+    document.body.classList.add('preview');
+    addEventListener('message', (e) => { if (e.origin === location.origin && e.data?.replay && cfg && S) replay(); }); // the panel's Replay
+  }
   // WebSocket first: over HTTP polling, chat waited behind profile pictures and emotes still downloading (a browser
   // opens only 6 connections to this PC at a time). Polling stays as the fallback if WebSocket can't connect.
   socket = io({ transports: ['websocket', 'polling'], tryAllTransports: true });
@@ -120,7 +131,7 @@ function apply(still = false) {
   root.className = [
     'chat', `style-${cfg.style}`, `layout-${cfg.layout}`, `new-${cfg.newAt}`, `bg-${cfg.bg}`,
     cfg.bubbles && 'bubbles', boxed && 'boxed', cfg.border && 'bordered', cfg.fade && cfg.fadeZone > 0 && 'fade',
-    cfg.textShadow && 'shadow', cfg.namePos === 'above' && 'name-above', still && 'still',
+    cfg.textShadow && 'shadow', cfg.namePos === 'above' && 'name-above', still && vertical() && 'still', `ev-${cfg.eventLook}`,
     cfg.blur > 0 && 'blurred', // only then: a backdrop filter puts each message on its own layer, which can blur its text
     light && 'light', // light boxes: light names get an outline (chat.css)
   ].filter(Boolean).join(' ');
@@ -141,14 +152,22 @@ function apply(still = false) {
   rebuild(still);
 }
 
-// Redraw from memory, without animation (look changed, or (re)connected).
-function rebuild(still = false) {
+// Empty the chat (its messages stay in memory).
+let replays = [], spin; // Replay's waiting messages; a bar thumbnail's motion
+function clear() {
   typing?.finish();
   for (const r of rows) clearTimeout(r.timer);
   rows = [];
   clearTimeout(loopTimer);
   loopAt = 0;
+  replays.forEach(clearTimeout);
+  spin?.cancel();
   list.replaceChildren();
+}
+
+// Redraw from memory, without animation (look changed, or (re)connected).
+function rebuild(still = false) {
+  clear();
   const keep = recent.filter(shown).slice(-cfg.maxMessages);
   // Ticker: the oldest kept message starts at the far edge, so the bar is already full instead of starting empty.
   tickerReady = vertical() || still ? 0 : performance.now() - (viewport.clientWidth / cfg.tickerSpeed) * 1000;
@@ -156,11 +175,46 @@ function rebuild(still = false) {
   for (const m of keep) add(m, false, still);
   filling = false;
   refit();
+  if (still && !vertical()) marquee();
+}
+
+// The panel's Replay: the last few messages come in again, one after another, with their animations.
+function replay() {
+  const keep = recent.filter(shown).slice(-Math.min(cfg.maxMessages, 6));
+  clear();
+  tickerReady = 0;
+  replays = keep.map((m, i) => setTimeout(() => add(m, true), i * 500));
+}
+
+// A bar's thumbnail: its messages side by side (once their pictures are in), going round and round at the bar's speed,
+// with copies behind them so there's never a gap. No queue or timing, like the live bar has.
+async function marquee() {
+  const set = rows.map((r) => r.el);
+  await Promise.all(set.map(imagesReady));
+  if (!set[0]?.isConnected) return; // redrawn meanwhile
+  let span = 0;
+  for (const el of set) {
+    el.style.left = `${span}px`;
+    el.style.visibility = '';
+    span += el.offsetWidth + cfg.gap + 24;
+  }
+  const W = viewport.clientWidth;
+  if (!span || !W) return; // not on screen: nothing to measure
+  for (let copy = 1; copy <= Math.ceil(W / span); copy++) {
+    for (const el of set) {
+      const c = el.cloneNode(true);
+      c.style.left = `${parseFloat(el.style.left) + span * copy}px`;
+      list.append(c);
+    }
+  }
+  const [from, to] = cfg.tickerDir === 'rtl' ? [0, -span] : [-span, 0];
+  spin = list.animate([{ transform: `translateX(${from}px)` }, { transform: `translateX(${to}px)` }], { duration: (span / cfg.tickerSpeed) * 1000, iterations: Infinity });
 }
 
 // ---------- Filters ----------
 function shown(m) {
   if (cfg.source !== 'both' && m.platform !== cfg.source) return false;
+  if (m.kind === 'event' && !special(m)) return false; // Kicks or a raid while that line is off (or under its amount)
   const login = m.user.login;
   if (cfg.hideBots && f.bots.has(login)) return false;
   if (f.hidden.has(login) || f.hidden.has(m.user.name.toLowerCase())) return false;
@@ -182,7 +236,7 @@ const emoteOn = (p) => ({ twitch: cfg.emotesTwitch, kick: cfg.emotesKick, '7tv':
 const onlyEmotes = (m) => m.parts.some((p) => p.t === 'emote' && emoteOn(p)) && m.parts.every((p) => (p.t === 'emote' ? emoteOn(p) : p.t === 'text' && !p.v.trim()));
 // A message that is just one emote (once or repeated) -> its name, for the combo counter.
 function comboKey(m) {
-  if (!onlyEmotes(m)) return null;
+  if (special(m) || !onlyEmotes(m)) return null;
   const names = new Set(m.parts.filter((p) => p.t === 'emote').map((p) => p.name));
   return names.size === 1 ? [...names][0] : null;
 }
@@ -420,12 +474,32 @@ function bodyEl(m) {
   return body;
 }
 
+// A special line (Events), the way Kick's and Twitch's own chats show one: the gift, the gem or the platform's logo, what
+// happened, then the viewer's own message. Card, glow or simple line: chat.css (.ev-card / .ev-glow / .ev-line).
+function eventEl(m, rainbow) {
+  const e = m.event, gem = GEMS.find((g) => e.amount >= g) ?? 1;
+  const icon = e.type === 'kicks' && S.kickGifts[e.gift] ? h('img', { className: 'ev-icon', src: `/assets/kick-gifts/${e.gift}.webp`, alt: '' })
+    : e.type === 'bits' ? h('img', { className: 'ev-icon', src: `/assets/twitch-bits/${gem}.gif`, alt: '' })
+    : h('img', { className: `ev-icon platform pl-${m.platform}`, src: `/assets/platform-logos/${m.platform}.svg`, alt: m.platform });
+  const parts = {
+    user: nameEl(m, rainbow, null),
+    gift: h('b', { className: 'ev-gift', textContent: S.kickGifts[e.gift] ?? e.name }),
+    amount: h('b', { className: `ev-amt${e.type === 'bits' ? ` gem-${gem}` : ''}`, textContent: e.amount.toLocaleString('en') }),
+    months: h('b', { className: 'ev-amt', textContent: String(e.months) }),
+  };
+  const words = S.chatText.events[e.type === 'gift_sub' && e.amount === 1 ? 'gift_one' : e.type];
+  const head = h('div', { className: 'ev-head' }, icon, ...words.split(/\{(\w+)\}/).map((s, i) => (i % 2 ? parts[s] ?? '' : s)));
+  const said = m.parts.some((p) => p.t !== 'text' || p.v.trim());
+  return h('div', { className: 'ev' }, head, said ? h('div', { className: 'ev-msg' }, bodyEl(m)) : null);
+}
+
 function msgEl(m) {
+  const ev = special(m);
   const vip = m.user.badges.some((b) => b.type === 'vip');
   const rainbow = (cfg.fxRainbowVip && vip) || f.rainbow.has(m.user.login) || f.rainbow.has(m.user.name.toLowerCase());
-  const mention = cfg.fxMention && [...f.streamer, ...(m.test ? ['streamer'] : [])].some((s) => new RegExp(`(^|[^\\w])@?${s}\\b`, 'i').test(m.text));
-  const glow = m.kind === 'sub' && cfg.fxSubGlow;
-  const first = m.first && cfg.fxFirst;
+  const mention = !ev && cfg.fxMention && [...f.streamer, ...(m.test ? ['streamer'] : [])].some((s) => new RegExp(`(^|[^\\w])@?${s}\\b`, 'i').test(m.text));
+  const glow = !ev && m.kind === 'sub' && cfg.fxSubGlow;
+  const first = !ev && m.first && cfg.fxFirst;
   const tags = [glow && h('span', { className: 'tag tag-sub', textContent: S.chatText.subTag }), first && h('span', { className: 'tag tag-first', textContent: S.chatText.firstTag })].filter(Boolean);
   const time = new Date(m.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   // For the styles: the message's turn color (also what's behind its name), a small tilt (same each time it's drawn).
@@ -442,10 +516,18 @@ function msgEl(m) {
     cfg.showColon && m.kind === 'message' && !m.action && h('span', { className: 'colon', textContent: SEPARATOR[cfg.style] ?? ':' }));
   const avatar = cfg.avatars && (hat === 'avatar' ? h('span', { className: 'avatar-box' }, avatarEl(m), hatEl('avatar')) : avatarEl(m));
   const hasText = m.parts.some((p) => p.t !== 'text' || p.v.trim());
-  const el = h('div', { className: ['msg', m.kind === 'sub' && 'kind-sub', glow && 'glow', first && 'first', mention && 'mention', m.action && 'action', hat && hat !== 'badge' && 'hatted'].filter(Boolean).join(' ') },
-    tags.length ? h('div', { className: 'tags' }, ...tags) : null,
-    m.kind === 'sub' && m.system ? h('div', { className: 'system', dir: cfg.textDir, textContent: m.system }) : null,
-    m.kind === 'message' || hasText ? h('div', { className: 'line' }, avatar, meta, bodyEl(m)) : null);
+  const el = ev
+    ? h('div', { className: `msg event ev-${m.event.type}` }, eventEl(m, rainbow))
+    : h('div', { className: ['msg', m.kind === 'sub' && 'kind-sub', glow && 'glow', first && 'first', mention && 'mention', m.action && 'action', hat && hat !== 'badge' && 'hatted'].filter(Boolean).join(' ') },
+      tags.length ? h('div', { className: 'tags' }, ...tags) : null,
+      m.kind === 'sub' && m.system ? h('div', { className: 'system', dir: cfg.textDir, textContent: m.system }) : null,
+      m.kind === 'message' || hasText ? h('div', { className: 'line' }, avatar, meta, bodyEl(m)) : null);
+  if (ev) {
+    const c = EVENT_COLOR[m.platform] ?? '#ffd54d';
+    el.style.setProperty('--ev', c);
+    el.style.setProperty('--ev-a', rgba(c, 0.16));
+    el.style.setProperty('--ev-b', rgba(c, 0.55));
+  }
   if (turn) el.style.setProperty('--turn', rgba(turn, cfg.bgOpacity));
   el.style.setProperty('--tilt', `${(hash(m.id) % 61) / 10 - 3}deg`);
   el.dataset.dir = cfg.textDir !== 'auto' ? cfg.textDir : RTL.test(m.text.match(/\p{L}/u)?.[0] ?? '') ? 'rtl' : 'ltr';
@@ -591,9 +673,10 @@ function addRow(m, animate) {
     arrive(el, el.firstChild);
     markShown(m, el);
   }
-  if (cfg.hideAfter > 0) r.timer = setTimeout(() => leave(r), cfg.hideAfter * 1000);
+  // A special line kept longer stays twice the "Hide after" time, and until twice "Max messages" came after it.
+  if (cfg.hideAfter > 0) r.timer = setTimeout(() => leave(r), cfg.hideAfter * (longer(m) ? 2000 : 1000));
   const live = rows.filter((x) => !x.exiting);
-  for (const old of live.slice(0, Math.max(0, live.length - cfg.maxMessages))) leave(old);
+  live.forEach((x, i) => { if (live.length - 1 - i >= cfg.maxMessages * (longer(x.msg) ? 2 : 1)) leave(x); });
   prune();
   refit();
 }
@@ -640,11 +723,10 @@ let tickChain = Promise.resolve();
 function addTick(m, still, repeat = false) {
   const el = h('div', { className: 'tick' }, msgEl(m));
   const r = { el, msg: m, combo: comboKey(m), count: 1, at: Date.now(), repeat };
-  if (still) { // thumbnail: lay them side by side
-    el.style.left = `${rows.reduce((x, o) => x + o.el.offsetWidth + cfg.gap + 24, 0)}px`;
+  if (still) { // thumbnail: marquee() lays them side by side
+    el.style.visibility = 'hidden';
     list.append(el);
     rows.push(r);
-    refit();
     return true;
   }
   if (rows.length >= cfg.maxMessages) return false;
@@ -675,7 +757,11 @@ function place(r, fill) {
   tickerReady = start + ((w + cfg.gap + 24) / v) * 1000;
   if (start + duration <= now) return drop(r); // would already be gone
   const [from, to] = cfg.tickerDir === 'rtl' ? [W, -w] : [-w, W];
-  el.animate([{ transform: `translateX(${from}px)` }, { transform: `translateX(${to}px)` }], { duration, delay: start - now, fill: 'both' }).onfinish = () => drop(r);
+  el.animate([{ transform: `translateX(${from}px)` }, { transform: `translateX(${to}px)` }], { duration, delay: start - now, fill: 'both' }).onfinish = () => {
+    const across = el.isConnected; // not redrawn meanwhile
+    drop(r);
+    if (across && !r.repeat && longer(m)) addTick(m, false, true); // a special line kept longer goes by once more
+  };
   el.style.visibility = '';
   if (!fill && !r.repeat) {
     setTimeout(() => {

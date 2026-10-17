@@ -736,9 +736,20 @@ main { padding: 24px 28px 64px; container-type: inline-size; } /* editor rules b
 .style-tile.selected { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold); }
 .more-grid.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 
-/* ---------- Chat editor ---------- */
-[data-key="chat"] { --dot: #f472b6; }
-.basics.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+/* ---------- Chat page: "Saved", tests and the OBS link on top; the live preview (left) next to the styles and tabs (right) ---------- */
+.view.chat-page { max-width: 1340px; }
+.saved-note { display: inline-flex; align-items: center; gap: 6px; margin-inline-end: auto; color: var(--muted); font-size: 13px; font-weight: 600; }
+.saved-note svg { color: var(--ok); stroke-width: 2.5; }
+.saved-note.flash { animation: saved-flash 1.6s ease-out; } /* every save (send()) */
+@keyframes saved-flash { 0%, 35% { color: var(--gold-text); } }
+.split-btn { display: flex; }
+.split-btn > button:first-child { border-start-end-radius: 0; border-end-end-radius: 0; }
+.split-btn > .icon-btn { margin-inline-start: -1px; border-start-start-radius: 0; border-end-start-radius: 0; }
+.chat-body { display: grid; grid-template-columns: minmax(320px, 0.85fr) minmax(0, 1.15fr); gap: 18px; align-items: start; }
+.chat-left { position: sticky; top: 84px; display: grid; gap: 18px; }
+.chat-right { display: grid; gap: 18px; min-width: 0; container-type: inline-size; } /* its tabs follow its own width */
+.chat-page[data-layout="horizontal"] .chat-body { grid-template-columns: minmax(0, 1fr); } /* a bar: the preview spans the page */
+.chat-page[data-layout="horizontal"] .chat-left { position: static; }
 .plat-logo { width: 18px; height: 18px; }
 .status { font-size: 13px; font-weight: 600; }
 .status::before { content: "\25CF"; margin-inline-end: 6px; }
@@ -750,16 +761,24 @@ main { padding: 24px 28px 64px; container-type: inline-size; } /* editor rules b
 .chat-preview {
   position: relative;
   width: 100%;
-  height: 380px;
+  height: clamp(380px, calc(100vh - 330px), 660px);
   overflow: hidden;
-  border-radius: 12px;
   background: repeating-conic-gradient(var(--checker-a) 0 25%, var(--checker-b) 0 50%) 0 0 / 20px 20px;
 }
+.chat-page[data-layout="horizontal"] .chat-preview { height: 220px; }
+.chat-preview[data-bg="dark"] { background: var(--preview-dark); }
+.chat-preview[data-bg="light"] { background: var(--preview-light); }
 .chat-preview iframe { position: absolute; top: 0; left: 0; border: 0; transform-origin: 0 0; pointer-events: none; color-scheme: light; }
+.stage-bar .fx-hint { position: static; flex: 1; max-width: none; text-align: center; }
+.sub-row { padding-inline-start: 14px; color: var(--muted); } /* a line's smallest amount, under its switch */
+/* Style gallery: one group at a time, about three rows, the rest scrolls. Bars get wide, low thumbnails. */
+#chatStyleGrid { position: relative; grid-template-columns: repeat(auto-fill, minmax(124px, 1fr)); max-height: 430px; overflow-y: auto; padding: 2px; }
+#chatStyleGrid[data-group="horizontal"] { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
 .chat-tile iframe { width: 460px; height: 340px; }
 .chat-tile .preview { aspect-ratio: 23 / 17; }
-.style-grid.five { grid-template-columns: repeat(5, minmax(0, 1fr)); }
-.style-grid .grid-head { grid-column: 1 / -1; margin: 6px 0 0; }
+.chat-tile.bar iframe { width: 460px; height: 110px; }
+.chat-tile.bar .preview { aspect-ratio: 46 / 11; }
+@container (max-width: 560px) { .chat-right .pane { grid-template-columns: 1fr; } }
 
 /* ---------- Media by amount (fixed tiers) ---------- */
 .tiers { display: grid; gap: 10px; }
@@ -959,7 +978,9 @@ code { padding: 1px 6px; border-radius: 6px; background: var(--card2); font: 0.9
   .proxy-manual { grid-template-columns: 1fr 1fr; }
   .tier-files { grid-template-columns: 1fr; gap: 4px; }
   .more-grid, .more-grid.three { grid-template-columns: 1fr; }
-  .style-grid, .style-grid.five { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .style-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .chat-body { grid-template-columns: minmax(0, 1fr); }
+  .chat-left { position: static; }
   .cols4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .guide, .home-grid { grid-template-columns: 1fr; gap: 16px; }
   .modes { grid-template-columns: repeat(4, minmax(0, 1fr)); }

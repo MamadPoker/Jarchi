@@ -61,14 +61,19 @@ function count(kind) {
 const today = () => count();
 
 // Chat. Connectors call emitChat() for every message and emitChatClear() when a moderator removes messages.
-// Message: { id, platform, time (Kick's / Twitch's own), received (by Jarchi), kind: 'message' | 'sub', channel, text, first, action, system, test,
+// Message: { id, platform, time (Kick's / Twitch's own), received (by Jarchi), kind: 'message' | 'sub' | 'event', channel, text, first, action, system, test,
 //   user: { id, login, name, color, avatar, badges: [{ type: 'broadcaster'|'moderator'|'vip'|'subscriber'|'other', name, img, title }] },
-//   parts: [{ t: 'text', v } | { t: 'emote', name, src, still, provider: 'twitch'|'kick'|'7tv' } | { t: 'cheer', name, amount, gem }] }
+//   parts: [{ t: 'text', v } | { t: 'emote', name, src, still, provider: 'twitch'|'kick'|'7tv' } | { t: 'cheer', name, amount, gem }],
+//   event: what Kick / Twitch said happened, for the chat's special lines (Events), or null:
+//     { type: 'kicks'|'sub'|'resub'|'gift_sub'|'bits'|'raid', amount, months, gift (Kick's gift id), name (Kick's gift name) } }
+// kind 'event': a line that only exists as a special line (Kicks, raids); a sub notice or a cheer is its usual line too.
+const CHAT_EVENTS = ['kicks', 'sub', 'resub', 'gift_sub', 'bits', 'raid'];
 const https = (v) => typeof v === 'string' && v.startsWith('https://');
 const badgeImg = (v) => https(v) || /^\/assets\/kick-badges\/[\w-]+\.svg$/.test(v); // remote, or Kick's own icons shipped here
+const count0 = (v) => Math.max(0, Math.floor(Number(v)) || 0);
 function emitChat(m) {
   const msg = chatMessage(m);
-  if (!msg.test) count('chat');
+  if (!msg.test && msg.kind !== 'event') count('chat');
   bus.emit('chat', msg);
   return msg;
 }
@@ -81,7 +86,7 @@ function chatMessage(m) {
     platform: m.platform,
     time: Number(m.time) || Date.now(),
     received: Date.now(), // connectors hand a message over in the same tick their socket got it
-    kind: m.kind === 'sub' ? 'sub' : 'message',
+    kind: m.kind === 'sub' || m.kind === 'event' ? m.kind : 'message',
     channel: String(m.channel ?? '').toLowerCase(),
     text: String(m.text ?? '').slice(0, 1000),
     first: !!m.first,
@@ -97,6 +102,10 @@ function chatMessage(m) {
       badges: (u.badges ?? []).slice(0, 8).map((b) => ({ type: b.type, name: String(b.name ?? ''), img: badgeImg(b.img) ? b.img : null, title: String(b.title ?? b.name ?? '') })),
     },
     parts: (m.parts ?? [{ t: 'text', v: m.text ?? '' }]).filter((p) => (p.t === 'emote' ? https(p.src) : p.t === 'cheer' ? Number.isInteger(p.gem) && Number.isInteger(p.amount) : p.t === 'text')).slice(0, 300),
+    event: CHAT_EVENTS.includes(m.event?.type) ? {
+      type: m.event.type, amount: count0(m.event.amount), months: count0(m.event.months),
+      gift: /^[a-z0-9_]{1,40}$/.test(m.event.gift ?? '') ? m.event.gift : null, name: String(m.event.name ?? '').slice(0, 40),
+    } : null,
   };
 }
 // { platform, messageId }: one message. { platform, userId }: everything a user said (ban / timeout). { platform }: the whole chat.

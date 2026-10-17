@@ -203,8 +203,13 @@ const CHAT_DEFAULTS = {
   badgeBg: 'auto', // a dark tile behind the platforms' role badges: auto (light backgrounds only) | always | off; kept when the style changes
   tickerPos: 'top', // where a bar sits in the OBS source: kept when the style changes
   showTiming: false, // debug: how late each message shows (a label in the chat, a line in the server output)
+  // Events: special lines for what happened (Kicks, subs and resubs, gifted subs, bits, raids), each on or off and some
+  // from an amount up; their look (card | glow | line); "Keep special lines longer". Kept when the style changes.
+  eventKicks: true, eventKicksMin: 0, eventSubs: true, eventGifts: true, eventGiftsMin: 0, eventBits: true, eventBitsMin: 0, eventRaids: false,
+  eventLook: 'card', eventLonger: false,
 };
 const words = (v) => typeof v === 'string' && v.length <= 1000;
+const amount = (v) => Number.isInteger(v) && v >= 0 && v <= 1e6;
 const CHAT_RULES = {
   enabled: bool,
   kickChannel: (v) => typeof v === 'string' && /^[a-z0-9_-]{0,40}$/i.test(v),
@@ -225,6 +230,8 @@ const CHAT_RULES = {
   enterAnim: oneOf('slide', 'fade', 'pop', 'float', 'bounce', 'drop', 'none'), exitAnim: oneOf('fade', 'slide', 'none'), animSpeed: num(0.25, 3), fadeZone: num(0, 400), fade: bool,
   fxSubGlow: bool, fxFirst: bool, fxRainbowVip: bool, fxMention: bool, fxCombo: bool, avatars: bool, blur: num(0, 40), typewriter: bool, typeSound: bool,
   tickerLoop: bool, tickerPos: oneOf('top', 'bottom'), showTiming: bool,
+  eventKicks: bool, eventKicksMin: amount, eventSubs: bool, eventGifts: bool, eventGiftsMin: amount, eventBits: bool, eventBitsMin: amount, eventRaids: bool,
+  eventLook: oneOf('card', 'glow', 'line'), eventLonger: bool,
 };
 
 const ALLOWED = { image: ['png', 'jpg', 'gif', 'webp', 'webm', 'mp4'], sound: ['mp3', 'wav', 'ogg'] };
@@ -474,5 +481,5 @@ function reset(type) {
 module.exports = {
   get, update, saveUpload, removeUpload, reset, saveGoalSound, removeGoalSound, resetGoalStyle, resetChatStyle,
   setTier, saveTierFile, removeTierFile, sniff,
-  GOAL_IDS, GOAL_STYLES, CHAT_STYLES, CHAT_FONTS, FONTS,
+  GOAL_IDS, GOAL_STYLES, CHAT_STYLES, CHAT_FONTS, FONTS, KICK_GIFTS,
 };

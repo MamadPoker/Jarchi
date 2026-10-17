@@ -21,8 +21,8 @@ test('fa.json has every key of en.json, with the same {variables}', () => {
 test('every "?" in the panel has its help text', () => {
   const html = [...read('panel/index.html').matchAll(/data-help="([\w.]+)"/g)].map((m) => m[1]);
   const js = read('panel/panel.js');
-  const chatGroups = js.slice(js.indexOf('const CHAT_GROUPS'), js.indexOf('function chatControl'));
-  const chat = [...chatGroups.matchAll(/\['(?:toggle|range|seg|select|color|text)', '(\w+)'/g)].map((m) => `chat.${m[1]}`);
+  const chatTabs = js.slice(js.indexOf('const CHAT_TABS'), js.indexOf('function chatControl'));
+  const chat = [...chatTabs.matchAll(/\['(?:toggle|range|seg|select|color|text|number)', '(\w+)'/g)].map((m) => `chat.${m[1]}`);
   const groups = [...js.matchAll(/help: '([\w.]+)'/g)].map((m) => m[1]);
   const keys = [...html, ...chat, ...groups];
   assert.ok(keys.length > 100);
