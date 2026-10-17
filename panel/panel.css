@@ -1,28 +1,29 @@
 /* Panel colors: every color the panel uses lives here. Dark is the default; data-theme="light" on <html> swaps them
-   (set by panel.js: Dark, Light, or Same as Windows). Main (Jarchi green) = active menu items, selected options, progress.
+   (the moon / sun in the top bar). Main (Jarchi teal) = active menu items, selected options, progress.
    Gold = main buttons, switches (on), highlights: the same gold in every color theme (the [data-palette] blocks below).
-   data-theme="dark" / "light" on any element gives it that mode's colors too (the mode and color cards on Appearance). */
+   data-theme="dark" / "light" on any element gives it that mode's colors too (the color cards on Appearance). */
 :root, [data-theme="dark"] {
-  --bg: #0a110d;
-  --sidebar: #0d1611;
-  --card: #111c16;
-  --card2: #17241d;
-  --border: #213428;
-  --border-hi: #2f4a3a; /* hovered controls, tooltip */
-  --hover: #1d2d24;
-  --text: #e8efe9;
-  --muted: #8ea596;
-  --label: #b9c9be; /* sidebar group titles: between muted and text */
-  --main: #2c7550;
-  --main-soft: rgba(44, 117, 80, 0.22);
+  --bg: #091312;
+  --sidebar: #0c1817;
+  --card: #101e1e;
+  --card2: #142726;
+  --border: #1d3736;
+  --border-hi: #294f4d; /* hovered controls, tooltip */
+  --hover: #193130;
+  --text: #e7f1f0;
+  --muted: #8fadac;
+  --label: #b7cdcc; /* sidebar group titles: between muted and text */
+  --main: #1d817c;
+  --main-soft: rgba(29, 129, 124, 0.22);
+  --on-main: #fff; /* text and knobs on main-colored buttons */
   --gold: #d6a83e;
   --gold-text: #d6a83e; /* gold words on the page */
   --gold-soft: rgba(214, 168, 62, 0.07);
   --gold-line: rgba(214, 168, 62, 0.35);
   --on-gold: #1b1404;
-  --on-color: #fff; /* text and knobs on green / red */
+  --on-color: #fff; /* text on red */
   --j: #c99a2e; /* the J of Jarchi, in every theme */
-  --goal-subs: #d6a83e; /* each goal's icon and bar (panel only): gold, Kick green, a lighter Jarchi green */
+  --goal-subs: #d6a83e; /* each goal's icon and bar (panel only): gold, Kick green, green */
   --goal-kicks: #53fc18;
   --goal-followers: #3fa76f;
   --kick-mark: #53fc18; /* "From Kick" */
@@ -34,35 +35,35 @@
   --warn: #fbbf24;
   --warn-soft: rgba(245, 158, 11, 0.08);
   --warn-line: rgba(245, 158, 11, 0.45);
-  --topbar: rgba(10, 17, 13, 0.92);
-  --glass: rgba(10, 17, 13, 0.85); /* controls on top of a preview */
+  --topbar: rgba(9, 19, 18, 0.92);
+  --glass: rgba(9, 19, 18, 0.85); /* controls on top of a preview */
   --tint: rgba(255, 255, 255, 0.06);
   --swatch-edge: rgba(255, 255, 255, 0.18);
   --shadow: rgba(0, 0, 0, 0.45);
-  --checker-a: #16201a; /* behind overlay previews, dark in both themes: overlays are made for a stream */
-  --checker-b: #101813;
+  --checker-a: #142221; /* behind overlay previews, dark in both themes: overlays are made for a stream */
+  --checker-b: #0e1a19;
   --preview-dark: #0e0e10; /* the alert preview's Dark / Light backgrounds, the same in both themes */
   --preview-light: #f2f2ee;
   color-scheme: dark;
   accent-color: var(--main); /* native checkboxes */
 }
 :root[data-theme="light"], [data-theme="light"] {
-  --bg: #d8d6cc;
-  --sidebar: #cdd1c5;
-  --card: #e4e2da;
-  --card2: #dbd9d0;
-  --border: #bfc3b6;
-  --border-hi: #a3a999;
-  --hover: #eceae3;
-  --text: #12221a;
-  --muted: #5f7266;
-  --label: #34463b;
+  --bg: #cbdcdb;
+  --sidebar: #c2d6d5;
+  --card: #dbe6e6;
+  --card2: #d0dfde;
+  --border: #b2c7c6;
+  --border-hi: #92aaa9;
+  --hover: #e3eded;
+  --text: #102322;
+  --muted: #4d6a69;
+  --label: #304645;
   --goal-subs: #8a6210; /* 3.5:1 or more on the light cards and background */
   --goal-kicks: #2a7d0b;
   --goal-followers: #257a49;
   --kick-mark: #2a7d0b;
-  --main: #17543a;
-  --main-soft: rgba(23, 84, 58, 0.14);
+  --main: #16605c;
+  --main-soft: rgba(22, 96, 92, 0.14);
   --gold: #b8871f;
   --gold-text: #7d5a12;
   --gold-soft: rgba(184, 135, 31, 0.12);
@@ -75,50 +76,199 @@
   --warn: #8a5a00;
   --warn-soft: rgba(184, 120, 0, 0.1);
   --warn-line: rgba(160, 100, 0, 0.45);
-  --topbar: rgba(216, 214, 204, 0.92);
-  --glass: rgba(228, 226, 218, 0.9);
+  --topbar: rgba(203, 220, 219, 0.92);
+  --glass: rgba(219, 230, 230, 0.9);
   --tint: rgba(0, 0, 0, 0.06);
   --swatch-edge: rgba(0, 0, 0, 0.15);
-  --shadow: rgba(40, 50, 40, 0.22);
+  --shadow: rgba(45, 57, 57, 0.22);
   color-scheme: light;
 }
-/* Color themes other than Jarchi (Appearance): backgrounds, cards and the main color from one hue. panel.js puts
-   data-palette and --h (hue), --s (saturation, at most 70%), --l (the main color's lightness, dark enough for white text)
-   on <html> and on the cards' mini panels. Gold, danger, ok, warn and the goal colors stay as above. */
-[data-palette] {
-  --bg: hsl(var(--h) calc(var(--s) * 0.55) 5.5%);
-  --sidebar: hsl(var(--h) calc(var(--s) * 0.55) 7%);
-  --card: hsl(var(--h) calc(var(--s) * 0.5) 9%);
-  --card2: hsl(var(--h) calc(var(--s) * 0.5) 11.5%);
-  --border: hsl(var(--h) calc(var(--s) * 0.5) 16.5%);
-  --border-hi: hsl(var(--h) calc(var(--s) * 0.5) 23.5%);
-  --hover: hsl(var(--h) calc(var(--s) * 0.5) 14.5%);
-  --text: hsl(var(--h) calc(var(--s) * 0.4) 92.5%);
-  --muted: hsl(var(--h) calc(var(--s) * 0.25) 62%);
-  --label: hsl(var(--h) calc(var(--s) * 0.28) 76%);
-  --main: hsl(var(--h) var(--s) var(--l));
-  --main-soft: hsl(var(--h) var(--s) var(--l) / 0.22);
-  --topbar: hsl(var(--h) calc(var(--s) * 0.55) 5.5% / 0.92);
-  --glass: hsl(var(--h) calc(var(--s) * 0.55) 5.5% / 0.85);
-  --checker-a: hsl(var(--h) calc(var(--s) * 0.4) 10.5%);
-  --checker-b: hsl(var(--h) calc(var(--s) * 0.45) 7.8%);
+/* Color themes other than Jarchi (Appearance), on <html> and on the color cards' mini panels (data-palette).
+   Gold, danger, ok, warn and the goal colors stay as above. A data-palette with no block here (an old theme) is Jarchi. */
+[data-palette="graphite"] {
+  --bg: #0d0e0f;
+  --sidebar: #111213;
+  --card: #161718;
+  --card2: #1c1d1f;
+  --border: #282a2c;
+  --border-hi: #393b3f;
+  --hover: #232527;
+  --text: #ebeced;
+  --muted: #9c9ea1;
+  --label: #c0c1c4;
+  --main: #49505a;
+  --main-soft: rgba(73, 80, 90, 0.22);
+  --on-main: #fff;
+  --topbar: rgba(13, 14, 15, 0.92);
+  --glass: rgba(13, 14, 15, 0.85);
+  --checker-a: #1a1b1c;
+  --checker-b: #131415;
 }
-[data-palette][data-theme="light"] {
-  --bg: hsl(var(--h) calc(var(--s) * 0.3) 83%);
-  --sidebar: hsl(var(--h) calc(var(--s) * 0.3) 80%);
-  --card: hsl(var(--h) calc(var(--s) * 0.3) 88%);
-  --card2: hsl(var(--h) calc(var(--s) * 0.3) 84.5%);
-  --border: hsl(var(--h) calc(var(--s) * 0.25) 74%);
-  --border-hi: hsl(var(--h) calc(var(--s) * 0.2) 62%);
-  --hover: hsl(var(--h) calc(var(--s) * 0.35) 91%);
-  --text: hsl(var(--h) calc(var(--s) * 0.6) 10%);
-  --muted: hsl(var(--h) calc(var(--s) * 0.25) 36%);
-  --label: hsl(var(--h) calc(var(--s) * 0.3) 23%);
-  --main: hsl(var(--h) var(--s) calc(var(--l) - 8%));
-  --main-soft: hsl(var(--h) var(--s) calc(var(--l) - 8%) / 0.14);
-  --topbar: hsl(var(--h) calc(var(--s) * 0.3) 83% / 0.92);
-  --glass: hsl(var(--h) calc(var(--s) * 0.3) 88% / 0.9);
-  --shadow: hsl(var(--h) calc(var(--s) * 0.2) 20% / 0.22);
+[data-palette="graphite"][data-theme="light"] {
+  --bg: #d2d3d5;
+  --sidebar: #caccce;
+  --card: #dfe0e1;
+  --card2: #d6d7d9;
+  --border: #bbbcbe;
+  --border-hi: #9c9ea0;
+  --hover: #e7e8e9;
+  --text: #18191b;
+  --muted: #595b5e;
+  --label: #393a3c;
+  --main: #373c44;
+  --main-soft: rgba(55, 60, 68, 0.14);
+  --on-main: #fff;
+  --topbar: rgba(210, 211, 213, 0.92);
+  --glass: rgba(223, 224, 225, 0.9);
+  --shadow: rgba(50, 51, 52, 0.22);
+}
+[data-palette="ocean"] {
+  --bg: #0a1923;
+  --sidebar: #0c1e2a;
+  --card: #0f2533;
+  --card2: #143042;
+  --border: #1d4157;
+  --border-hi: #315367;
+  --hover: #193a4f;
+  --text: #e6f4fa;
+  --muted: #86aec0;
+  --label: #b2cedb;
+  --main: #19a4d8;
+  --main-soft: rgba(25, 164, 216, 0.22);
+  --on-main: #04151d;
+  --topbar: rgba(10, 25, 35, 0.92);
+  --glass: rgba(10, 25, 35, 0.85);
+  --checker-a: #122c3c;
+  --checker-b: #0d212e;
+}
+[data-palette="ocean"][data-theme="light"] {
+  --bg: #d2e6ee;
+  --sidebar: #c4dce6;
+  --card: #e3f0f5;
+  --card2: #d8e9f0;
+  --border: #b4d0dc;
+  --border-hi: #94afbb;
+  --hover: #eaf4f8;
+  --text: #0b2230;
+  --muted: #4f6f7f;
+  --label: #2d4958;
+  --main: #0e7fae;
+  --main-soft: rgba(14, 127, 174, 0.14);
+  --on-main: #fff;
+  --topbar: rgba(210, 230, 238, 0.92);
+  --glass: rgba(227, 240, 245, 0.9);
+  --shadow: rgba(31, 57, 72, 0.22);
+}
+[data-palette="wine"] {
+  --bg: #13090c;
+  --sidebar: #180b10;
+  --card: #1f1016;
+  --card2: #29161e;
+  --border: #3b1f2a;
+  --border-hi: #4d333d;
+  --hover: #341b25;
+  --text: #f2e6e9;
+  --muted: #b0919a;
+  --label: #ceb8be;
+  --main: #9c2a4a;
+  --main-soft: rgba(156, 42, 74, 0.22);
+  --on-main: #fff;
+  --topbar: rgba(19, 9, 12, 0.92);
+  --glass: rgba(19, 9, 12, 0.85);
+  --checker-a: #25141b;
+  --checker-b: #1b0d12;
+}
+[data-palette="wine"][data-theme="light"] {
+  --bg: #e2d5d7;
+  --sidebar: #d8c9cc;
+  --card: #ede3e4;
+  --card2: #e4d8da;
+  --border: #cdb8bd;
+  --border-hi: #ae989e;
+  --hover: #f2eaeb;
+  --text: #2a1018;
+  --muted: #7a5a63;
+  --label: #52353e;
+  --main: #8a1f3e;
+  --main-soft: rgba(138, 31, 62, 0.14);
+  --on-main: #fff;
+  --topbar: rgba(226, 213, 215, 0.92);
+  --glass: rgba(237, 227, 228, 0.9);
+  --shadow: rgba(66, 38, 47, 0.22);
+}
+[data-palette="royal"] {
+  --bg: #22184a;
+  --sidebar: #291d57;
+  --card: #312364;
+  --card2: #3b2b74;
+  --border: #4e3b8f;
+  --border-hi: #5f4d9a;
+  --hover: #463584;
+  --text: #f3effe;
+  --muted: #b9acdf;
+  --label: #d4cbed;
+  --main: #9468ff;
+  --main-soft: rgba(148, 104, 255, 0.22);
+  --on-main: #fff;
+  --topbar: rgba(34, 24, 74, 0.92);
+  --glass: rgba(34, 24, 74, 0.85);
+  --checker-a: #37286e;
+  --checker-b: #2c1f5c;
+}
+[data-palette="royal"][data-theme="light"] {
+  --bg: #dcd5ee;
+  --sidebar: #d0c7e8;
+  --card: #e9e4f5;
+  --card2: #e0d9f0;
+  --border: #c4b8e2;
+  --border-hi: #a498c1;
+  --hover: #efebf8;
+  --text: #1a1033;
+  --muted: #625684;
+  --label: #3e335c;
+  --main: #6236e0;
+  --main-soft: rgba(98, 54, 224, 0.14);
+  --on-main: #fff;
+  --topbar: rgba(220, 213, 238, 0.92);
+  --glass: rgba(233, 228, 245, 0.9);
+  --shadow: rgba(48, 37, 75, 0.22);
+}
+[data-palette="obsidian"] {
+  --bg: #08080a;
+  --sidebar: #0c0c0f;
+  --card: #131316;
+  --card2: #1b1b20;
+  --border: #2a2a31;
+  --border-hi: #3e3e45;
+  --hover: #24242a;
+  --text: #f2f2f4;
+  --muted: #94949e;
+  --label: #bfbfc6;
+  --main: #ececf0;
+  --main-soft: rgba(236, 236, 240, 0.22);
+  --on-main: #111;
+  --topbar: rgba(8, 8, 10, 0.92);
+  --glass: rgba(8, 8, 10, 0.85);
+  --checker-a: #18181c;
+  --checker-b: #0f0f12;
+}
+[data-palette="obsidian"][data-theme="light"] {
+  --bg: #dcdcde;
+  --sidebar: #d1d1d4;
+  --card: #ececee;
+  --card2: #e2e2e5;
+  --border: #c2c2c7;
+  --border-hi: #a0a0a5;
+  --hover: #f1f1f2;
+  --text: #111114;
+  --muted: #5e5e66;
+  --label: #38383d;
+  --main: #18181c;
+  --main-soft: rgba(24, 24, 28, 0.14);
+  --on-main: #fff;
+  --topbar: rgba(220, 220, 222, 0.92);
+  --glass: rgba(236, 236, 238, 0.9);
+  --shadow: rgba(40, 40, 45, 0.22);
 }
 /* Fonts (assets/fonts, OFL): Manrope for Latin, Vazirmatn for Persian (Manrope has no Persian letters, so they fall through to it). */
 @font-face { font-family: "Manrope"; src: url("/assets/fonts/manrope/Manrope-Variable.ttf") format("truetype"); font-weight: 200 800; font-display: swap; }
@@ -189,13 +339,13 @@ input[type="range"]::-webkit-slider-thumb {
   margin-top: -6px;
   border: 3px solid var(--main);
   border-radius: 50%;
-  background: var(--on-color);
+  background: var(--on-main);
   box-shadow: 0 1px 4px var(--shadow);
 }
 [dir="rtl"] input[type="range"]::-webkit-slider-runnable-track { background-position: 100% 0; } /* the range runs right to left */
 input[type="range"]::-moz-range-track { height: 6px; border-radius: 99px; background: var(--border); }
 input[type="range"]::-moz-range-progress { height: 6px; border-radius: 99px; background: var(--main); }
-input[type="range"]::-moz-range-thumb { width: 12px; height: 12px; border: 3px solid var(--main); border-radius: 50%; background: var(--on-color); }
+input[type="range"]::-moz-range-thumb { width: 12px; height: 12px; border: 3px solid var(--main); border-radius: 50%; background: var(--on-main); }
 
 input[type="color"] { width: 100%; height: 38px; padding: 3px; border: 1px solid var(--border); border-radius: 10px; background: var(--card2); cursor: pointer; }
 input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
@@ -208,7 +358,7 @@ input[type="color"]::-webkit-color-swatch { border: 0; border-radius: 7px; }
 .seg input { position: absolute; width: 1px; height: 1px; opacity: 0; }
 .seg span { display: block; padding: 5px 11px; border-radius: 7px; color: var(--muted); font-size: 13px; font-weight: 600; cursor: pointer; }
 .seg span:hover { color: var(--text); }
-.seg input:checked + span { background: var(--main); color: var(--on-color); }
+.seg input:checked + span { background: var(--main); color: var(--on-main); }
 .seg input:focus-visible + span { outline: 2px solid var(--focus); }
 
 .switch { position: relative; flex: none; width: 40px; height: 22px; }
@@ -466,7 +616,7 @@ main { padding: 24px 28px 64px; container-type: inline-size; } /* editor rules b
 .banner { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; padding: 18px 20px; border: 1px solid var(--warn-line); border-radius: 14px; background: var(--card); }
 .banner.ready { border-color: var(--main); background: linear-gradient(var(--main-soft), var(--main-soft)), var(--card); }
 .banner-icon { display: grid; place-items: center; width: 44px; height: 44px; flex: none; border-radius: 50%; background: var(--warn-soft); color: var(--warn); }
-.banner.ready .banner-icon { background: var(--main); color: var(--on-color); }
+.banner.ready .banner-icon { background: var(--main); color: var(--on-main); }
 .banner-icon svg { width: 24px; height: 24px; stroke-width: 2.5; }
 .banner .i-ok, .banner.ready .i-warn { display: none; }
 .banner.ready .i-ok { display: block; }
@@ -488,7 +638,7 @@ main { padding: 24px 28px 64px; container-type: inline-size; } /* editor rules b
 .home-side { display: grid; gap: 18px; }
 .filters { display: flex; flex-wrap: wrap; gap: 6px; }
 .filters button { padding: 4px 12px; border-radius: 99px; background: none; color: var(--muted); font-size: 13px; }
-.filters button[aria-pressed="true"] { border-color: transparent; background: var(--main); color: var(--on-color); }
+.filters button[aria-pressed="true"] { border-color: transparent; background: var(--main); color: var(--on-main); }
 .feed-list { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; }
 .feed-row { display: flex; align-items: center; gap: 12px; min-width: 0; padding: 8px; border-radius: 10px; }
 .feed-row:hover { background: var(--hover); }
@@ -674,21 +824,21 @@ code { padding: 1px 6px; border-radius: 6px; background: var(--card2); font: 0.9
 .mode button { padding-block: 6px; } /* an icon: as tall as the FA / EN text */
 .mode svg { width: 15px; height: 15px; }
 .lang button:hover, .mode button:hover { color: var(--text); }
-.lang button[aria-pressed="true"], .mode button[aria-pressed="true"] { background: var(--main); color: var(--on-color); }
+.lang button[aria-pressed="true"], .mode button[aria-pressed="true"] { background: var(--main); color: var(--on-main); }
 
-/* ---------- Appearance: the panel's mode, color theme and language ---------- */
+/* ---------- Appearance: the panel's color theme and language ---------- */
 .view.appearance { max-width: 980px; }
 .card-head { display: flex; align-items: center; gap: 12px; }
 .card-icon { display: grid; place-items: center; width: 36px; height: 36px; flex: none; border-radius: 10px; background: var(--gold-soft); color: var(--gold-text); }
 .card-icon svg { width: 19px; height: 19px; }
-.modes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; max-width: 560px; }
+.modes { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; }
 .mode-card { position: relative; cursor: pointer; }
 .mode-card input { position: absolute; width: 1px; height: 1px; opacity: 0; }
 .mode-body { display: grid; gap: 8px; padding: 8px; border: 1px solid var(--border); border-radius: 12px; background: var(--card2); color: var(--muted); font-size: 13px; font-weight: 600; text-align: center; }
 .mode-card:hover .mode-body { border-color: var(--border-hi); color: var(--text); }
 .mode-card input:checked + .mode-body { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold); color: var(--text); }
 .mode-card input:focus-visible + .mode-body { outline: 2px solid var(--focus); outline-offset: 2px; }
-/* A tiny panel: sidebar, a card with two lines of text, a gold button. In its own mode's colors (data-theme). */
+/* A tiny panel: sidebar, a card with two lines of text, a gold button. In its own theme's colors (data-theme, data-palette). */
 .mini { position: relative; display: block; height: 62px; overflow: hidden; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); }
 .mini i { position: absolute; }
 .mini i:nth-child(1) { inset-block: 0; inset-inline-start: 0; width: 24%; border-inline-end: 1px solid var(--border); background: var(--sidebar); }
@@ -697,11 +847,7 @@ code { padding: 1px 6px; border-radius: 6px; background: var(--card2); font: 0.9
 .mini i:nth-child(2)::before { top: 8px; width: 50%; background: var(--text); }
 .mini i:nth-child(2)::after { top: 17px; width: 34%; background: var(--muted); }
 .mini i:nth-child(3) { bottom: 16px; inset-inline-end: 14px; width: 20%; height: 8px; border-radius: 99px; background: var(--gold); }
-.mini.split { border: 0; background: none; } /* Same as Windows: half dark, half light */
-.mini.split .mini { position: absolute; inset: 0; height: auto; }
-.mini.split .mini + .mini { clip-path: polygon(100% 0, 100% 100%, 0 100%); }
 .mini i:nth-child(1)::before { content: ""; position: absolute; top: 10px; inset-inline: 4px; height: 8px; border-radius: 3px; background: var(--main); } /* the open page */
-.modes.palettes { grid-template-columns: repeat(6, minmax(0, 1fr)); max-width: none; }
 
 /* ---------- Guide: topic list + the topic (intro, numbered step cards, tip, questions) ---------- */
 .guide { display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 24px; align-items: start; }
@@ -735,7 +881,7 @@ code { padding: 1px 6px; border-radius: 6px; background: var(--card2); font: 0.9
   .style-grid, .style-grid.five { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .cols4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .guide, .home-grid { grid-template-columns: 1fr; gap: 16px; }
-  .modes.palettes { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .modes { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .guide-topics { position: static; display: flex; flex-wrap: wrap; gap: 6px; }
   .guide-topics button { border: 1px solid var(--border); border-radius: 99px; }
   .guide-topics button[aria-current="true"], [dir="rtl"] .guide-topics button[aria-current="true"] { border-color: var(--main); box-shadow: none; }

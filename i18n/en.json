@@ -416,11 +416,10 @@
     "colorMode": "Mode",
     "modeDark": "Dark",
     "modeLight": "Light",
-    "modeWindows": "Same as Windows",
     "lookPanel": "Panel",
     "lookPanelHint": "How this panel looks in this browser. Your stream doesn't change.",
     "colorTheme": "Colors",
-    "palettes": { "jarchi": "Jarchi", "windows": "Windows", "teal": "Teal", "rose": "Rose", "ember": "Ember", "graphite": "Graphite" },
+    "palettes": { "jarchi": "Jarchi", "graphite": "Graphite", "ocean": "Ocean", "wine": "Wine", "royal": "Royal", "obsidian": "Obsidian" },
     "guide": "Guide",
     "guideTopics": "Guide topics",
     "help": "Help",
@@ -460,8 +459,7 @@
     },
     "theme": { "main": "The look every alert uses, unless an alert has its own theme. Hover a card to preview it, click it to use it." },
     "appearance": {
-      "mode": "Dark, Light, or the same as Windows (it changes when you change it in Windows). The moon and sun in the top bar switch Dark and Light too. Only this panel changes, in this browser: OBS and your stream stay as they are.",
-      "palette": "The panel's main color: backgrounds, cards and bars. The small gold details stay gold. **Windows** uses your Windows accent color (Jarchi's colors if it can't be read). Only this panel changes, in this browser.",
+      "palette": "The panel's colors: backgrounds, cards and the main color. The small gold details stay gold in every theme. Dark or Light: the moon and sun in the top bar. Only this panel changes, in this browser.",
       "language": "The panel's language. The page reloads and comes back here. The text of your widgets in OBS doesn't change."
     },
     "alert": {
