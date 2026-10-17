@@ -60,6 +60,9 @@ const el = (tag, props = {}, ...kids) => {
 const ALERT_ORDER = ['follow', 'sub', 'gift_sub', 'resub', 'raid', 'kicks', 'bits'];
 // Who sends it (the list's logos); the others: both. Follow: none until Kick / Twitch accounts can be connected (then both).
 const ALERT_PLATFORMS = { follow: [], kicks: ['kick'], bits: ['twitch'] };
+// No platform can send it yet: its row is greyed with "Soon" and a switch that shows off and can't be used. Its saved
+// settings (enabled too) stay as they are, and it can still be opened and edited.
+const isSoon = (type) => ALERT_PLATFORMS[type]?.length === 0;
 const LISTS = () => ({
   alert: ALERT_ORDER.map((t) => ({ key: t, label: S.types[t], toggle: (on) => patchAlert(t, { enabled: on }) })),
   goal: Object.keys(settings.goals).map((id) => ({ key: id, label: S.goals[id].name, toggle: (on) => patchGoal(id, { enabled: on }) })),
@@ -312,7 +315,7 @@ function typeIcon(type) {
 // The platforms an alert comes from: their own logos, or "Soon" when none can send it yet.
 function platMarks(type) {
   const ps = ALERT_PLATFORMS[type] ?? ['kick', 'twitch'];
-  return el('span', { className: 'plat-marks' }, ...(ps.length
+  return el('span', { className: 'plat-marks' }, ...(!isSoon(type)
     ? ps.map((p) => el('img', { src: `/assets/platform-logos/${p}.svg`, alt: S.platforms[p], title: S.platforms[p] }))
     : [el('span', { className: 'pill soon-tag', textContent: S.panel.soonTag, title: S.panel.followSoon })]));
 }
@@ -655,6 +658,11 @@ function build() {
           ...(v === 'alert' ? [el('span', { className: 'swatch mini', hidden: true }), platMarks(it.key)] : [])),
         el('label', { className: 'switch' }, sw, el('span')));
       row.dataset.key = it.key;
+      if (v === 'alert' && isSoon(it.key)) {
+        row.classList.add('soon');
+        sw.disabled = true;
+        sw.parentNode.title = S.panel.followSoon;
+      }
       if (v === 'goal') {
         row.dataset.goal = it.key; // its colour
         row.append(goalCountRow(it.key));
@@ -953,7 +961,7 @@ function render() {
       const cfg = all[row.dataset.key];
       row.classList.toggle('active', row.dataset.key === selected);
       row.classList.toggle('off', !cfg.enabled);
-      $('input', row).checked = cfg.enabled;
+      $('input', row).checked = cfg.enabled && !$('input', row).disabled; // "Soon": shown off, whatever is saved
       const count = $('.count-input', row); // goals: the count (never under the cursor), Kick's when synced
       if (count) {
         const st = goalData.state[row.dataset.key];
