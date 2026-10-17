@@ -367,6 +367,8 @@ main { padding: 24px 28px 64px; container-type: inline-size; } /* editor rules b
 .save-note svg { width: 14px; height: 14px; color: var(--ok); stroke-width: 2.5; }
 .save-note:not([data-state="saved"]) svg { display: none; }
 .save-note[data-state="notSaved"] { color: var(--danger); }
+.save-note.done[data-state="saved"] { animation: just-saved 1.6s ease-out; } /* green for a moment after each save */
+@keyframes just-saved { 0%, 45% { color: var(--ok); } }
 .tabs { display: flex; flex-wrap: wrap; gap: 4px; border-bottom: 1px solid var(--border); }
 .tabs button { margin-bottom: -1px; padding: 10px 16px; border: 0; border-bottom: 2px solid transparent; border-radius: 10px 10px 0 0; background: none; color: var(--muted); }
 .tabs button:hover { background: var(--hover); color: var(--text); }

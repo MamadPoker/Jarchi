@@ -195,6 +195,7 @@ function toast(msg, isError) {
 // Any call that returns settings: store them, re-sync the UI (also reverts rejected values), replay the preview.
 // The Alerts page says "Saved" in its note (showSaveNote), the other pages in a toast. Errors are always a toast.
 let saving = 0, saveFailed = false, typing = null; // saves on the way, the last one failed, typed text waiting for its save
+let busySince = 0, noteTimer; // when "Saving…" appeared
 async function send(method, url, body, headers) {
   const note = view === 'alert';
   if (note) saving++, showSaveNote();
@@ -210,10 +211,27 @@ async function send(method, url, body, headers) {
   if (note) saving--;
   render();
 }
+// A save here takes a few ms, so "Saving…" stays at least 0.6 s and "Saved" then lights up: every save is seen.
 function showSaveNote() {
-  const state = saving || typing ? 'saving' : saveFailed ? 'notSaved' : 'saved';
-  $('#saveNote').dataset.state = state;
-  $('#saveNote span').textContent = S.panel[state];
+  clearTimeout(noteTimer);
+  const note = $('#saveNote');
+  let state = saving || typing ? 'saving' : saveFailed ? 'notSaved' : 'saved';
+  if (state === 'saving') {
+    if (!busySince) busySince = Date.now();
+  } else if (busySince) {
+    const left = busySince + 600 - Date.now();
+    if (left > 0) {
+      noteTimer = setTimeout(showSaveNote, left);
+      state = 'saving';
+    } else {
+      busySince = 0;
+      note.classList.remove('done');
+      note.getBoundingClientRect(); // restart its animation
+      note.classList.add('done');
+    }
+  }
+  note.dataset.state = state;
+  $('span', note).textContent = S.panel[state];
 }
 const patchAlert = (type, fields) => send('PATCH', '/api/settings', { alerts: { [type]: fields } });
 const patchGoal = (id, fields) => send('PATCH', '/api/settings', { goals: { [id]: fields } });
