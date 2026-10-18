@@ -10,6 +10,7 @@ const net = require('../core/net'); // first: every outgoing connection after th
 const goals = require('../core/goals');
 const chat = require('../core/chat');
 const alertQueue = require('../core/alerts');
+const twitchAccount = require('../connectors/twitch-account');
 const strings = require('../i18n/en.json');
 
 const ROOT = path.join(__dirname, '..');
@@ -47,8 +48,10 @@ app.patch('/api/settings', (req, res) => {
   const s = settings.update(req.body);
   for (const [id, fields] of Object.entries(req.body.goals ?? {})) if ('target' in fields) goals.retarget(id);
   if ('kickGoalSync' in req.body) goals.refresh(); // widgets switch between Kick's numbers and their own
-  if (Object.keys(req.body).some((k) => k.startsWith('proxy'))) chat.restart(); // reconnect through the new proxy
-  else if (req.body.chat) chat.sync(); // channel names may have changed
+  if (Object.keys(req.body).some((k) => k.startsWith('proxy'))) { // reconnect through the new proxy
+    chat.restart();
+    twitchAccount.start();
+  } else if (req.body.chat) chat.sync(); // channel names may have changed
   res.json(changed(s));
 });
 
@@ -96,6 +99,13 @@ app.get('/api/chat/thumbs', (req, res) => res.json(chat.thumbs()));
 app.post('/api/chat/reset-style', (req, res) => res.json(changed(settings.resetChatStyle())));
 // The streamer's profile pictures for the panel's background art: { kick, twitch }, null where no channel / picture.
 app.get('/api/streamer', async (req, res) => res.json(await chat.streamer()));
+
+// The Twitch account (Connections page): its Client ID, the login with Twitch's code, Disconnect. Its status (also the
+// Twitch channel's goals) comes by socket too.
+app.get('/api/twitch', (req, res) => res.json(twitchAccount.status()));
+app.patch('/api/twitch', (req, res) => res.json(twitchAccount.setClientId(req.body?.clientId)));
+app.post('/api/twitch/connect', async (req, res) => res.json(await twitchAccount.login()));
+app.post('/api/twitch/disconnect', async (req, res) => res.json(await twitchAccount.disconnect()));
 
 // Goals: counts (current / reached) live in core/goals; their look and target are regular settings.
 app.get('/api/goals', (req, res) => res.json({ state: goals.all(), styles: settings.GOAL_STYLES, fonts: settings.FONTS }));
@@ -181,6 +191,7 @@ io.on('connection', (socket) => {
   socket.emit('chatHistory', chat.recent());
   socket.emit('alertQueue', alertQueue.state());
   socket.emit('widgets', open);
+  socket.emit('twitchAccount', twitchAccount.status());
   // The alerts overlay joins to get alerts from the queue (the panel's previews don't).
   socket.once('alertsJoin', () => {
     socket.join('alerts');
@@ -208,6 +219,7 @@ bus.on('chat', (m) => {
 bus.on('chatClear', (c) => io.emit('chatClear', c));
 bus.on('chatAvatar', (a) => io.emit('chatAvatar', a));
 chat.events.on('status', (st) => io.emit('chatStatus', st));
+twitchAccount.events.on('status', (st) => io.emit('twitchAccount', st));
 
 server.on('error', (err) => {
   console.error(err.code === 'EADDRINUSE' ? `Port ${PORT} is already in use. Set JARCHI_PORT in .env to another port.` : err);
@@ -218,6 +230,7 @@ server.listen(PORT, HOST, () => {
   Settings panel: http://${HOST}:${PORT}/
   OBS alerts URL: http://${HOST}:${PORT}/widgets/alerts`);
   chat.sync(); // connect to the saved Kick / Twitch channels
+  twitchAccount.start(); // and the Twitch account, when it's connected
 });
 
 module.exports = { app, server, io };

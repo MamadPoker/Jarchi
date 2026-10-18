@@ -115,10 +115,31 @@
       </section>
 
       <!-- ===== Pages that aren't built yet ===== -->
-      <section class="view soon" data-view="events connections" hidden>
+      <section class="view soon" data-view="events" hidden>
         <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
         <h2 data-i18n="soonTitle"></h2>
         <small data-i18n="soonHint"></small>
+      </section>
+
+      <!-- ===== Connections: the streamer's own Twitch account (follows, Twitch goals; renderTwitch()) ===== -->
+      <section class="view narrow connections" data-view="connections" hidden>
+        <div class="box">
+          <div class="card-head">
+            <span class="card-icon"><img src="/assets/platform-logos/twitch.svg" alt=""></span>
+            <div class="stack"><h2>Twitch</h2><span class="status" id="twState"></span></div>
+            <button id="twConnect" class="primary" data-i18n="twConnect"></button>
+            <button id="twDisconnect" class="danger"></button>
+          </div>
+          <small data-i18n="twWhat"></small>
+          <!-- While Twitch waits for the streamer to approve: Twitch's code and where to type it. -->
+          <div id="twWait" class="tw-wait" hidden>
+            <span data-i18n="twEnterCode"></span>
+            <b id="twCode" class="tw-code" dir="ltr"></b>
+            <button id="twOpen" class="primary" data-i18n="twOpen"></button>
+            <small data-i18n="twWaiting"></small>
+          </div>
+          <label class="field"><span data-i18n="twClientId" data-help="connections.clientId"></span><input type="text" id="twClientId" maxlength="64" spellcheck="false" autocomplete="off"><small data-i18n="twClientHint"></small></label>
+        </div>
       </section>
 
       <!-- ===== Appearance: how this panel looks, in this browser only (the widgets' look is on their own pages).
@@ -379,10 +400,22 @@
       <section class="view split" data-view="goal" hidden>
         <div class="split-body">
         <div class="list"><h2 class="group-title" data-i18n="navGoals" data-help="groups.goals"></h2><ul id="goalList" class="nav-list"></ul>
-          <!-- Goals set on the Kick channel show Kick's numbers (core/goals.js) -->
+          <!-- Kick: goals set on the Kick channel show Kick's numbers (core/goals.js). Twitch: the Twitch channel's goals,
+               with the account connected (connectors/twitch-account.js). -->
           <div class="list-foot">
-            <label class="row between toggle-row"><span data-i18n="kickSync" data-help="goal.kickSync"></span><span class="switch"><input type="checkbox" id="kickSync"><span></span></span></label>
-            <small id="kickSyncHint"></small>
+            <div class="tabs" role="tablist" data-aria="goalSources">
+              <button role="tab" id="tab-g-kick" aria-controls="pane-g-kick" data-tab="kick"><img src="/assets/platform-logos/kick.svg" alt=""><span>Kick</span></button>
+              <button role="tab" id="tab-g-twitch" aria-controls="pane-g-twitch" data-tab="twitch"><img src="/assets/platform-logos/twitch.svg" alt=""><span>Twitch</span></button>
+            </div>
+            <div class="pane" role="tabpanel" id="pane-g-kick" aria-labelledby="tab-g-kick" data-tab="kick">
+              <label class="row between toggle-row"><span data-i18n="kickSync" data-help="goal.kickSync"></span><span class="switch"><input type="checkbox" id="kickSync"><span></span></span></label>
+              <small id="kickSyncHint"></small>
+            </div>
+            <div class="pane" role="tabpanel" id="pane-g-twitch" aria-labelledby="tab-g-twitch" data-tab="twitch" hidden>
+              <ul id="twitchGoals" class="home-goals"></ul>
+              <small id="twitchGoalsHint"></small>
+              <button id="twitchGoalsConnect" class="ghost" data-i18n="twConnect"></button>
+            </div>
           </div>
         </div>
         <div class="editor">

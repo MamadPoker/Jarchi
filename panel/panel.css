@@ -506,6 +506,12 @@ input.count-input[readonly]:hover { border-color: transparent; background: trans
 /* "Sync from Kick" under the goals; Kick's K ("From Kick" tooltip) marks numbers that come from Kick (read-only). */
 .list-foot { display: grid; gap: 4px; margin-top: 8px; padding: 10px 10px 2px; border-top: 1px solid var(--border); }
 .list-foot small { font-size: 12px; line-height: 1.4; }
+.list-foot .tabs button { display: flex; align-items: center; gap: 6px; padding: 6px 12px; font-size: 13px; }
+.list-foot .tabs img { width: 14px; height: 14px; }
+.list-foot .pane { grid-template-columns: none; gap: 8px; margin: 6px 0 0; }
+.list-foot .home-goals { gap: 12px; margin: 0; padding: 0; list-style: none; }
+.list-foot .home-goal b { min-width: 0; overflow-wrap: anywhere; font-size: 13px; }
+#twitchGoalsConnect { justify-self: start; padding: 5px 12px; font-size: 13px; }
 .from-kick { display: inline-grid; place-items: center; flex: none; color: var(--kick-mark); cursor: help; }
 .from-kick svg { width: 13px; height: 13px; }
 .kick-k { fill: currentColor; stroke: none; } /* a filled logo, not a line icon */
@@ -608,10 +614,7 @@ main { padding: 24px 28px 64px; container-type: inline-size; } /* editor rules b
 .nav-btn .label { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .plat-marks { display: flex; flex: none; gap: 5px; margin-inline-start: auto; }
 .plat-marks img { width: 14px; height: 14px; }
-.nav-row.soon .label, .nav-row.soon .q-icon { color: var(--muted); } /* can't come in yet: greyed, the "Soon" tag stays gold */
-.nav-row.soon .q-icon svg { opacity: 0.6; }
 .switch input:disabled + span { opacity: 0.45; cursor: not-allowed; }
-.soon-tag { padding: 0 7px; border-color: var(--gold-line); color: var(--gold-text); font-size: 11px; line-height: 1.5; cursor: help; }
 
 .basics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
 
@@ -892,7 +895,12 @@ code { padding: 1px 6px; border-radius: 6px; background: var(--card2); font: 0.9
 .card-head .switch { margin-inline-start: auto; }
 .card-head { display: flex; align-items: center; gap: 12px; }
 .card-icon { display: grid; place-items: center; width: 36px; height: 36px; flex: none; border-radius: 10px; background: var(--gold-soft); color: var(--gold-text); }
-.card-icon svg { width: 19px; height: 19px; }
+.card-icon svg, .card-icon img { width: 19px; height: 19px; }
+
+/* ---------- Connections: the Twitch account ---------- */
+.connections .card-head .stack { flex: 1; gap: 2px; }
+.tw-wait { display: grid; justify-items: center; gap: 10px; padding: 18px; border: 1px dashed var(--gold-line); border-radius: 12px; background: var(--card2); text-align: center; }
+.tw-code { font-family: Consolas, "Courier New", monospace; font-size: 30px; letter-spacing: 0.18em; user-select: all; }
 .modes { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 10px; }
 .modes.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .modes.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }

@@ -80,6 +80,7 @@ let chatThumbs; // sample messages for the chat style thumbnails (/api/chat/thum
 let view = 'home', cur = 'follow', curGoal = 'subs', topic = 'start'; // the open page, and the alert, goal and guide topic selected in theirs
 let queue = { paused: false, overlays: 0, waiting: 0, now: null }; // the alert queue (follows the socket)
 let home, open = {}, feedFilter = 'all'; // Home: { feed, today, started } (/api/home, then the socket), widget pages open now (socket)
+let twitch; // the Twitch account: { state, error, code, uri, clientId, login, goals } (/api/twitch, then the socket)
 
 const pct = (v) => `${Math.round(v * 100)}%`;
 const px = (v) => `${v}px`;
@@ -105,11 +106,8 @@ const el = (tag, props = {}, ...kids) => {
 
 // The lists inside the Alerts and Goals pages: a click opens the item, its switch turns it on or off.
 const ALERT_ORDER = ['follow', 'sub', 'gift_sub', 'resub', 'raid', 'kicks', 'bits'];
-// Who sends it (the list's logos); the others: both. Follow: none until Kick / Twitch accounts can be connected (then both).
-const ALERT_PLATFORMS = { follow: [], kicks: ['kick'], bits: ['twitch'] };
-// No platform can send it yet: its row is greyed with "Soon" and a switch that shows off and can't be used. Its saved
-// settings (enabled too) stay as they are, and it can still be opened and edited.
-const isSoon = (type) => ALERT_PLATFORMS[type]?.length === 0;
+// Who sends it (the list's logos); the others: both. Follow: Twitch, with the account connected (Kick tells no one who follows).
+const ALERT_PLATFORMS = { follow: ['twitch'], kicks: ['kick'], bits: ['twitch'] };
 const LISTS = () => ({
   alert: ALERT_ORDER.map((t) => ({ key: t, label: S.types[t], toggle: (on) => patchAlert(t, { enabled: on }) })),
   goal: Object.keys(settings.goals).map((id) => ({ key: id, label: S.goals[id].name, toggle: (on) => patchGoal(id, { enabled: on }) })),
@@ -440,13 +438,9 @@ function typeIcon(type) {
   i.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${TYPE_ICON[type]}"/></svg>`; // fixed paths, no user text
   return i;
 }
-// The platforms an alert comes from: their own logos, or "Soon" when none can send it yet.
-function platMarks(type) {
-  const ps = ALERT_PLATFORMS[type] ?? ['kick', 'twitch'];
-  return el('span', { className: 'plat-marks' }, ...(!isSoon(type)
-    ? ps.map((p) => el('img', { src: `/assets/platform-logos/${p}.svg`, alt: S.platforms[p], title: S.platforms[p] }))
-    : [el('span', { className: 'pill soon-tag', textContent: S.panel.soonTag, title: S.panel.followSoon })]));
-}
+// The platforms an alert comes from: their own logos.
+const platMarks = (type) => el('span', { className: 'plat-marks' },
+  ...(ALERT_PLATFORMS[type] ?? ['kick', 'twitch']).map((p) => el('img', { src: `/assets/platform-logos/${p}.svg`, alt: S.platforms[p], title: S.platforms[p] })));
 // "Rich · Gifted subs · 10": icon, name, type, and the amount (or a resub's months).
 function alertRow(a, action) {
   const amount = a.type === 'resub' && a.months ? tpl(S.panel.qMonths, { n: fmt(a.months) }) : a.amount ? fmt(a.amount) : '';
@@ -787,11 +781,6 @@ function build() {
           ...(v === 'alert' ? [el('span', { className: 'swatch mini', hidden: true }), platMarks(it.key)] : [])),
         el('label', { className: 'switch' }, sw, el('span')));
       row.dataset.key = it.key;
-      if (v === 'alert' && isSoon(it.key)) {
-        row.classList.add('soon');
-        sw.disabled = true;
-        sw.parentNode.title = S.panel.followSoon;
-      }
       if (v === 'goal') {
         row.dataset.goal = it.key; // its colour
         row.append(goalCountRow(it.key));
@@ -960,6 +949,24 @@ function build() {
     renderStatus();
     if (view === 'home') renderHome();
   });
+
+  // Connections: the Twitch account. The Client ID saves when it's changed; Connect shows Twitch's code until the
+  // streamer approves it on Twitch. The Goals page's Twitch tab shows the Twitch channel's goals.
+  const twitchCall = (method, url, body) => api(method, url, body).then((t) => { twitch = t; renderTwitch(); return t; }, (err) => toast(err.message, true));
+  $('#twClientId').onchange = (e) => twitchCall('PATCH', '/api/twitch', { clientId: e.target.value.trim() }).then((t) => t && toast(S.panel.saved));
+  $('#twConnect').onclick = () => {
+    if (twitch.clientId) return twitchCall('POST', '/api/twitch/connect');
+    toast(S.panel.twNeedClient, true);
+    $('#twClientId').focus();
+  };
+  $('#twDisconnect').onclick = () => twitchCall('POST', '/api/twitch/disconnect');
+  $('#twOpen').onclick = () => window.open(twitch.uri, '_blank', 'noopener');
+  $('#twitchGoalsConnect').onclick = () => select('connections');
+  wireTabs($('#goalList').parentNode, 'jarchi.goalTab');
+  socket.on('twitchAccount', (t) => {
+    twitch = t;
+    renderTwitch();
+  });
   // Home: new events (also from the test buttons), today's chat count, widget pages opening and closing.
   socket.on('event', (ev) => {
     home.feed.unshift(ev);
@@ -1087,7 +1094,7 @@ function render() {
       const cfg = all[row.dataset.key];
       row.classList.toggle('active', row.dataset.key === selected);
       row.classList.toggle('off', !cfg.enabled);
-      $('input', row).checked = cfg.enabled && !$('input', row).disabled; // "Soon": shown off, whatever is saved
+      $('input', row).checked = cfg.enabled;
       const count = $('.count-input', row); // goals: the count (never under the cursor), Kick's when synced
       if (count) {
         const st = goalData.state[row.dataset.key];
@@ -1119,6 +1126,7 @@ function render() {
   $('#kickSyncHint').textContent = !settings.chat.kickChannel ? S.panel.kickSyncNoChannel
     : onKick.length ? tpl(S.panel.kickSyncOnKick, { goals: onKick.join(FA ? '، ' : ', ') }) : S.panel.kickSyncNone;
 
+  renderTwitch();
   artFaces();
   $('#showBadge').checked = settings.showBadge;
   $('#connectedList').textContent = settings.connected.map((p) => S.platforms[p]).join(FA ? '، ' : ', ') || S.panel.connectedNone;
@@ -1192,6 +1200,35 @@ function renderAlert() {
     fname.classList.toggle('default', !f);
     $('.remove', row).hidden = !f;
   });
+}
+
+// The Connections page's Twitch card, and the Goals page's Twitch tab.
+function renderTwitch() {
+  const t = twitch, on = t.state !== 'off';
+  const line = $('#twState');
+  line.className = `status st-${!on ? (t.error ? 'error' : 'off') : t.state === 'connected' ? 'connected' : 'connecting'}`;
+  line.textContent = [tpl(S.panel.twStates[t.state], { login: t.login }), t.error && S.panel.twErrors[t.error]].filter(Boolean).join(' · ');
+  $('#twConnect').hidden = on;
+  $('#twDisconnect').hidden = !on;
+  $('#twDisconnect').textContent = S.panel[t.state === 'waiting' ? 'twCancel' : 'twDisconnect'];
+  $('#twWait').hidden = t.state !== 'waiting';
+  $('#twCode').textContent = t.code;
+  const id = $('#twClientId');
+  if (id !== document.activeElement) id.value = t.clientId;
+  id.readOnly = on; // a login belongs to the app it was made with
+
+  $('#twitchGoals').replaceChildren(...t.goals.map((g) => {
+    const bar = el('i'), kind = S.panel.twitchGoalTypes[g.type] ?? g.type;
+    bar.style.width = `${Math.min(100, g.target ? (g.current / g.target) * 100 : 0)}%`;
+    return el('li', { className: 'home-goal' },
+      el('div', { className: 'row between' }, el('b', { textContent: g.description || kind, dir: 'auto' }), el('small', { textContent: `${fmt(g.current)} / ${fmt(g.target)}` })),
+      g.description ? el('small', { textContent: kind }) : '',
+      el('div', { className: 'goal-bar' }, bar));
+  }));
+  const hint = $('#twitchGoalsHint');
+  hint.textContent = !on ? S.panel.twitchGoalsOff : t.state === 'connected' && !t.goals.length ? S.panel.twitchGoalsNone : '';
+  hint.hidden = !hint.textContent;
+  $('#twitchGoalsConnect').hidden = t.state !== 'off';
 }
 
 function renderGoal() {
@@ -1365,8 +1402,9 @@ artRun();
   EN = await (await fetch('/i18n/en.json')).json();
   S = FA ? await (await fetch('/i18n/fa.json')).json() : EN;
   try {
-    [settings, samples, goalData, { styles: chatStyles, fonts: chatFonts }, chatStatus, home] = await Promise.all([
+    [settings, samples, goalData, { styles: chatStyles, fonts: chatFonts }, chatStatus, home, twitch] = await Promise.all([
       api('GET', '/api/settings'), api('GET', '/api/samples'), api('GET', '/api/goals'), api('GET', '/api/chat/styles'), api('GET', '/api/chat/status'), api('GET', '/api/home'),
+      api('GET', '/api/twitch'),
     ]);
   } catch (err) {
     return toast(err.message, true);

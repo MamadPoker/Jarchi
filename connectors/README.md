@@ -11,7 +11,11 @@ Both export `connect(channel, { onStatus, onMessage, onClear, onChannel })` and 
 
 ## Alerts and goals
 
-`kick-chat.js` also turns Kick's public socket events into alerts (no login): subs, resubs (also automatic renewals and shared "celebrations"), gifted subs (one alert per gift), Kicks and hosts. It calls `onAlert(alert)`, and `core/chat.js` passes that to `emitEvent()`. See the table at `handle()` for which Kick event becomes which alert. Kick doesn't send follows publicly. `twitch-chat.js` does the same from Twitch's anonymous IRC (see `alertOf()`): subs, resubs, gifted subs (one alert per gift), raids and bits. Twitch follows need a login.
+`kick-chat.js` also turns Kick's public socket events into alerts (no login): subs, resubs (also automatic renewals and shared "celebrations"), gifted subs (one alert per gift), Kicks and hosts. It calls `onAlert(alert)`, and `core/chat.js` passes that to `emitEvent()`. See the table at `handle()` for which Kick event becomes which alert. Kick doesn't send follows publicly. `twitch-chat.js` does the same from Twitch's anonymous IRC (see `alertOf()`): subs, resubs, gifted subs (one alert per gift), raids and bits.
+
+## Twitch account (built)
+
+`twitch-account.js`: the streamer's own Twitch login (Connections page), for follows and the Twitch channel's goals. Twitch's Device Code Flow with the Client ID of a **Public** app from dev.twitch.tv/console (no secret, no redirect page); tokens in `data/twitch.json`, refreshed by themselves. Events come over EventSub's WebSocket (no public address needed): `channel.follow` becomes a Twitch Follow alert, `channel.goal.*` keeps the goal list the panel shows. Not connected: nothing runs.
 
 A connector for follows, subs, Kicks, bits and raids calls `emitEvent()`:
 

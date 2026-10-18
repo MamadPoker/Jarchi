@@ -64,8 +64,22 @@
     "navAppearance": "Appearance",
     "soonTitle": "Coming soon",
     "soonHint": "This page isn't ready yet.",
-    "soonTag": "Soon",
-    "followSoon": "Follow alerts need your Kick or Twitch account connected. That comes later.",
+    "twConnect": "Connect Twitch",
+    "twDisconnect": "Disconnect",
+    "twCancel": "Cancel",
+    "twWhat": "Connect your Twitch account for follow alerts and your Twitch goals. Chat, subs, gifted subs, bits and raids work without it.",
+    "twEnterCode": "Go to twitch.tv/activate (on any device) and enter this code:",
+    "twOpen": "Open Twitch",
+    "twWaiting": "Waiting for you to approve it on Twitch…",
+    "twClientId": "Twitch Client ID",
+    "twClientHint": "From your app at dev.twitch.tv/console (Client Type: Public). Paste it once; it's kept on this PC.",
+    "twNeedClient": "Paste your Twitch Client ID first.",
+    "twStates": { "off": "Not connected", "waiting": "Waiting for approval", "connecting": "Connecting", "connected": "Connected as {login}" },
+    "twErrors": { "expired": "The Twitch login ended. Connect again.", "denied": "Not approved on Twitch.", "timeout": "The code ran out. Connect again.", "client": "Twitch didn't take this Client ID. Check it, and that the app's Client Type is Public.", "network": "Can't reach Twitch right now." },
+    "goalSources": "Goals from",
+    "twitchGoalsOff": "Connect your Twitch account to see your Twitch channel's goals here.",
+    "twitchGoalsNone": "No goals on your Twitch channel right now. Set them in Twitch's Creator Dashboard.",
+    "twitchGoalTypes": { "follow": "Followers", "subscription": "Sub points", "subscription_count": "Subs", "new_subscription": "New sub points", "new_subscription_count": "New subs", "new_bit": "Bits", "new_cheerer": "Cheerers" },
     "homeTest": "Send test alert",
     "obsLinks": "OBS links",
     "readyTitle": "You're ready to stream",
@@ -637,6 +651,9 @@
       "eventLook": "**Card**: a tinted card with a bar in Kick's green or Twitch's purple. **Glow**: a glowing ring. **Simple line**: just the words. Each works inside every chat style.",
       "eventLonger": "Special lines stay on screen twice as long: twice the **Hide each message after** time, and until twice **Max messages on screen** newer ones came. In a bar they go by twice."
     },
+    "connections": {
+      "clientId": "Twitch only lets apps it knows log in. Make a free app at dev.twitch.tv/console (**Register Your Application**, Client Type **Public**) and paste its **Client ID** here. It isn't a password: your friends can use the same one."
+    },
     "settings": {
       "showBadge": "A small Kick or Twitch badge on alerts. It only shows when both accounts are connected.",
       "testAs": "Which platform test alerts come from. `{platform}` in the alert text shows its name.",
@@ -686,7 +703,7 @@
           ["Different media by amount", "In **Media**, Kicks, gifted subs and bits can play their own picture and sound for bigger amounts. Turn it on and upload per amount."],
           ["No Save button", "Every change saves by itself, text a moment after you stop typing. A small **Saved** at the bottom of the page says it's done."]
         ],
-        "tip": "Real Kick alerts (subs, resubs, gifted subs, Kicks and hosts) come from your Kick channel name in **Chat**, with no login. Real Twitch alerts (subs, resubs, gifted subs, raids and bits) come from your Twitch channel name the same way. Follows need a Kick or Twitch login, which comes later. The **Test** buttons work for every alert."
+        "tip": "Real Kick alerts (subs, resubs, gifted subs, Kicks and hosts) come from your Kick channel name in **Chat**, with no login. Real Twitch alerts (subs, resubs, gifted subs, raids and bits) come from your Twitch channel name the same way. Twitch follows come once your Twitch account is connected on **Connections** (Kick tells no one who follows). The **Test** buttons work for every alert."
       },
       "goals": {
         "title": "Goals",
