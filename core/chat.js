@@ -2,7 +2,7 @@
 // pictures, keeps the last messages for widgets that (re)connect, and makes test messages.
 // Everything goes through the event bus: 'chat', 'chatClear', 'chatAvatar'.
 const { EventEmitter } = require('node:events');
-const { bus, emitChat, chatMessage, emitChatClear, emitEvent } = require('./events');
+const { bus, emitChat, chatMessage, emitChatClear, emitEvent, clock, step } = require('./events');
 const settings = require('./settings');
 const { KICK_GIFTS } = settings;
 const goals = require('./goals');
@@ -162,8 +162,6 @@ bus.on('chatClear', (c) => {
 // Each step is the time since the one before; total = created -> shown. Only "created" is another computer's clock.
 // r: { id, shown, where } from the widget (only an id we know and a number are used); transport: websocket | polling.
 const WHERE = ['OBS', 'panel', 'browser'];
-const clock = (t) => new Date(t - new Date(t).getTimezoneOffset() * 60000).toISOString().slice(11, 23); // local time with ms
-const step = (a, b) => `${b >= a ? '+' : '-'}${(Math.abs(b - a) / 1000).toFixed(2)}s`;
 function timing(r, transport) {
   const m = settings.get().chat.showTiming && recent.find((x) => x.id === r?.id);
   const shown = Number(r?.shown);

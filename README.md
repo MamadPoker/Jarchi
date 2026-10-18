@@ -65,9 +65,9 @@ The Kick channel you type in **Chat** also brings real alerts, read from Kick's 
 
 | Kick event | Alert | How |
 |---|---|---|
-| New sub | Sub | announced in chat; Jarchi waits 3 s in case it's part of a gift |
-| Resub (manual) | Resub, with months | announced in chat (same 3 s wait) |
-| Resub (automatic renewal) | Resub, with months | Kick only says "subscribed" on the channel socket; Jarchi waits 10 s, then looks up the months |
+| New sub | Sub | announced in chat; Jarchi waits 0.5 s in case it's part of a gift (up to 3 s while several viewers subscribe at once, which looks like a gift) |
+| Resub (manual) | Resub, with months | announced in chat (same wait) |
+| Resub (automatic renewal) | Resub, with months | Kick only says "subscribed" on the channel socket (in October 2026 every Kick sub came only this way); Jarchi looks up the months, with the same wait |
 | Resub shared in chat ("celebration") | Resub, with the viewer's message | the shared message |
 | Gifted subs | **One** Gifted subs alert, amount = number of subs | Kick's gift event; a big gift sent in chunks is still one alert, and the viewers who got the subs get no Sub alert of their own |
 | Kicks | Kicks, with amount and message | Kick's Kicks event |
@@ -92,7 +92,7 @@ The Twitch channel in **Chat** brings real alerts the same way, from Twitch's an
 
 In a shared chat, the other channels' events don't make alerts here. The Sub goal counts these only with its **Also count Twitch subs** box on.
 
-**Event log**: `data/logs/events.log` keeps the last 500 alert events exactly as Kick and Twitch sent them (subs, gifts, Kicks, raids, Twitch bits; not chat messages), one per line with the local time. Look there when an alert looked wrong. Follows can't be logged: neither public connection sends them.
+**Event log**: `data/logs/events.log` keeps the last 500 alert events exactly as Kick and Twitch sent them (subs, gifts, Kicks, raids, Twitch bits; not chat messages), one per line with the local time. Look there when an alert looked wrong. Each alert that started on an alerts page (OBS or a browser) also leaves a `timing` line there and in the server window: when the event reached Jarchi (`received`), then how long Jarchi took to decide it (`check`: a Kick sub waits a moment for a gift), how long it waited in the queue (`queue`: the alert before it, the gap, no alerts page open, paused) and how long until the page started it (`overlay`). Replays leave none. Follows can't be logged: neither public connection sends them.
 
 ### Alert queue
 

@@ -187,6 +187,7 @@ io.on('connection', (socket) => {
     alertQueue.join((now) => socket.emit('alert', now));
     socket.once('disconnect', alertQueue.leave);
     opened(socket, 'alerts');
+    socket.on('alertShown', (r) => alertQueue.shown(r, socket.conn.transport.name)); // alert timing line
   });
   socket.once('widgetJoin', (w) => w !== 'alerts' && WIDGETS.includes(w) && opened(socket, w)); // chat, a goal
 

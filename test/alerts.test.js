@@ -237,7 +237,8 @@ test('Kick events become one alert each, repeats are dropped, goals count them',
   // An automatic renewal: only on the channel socket, without months (looked up: 10), sent twice.
   H('App\\Events\\ChannelSubscriptionEvent', { user_ids: [89616436], username: 'KunciKediri', channel_id: 87788191 });
   H('App\\Events\\ChannelSubscriptionEvent', { user_ids: [89616436], username: 'KunciKediri', channel_id: 87788191 });
-  t.mock.timers.tick(kick.HOLD_MS);
+  t.mock.timers.tick(kick.SETTLE_MS);
+  t.mock.timers.tick(kick.GIFT_WAIT_MS); // several viewers' subs at once: they wait for a gift that may name them
   await flush();
   bus.off('event', onEvent);
   kick.subMonths = realLookup;
@@ -261,28 +262,45 @@ test('Kick events become one alert each, repeats are dropped, goals count them',
   queue.clear();
 });
 
-test('Kick gift of 2: one gift alert even when its viewers\' "subscribed" comes first; a real sub still alerts', (t) => {
-  t.mock.timers.enable({ apis: ['setTimeout'] });
+test('Kick subs: a sub on its own plays after a moment; a gift of 2 is one gift alert even when its viewers\' "subscribed" comes first', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'], now: Date.now() });
   const got = [], lines = [];
-  const cb = { onMessage: (m) => lines.push(m.system || m.text), onClear() {}, onAlert: (a) => got.push([a.type, a.user, a.amount ?? a.months]) };
+  // [type, user, amount or months, how long it waited (ms)]
+  const cb = { onMessage: (m) => lines.push(m.system || m.text), onClear() {}, onAlert: (a) => got.push([a.type, a.user, a.amount ?? a.months, Date.now() - (a.received ?? Date.now())]) };
   const H = (event, data) => kick.handle(event, JSON.stringify(data), 'somechannel', { subBadges: [] }, cb);
-  // The chat socket's "subscribed" for both viewers reaches Jarchi just before the gift itself (another socket).
+  const wait = (ms) => { for (let i = 0; i < ms / 100; i++) t.mock.timers.tick(100); }; // timers set inside timers too
+  // A sub on its own: no gift looks likely, so it doesn't wait for one.
+  H('App\\Events\\SubscriptionEvent', { chatroom_id: 1, username: 'Solo', months: 1 });
+  wait(kick.SETTLE_MS);
+  assert.deepEqual(got, [['sub', 'Solo', 1, kick.SETTLE_MS]]);
+  // The chat socket's "subscribed" for both viewers reaches Jarchi 1 s before the gift itself (another socket channel):
+  // two viewers at once look like a gift, so they wait for it.
   H('App\\Events\\SubscriptionEvent', { chatroom_id: 1, username: 'GiftedOne', months: 1 });
   H('App\\Events\\SubscriptionEvent', { chatroom_id: 1, username: 'GiftedTwo', months: 1 });
+  wait(1000);
+  assert.equal(got.length, 1, 'they wait');
   H('GiftedSubscriptionsEvent', { chatroom_id: 1, correlation_id: 'pi_two', gifted_usernames: ['GiftedOne', 'GiftedTwo'], gifter_username: 'Santa', gifted_total: 2, gifter_total: 2, chunk_details: null });
   H('App\\Events\\SubscriptionEvent', { chatroom_id: 1, username: 'RealFan', months: 1 });
   H('App\\Events\\ChatMessageEvent', { id: 'm1', content: 'hi', sender: { username: 'Chatter', slug: 'chatter' } });
-  // The 3 s wait is for sub alerts only: every chat line, the sub lines too, is out at once.
-  assert.deepEqual(lines, ['GiftedOne subscribed for 1 months!', 'GiftedTwo subscribed for 1 months!', 'Santa gifted 2 subs!', 'RealFan subscribed for 1 months!', 'hi']);
-  assert.deepEqual(got, [['gift_sub', 'Santa', 2]], 'the sub alerts wait');
-  t.mock.timers.tick(kick.HOLD_MS);
-  assert.deepEqual(got, [['gift_sub', 'Santa', 2], ['sub', 'RealFan', 1]]);
+  // The wait is for sub alerts only: every chat line, the sub lines too, is out at once.
+  assert.deepEqual(lines, ['Solo subscribed for 1 months!', 'GiftedOne subscribed for 1 months!', 'GiftedTwo subscribed for 1 months!', 'Santa gifted 2 subs!', 'RealFan subscribed for 1 months!', 'hi']);
+  assert.deepEqual(got.slice(1), [['gift_sub', 'Santa', 2, 0]]);
+  wait(kick.SETTLE_MS); // the gift named its viewers: a real sub just after it doesn't wait for a gift
+  wait(kick.GIFT_WAIT_MS);
+  assert.deepEqual(got.slice(2), [['sub', 'RealFan', 1, kick.SETTLE_MS]], 'no sub alerts for the gifted viewers');
+  // Two real subs at once and no gift comes: they play once the gift wait is over.
+  H('App\\Events\\SubscriptionEvent', { chatroom_id: 1, username: 'FanA', months: 1 });
+  H('App\\Events\\SubscriptionEvent', { chatroom_id: 1, username: 'FanB', months: 3 });
+  wait(kick.GIFT_WAIT_MS - 100);
+  assert.equal(got.length, 3);
+  wait(100);
+  assert.deepEqual(got.slice(3), [['sub', 'FanA', 1, kick.GIFT_WAIT_MS], ['resub', 'FanB', 3, kick.GIFT_WAIT_MS]]);
 
   // The event log: those Kick events as they came, in order, not the chat message; only the last 500 lines are kept.
   const log = () => fs.readFileSync(path.join(dataDir, 'logs', 'events.log'), 'utf8').trim().split('\n');
-  assert.deepEqual(log().slice(-4).map((l) => l.split(' ')[3]),
-    ['App\\Events\\SubscriptionEvent', 'App\\Events\\SubscriptionEvent', 'GiftedSubscriptionsEvent', 'App\\Events\\SubscriptionEvent']);
-  assert.match(log().at(-2), /^\d{4}-\d\d-\d\d \d\d:\d\d:\d\d\.\d{3} kick GiftedSubscriptionsEvent \{.*"gifter_username":"Santa"/);
+  assert.deepEqual(log().slice(-7).map((l) => l.split(' ')[3]), ['App\\Events\\SubscriptionEvent', 'App\\Events\\SubscriptionEvent', 'App\\Events\\SubscriptionEvent',
+    'GiftedSubscriptionsEvent', 'App\\Events\\SubscriptionEvent', 'App\\Events\\SubscriptionEvent', 'App\\Events\\SubscriptionEvent']);
+  assert.match(log().at(-4), /^\d{4}-\d\d-\d\d \d\d:\d\d:\d\d\.\d{3} kick GiftedSubscriptionsEvent \{.*"gifter_username":"Santa"/);
   for (let i = 0; i < 500; i++) logIncoming('kick', 'filler', { i });
   assert.deepEqual([log().length, log()[0].endsWith('filler {"i":0}')], [500, true]);
 });
@@ -345,8 +363,13 @@ test('alert queue: one at a time to every overlay, survives refreshes and OBS cl
   fire('A'); fire('B', 'sub'); fire('C');
   assert.deepEqual([plays, queue.state().waiting], [[], 3], 'no overlay open: they wait');
   assert.deepEqual(queue.state().list.map((a) => [a.user, a.type]), [['A', 'follow'], ['B', 'sub'], ['C', 'follow']], 'the waiting list, in order');
+  tick(2);
   overlay('obs')();
   assert.deepEqual(plays, ['A']);
+  // The overlay says it started A: a timing line with where the time went (here: 2 s waiting for an open overlay).
+  assert.match(queue.shown({ id: queue.state().now.id, shown: Date.now() + 40, where: 'OBS' }, 'websocket'),
+    /^follow A {2}received \d\d:\d\d:\d\d\.\d{3} {2}check \+0\.00s {2}queue \+2\.00s {2}overlay \+0\.04s {2}total \+2\.04s {2}OBS\/websocket$/);
+  assert.equal(queue.shown({ id: 'not-playing', shown: Date.now() }, 'websocket'), null);
   tick(5.1);
   assert.deepEqual(plays, ['A', 'B']);
   tick(2);

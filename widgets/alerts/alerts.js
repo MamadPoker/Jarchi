@@ -51,7 +51,9 @@ if (params.has('preview')) {
     show(e.data.event, { muted: e.data.muted, hold: e.data.hold }).catch(console.error);
   });
 } else {
-  const socket = io();
+  // WebSocket first, like the chat widget: HTTP polling can wait behind other downloads from this PC (a browser opens
+  // only 6 connections to it at a time). Polling stays as the fallback if WebSocket can't connect.
+  const socket = io({ transports: ['websocket', 'polling'], tryAllTransports: true });
   socket.on('strings', applyStrings);
   socket.on('settings', applySettings);
   socket.on('connect', () => socket.emit('alertsJoin')); // again after every reconnect
@@ -61,6 +63,8 @@ if (params.has('preview')) {
     if (!settings || !S) return;
     stopAll();
     show(a.ev, { ms: a.left, id: a.id, muted: a.late }).catch(console.error);
+    // It's on the page now: for the server's alert timing line (not again when this overlay joined in the middle).
+    if (!a.late) socket.emit('alertShown', { id: a.id, shown: Date.now(), where: window.obsstudio ? 'OBS' : 'browser' });
   });
   socket.on('alertSkip', (id) => { if (onNow?.id === id) onNow.end(); });
 }

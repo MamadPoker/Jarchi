@@ -114,14 +114,26 @@ function kickBadges(identity, subBadges) {
 // What just happened, so one sub is never two alerts: 'sub:<login>' (a sub announced in chat), 'to:<login>' (was
 // gifted a sub: their "subscribed" is part of that gift), 'from:<login>' (gifted subs) -> when.
 const RECENT_MS = 60 * 1000; // the channel socket's "subscribed" for a gifter came 8-19 s after the gift
-const HOLD_MS = 10 * 1000; // a channel-socket-only sub waits this long for the chat socket's copy (that one comes within ms)
-const GIFT_WAIT_MS = 3 * 1000; // a sub announced in chat waits this long: a gift's own event can come just after its viewers' "subscribed"
 const recent = new Map();
 const mark = (k) => {
   recent.set(k, Date.now());
   if (recent.size > 2000) recent.delete(recent.keys().next().value);
 };
 const isRecent = (k) => Date.now() - (recent.get(k) ?? 0) < RECENT_MS;
+
+// A Kick sub alert is decided a moment after it came: Kick's other copy of the same sub, or the gift that names the
+// viewer (it can come just after its viewers' "subscribed"), comes within SETTLE_MS. While a gift looks likely by
+// then (another viewer's sub is waiting too: a gift's viewers come together), it waits up to GIFT_WAIT_MS.
+const SETTLE_MS = 500;
+const GIFT_WAIT_MS = 3 * 1000;
+const waiting = new Set(); // logins whose sub is waiting to be decided
+// ponytail: a 1-viewer gift whose own event comes over SETTLE_MS after the viewer's "subscribed" still shows a sub;
+// raise SETTLE_MS if the event log ever shows that order.
+function hold(who, decide) {
+  waiting.add(who);
+  const done = () => { waiting.delete(who); decide(); };
+  setTimeout(() => (waiting.size > 1 ? setTimeout(done, GIFT_WAIT_MS - SETTLE_MS) : done()), SETTLE_MS);
+}
 
 // How many months a viewer has been subscribed to a channel (Kick's website API), or null.
 async function subMonths(slug, user) {
@@ -131,11 +143,12 @@ async function subMonths(slug, user) {
 
 // One Pusher event -> callbacks. Exported for tests.
 // Alerts (cb.onAlert), each with a key naming that one real event, so a repeat is dropped (core/events):
-//   SubscriptionEvent (chatrooms.<id>.v2)          sub (1 month) or resub; key: viewer + month count. After GIFT_WAIT_MS,
-//                                                  and none if a gift named the viewer (Kick sends it for gifted subs too)
+//   SubscriptionEvent (chatrooms.<id>.v2)          sub (1 month) or resub; key: viewer + month count. After hold(), and
+//                                                  none if a gift named the viewer (Kick sends it for gifted subs too)
 //   ChannelSubscriptionEvent (channel_<id>)        Kick sends every sub here too, and automatic renewals ONLY here, without
 //                                                  the months: if the chat socket didn't announce it (and it's no gift),
-//                                                  the months are looked up and it's a resub (same key as above)
+//                                                  the months are looked up and it's a resub (same key as above). In
+//                                                  October 2026 every Kick sub came only this way
 //   ChatMessageEvent type "celebration"            resub: a viewer shares their renewal in chat, with their message (same key)
 //   GiftedSubscriptionsEvent (chatroom_<id>)       gifted subs: ONE alert per purchase (Kick's correlation_id; a big gift
 //                                                  can come in chunks), amount = gifted_total
@@ -159,10 +172,11 @@ function handle(event, raw, channel, info, cb) {
   }
   const name = (n) => ({ name: n, login: n });
   const login = (n) => String(n ?? '').toLowerCase();
+  const received = Date.now(); // for the alert timing line: a sub alert comes out of hold() later
   const sub = (user, months, message = '') => {
     mark(`sub:${login(user)}`);
     if (isRecent(`to:${login(user)}`)) return;
-    cb.onAlert?.({ type: months > 1 ? 'resub' : 'sub', user, months, message, key: `kick:sub:${login(user)}:${months}` });
+    cb.onAlert?.({ type: months > 1 ? 'resub' : 'sub', user, months, message, received, key: `kick:sub:${login(user)}:${months}` });
   };
   switch (event) {
     case 'App\\Events\\ChatMessageEvent': {
@@ -183,22 +197,26 @@ function handle(event, raw, channel, info, cb) {
     case 'App\\Events\\UserBannedEvent': return cb.onClear({ platform: 'kick', userId: d.user?.id });
     case 'App\\Events\\ChatroomClearEvent': return cb.onClear({ platform: 'kick' });
     case 'App\\Events\\SubscriptionEvent': {
-      const months = Number(d.months) || 1;
+      const months = Number(d.months) || 1, who = login(d.username), gifted = isRecent(`to:${who}`);
       // A viewer a gift just named got their sub from that gift: a plain line (the gift has the special one).
       // ponytail: a "subscribed" that comes before its gift still gets the special line (chat lines never wait); if
       // that shows up, give the gift line its viewers and let the widget turn their lines plain.
-      const own = !isRecent(`to:${login(d.username)}`) && { event: { type: months > 1 ? 'resub' : 'sub', months } };
+      const own = !gifted && { event: { type: months > 1 ? 'resub' : 'sub', months } };
       cb.onMessage({ platform: 'kick', channel, kind: 'sub', user: name(d.username), system: fill(strings.chatText.kickSub, { user: d.username, months }), text: '', parts: [], ...own });
-      return setTimeout(() => sub(d.username, months), GIFT_WAIT_MS);
+      if (gifted) return;
+      mark(`sub:${who}`); // the channel socket's copy of this sub makes no alert of its own
+      return hold(who, () => sub(d.username, months));
     }
     case 'App\\Events\\ChannelSubscriptionEvent': {
       if ((d.user_ids?.length ?? 1) > 1) return; // several viewers at once: a gift
       const who = login(d.username);
-      setTimeout(async () => {
-        if (['sub', 'to', 'from'].some((k) => isRecent(`${k}:${who}`))) return;
-        const months = await module.exports.subMonths(channel, d.username).catch(() => null);
-        sub(d.username, months ?? 1);
-      }, HOLD_MS);
+      const known = () => ['sub', 'to', 'from'].some((k) => isRecent(`${k}:${who}`)); // announced in chat, gifted, the gifter
+      if (known()) return;
+      const months = module.exports.subMonths(channel, d.username).catch(() => null); // asked now, while it waits
+      hold(who, async () => {
+        const m = await months;
+        if (!known()) sub(d.username, m ?? 1);
+      });
       return;
     }
     case 'GiftedSubscriptionsEvent':
@@ -206,7 +224,10 @@ function handle(event, raw, channel, info, cb) {
       const to = d.gifted_usernames ?? [];
       const count = Number(d.gifted_total) || to.length || 1;
       const key = `kick:gift:${d.correlation_id ?? `${login(d.gifter_username)}:${d.gifter_total ?? to.map(login).sort().join(',')}`}`;
-      for (const u of to) mark(`to:${login(u)}`);
+      for (const u of to) {
+        mark(`to:${login(u)}`);
+        waiting.delete(login(u)); // decided: no sub alert, and no reason for other subs to wait for a gift
+      }
       mark(`from:${login(d.gifter_username)}`);
       if (!isRecent(key)) { // the chat line once per gift, not per chunk
         mark(key);
@@ -303,4 +324,4 @@ function connect(slug, cb) {
   return { stop() { stopped = true; clearTimeout(timer); clearInterval(keepAlive); ws?.close(); } };
 }
 
-module.exports = { connect, handle, kickParts, kickBadges, biggest, avatar, kickGet, subMonths, pusherUrl, PUSHER, HOLD_MS };
+module.exports = { connect, handle, kickParts, kickBadges, biggest, avatar, kickGet, subMonths, pusherUrl, PUSHER, SETTLE_MS, GIFT_WAIT_MS };

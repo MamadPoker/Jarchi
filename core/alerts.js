@@ -8,7 +8,7 @@ const path = require('node:path');
 const { EventEmitter } = require('node:events');
 const { randomUUID } = require('node:crypto');
 const { DATA_DIR } = require('./config');
-const { bus, TYPES, PLATFORMS } = require('./events');
+const { bus, logIncoming, clock, step, TYPES, PLATFORMS } = require('./events');
 const settings = require('./settings');
 const store = require('./store');
 
@@ -138,4 +138,19 @@ function pause(on) {
   return state();
 }
 
-module.exports = { join, leave, skip, clear, remove, replay, pause, state, feed: () => feed, events: alerts };
+// Alert timing: an overlay says when it started an alert -> one line in the server output and the event log, per real
+// alert (not replays) and overlay: received = Kick / Twitch's event reached Jarchi; check = Jarchi deciding it (a Kick
+// sub waits a moment for a gift that may name the viewer); queue = waiting for the alert before it and the gap, an open
+// overlay or a resume; overlay = from here to the overlay starting it. r: { id, shown, where } from the overlay.
+function shown(r, transport) {
+  const at = Number(r?.shown);
+  if (!playing || playing.id !== r?.id || playing.id !== playing.ev.id || !Number.isFinite(at)) return null;
+  const { ev, started } = playing;
+  const line = `${ev.type} ${ev.user.replace(/\p{Cc}/gu, ' ')}  received ${clock(ev.received)}  check ${step(ev.received, ev.time)}  queue ${step(ev.time, started)}  `
+    + `overlay ${step(started, at)}  total ${step(ev.received, at)}  ${['OBS', 'browser'].includes(r.where) ? r.where : '?'}/${transport}`;
+  console.log(`alert timing  ${ev.platform.padEnd(6)} ${line}`);
+  logIncoming(ev.platform, 'timing', line);
+  return line;
+}
+
+module.exports = { join, leave, skip, clear, remove, replay, pause, shown, state, feed: () => feed, events: alerts };

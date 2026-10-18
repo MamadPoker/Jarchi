@@ -15,6 +15,7 @@ const seen = new Map(); // key -> when (oldest first)
 
 // e.key (optional): connectors give one to events that can reach them twice (the same Kick event on two of its
 // sockets, a reconnect). An event whose key was seen in the last 6 hours is dropped: returns null.
+// e.received (optional): when Kick / Twitch's event reached Jarchi, if the connector held it before this (Kick subs).
 function emitEvent(e) {
   if (!PLATFORMS.includes(e.platform) || !TYPES.includes(e.type)) throw new Error(`bad event: ${e.platform}/${e.type}`);
   if (e.key) {
@@ -26,6 +27,7 @@ function emitEvent(e) {
   const ev = {
     id: randomUUID(),
     time: Date.now(),
+    received: Number(e.received) || Date.now(),
     platform: e.platform,
     type: e.type,
     user: String(e.user ?? '').slice(0, 64),
@@ -125,6 +127,7 @@ const connectedPlatforms = () => [...connected];
 
 // The alert events Kick and Twitch sent (subs, gifts, Kicks, raids, bits; not chat messages), as they came, before
 // Jarchi decides what to show: data/logs/events.log, the last 500 lines, "local time  platform  event  data".
+// Also each alert's timing line (event "timing", core/alerts shown()).
 const LOG_FILE = path.join(DATA_DIR, 'logs', 'events.log');
 const LOG_LINES = 500;
 function logIncoming(platform, name, data) {
@@ -142,4 +145,8 @@ function logIncoming(platform, name, data) {
   }
 }
 
-module.exports = { bus, emitEvent, emitChat, chatMessage, emitChatClear, setConnected, connectedPlatforms, logIncoming, today, TYPES, PLATFORMS };
+// For the timing lines (chat, alerts): a time as local time with ms, and the time between two times.
+const clock = (t) => new Date(t - new Date(t).getTimezoneOffset() * 60000).toISOString().slice(11, 23);
+const step = (a, b) => `${b >= a ? '+' : '-'}${(Math.abs(b - a) / 1000).toFixed(2)}s`;
+
+module.exports = { bus, emitEvent, emitChat, chatMessage, emitChatClear, setConnected, connectedPlatforms, logIncoming, today, clock, step, TYPES, PLATFORMS };
