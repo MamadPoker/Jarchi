@@ -12,8 +12,8 @@ const store = require('../core/store');
 const { emitEvent, setConnected, logIncoming } = require('../core/events');
 
 const FILE = path.join(DATA_DIR, 'kick.json');
-// Jarchi's own relay (filled in once it's deployed); KICK_RELAY_URL in .env sets another (your own deploy of relay/).
-const JARCHI_RELAY = '';
+// Jarchi's own relay; KICK_RELAY_URL in .env sets another (your own deploy of relay/).
+const JARCHI_RELAY = 'https://jarchi-kick.thejarchi.workers.dev';
 const RELAY = (process.env.KICK_RELAY_URL || JARCHI_RELAY).replace(/\/+$/, '');
 const API = 'https://api.kick.com/public/v1';
 const EVENTS = [{ name: 'channel.followed', version: 1 }];
