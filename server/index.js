@@ -75,9 +75,10 @@ app.post('/api/alerts/pause', (req, res) => res.json(alertQueue.pause(req.body?.
 app.delete('/api/alerts/queue/:id', (req, res) => res.json(alertQueue.remove(req.params.id)));
 app.post('/api/alerts/replay/:id', (req, res) => res.json(alertQueue.replay(req.params.id)));
 
-// The panel's Home page: the last events, today's numbers and when Jarchi started (uptime). Open widgets come by socket.
+// The panel's Home page: the last events, today's numbers, when Jarchi started (uptime) and the Kick channel's goals. Open
+// widgets and goal changes come by socket (Twitch's goals with the Twitch account's status).
 const STARTED = Date.now();
-app.get('/api/home', (req, res) => res.json({ feed: alertQueue.feed(), today: today(), started: STARTED }));
+app.get('/api/home', (req, res) => res.json({ feed: alertQueue.feed(), today: today(), started: STARTED, kickGoals: goals.kickList() }));
 
 // Proxy: "Test connection" (Kick, Twitch, 7TV), and which proxy is in use right now.
 app.post('/api/net/test', async (req, res) => res.json(await chat.check()));
@@ -211,6 +212,7 @@ alertQueue.events.on('skip', (id) => io.to('alerts').emit('alertSkip', id));
 alertQueue.events.on('state', (st) => io.emit('alertQueue', st));
 // Every count change goes to widgets and the panel; the second argument names a goal that just hit its target.
 goals.events.on('change', (reached) => io.emit('goals', goals.all(), reached));
+goals.events.on('kick', (list) => io.emit('kickGoals', list)); // Home's Kick tab
 bus.on('event', (ev) => io.emit('event', ev));
 bus.on('connections', () => changed());
 bus.on('chat', (m) => {

@@ -495,7 +495,10 @@ const svgIn = (cls, markup) => { // fixed markup only
   s.innerHTML = markup;
   return s;
 };
-const goalIcon = (id) => svgIn('goal-icon', GOAL_ICON[id]);
+// A Kick / Twitch channel goal's look (Home): the Jarchi goal of the same kind; cheerers are bits too.
+const CHANNEL_GOAL = { followers: 'followers', subscriptions: 'subs', kicks: 'kicks', follow: 'followers', subscription: 'subs', subscription_count: 'subs',
+  new_subscription: 'subs', new_subscription_count: 'subs', new_bit: 'bits', new_cheerer: 'bits' };
+const goalIcon = (id) => svgIn('goal-icon', GOAL_ICON[id] ?? ''); // a goal type that's new to Jarchi: none
 // "From Kick" / "From Twitch": Kick's K or Twitch's logo, with the words as its tooltip and for screen readers.
 function syncMark(p) {
   const s = p === 'kick' ? svgIn('from-kick', KICK_K) : el('span', { className: 'from-twitch' }, el('img', { src: '/assets/platform-logos/twitch.svg', alt: '' }));
@@ -504,7 +507,6 @@ function syncMark(p) {
   s.setAttribute('aria-label', s.title);
   return s;
 }
-const syncMarks = (st) => ['kick', 'twitch'].filter((p) => st[p]).map(syncMark); // the numbers' platforms (both: added up)
 
 // ---------- Home ----------
 const COPY_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h8"/></svg>';
@@ -573,20 +575,15 @@ function renderHome() {
       el('span', { className: 'stack' }, el('b', { textContent: name }), el('small', { textContent: S.panel[open[id] ? 'widgetOpen' : 'widgetClosed'] })), copy);
   }));
 
-  // Goals. On stream: the goals switched on, count / target as their widgets show it, with Kick's K / Twitch's logo where
-  // the numbers come from (none: Jarchi's own count, fixed by hand on the Goals page). Kick / Twitch: what each channel
-  // has set, its own numbers (also with its sync off); a Twitch sub goal says what it counts (subs or points).
-  const ids = Object.keys(settings.goals), state = goalData.state;
-  const live = ids.filter((id) => settings.goals[id].enabled);
-  $('#homeGoals').replaceChildren(...live.map((id) => homeGoal(id, S.goals[id].name, state[id].current, state[id].target, syncMarks(state[id]))));
-  hint('#homeGoalsHint', live.length ? '' : S.panel.goalsNoneOn);
-  $('#kickGoals').replaceChildren(...ids.filter((id) => state[id].onKick).map((id) => homeGoal(id, S.goals[id].name, state[id].onKick.current, state[id].onKick.target)));
-  hint('#kickGoalsHint', !settings.chat.kickChannel ? S.panel.kickSyncNoChannel : $('#kickGoals').children.length ? '' : S.panel.kickSyncNone);
-  $('#twitchGoals').replaceChildren(...ids.filter((id) => state[id].onTwitch).map((id) => {
-    const g = state[id].onTwitch, under = [g.description, id === 'subs' && S.panel.twitchGoalTypes[g.type]].filter(Boolean).join(' · ');
-    return homeGoal(id, S.goals[id].name, g.current, g.target, [], under && el('small', { textContent: under, dir: 'auto' }));
+  // Goals: what's set on each channel right now, exactly as Kick / Twitch list it (read-only; whatever the syncs do).
+  // Kick's have no title: their type names them. A Twitch goal's title is its description, else its type.
+  $('#kickGoals').replaceChildren(...home.kickGoals.map((g) => homeGoal(CHANNEL_GOAL[g.type], S.panel.kickGoalTypes[g.type] ?? g.type, g.current, g.target)));
+  hint('#kickGoalsHint', !settings.chat.kickChannel ? S.panel.kickSyncNoChannel : home.kickGoals.length ? '' : S.panel.kickSyncNone);
+  $('#twitchGoals').replaceChildren(...twitch.goals.map((g) => {
+    const kind = S.panel.twitchGoalTypes[g.type] ?? g.type;
+    return homeGoal(CHANNEL_GOAL[g.type], g.description || kind, g.current, g.target, [], g.description ? el('small', { textContent: kind }) : '');
   }));
-  hint('#twitchGoalsHint', twitch.state === 'off' ? S.panel.twitchGoalsOff : twitch.state === 'connected' && !$('#twitchGoals').children.length ? S.panel.twitchGoalsNone : '');
+  hint('#twitchGoalsHint', twitch.state === 'off' ? S.panel.twitchGoalsOff : twitch.state === 'connected' && !twitch.goals.length ? S.panel.twitchGoalsNone : '');
   $('#twitchGoalsConnect').hidden = twitch.state !== 'off';
 
   $('#statAlerts').textContent = fmt(home.today.alerts);
@@ -978,7 +975,7 @@ function build() {
   $('#twitchGoalsConnect').onclick = $('#twitchSyncConnect').onclick = () => select('connections');
   $('#twitchSync').onchange = (e) => send('PATCH', '/api/settings', { twitchGoalSync: e.target.checked });
   wireTabs($('#goalList').parentNode, 'jarchi.goalTab');
-  wireTabs($('#homeGoalsBox'), 'jarchi.homeGoalsTab'); // On stream first (a new key: earlier picks don't carry over)
+  wireTabs($('#homeGoalsBox'), 'jarchi.homeGoalTab');
   socket.on('twitchAccount', (t) => {
     twitch = t;
     render(); // the Connections card, the Goals page's Twitch tab, Home's Twitch tab
@@ -991,6 +988,10 @@ function build() {
     if (view === 'home') renderHome();
   });
   socket.on('chat', (m) => { if (!m.test && m.kind !== 'event') $('#statChat').textContent = fmt(++home.today.chat); }); // Kicks / raid lines aren't messages
+  socket.on('kickGoals', (list) => {
+    home.kickGoals = list;
+    if (view === 'home') renderHome();
+  });
   socket.on('widgets', (o) => {
     open = o;
     if (view === 'home') renderHome();

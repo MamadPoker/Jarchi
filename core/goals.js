@@ -31,6 +31,14 @@ const state = Object.fromEntries(settings.GOAL_IDS.map((id) => [id, {
   reached: saved[id]?.reached === true,
 }]));
 const on = { kick: {}, twitch: {} }; // platform -> our goal id -> { goalId, current, target }: the channel's goals, as last read
+// Home's Kick tab: every goal on the Kick channel as Kick lists it, [{ id, type, current, target }], whatever the syncs do.
+// (Twitch's list is connectors/twitch-account.js's.) 'kick' is emitted when it changes.
+let kickList = [];
+function setKickList(next) {
+  if (JSON.stringify(next) === JSON.stringify(kickList)) return;
+  kickList = next;
+  goals.emit('kick', kickList);
+}
 
 const bad = () => Object.assign(new Error('bad_request'), { status: 400, code: 'bad_request' });
 // The platforms a goal has numbers from (sync on, set there), and of those the ones it shows: with both, its source picks.
@@ -39,18 +47,11 @@ function sources(id) {
   const have = ['kick', 'twitch'].filter((p) => s[`${p}GoalSync`] && on[p][id]);
   return { have, use: have.length === 2 && have.includes(s.goals[id].source) ? [s.goals[id].source] : have };
 }
-// A channel's own goal for one of ours, without Kick's / Twitch's id, or null.
-const own = (p, id) => {
-  if (!on[p][id]) return null;
-  const { goalId, ...g } = on[p][id];
-  return g;
-};
 // What widgets and the panel show, per goal: { current, target, reached, kick / twitch (its numbers are that platform's),
-// onKick / onTwitch (that channel's own goal: { current, target } (Twitch's also description, type), null when none
-// is set there), both (synced from both: the source choice applies) }.
+// onKick / onTwitch (set there), both (synced from both: the source choice applies) }.
 const all = () => Object.fromEntries(settings.GOAL_IDS.map((id) => {
   const { have, use } = sources(id);
-  const marks = { kick: use.includes('kick'), twitch: use.includes('twitch'), onKick: own('kick', id), onTwitch: own('twitch', id), both: have.length === 2 };
+  const marks = { kick: use.includes('kick'), twitch: use.includes('twitch'), onKick: !!on.kick[id], onTwitch: !!on.twitch[id], both: have.length === 2 };
   if (!use.length) return [id, { ...state[id], target: settings.get().goals[id].target, ...marks }];
   const sum = (k) => use.reduce((n, p) => n + on[p][id][k], 0);
   return [id, { current: sum('current'), target: sum('target'), reached: sum('current') >= sum('target'), ...marks }];
@@ -99,9 +100,16 @@ function kickGoals(list) {
     if (id && SHOWN.includes(g.status) && !next[id]) next[id] = { goalId: g.id, current: count(g.current_value), target: Math.max(1, count(g.target_value, 1)) };
   }
   platformChanged('kick', next);
+  setKickList((list ?? []).filter((g) => SHOWN.includes(g?.status)).map((g) => ({ id: g.id, type: String(g.type ?? ''), current: count(g.current_value), target: Math.max(1, count(g.target_value, 1)) })));
 }
 // One goal from a live Kick event (created, updated, progress, achieved, canceled). Found by type, or by its id.
 function kickGoal(g) {
+  // Home's Kick tab: the goal as Kick has it now, in its place in the list; gone when canceled or expired.
+  const was = kickList.find((k) => k.id === g?.id);
+  const now = SHOWN.includes(g?.status ?? 'active') && (was || g?.type)
+    && { id: g.id, type: String(g.type ?? was.type), current: count(g.current_value, was?.current), target: Math.max(1, count(g.target_value, was?.target ?? 1)) };
+  setKickList(was ? kickList.flatMap((k) => (k !== was ? [k] : now ? [now] : [])) : now ? [...kickList, now] : kickList);
+  // The goal it syncs to.
   const id = KICK_TYPES[g?.type] ?? Object.keys(on.kick).find((k) => on.kick[k].goalId === g?.id);
   if (!id) return;
   const next = { ...on.kick };
@@ -115,7 +123,7 @@ function twitchGoals(list) {
   const next = {};
   for (const g of list ?? []) {
     const id = TWITCH_TYPES[g?.type];
-    if (id && !next[id]) next[id] = { goalId: g.id, current: count(g.current), target: Math.max(1, count(g.target, 1)), description: String(g.description ?? ''), type: g.type };
+    if (id && !next[id]) next[id] = { goalId: g.id, current: count(g.current), target: Math.max(1, count(g.target, 1)) };
   }
   platformChanged('twitch', next);
 }
@@ -130,4 +138,4 @@ bus.on('event', (ev) => {
   }
 });
 
-module.exports = { all, change, retarget, kickGoals, kickGoal, twitchGoals, refresh, events: goals };
+module.exports = { all, change, retarget, kickGoals, kickGoal, twitchGoals, refresh, kickList: () => kickList, events: goals }; // events: 'change', 'kick'

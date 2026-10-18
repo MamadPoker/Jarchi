@@ -510,7 +510,7 @@ input.count-input[readonly]:hover { border-color: transparent; background: trans
 .list-foot small { font-size: 12px; line-height: 1.4; }
 /* Kick | Twitch tabs (Goals list, Home goals): small. */
 .tab-box .tabs button { display: flex; align-items: center; gap: 6px; padding: 6px 12px; font-size: 13px; }
-.tab-box .tabs img, .tab-box .tabs svg { width: 14px; height: 14px; }
+.tab-box .tabs img { width: 14px; height: 14px; }
 .tab-box .pane { grid-template-columns: none; gap: 8px; margin: 6px 0 0; }
 .home-goal b { min-width: 0; overflow-wrap: anywhere; }
 .small-btn { justify-self: start; padding: 5px 12px; font-size: 13px; }
