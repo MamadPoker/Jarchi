@@ -109,7 +109,7 @@ app.post('/api/twitch/connect', async (req, res) => res.json(await twitchAccount
 app.post('/api/twitch/disconnect', async (req, res) => res.json(await twitchAccount.disconnect()));
 
 // Goals: counts (current / reached) live in core/goals; their look and target are regular settings.
-app.get('/api/goals', (req, res) => res.json({ state: goals.all(), styles: settings.GOAL_STYLES, fonts: settings.FONTS, twitchTypes: goals.TWITCH_TYPES }));
+app.get('/api/goals', (req, res) => res.json({ state: goals.all(), styles: settings.GOAL_STYLES, fonts: settings.FONTS }));
 app.patch('/api/goals/:id', (req, res) => res.json(goals.change(req.params.id, req.body)));
 app.post('/api/goals/:id/reset-style', (req, res) => res.json(changed(settings.resetGoalStyle(req.params.id))));
 app.post('/api/goals/:id/sound', raw, (req, res) => res.json(changed(settings.saveGoalSound(req.params.id, req.body, fileName(req)))));

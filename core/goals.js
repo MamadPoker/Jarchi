@@ -39,11 +39,18 @@ function sources(id) {
   const have = ['kick', 'twitch'].filter((p) => s[`${p}GoalSync`] && on[p][id]);
   return { have, use: have.length === 2 && have.includes(s.goals[id].source) ? [s.goals[id].source] : have };
 }
+// A channel's own goal for one of ours, without Kick's / Twitch's id, or null.
+const own = (p, id) => {
+  if (!on[p][id]) return null;
+  const { goalId, ...g } = on[p][id];
+  return g;
+};
 // What widgets and the panel show, per goal: { current, target, reached, kick / twitch (its numbers are that platform's),
-// onKick / onTwitch (set there), both (synced from both: the source choice applies) }.
+// onKick / onTwitch (that channel's own goal: { current, target } (Twitch's also description, type), null when none
+// is set there), both (synced from both: the source choice applies) }.
 const all = () => Object.fromEntries(settings.GOAL_IDS.map((id) => {
   const { have, use } = sources(id);
-  const marks = { kick: use.includes('kick'), twitch: use.includes('twitch'), onKick: !!on.kick[id], onTwitch: !!on.twitch[id], both: have.length === 2 };
+  const marks = { kick: use.includes('kick'), twitch: use.includes('twitch'), onKick: own('kick', id), onTwitch: own('twitch', id), both: have.length === 2 };
   if (!use.length) return [id, { ...state[id], target: settings.get().goals[id].target, ...marks }];
   const sum = (k) => use.reduce((n, p) => n + on[p][id][k], 0);
   return [id, { current: sum('current'), target: sum('target'), reached: sum('current') >= sum('target'), ...marks }];
@@ -108,7 +115,7 @@ function twitchGoals(list) {
   const next = {};
   for (const g of list ?? []) {
     const id = TWITCH_TYPES[g?.type];
-    if (id && !next[id]) next[id] = { goalId: g.id, current: count(g.current), target: Math.max(1, count(g.target, 1)) };
+    if (id && !next[id]) next[id] = { goalId: g.id, current: count(g.current), target: Math.max(1, count(g.target, 1)), description: String(g.description ?? ''), type: g.type };
   }
   platformChanged('twitch', next);
 }
@@ -123,4 +130,4 @@ bus.on('event', (ev) => {
   }
 });
 
-module.exports = { all, change, retarget, kickGoals, kickGoal, twitchGoals, refresh, TWITCH_TYPES, events: goals };
+module.exports = { all, change, retarget, kickGoals, kickGoal, twitchGoals, refresh, events: goals };

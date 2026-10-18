@@ -101,15 +101,22 @@
               <h2 data-i18n="widgetsTitle"></h2>
               <ul id="widgetList" class="widget-list"></ul>
             </div>
-            <!-- Kick: Jarchi's goals (Kick's / Twitch's numbers when synced). Twitch: the Twitch channel's own goals. -->
+            <!-- On stream: the goals switched on, as their OBS widgets show them (logos: where the numbers come from).
+                 Kick / Twitch: each channel's own goals, with its own numbers. -->
             <div class="box tab-box" id="homeGoalsBox">
               <h2 data-i18n="navGoals"></h2>
               <div class="tabs" role="tablist" data-aria="goalSources">
+                <button role="tab" id="tab-h-stream" aria-controls="pane-h-stream" data-tab="stream"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg><span data-i18n="goalsOnStream"></span></button>
                 <button role="tab" id="tab-h-kick" aria-controls="pane-h-kick" data-tab="kick"><img src="/assets/platform-logos/kick.svg" alt=""><span>Kick</span></button>
                 <button role="tab" id="tab-h-twitch" aria-controls="pane-h-twitch" data-tab="twitch"><img src="/assets/platform-logos/twitch.svg" alt=""><span>Twitch</span></button>
               </div>
-              <div class="pane" role="tabpanel" id="pane-h-kick" aria-labelledby="tab-h-kick" data-tab="kick">
+              <div class="pane" role="tabpanel" id="pane-h-stream" aria-labelledby="tab-h-stream" data-tab="stream">
                 <div id="homeGoals" class="home-goals"></div>
+                <small id="homeGoalsHint"></small>
+              </div>
+              <div class="pane" role="tabpanel" id="pane-h-kick" aria-labelledby="tab-h-kick" data-tab="kick" hidden>
+                <div id="kickGoals" class="home-goals"></div>
+                <small id="kickGoalsHint"></small>
               </div>
               <div class="pane" role="tabpanel" id="pane-h-twitch" aria-labelledby="tab-h-twitch" data-tab="twitch" hidden>
                 <div id="twitchGoals" class="home-goals"></div>

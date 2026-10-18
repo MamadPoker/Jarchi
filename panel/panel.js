@@ -74,7 +74,7 @@ readAccent();
 const fd = (v) => (FA ? String(v).replace(/(?<=\d)\.(?=\d)/g, '٫').replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[d]).replace(/%/g, '٪') : String(v));
 const fmt = (n) => n.toLocaleString(FA ? 'fa-IR' : undefined);
 const ltr = (s) => (FA ? `\u2066${s}\u2069` : s); // an address inside a Persian sentence keeps its order
-let S, EN, settings, samples, goalData; // S: the panel's strings, EN: English for the overlays. goalData = { state, styles, fonts, twitchTypes } from /api/goals; state then follows the socket
+let S, EN, settings, samples, goalData; // S: the panel's strings, EN: English for the overlays. goalData = { state, styles, fonts } from /api/goals; state then follows the socket
 let chatStyles, chatFonts, chatStatus; // chat style looks and fonts (/api/chat/styles), connection status (follows the socket)
 let chatThumbs; // sample messages for the chat style thumbnails (/api/chat/thumbs: random viewers and badges each visit)
 let view = 'home', cur = 'follow', curGoal = 'subs', topic = 'start'; // the open page, and the alert, goal and guide topic selected in theirs
@@ -490,14 +490,12 @@ const GOAL_ICON = {
   followers: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${HEART}"/></svg>`, // heart
   bits: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${TYPE_ICON.bits}"/></svg>`, // gem
 };
-// A Twitch channel goal's look: the Jarchi goal it syncs to (cheerers count bits too).
-const twitchLook = (type) => (type === 'new_cheerer' ? 'bits' : goalData.twitchTypes[type]);
 const svgIn = (cls, markup) => { // fixed markup only
   const s = el('span', { className: cls });
   s.innerHTML = markup;
   return s;
 };
-const goalIcon = (id) => svgIn('goal-icon', GOAL_ICON[id] ?? ''); // a Twitch goal type that's new to Jarchi: none
+const goalIcon = (id) => svgIn('goal-icon', GOAL_ICON[id]);
 // "From Kick" / "From Twitch": Kick's K or Twitch's logo, with the words as its tooltip and for screen readers.
 function syncMark(p) {
   const s = p === 'kick' ? svgIn('from-kick', KICK_K) : el('span', { className: 'from-twitch' }, el('img', { src: '/assets/platform-logos/twitch.svg', alt: '' }));
@@ -575,18 +573,29 @@ function renderHome() {
       el('span', { className: 'stack' }, el('b', { textContent: name }), el('small', { textContent: S.panel[open[id] ? 'widgetOpen' : 'widgetClosed'] })), copy);
   }));
 
-  // Goals, Kick tab: Jarchi's goals, count / target (Kick's / Twitch's when synced) and a bar. They move by themselves;
-  // a count is fixed by hand on the Goals page. The Twitch tab is renderTwitch()'s.
-  $('#homeGoals').replaceChildren(...Object.keys(settings.goals).map((id) => {
-    const st = goalData.state[id];
-    return homeGoal(id, S.goals[id].name, st.current, st.target, syncMarks(st));
+  // Goals. On stream: the goals switched on, count / target as their widgets show it, with Kick's K / Twitch's logo where
+  // the numbers come from (none: Jarchi's own count, fixed by hand on the Goals page). Kick / Twitch: what each channel
+  // has set, its own numbers (also with its sync off); a Twitch sub goal says what it counts (subs or points).
+  const ids = Object.keys(settings.goals), state = goalData.state;
+  const live = ids.filter((id) => settings.goals[id].enabled);
+  $('#homeGoals').replaceChildren(...live.map((id) => homeGoal(id, S.goals[id].name, state[id].current, state[id].target, syncMarks(state[id]))));
+  hint('#homeGoalsHint', live.length ? '' : S.panel.goalsNoneOn);
+  $('#kickGoals').replaceChildren(...ids.filter((id) => state[id].onKick).map((id) => homeGoal(id, S.goals[id].name, state[id].onKick.current, state[id].onKick.target)));
+  hint('#kickGoalsHint', !settings.chat.kickChannel ? S.panel.kickSyncNoChannel : $('#kickGoals').children.length ? '' : S.panel.kickSyncNone);
+  $('#twitchGoals').replaceChildren(...ids.filter((id) => state[id].onTwitch).map((id) => {
+    const g = state[id].onTwitch, under = [g.description, id === 'subs' && S.panel.twitchGoalTypes[g.type]].filter(Boolean).join(' · ');
+    return homeGoal(id, S.goals[id].name, g.current, g.target, [], under && el('small', { textContent: under, dir: 'auto' }));
   }));
+  hint('#twitchGoalsHint', twitch.state === 'off' ? S.panel.twitchGoalsOff : twitch.state === 'connected' && !$('#twitchGoals').children.length ? S.panel.twitchGoalsNone : '');
+  $('#twitchGoalsConnect').hidden = twitch.state !== 'off';
 
   $('#statAlerts').textContent = fmt(home.today.alerts);
   $('#statChat').textContent = fmt(home.today.chat);
   $('#statUptime').textContent = uptime();
 }
 
+// A hint line: its text, hidden when there's none.
+const hint = (sel, text) => Object.assign($(sel), { textContent: text, hidden: !text });
 // One goal on Home: its icon and name, current / target, more (marks, a line under it), and a bar, in the goal's colour.
 function homeGoal(id, name, current, target, marks = [], under = '') {
   const bar = el('i');
@@ -969,10 +978,10 @@ function build() {
   $('#twitchGoalsConnect').onclick = $('#twitchSyncConnect').onclick = () => select('connections');
   $('#twitchSync').onchange = (e) => send('PATCH', '/api/settings', { twitchGoalSync: e.target.checked });
   wireTabs($('#goalList').parentNode, 'jarchi.goalTab');
-  wireTabs($('#homeGoalsBox'), 'jarchi.homeGoalTab');
+  wireTabs($('#homeGoalsBox'), 'jarchi.homeGoalsTab'); // On stream first (a new key: earlier picks don't carry over)
   socket.on('twitchAccount', (t) => {
     twitch = t;
-    render(); // the Connections card, the Goals page's Twitch tab, Home's Twitch goals
+    render(); // the Connections card, the Goals page's Twitch tab, Home's Twitch tab
   });
   // Home: new events (also from the test buttons), today's chat count, widget pages opening and closing.
   socket.on('event', (ev) => {
@@ -1214,8 +1223,7 @@ function renderAlert() {
   });
 }
 
-// The Connections page's Twitch card, and Home's Twitch goals (the Twitch channel's own, in the colour and icon of the
-// Jarchi goal they sync to).
+// The Connections page's Twitch card.
 function renderTwitch() {
   const t = twitch, on = t.state !== 'off';
   const line = $('#twState');
@@ -1230,14 +1238,6 @@ function renderTwitch() {
   if (id !== document.activeElement) id.value = t.clientId;
   id.readOnly = on; // a login belongs to the app it was made with
 
-  $('#twitchGoals').replaceChildren(...t.goals.map((g) => {
-    const kind = S.panel.twitchGoalTypes[g.type] ?? g.type;
-    return homeGoal(twitchLook(g.type), g.description || kind, g.current, g.target, [], g.description ? el('small', { textContent: kind }) : '');
-  }));
-  const hint = $('#twitchGoalsHint');
-  hint.textContent = !on ? S.panel.twitchGoalsOff : t.state === 'connected' && !t.goals.length ? S.panel.twitchGoalsNone : '';
-  hint.hidden = !hint.textContent;
-  $('#twitchGoalsConnect').hidden = t.state !== 'off';
 }
 
 function renderGoal() {
