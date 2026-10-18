@@ -44,6 +44,7 @@ let seeded = false; // preview: showing sample messages until real ones arrive
 let filling = false; // ticker: drawing the recent messages as if the bar had been running
 let loopTimer, loopAt = 0; // ticker: looping the recent messages when chat is quiet
 let socket; // live and preview only
+let fontsIn = false, lookSeq = 0; // the look's fonts are loaded, so messages may be drawn (apply())
 
 // Emotes, badges and pictures come through Jarchi (/remote), so they follow its proxy setting.
 const remote = (u) => (u?.startsWith('https://') ? `/remote?u=${encodeURIComponent(u)}` : u);
@@ -78,7 +79,7 @@ if (params.has('thumb')) {
 } else {
   if (params.has('preview')) {
     document.body.classList.add('preview');
-    addEventListener('message', (e) => { if (e.origin === location.origin && e.data?.replay && cfg && S) replay(); }); // the panel's Replay
+    addEventListener('message', (e) => { if (e.origin === location.origin && e.data?.replay && fontsIn) replay(); }); // the panel's Replay
   }
   // WebSocket first: over HTTP polling, chat waited behind profile pictures and emotes still downloading (a browser
   // opens only 6 connections to this PC at a time). Polling stays as the fallback if WebSocket can't connect.
@@ -99,17 +100,17 @@ if (params.has('thumb')) {
       seeded = true;
     }
     recent.splice(0, recent.length, ...msgs.slice(-KEEP));
-    if (cfg) rebuild();
+    if (fontsIn) rebuild();
   });
   socket.on('chat', (m) => {
     if (seeded) {
       seeded = false;
       recent.length = 0;
-      if (cfg) rebuild();
+      if (fontsIn) rebuild();
     }
     recent.push(m);
     if (recent.length > KEEP) recent.shift();
-    if (cfg && S && shown(m)) add(m, true);
+    if (fontsIn && shown(m)) add(m, true); // before that, apply() draws it with the rest
   });
   socket.on('chatClear', (c) => {
     const hit = (m) => m.platform === c.platform && (c.messageId ? m.id === c.messageId : c.userId ? m.user.id === c.userId : true);
@@ -149,8 +150,29 @@ function apply(still = false) {
     bots: new Set(words(cfg.bots)), hidden: new Set(words(cfg.hiddenUsers)), blocked: words(cfg.blockedWords), rainbow: new Set(words(cfg.rainbowUsers)),
     streamer: [mainSettings?.chat?.kickChannel ?? cfg.kickChannel, mainSettings?.chat?.twitchChannel ?? cfg.twitchChannel].filter(Boolean).map((n) => n.toLowerCase()),
   };
-  rebuild(still);
+  // Drawn once the look's fonts are in: every size (a bubble around its name, a bar's spacing, what's behind a name) is
+  // then measured in the font the text is drawn in, never in a stand-in font that's swapped out later.
+  fontsIn = false;
+  const mine = ++lookSeq;
+  lookFonts().then(() => {
+    if (mine !== lookSeq) return; // the look changed meanwhile
+    fontsIn = true;
+    rebuild(still);
+  });
 }
+
+// The look's fonts (bundled, assets/fonts): the chat's, and the names' (a style can give names their own, like Comic's
+// Bangers), as the page's CSS has them. Loaded now instead of when the first message needs them; after 3 s the chat
+// draws anyway, and 'loadingdone' below draws it again when they come.
+function lookFonts() {
+  const probe = root.appendChild(h('span', { className: 'name' }));
+  const families = [root, probe].map((el) => getComputedStyle(el).fontFamily);
+  probe.remove();
+  const loaded = Promise.all(families.map((ff) => document.fonts.load(`16px ${ff}`).catch(() => {}))).then(() => document.fonts.ready);
+  return Promise.race([loaded, new Promise((ok) => setTimeout(ok, 3000))]);
+}
+// A font that finished loading after the chat was drawn: everything drawn again, measured in it.
+document.fonts.addEventListener('loadingdone', () => { if (fontsIn) rebuild(params.has('thumb')); });
 
 // Empty the chat (its messages stay in memory).
 let replays = [], spin; // Replay's waiting messages; a bar thumbnail's motion
@@ -391,11 +413,12 @@ function nameEl(m, rainbow, hat) {
     el.textContent = m.user.name;
     return el;
   }
-  // The hat on the first or last letter: that letter gets its own box, so the hat can be twice its width.
+  // The hat on the first or last letter: that letter gets its own box, so the hat can be twice its width. The box is glued
+  // to the letter beside it (a line never breaks between them); the rest of a long name still wraps, so it's never cut off.
   const chars = Array.from(m.user.name);
-  const letter = h('span', { className: 'hat-letter' }, hat === 'first' ? chars.shift() : chars.pop(), hatEl(hat));
-  el.append(...(hat === 'first' ? [letter, chars.join('')] : [chars.join(''), letter]));
-  el.classList.add('hat-name');
+  const letter = h('span', { className: 'hat-letter' }, h('span', { className: 'hat-char', textContent: hat === 'first' ? chars.shift() : chars.pop() }), hatEl(hat));
+  const glue = h('span', { className: 'hat-glue' }, ...(hat === 'first' ? [letter, chars.shift()] : [chars.pop(), letter]));
+  el.append(...(hat === 'first' ? [glue, chars.join('')] : [chars.join(''), glue]));
   return el;
 }
 
