@@ -1,0 +1,13 @@
+# Jarchi's Kick relay (see worker.mjs). Deploy from this folder: npx wrangler deploy
+name = "jarchi-kick"
+main = "worker.mjs"
+compatibility_date = "2025-09-01"
+
+# One Room per Kick channel. SQLite-backed, which the free plan needs (nothing is stored in it).
+[[durable_objects.bindings]]
+name = "ROOMS"
+class_name = "Room"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Room"]

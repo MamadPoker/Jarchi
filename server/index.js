@@ -11,6 +11,7 @@ const goals = require('../core/goals');
 const chat = require('../core/chat');
 const alertQueue = require('../core/alerts');
 const twitchAccount = require('../connectors/twitch-account');
+const kickAccount = require('../connectors/kick-account');
 const strings = require('../i18n/en.json');
 
 const ROOT = path.join(__dirname, '..');
@@ -52,6 +53,7 @@ app.patch('/api/settings', (req, res) => {
   if (Object.keys(req.body).some((k) => k.startsWith('proxy'))) { // reconnect through the new proxy
     chat.restart();
     twitchAccount.start();
+    kickAccount.start();
   } else if (req.body.chat) chat.sync(); // channel names may have changed
   res.json(changed(s));
 });
@@ -108,6 +110,16 @@ app.get('/api/twitch', (req, res) => res.json(twitchAccount.status()));
 app.patch('/api/twitch', (req, res) => res.json(twitchAccount.setClientId(req.body?.clientId)));
 app.post('/api/twitch/connect', async (req, res) => res.json(await twitchAccount.login()));
 app.post('/api/twitch/disconnect', async (req, res) => res.json(await twitchAccount.disconnect()));
+
+// The Kick account (Connections page): Connect gives Kick's login page (through Jarchi's Kick relay), which comes back
+// to /api/kick/callback in the browser, and that opens Connections again. Its status comes by socket too.
+app.get('/api/kick', (req, res) => res.json(kickAccount.status()));
+app.post('/api/kick/connect', async (req, res) => res.json(await kickAccount.login()));
+app.post('/api/kick/disconnect', async (req, res) => res.json(await kickAccount.disconnect()));
+app.get('/api/kick/callback', async (req, res) => {
+  await kickAccount.callback(req.query);
+  res.redirect('/#connections');
+});
 
 // Goals: counts (current / reached) live in core/goals; their look and target are regular settings.
 app.get('/api/goals', (req, res) => res.json({ state: goals.all(), styles: settings.GOAL_STYLES, fonts: settings.FONTS }));
@@ -194,6 +206,7 @@ io.on('connection', (socket) => {
   socket.emit('alertQueue', alertQueue.state());
   socket.emit('widgets', open);
   socket.emit('twitchAccount', twitchAccount.status());
+  socket.emit('kickAccount', kickAccount.status());
   // The alerts overlay joins to get alerts from the queue (the panel's previews don't).
   socket.once('alertsJoin', () => {
     socket.join('alerts');
@@ -226,6 +239,7 @@ twitchAccount.events.on('status', (st) => {
   io.emit('twitchAccount', st);
   goals.twitchGoals(st.goals); // "Sync from Twitch"
 });
+kickAccount.events.on('status', (st) => io.emit('kickAccount', st));
 
 server.on('error', (err) => {
   console.error(err.code === 'EADDRINUSE' ? `Port ${PORT} is already in use. Set JARCHI_PORT in .env to another port.` : err);
@@ -236,7 +250,8 @@ server.listen(PORT, HOST, () => {
   Settings panel: http://${HOST}:${PORT}/
   OBS alerts URL: http://${HOST}:${PORT}/widgets/alerts`);
   chat.sync(); // connect to the saved Kick / Twitch channels
-  twitchAccount.start(); // and the Twitch account, when it's connected
+  twitchAccount.start(); // and the Twitch and Kick accounts, when they're connected
+  kickAccount.start();
 });
 
 module.exports = { app, server, io };

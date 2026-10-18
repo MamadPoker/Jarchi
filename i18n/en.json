@@ -76,6 +76,12 @@
     "twClientHint": "Jarchi's own is filled in: nothing to do. To use your own Twitch app (dev.twitch.tv/console, Client Type: Public), paste its Client ID; empty the field to go back.",
     "twStates": { "off": "Not connected", "waiting": "Waiting for approval", "connecting": "Connecting", "connected": "Connected as {login}" },
     "twErrors": { "expired": "The Twitch login ended. Connect again.", "denied": "Not approved on Twitch.", "timeout": "The code ran out. Connect again.", "client": "Twitch didn't take this Client ID. Check it, and that the app's Client Type is Public.", "network": "Can't reach Twitch right now." },
+    "kcConnect": "Connect Kick",
+    "kcWhat": "Connect your Kick account for follow alerts. Chat, subs, gifted subs, Kicks and hosts work without it.",
+    "kcWaiting": "Log in on Kick's page (it opened in a new tab) and allow Jarchi. Waiting for you…",
+    "kcOpen": "Open Kick",
+    "kcStates": { "off": "Not connected", "waiting": "Waiting for Kick", "connecting": "Connecting", "connected": "Connected as {login}" },
+    "kcErrors": { "expired": "The Kick login ended. Connect again.", "denied": "Not allowed on Kick.", "timeout": "Kick's login page waited too long. Connect again.", "network": "Can't reach Kick or Jarchi's Kick relay right now.", "relay": "Kick login isn't set up in this copy of Jarchi yet (no Kick relay)." },
     "goalSources": "Goals from",
     "twitchGoalsOff": "Connect your Twitch account to see your Twitch channel's goals here.",
     "twitchGoalsNone": "No goals on your Twitch channel right now. Set them in Twitch's Creator Dashboard.",
@@ -712,7 +718,7 @@
           ["Different media by amount", "In **Media**, Kicks, gifted subs and bits can play their own picture and sound for bigger amounts. Turn it on and upload per amount."],
           ["No Save button", "Every change saves by itself, text a moment after you stop typing. A small **Saved** at the bottom of the page says it's done."]
         ],
-        "tip": "Real Kick alerts (subs, resubs, gifted subs, Kicks and hosts) come from your Kick channel name in **Chat**, with no login. Real Twitch alerts (subs, resubs, gifted subs, raids and bits) come from your Twitch channel name the same way. Twitch follows come once your Twitch account is connected on **Connections** (Kick tells no one who follows). The **Test** buttons work for every alert."
+        "tip": "Real Kick alerts (subs, resubs, gifted subs, Kicks and hosts) come from your Kick channel name in **Chat**, with no login. Real Twitch alerts (subs, resubs, gifted subs, raids and bits) come from your Twitch channel name the same way. Follows come once your Kick and Twitch accounts are connected on **Connections**. The **Test** buttons work for every alert."
       },
       "goals": {
         "title": "Goals",

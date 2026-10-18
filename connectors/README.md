@@ -11,11 +11,15 @@ Both export `connect(channel, { onStatus, onMessage, onClear, onChannel })` and 
 
 ## Alerts and goals
 
-`kick-chat.js` also turns Kick's public socket events into alerts (no login): subs, resubs (also automatic renewals and shared "celebrations"), gifted subs (one alert per gift), Kicks and hosts. It calls `onAlert(alert)`, and `core/chat.js` passes that to `emitEvent()`. See the table at `handle()` for which Kick event becomes which alert. Kick doesn't send follows publicly. `twitch-chat.js` does the same from Twitch's anonymous IRC (see `alertOf()`): subs, resubs, gifted subs (one alert per gift), raids and bits.
+`kick-chat.js` also turns Kick's public socket events into alerts (no login): subs, resubs (also automatic renewals and shared "celebrations"), gifted subs (one alert per gift), Kicks and hosts. It calls `onAlert(alert)`, and `core/chat.js` passes that to `emitEvent()`. See the table at `handle()` for which Kick event becomes which alert. Kick doesn't send follows publicly (see the Kick account below). `twitch-chat.js` does the same from Twitch's anonymous IRC (see `alertOf()`): subs, resubs, gifted subs (one alert per gift), raids and bits.
 
 ## Twitch account (built)
 
 `twitch-account.js`: the streamer's own Twitch login (Connections page), for follows and the Twitch channel's goals. Twitch's Device Code Flow with Jarchi's own **Public** Twitch app (its Client ID is built in; Connections can set another); no secret, no redirect page. Tokens in `data/twitch.json`, refreshed by themselves. Events come over EventSub's WebSocket (no public address needed): `channel.follow` becomes a Twitch Follow alert, `channel.goal.*` keeps the goal list (Home's Twitch tab, and "Sync from Twitch" in `core/goals.js`). Not connected: nothing runs.
+
+## Kick account (built)
+
+`kick-account.js`: the streamer's own Kick login (Connections page), for follows. Kick's login needs its app's secret and Kick sends follows only as webhooks to a public address, so both go through Jarchi's Kick relay (`relay/`, a free Cloudflare Worker; `KICK_RELAY_URL` in `.env` sets another): the login (OAuth with PKCE) opens through it and comes back to `/api/kick/callback`, codes and refreshes are swapped for tokens there. With that login Jarchi subscribes its own channel to `channel.followed` and keeps a WebSocket open to the relay, which checks Kick's signature on each webhook and hands it to that channel's sockets (it stores nothing). A follow becomes a Kick Follow alert. Tokens in `data/kick.json`. Not connected: nothing runs.
 
 A connector for follows, subs, Kicks, bits and raids calls `emitEvent()`:
 

@@ -81,6 +81,7 @@ let view = 'home', cur = 'follow', curGoal = 'subs', topic = 'start'; // the ope
 let queue = { paused: false, overlays: 0, waiting: 0, now: null }; // the alert queue (follows the socket)
 let home, open = {}, feedFilter = 'all'; // Home: { feed, today, started } (/api/home, then the socket), widget pages open now (socket)
 let twitch; // the Twitch account: { state, error, code, uri, clientId, login, goals } (/api/twitch, then the socket)
+let kick; // the Kick account: { state, error, uri, login } (/api/kick, then the socket)
 
 const pct = (v) => `${Math.round(v * 100)}%`;
 const px = (v) => `${v}px`;
@@ -106,8 +107,8 @@ const el = (tag, props = {}, ...kids) => {
 
 // The lists inside the Alerts and Goals pages: a click opens the item, its switch turns it on or off.
 const ALERT_ORDER = ['follow', 'sub', 'gift_sub', 'resub', 'raid', 'kicks', 'bits'];
-// Who sends it (the list's logos); the others: both. Follow: Twitch, with the account connected (Kick tells no one who follows).
-const ALERT_PLATFORMS = { follow: ['twitch'], kicks: ['kick'], bits: ['twitch'] };
+// Who sends it (the list's logos); the others: both (follows once the accounts are connected on Connections).
+const ALERT_PLATFORMS = { kicks: ['kick'], bits: ['twitch'] };
 const LISTS = () => ({
   alert: ALERT_ORDER.map((t) => ({ key: t, label: S.types[t], toggle: (on) => patchAlert(t, { enabled: on }) })),
   goal: Object.keys(settings.goals).map((id) => ({ key: id, label: S.goals[id].name, toggle: (on) => patchGoal(id, { enabled: on }) })),
@@ -981,6 +982,16 @@ function build() {
     twitch = t;
     render(); // the Connections card, the Goals page's Twitch tab, Home's Twitch tab
   });
+  // Connections: the Kick account. Connect opens Kick's login page in a new tab (Open Kick, if the browser blocked it);
+  // after the login that tab comes back to Connections, and this one follows by socket.
+  const kickCall = (method, url) => api(method, url).then((k) => { kick = k; renderKick(); return k; }, (err) => toast(err.message, true));
+  $('#kcConnect').onclick = () => kickCall('POST', '/api/kick/connect').then((k) => k?.uri && window.open(k.uri, '_blank', 'noopener'));
+  $('#kcDisconnect').onclick = () => kickCall('POST', '/api/kick/disconnect');
+  $('#kcOpen').onclick = () => window.open(kick.uri, '_blank', 'noopener');
+  socket.on('kickAccount', (k) => {
+    kick = k;
+    renderKick();
+  });
   // Home: new events (also from the test buttons), today's chat count, widget pages opening and closing.
   socket.on('event', (ev) => {
     home.feed.unshift(ev);
@@ -1150,6 +1161,7 @@ function render() {
   $('#twitchSyncConnect').hidden = twitch.state !== 'off';
 
   renderTwitch();
+  renderKick();
   artFaces();
   $('#showBadge').checked = settings.showBadge;
   $('#connectedList').textContent = settings.connected.map((p) => S.platforms[p]).join(FA ? '، ' : ', ') || S.panel.connectedNone;
@@ -1240,6 +1252,18 @@ function renderTwitch() {
   if (id !== document.activeElement) id.value = t.clientId;
   id.readOnly = on; // a login belongs to the app it was made with
 
+}
+
+// The Connections page's Kick card.
+function renderKick() {
+  const k = kick, on = k.state !== 'off';
+  const line = $('#kcState');
+  line.className = `status st-${!on ? (k.error ? 'error' : 'off') : k.state === 'connected' ? 'connected' : 'connecting'}`;
+  line.textContent = [tpl(S.panel.kcStates[k.state], { login: k.login }), k.error && S.panel.kcErrors[k.error]].filter(Boolean).join(' · ');
+  $('#kcConnect').hidden = on;
+  $('#kcDisconnect').hidden = !on;
+  $('#kcDisconnect').textContent = S.panel[k.state === 'waiting' ? 'twCancel' : 'twDisconnect'];
+  $('#kcWait').hidden = k.state !== 'waiting';
 }
 
 function renderGoal() {
@@ -1415,9 +1439,9 @@ artRun();
   EN = await (await fetch('/i18n/en.json')).json();
   S = FA ? await (await fetch('/i18n/fa.json')).json() : EN;
   try {
-    [settings, samples, goalData, { styles: chatStyles, fonts: chatFonts }, chatStatus, home, twitch] = await Promise.all([
+    [settings, samples, goalData, { styles: chatStyles, fonts: chatFonts }, chatStatus, home, twitch, kick] = await Promise.all([
       api('GET', '/api/settings'), api('GET', '/api/samples'), api('GET', '/api/goals'), api('GET', '/api/chat/styles'), api('GET', '/api/chat/status'), api('GET', '/api/home'),
-      api('GET', '/api/twitch'),
+      api('GET', '/api/twitch'), api('GET', '/api/kick'),
     ]);
   } catch (err) {
     return toast(err.message, true);
@@ -1429,7 +1453,8 @@ artRun();
     back = JSON.parse(sessionStorage.getItem('jarchi.back'));
     sessionStorage.removeItem('jarchi.back');
   } catch {}
-  const [v, key] = back ?? [];
+  const [v, key] = back ?? [location.hash.slice(1)]; // or a page in the address (/#connections: back from Kick's login)
+  if (location.hash) history.replaceState(null, '', location.pathname);
   const ok = v === 'alert' ? key in settings.alerts : v === 'goal' ? key in settings.goals : v === 'theme' || $$('.nav-item').some((b) => b.dataset.view === v);
   select(ok ? v : 'home', ok ? key : undefined);
 })();

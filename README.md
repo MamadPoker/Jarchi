@@ -155,7 +155,7 @@ Kick and Twitch chat in one box: `http://127.0.0.1:3000/widgets/chat` (transpare
 How it reads chat, and what needs a key:
 
 - **Twitch**: anonymous chat (IRC over WebSocket), no key. Optional key (`TWITCH_CLIENT_ID` / `TWITCH_CLIENT_SECRET` in `.env`, see `.env.example`) adds every Twitch badge and channels' own sub badges, and profile pictures come from Twitch's own API. Without it, Twitch's common badges show and profile pictures come through decapi.me / ivr.fi.
-- **Kick**: Kick's public chat socket, no key. Finding a channel's chatroom by name uses Kick's website API (unofficial; it only answers HTTP/2). If Kick changes that API, the Kick status shows Error. Kick's official API needs an app key and will come with account connections.
+- **Kick**: Kick's public chat socket, no key. Finding a channel's chatroom by name uses Kick's website API (unofficial; it only answers HTTP/2). If Kick changes that API, the Kick status shows Error. Follows need the Kick account connected on **Connections** (Kick's official API, through Jarchi's Kick relay in `relay/`).
 
 ## Project layout
 
@@ -170,7 +170,8 @@ core/goals.js        goal counters, fed by the event bus; Kick's own goals with 
 core/store.js        JSON files in the data folder
 core/chat.js         runs the chat connectors, adds 7TV emotes, test messages
 core/seventv.js      7TV emote sets (cached)
-connectors/          Kick and Twitch chat readers (+ Twitch badge images)
+connectors/          Kick and Twitch chat readers (+ Twitch badge images), the Kick and Twitch accounts
+relay/               Jarchi's Kick relay (Cloudflare Worker): Kick's login and follow webhooks for every Jarchi
 assets/              official platform logos (platform-logos), Kick badge icons (kick-badges), Kick default profile pictures (kick-avatars), OG hats (og-hats), bundled fonts (fonts)
 widgets/<name>/      each widget is a folder, served at /widgets/<name>
 panel/               settings panel (served at /)
