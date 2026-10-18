@@ -74,7 +74,7 @@ readAccent();
 const fd = (v) => (FA ? String(v).replace(/(?<=\d)\.(?=\d)/g, '٫').replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[d]).replace(/%/g, '٪') : String(v));
 const fmt = (n) => n.toLocaleString(FA ? 'fa-IR' : undefined);
 const ltr = (s) => (FA ? `\u2066${s}\u2069` : s); // an address inside a Persian sentence keeps its order
-let S, EN, settings, samples, goalData; // S: the panel's strings, EN: English for the overlays. goalData = { state, styles, fonts } from /api/goals; state then follows the socket
+let S, EN, settings, samples, goalData; // S: the panel's strings, EN: English for the overlays. goalData = { state, styles, fonts, twitchTypes } from /api/goals; state then follows the socket
 let chatStyles, chatFonts, chatStatus; // chat style looks and fonts (/api/chat/styles), connection status (follows the socket)
 let chatThumbs; // sample messages for the chat style thumbnails (/api/chat/thumbs: random viewers and badges each visit)
 let view = 'home', cur = 'follow', curGoal = 'subs', topic = 'start'; // the open page, and the alert, goal and guide topic selected in theirs
@@ -89,8 +89,8 @@ const FORMAT = {
   emoteSize: px, bigEmoteSize: px, badgeSize: pct, nameSize: px, padding: px, gap: px, width: px, height: px, fadeZone: px, blur: px,
   tickerSpeed: (v) => `${v} px/s`, maxMessages: (v) => String(v), hideAfter: (v) => (Number(v) ? tpl(S.panel.seconds, { n: v }) : S.panel.never), animSpeed: (v) => `×${v}`,
 };
-const GOAL_STEP = { subs: 1, kicks: 100, followers: 1 }; // what "Test", "+" and "−" add
-const GOAL_SAMPLE = { subs: { current: 32, target: 50 }, kicks: { current: 640, target: 1000 }, followers: { current: 374, target: 500 } }; // numbers on style thumbnails
+const GOAL_STEP = { subs: 1, kicks: 100, followers: 1, bits: 100 }; // what "Test", "+" and "−" add
+const GOAL_SAMPLE = { subs: { current: 32, target: 50 }, kicks: { current: 640, target: 1000 }, followers: { current: 374, target: 500 }, bits: { current: 3200, target: 5000 } }; // numbers on style thumbnails
 const isVideo = (file) => /\.(webm|mp4)$/.test(file ?? '');
 const tpl = (s, v) => s.replace(/\{(\w+)\}/g, (m, k) => v[k] ?? m);
 const kickLook = (type, cfg) => type === 'kicks' && cfg.look === 'kick';
@@ -305,10 +305,9 @@ function goalCountRow(id) {
   input.setAttribute('aria-label', `${S.goals[id].name}: ${S.panel.goalCurrent}`);
   const zero = el('button', { className: 'ghost zero', textContent: S.panel.goalZero });
   twoClick(zero, zero, S.panel.goalZero, S.panel.confirmZero, () => goalCount({ set: 0 }, id));
-  // Synced from Kick: Kick's count, read-only, with Kick's K instead of Reset to 0.
-  const mark = kickMark();
-  mark.hidden = true;
-  return el('div', { className: 'goal-count' }, input, el('small', { className: 'of' }), mark, zero);
+  // Synced from Kick / Twitch: their count, read-only, with Kick's K / Twitch's logo instead of Reset to 0.
+  const marks = ['kick', 'twitch'].map((p) => Object.assign(syncMark(p), { hidden: true }));
+  return el('div', { className: 'goal-count' }, input, el('small', { className: 'of' }), ...marks, zero);
 }
 
 // ---------- Previews ----------
@@ -481,7 +480,7 @@ function renderQueue() {
 }
 const queueCall = (method, what, body) => api(method, `/api/alerts/${what}`, body).then((q) => { queue = q; renderQueue(); return q; }, (err) => toast(err.message, true));
 
-// ---------- Goal marks (panel only): an icon per goal in its colour (CSS [data-goal]), Kick's K for "From Kick" ----------
+// ---------- Goal marks (panel only): an icon per goal in its colour (CSS [data-goal]), Kick's K / Twitch's logo for "From …" ----------
 // Kick's own logo shape (assets/platform-logos/kick.svg), drawn in currentColor so light mode can use a darker green.
 const KICK_K = '<svg class="kick-k" viewBox="0 0 26 26" aria-hidden="true"><path fill-rule="evenodd" d="M1 0H9.76711V5.79452H12.589V2.82193H15.5616V0H24.1781V8.61645H21.3561V11.589H18.3836V14.411H21.3561V17.3836H24.1781V26H15.5616V23.1781H12.589V20.2055H9.76711V26H1V0Z"/></svg>';
 const HEART = 'M12 20.5s-7.6-4.5-9.4-9.2C1.4 8.1 3.5 4.7 7 4.7c2 0 3.6 1.1 5 2.9 1.4-1.8 3-2.9 5-2.9 3.5 0 5.6 3.4 4.4 6.6-1.8 4.7-9.4 9.2-9.4 9.2z';
@@ -489,21 +488,25 @@ const GOAL_ICON = {
   subs: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${TYPE_ICON.sub}"/></svg>`, // star
   kicks: KICK_K,
   followers: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${HEART}"/></svg>`, // heart
+  bits: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${TYPE_ICON.bits}"/></svg>`, // gem
 };
+// A Twitch channel goal's look: the Jarchi goal it syncs to (cheerers count bits too).
+const twitchLook = (type) => (type === 'new_cheerer' ? 'bits' : goalData.twitchTypes[type]);
 const svgIn = (cls, markup) => { // fixed markup only
   const s = el('span', { className: cls });
   s.innerHTML = markup;
   return s;
 };
-const goalIcon = (id) => svgIn('goal-icon', GOAL_ICON[id]);
-// "From Kick": the K, with the words as its tooltip and for screen readers.
-function kickMark() {
-  const s = svgIn('from-kick', KICK_K);
-  s.title = S.panel.fromKick;
+const goalIcon = (id) => svgIn('goal-icon', GOAL_ICON[id] ?? ''); // a Twitch goal type that's new to Jarchi: none
+// "From Kick" / "From Twitch": Kick's K or Twitch's logo, with the words as its tooltip and for screen readers.
+function syncMark(p) {
+  const s = p === 'kick' ? svgIn('from-kick', KICK_K) : el('span', { className: 'from-twitch' }, el('img', { src: '/assets/platform-logos/twitch.svg', alt: '' }));
+  s.title = S.panel[p === 'kick' ? 'fromKick' : 'fromTwitch'];
   s.setAttribute('role', 'img');
-  s.setAttribute('aria-label', S.panel.fromKick);
+  s.setAttribute('aria-label', s.title);
   return s;
 }
+const syncMarks = (st) => ['kick', 'twitch'].filter((p) => st[p]).map(syncMark); // the numbers' platforms (both: added up)
 
 // ---------- Home ----------
 const COPY_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h8"/></svg>';
@@ -572,21 +575,27 @@ function renderHome() {
       el('span', { className: 'stack' }, el('b', { textContent: name }), el('small', { textContent: S.panel[open[id] ? 'widgetOpen' : 'widgetClosed'] })), copy);
   }));
 
-  // Goals: count / target (Kick's when synced) and a bar. They move by themselves; a count is fixed by hand on the Goals page.
+  // Goals, Kick tab: Jarchi's goals, count / target (Kick's / Twitch's when synced) and a bar. They move by themselves;
+  // a count is fixed by hand on the Goals page. The Twitch tab is renderTwitch()'s.
   $('#homeGoals').replaceChildren(...Object.keys(settings.goals).map((id) => {
-    const { current, target, kick } = goalData.state[id];
-    const bar = el('i');
-    bar.style.width = `${Math.min(100, (current / target) * 100)}%`;
-    const row = el('div', { className: 'home-goal' },
-      el('div', { className: 'row' }, goalIcon(id), el('b', { textContent: S.goals[id].name }), el('small', { textContent: `${fmt(current)} / ${fmt(target)}` }), kick ? kickMark() : ''),
-      el('div', { className: 'goal-bar' }, bar));
-    row.dataset.goal = id; // its colour
-    return row;
+    const st = goalData.state[id];
+    return homeGoal(id, S.goals[id].name, st.current, st.target, syncMarks(st));
   }));
 
   $('#statAlerts').textContent = fmt(home.today.alerts);
   $('#statChat').textContent = fmt(home.today.chat);
   $('#statUptime').textContent = uptime();
+}
+
+// One goal on Home: its icon and name, current / target, more (marks, a line under it), and a bar, in the goal's colour.
+function homeGoal(id, name, current, target, marks = [], under = '') {
+  const bar = el('i');
+  bar.style.width = `${Math.min(100, target ? (current / target) * 100 : 0)}%`;
+  const row = el('div', { className: 'home-goal' },
+    el('div', { className: 'row' }, goalIcon(id), el('b', { textContent: name, dir: 'auto' }), el('small', { textContent: `${fmt(current)} / ${fmt(target)}` }), ...marks),
+    under, el('div', { className: 'goal-bar' }, bar));
+  row.dataset.goal = id;
+  return row;
 }
 
 // Two clicks instead of confirm(): no blocking dialog. The first click arms the button for 3 seconds.
@@ -950,22 +959,20 @@ function build() {
     if (view === 'home') renderHome();
   });
 
-  // Connections: the Twitch account. The Client ID saves when it's changed; Connect shows Twitch's code until the
-  // streamer approves it on Twitch. The Goals page's Twitch tab shows the Twitch channel's goals.
-  const twitchCall = (method, url, body) => api(method, url, body).then((t) => { twitch = t; renderTwitch(); return t; }, (err) => toast(err.message, true));
+  // Connections: the Twitch account. The Client ID (Jarchi's own unless changed) saves when it's changed; Connect shows
+  // Twitch's code until the streamer approves it on Twitch. Home's Twitch tab shows the Twitch channel's goals.
+  const twitchCall = (method, url, body) => api(method, url, body).then((t) => { twitch = t; render(); return t; }, (err) => toast(err.message, true));
   $('#twClientId').onchange = (e) => twitchCall('PATCH', '/api/twitch', { clientId: e.target.value.trim() }).then((t) => t && toast(S.panel.saved));
-  $('#twConnect').onclick = () => {
-    if (twitch.clientId) return twitchCall('POST', '/api/twitch/connect');
-    toast(S.panel.twNeedClient, true);
-    $('#twClientId').focus();
-  };
+  $('#twConnect').onclick = () => twitchCall('POST', '/api/twitch/connect');
   $('#twDisconnect').onclick = () => twitchCall('POST', '/api/twitch/disconnect');
   $('#twOpen').onclick = () => window.open(twitch.uri, '_blank', 'noopener');
-  $('#twitchGoalsConnect').onclick = () => select('connections');
+  $('#twitchGoalsConnect').onclick = $('#twitchSyncConnect').onclick = () => select('connections');
+  $('#twitchSync').onchange = (e) => send('PATCH', '/api/settings', { twitchGoalSync: e.target.checked });
   wireTabs($('#goalList').parentNode, 'jarchi.goalTab');
+  wireTabs($('#homeGoalsBox'), 'jarchi.homeGoalTab');
   socket.on('twitchAccount', (t) => {
     twitch = t;
-    renderTwitch();
+    render(); // the Connections card, the Goals page's Twitch tab, Home's Twitch goals
   });
   // Home: new events (also from the test buttons), today's chat count, widget pages opening and closing.
   socket.on('event', (ev) => {
@@ -1095,14 +1102,15 @@ function render() {
       row.classList.toggle('active', row.dataset.key === selected);
       row.classList.toggle('off', !cfg.enabled);
       $('input', row).checked = cfg.enabled;
-      const count = $('.count-input', row); // goals: the count (never under the cursor), Kick's when synced
+      const count = $('.count-input', row); // goals: the count (never under the cursor), Kick's / Twitch's when synced
       if (count) {
         const st = goalData.state[row.dataset.key];
         if (count !== document.activeElement) count.value = st.current;
-        count.readOnly = st.kick;
+        count.readOnly = st.kick || st.twitch;
         $('.of', row).textContent = `/ ${fmt(st.target)}`;
         $('.from-kick', row).hidden = !st.kick;
-        $('.zero', row).hidden = st.kick;
+        $('.from-twitch', row).hidden = !st.twitch;
+        $('.zero', row).hidden = st.kick || st.twitch;
       }
       const own = $('.swatch.mini', row);
       if (!own) return;
@@ -1120,11 +1128,15 @@ function render() {
     t.setAttribute('aria-pressed', String(t.dataset.theme === settings.theme));
   });
 
-  // Goals page: "Sync from Kick", and which goals the Kick channel has.
+  // Goals page: "Sync from Kick" / "Sync from Twitch", and which goals each channel has.
+  const setOn = (key) => Object.keys(settings.goals).filter((id) => goalData.state[id][key]).map((id) => S.goals[id].name).join(FA ? '، ' : ', ');
   $('#kickSync').checked = settings.kickGoalSync;
-  const onKick = Object.keys(settings.goals).filter((id) => goalData.state[id].onKick).map((id) => S.goals[id].name);
   $('#kickSyncHint').textContent = !settings.chat.kickChannel ? S.panel.kickSyncNoChannel
-    : onKick.length ? tpl(S.panel.kickSyncOnKick, { goals: onKick.join(FA ? '، ' : ', ') }) : S.panel.kickSyncNone;
+    : setOn('onKick') ? tpl(S.panel.kickSyncOnKick, { goals: setOn('onKick') }) : S.panel.kickSyncNone;
+  $('#twitchSync').checked = settings.twitchGoalSync;
+  $('#twitchSyncHint').textContent = twitch.state !== 'connected' ? S.panel.twitchSyncNoAccount
+    : setOn('onTwitch') ? tpl(S.panel.twitchSyncOnTwitch, { goals: setOn('onTwitch') }) : S.panel.twitchGoalsNone;
+  $('#twitchSyncConnect').hidden = twitch.state !== 'off';
 
   renderTwitch();
   artFaces();
@@ -1202,7 +1214,8 @@ function renderAlert() {
   });
 }
 
-// The Connections page's Twitch card, and the Goals page's Twitch tab.
+// The Connections page's Twitch card, and Home's Twitch goals (the Twitch channel's own, in the colour and icon of the
+// Jarchi goal they sync to).
 function renderTwitch() {
   const t = twitch, on = t.state !== 'off';
   const line = $('#twState');
@@ -1218,12 +1231,8 @@ function renderTwitch() {
   id.readOnly = on; // a login belongs to the app it was made with
 
   $('#twitchGoals').replaceChildren(...t.goals.map((g) => {
-    const bar = el('i'), kind = S.panel.twitchGoalTypes[g.type] ?? g.type;
-    bar.style.width = `${Math.min(100, g.target ? (g.current / g.target) * 100 : 0)}%`;
-    return el('li', { className: 'home-goal' },
-      el('div', { className: 'row between' }, el('b', { textContent: g.description || kind, dir: 'auto' }), el('small', { textContent: `${fmt(g.current)} / ${fmt(g.target)}` })),
-      g.description ? el('small', { textContent: kind }) : '',
-      el('div', { className: 'goal-bar' }, bar));
+    const kind = S.panel.twitchGoalTypes[g.type] ?? g.type;
+    return homeGoal(twitchLook(g.type), g.description || kind, g.current, g.target, [], g.description ? el('small', { textContent: kind }) : '');
   }));
   const hint = $('#twitchGoalsHint');
   hint.textContent = !on ? S.panel.twitchGoalsOff : t.state === 'connected' && !t.goals.length ? S.panel.twitchGoalsNone : '';
@@ -1240,11 +1249,11 @@ function renderGoal() {
   $('#goalCounts').textContent = S.goals[curGoal].counts;
   $('#goalTest span').textContent = S.goals[curGoal].test;
   fill(ed, g);
-  // Synced from Kick: Kick's count and target, read-only (no −, +, Test or Reset to 0).
-  const st = goalData.state[curGoal], target = $('[data-f=target]', ed);
-  if (st.kick) target.value = st.target;
-  target.readOnly = $('#goalCurrent').readOnly = st.kick;
-  $('#goalMinus').disabled = $('#goalPlus').disabled = $('#goalTest').disabled = st.kick;
+  // Synced from Kick / Twitch: their count and target, read-only (no −, +, Test or Reset to 0).
+  const st = goalData.state[curGoal], synced = st.kick || st.twitch, target = $('[data-f=target]', ed);
+  if (synced) target.value = st.target;
+  target.readOnly = $('#goalCurrent').readOnly = synced;
+  $('#goalMinus').disabled = $('#goalPlus').disabled = $('#goalTest').disabled = synced;
   if (document.activeElement !== $('#goalCurrent')) $('#goalCurrent').value = st.current;
   $('#goalPlus').title = fd(`+${GOAL_STEP[curGoal]}`);
   $('#goalMinus').title = fd(`−${GOAL_STEP[curGoal]}`);
@@ -1259,7 +1268,9 @@ function renderGoal() {
     goalCustomSound: g.celebrateSound === 'custom',
     subsGoal: curGoal === 'subs', // "Also count Twitch subs": the Kicks goal is Kick's only
     fromKick: st.kick,
-    manual: !st.kick,
+    fromTwitch: st.twitch,
+    manual: !synced,
+    bothSync: st.both, // Source: Kick, Twitch or both
   };
   $$('[data-only]', ed).forEach((e) => (e.hidden = !show[e.dataset.only]));
   const fname = $('.file .fname', ed);

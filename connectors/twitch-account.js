@@ -1,6 +1,6 @@
 // The streamer's own Twitch account, for what anonymous chat can't see: follows (the Follow alert) and the channel's
-// goals (the Goals page's Twitch tab). Login: Twitch's Device Code Flow with the Client ID of a "Public" Twitch app
-// (no secret, no redirect page): Twitch gives a short code, the streamer approves it at twitch.tv/activate.
+// goals (Home's Twitch tab, "Sync from Twitch"). Login: Twitch's Device Code Flow with the Client ID of a "Public" Twitch
+// app (no secret, no redirect page): Twitch gives a short code, the streamer approves it at twitch.tv/activate.
 // Tokens stay in data/twitch.json (never sent to the panel) and are refreshed by themselves. Events come over EventSub's
 // WebSocket, so Jarchi needs no public address. Not connected: nothing here runs.
 const path = require('node:path');
@@ -15,15 +15,18 @@ const HELIX = 'https://api.twitch.tv/helix';
 const EVENTSUB = 'wss://eventsub.wss.twitch.tv/ws';
 // Follows and goals now; subs and bits are asked for already, so a later step needs no new login.
 const SCOPES = 'moderator:read:followers channel:read:goals channel:read:subscriptions bits:read';
+// Jarchi's own Twitch app (Public: its Client ID is no secret), so nobody has to make one. Connections can set another.
+const CLIENT_ID = '6z5ycye2mjhj10jk1jkwkelft0l7p3';
 const SUBS = [['channel.follow', '2'], ['channel.goal.begin', '1'], ['channel.goal.progress', '1'], ['channel.goal.end', '1']];
 
 const account = new EventEmitter(); // 'status'
-let saved = store.load(FILE); // { clientId, access, refresh, expires, userId, login }
+let saved = store.load(FILE); // { clientId (own app, else none), access, refresh, expires, userId, login }
+const clientId = () => saved.clientId || CLIENT_ID;
 // state: off | waiting (Twitch's code is on screen) | connecting | connected.
 // error: why it's off or reconnecting (expired | denied | timeout | client | network), '' when fine.
 let st = { state: saved.refresh ? 'connecting' : 'off', error: '', code: '', uri: '' };
 const goals = new Map(); // Twitch goal id -> { id, type, description, current, target }
-const status = () => ({ ...st, clientId: saved.clientId ?? '', login: saved.refresh ? saved.login ?? '' : '', goals: [...goals.values()] });
+const status = () => ({ ...st, clientId: clientId(), login: saved.refresh ? saved.login ?? '' : '', goals: [...goals.values()] });
 function set(next) {
   st = { ...st, code: '', uri: '', ...next };
   account.emit('status', status());
@@ -50,9 +53,8 @@ function stop() {
 // ---------- Login: Device Code Flow ----------
 async function login() {
   if (st.state !== 'off') return status();
-  if (!saved.clientId) throw Object.assign(new Error('bad_request'), { status: 400, code: 'bad_request' });
   stop();
-  const my = run, client = saved.clientId;
+  const my = run, client = clientId();
   let res;
   try {
     res = await form(`${ID}/device`, { client_id: client, scopes: SCOPES });
@@ -99,13 +101,13 @@ function forget(error = '') {
 
 // Disconnect (also cancels a login that waits for its code). Twitch is told too, best effort.
 async function disconnect() {
-  const { access, clientId } = saved;
+  const { access } = saved, client = clientId();
   forget();
-  if (access) await form(`${ID}/revoke`, { client_id: clientId, token: access }).catch(() => {});
+  if (access) await form(`${ID}/revoke`, { client_id: client, token: access }).catch(() => {});
   return status();
 }
 
-// The Client ID can change only while logged out: tokens belong to the app they were made with.
+// The Client ID can change only while logged out: tokens belong to the app they were made with. Empty: Jarchi's own.
 function setClientId(v) {
   const id = String(v ?? '').trim();
   if (!/^[a-z0-9]{0,64}$/i.test(id) || st.state !== 'off') throw Object.assign(new Error('bad_request'), { status: 400, code: 'bad_request' });
@@ -119,7 +121,7 @@ function setClientId(v) {
 let refreshing = null;
 const refresh = () => (refreshing ??= (async () => {
   try {
-    const res = await form(`${ID}/token`, { client_id: saved.clientId, grant_type: 'refresh_token', refresh_token: saved.refresh });
+    const res = await form(`${ID}/token`, { client_id: clientId(), grant_type: 'refresh_token', refresh_token: saved.refresh });
     if (res.status === 400 || res.status === 401) {
       forget('expired');
       throw fail('expired');
@@ -135,7 +137,7 @@ async function authed(url, init = {}, again = true) {
   if (Date.now() > saved.expires - 60000) await refresh();
   const res = await fetch(url, {
     ...init,
-    headers: { 'client-id': saved.clientId, authorization: `${url.startsWith(ID) ? 'OAuth' : 'Bearer'} ${saved.access}`, 'content-type': 'application/json' },
+    headers: { 'client-id': clientId(), authorization: `${url.startsWith(ID) ? 'OAuth' : 'Bearer'} ${saved.access}`, 'content-type': 'application/json' },
     signal: AbortSignal.timeout(10000),
   });
   if (res.status === 401 && again) {

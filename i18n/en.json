@@ -44,7 +44,8 @@
   "goals": {
     "subs": { "name": "Sub goal", "title": "Subs", "test": "Test +1 sub", "counts": "Counts Kick subs, resubs and gifted subs (a gift of 5 subs = 5), and Twitch's too with \"Also count Twitch subs\" on." },
     "kicks": { "name": "Kicks goal", "title": "Kicks", "test": "Test +100 kicks", "counts": "Counts Kicks from Kick." },
-    "followers": { "name": "Followers goal", "title": "Followers", "test": "Test +1 follower", "counts": "Kick followers. Kick doesn't say publicly who follows, so this one shows a followers goal set on your Kick channel (with \"Sync from Kick\"), or a number you type." }
+    "followers": { "name": "Followers goal", "title": "Followers", "test": "Test +1 follower", "counts": "Followers. This one shows a followers goal set on your Kick or Twitch channel (with \"Sync from Kick\" / \"Sync from Twitch\"), or a number you type." },
+    "bits": { "name": "Bits goal", "title": "Bits", "test": "Test +100 bits", "counts": "Counts bits from Twitch." }
   },
   "chatStyles": {"kick":"Kick default","classic":"Classic box","bubbles":"Bubbles","floating":"Floating","neon":"Neon","terminal":"Terminal","retro":"Retro","glass":"Glass","popin":"Pop-in","side":"Side column","ticker":"Ticker","cyberpunk":"Cyberpunk","comic":"Comic","hud":"Gamer HUD","sticky":"Sticky notes","pastel":"Pastel","galaxy":"Galaxy","rpg":"RPG dialog","persian":"Persian tile","news":"News ticker","neonstrip":"Neon strip","pills":"Pills","minimal":"Minimal","led":"LED board","cyberbar":"Cyberpunk bar","candy":"Pastel candy","glassbar":"Glass bar"},
   "chatText": {"kickSub":"{user} subscribed for {months} months!","kickGift":"{user} gifted {count} subs!","subTag":"SUBSCRIBER","firstTag":"FIRST MESSAGE","windowTitle":"chat","liveLabel":"LIVE CHAT","events":{"kicks":"{user} sent {gift} ×1 · {amount} Kicks","sub":"{user} subscribed!","resub":"{user} subscribed for {months} months!","gift_sub":"{user} gifted {amount} subs!","gift_one":"{user} gifted a sub!","bits":"{user} cheered {amount} bits!","raid":"{user} is raiding with {amount} viewers!"},"badges":{"broadcaster":"HOST","moderator":"MOD","vip":"VIP","subscriber":"SUB","og":"OG","founder":"FOUNDER","sub_gifter":"GIFTER","verified":"VERIFIED","staff":"STAFF"}},
@@ -72,14 +73,19 @@
     "twOpen": "Open Twitch",
     "twWaiting": "Waiting for you to approve it on Twitch…",
     "twClientId": "Twitch Client ID",
-    "twClientHint": "From your app at dev.twitch.tv/console (Client Type: Public). Paste it once; it's kept on this PC.",
-    "twNeedClient": "Paste your Twitch Client ID first.",
+    "twClientHint": "Jarchi's own is filled in: nothing to do. To use your own Twitch app (dev.twitch.tv/console, Client Type: Public), paste its Client ID; empty the field to go back.",
     "twStates": { "off": "Not connected", "waiting": "Waiting for approval", "connecting": "Connecting", "connected": "Connected as {login}" },
     "twErrors": { "expired": "The Twitch login ended. Connect again.", "denied": "Not approved on Twitch.", "timeout": "The code ran out. Connect again.", "client": "Twitch didn't take this Client ID. Check it, and that the app's Client Type is Public.", "network": "Can't reach Twitch right now." },
     "goalSources": "Goals from",
     "twitchGoalsOff": "Connect your Twitch account to see your Twitch channel's goals here.",
     "twitchGoalsNone": "No goals on your Twitch channel right now. Set them in Twitch's Creator Dashboard.",
     "twitchGoalTypes": { "follow": "Followers", "subscription": "Sub points", "subscription_count": "Subs", "new_subscription": "New sub points", "new_subscription_count": "New subs", "new_bit": "Bits", "new_cheerer": "Cheerers" },
+    "fromTwitch": "From Twitch",
+    "twitchSync": "Sync from Twitch",
+    "twitchSyncNoAccount": "Connect your Twitch account first.",
+    "twitchSyncOnTwitch": "Set on Twitch: {goals}",
+    "goalSource": "Source",
+    "goalBoth": "Both",
     "homeTest": "Send test alert",
     "obsLinks": "OBS links",
     "readyTitle": "You're ready to stream",
@@ -557,6 +563,8 @@
       "celebrate": "Confetti and a glow, once, when the target is reached.",
       "countTwitch": "On: Twitch new subs, resubs and gifted subs count too, the same as Kick's (a gift of 5 subs counts 5). It needs your Twitch channel in **Chat**. Off: only Kick subs count.",
       "kickSync": "Goals you set on your Kick channel (Kick's creator dashboard: followers, subscriptions, KICKs) show Kick's own count and target, here and on stream: read every minute, and at once when Kick sends a change. A goal with nothing set on Kick stays as you set it here. If Kick can't be reached, the last numbers stay.",
+      "twitchSync": "Goals you set on your Twitch channel (Twitch's Creator Dashboard: followers, subs, bits) show Twitch's own count and target, here and on stream, as Twitch sends them. It needs your Twitch account connected on **Connections**. A goal with nothing set on Twitch stays as you set it here.",
+      "source": "This goal is set on both your Kick and your Twitch channel. **Kick** or **Twitch**: that one's numbers. **Both**: the two counts added together, and the two targets.",
       "celebrateSound": "The celebration's sound: the theme's, your own file, or none.",
       "volume": "How loud the celebration sound plays."
     },
@@ -652,7 +660,7 @@
       "eventLonger": "Special lines stay on screen twice as long: twice the **Hide each message after** time, and until twice **Max messages on screen** newer ones came. In a bar they go by twice."
     },
     "connections": {
-      "clientId": "Twitch only lets apps it knows log in. Make a free app at dev.twitch.tv/console (**Register Your Application**, Client Type **Public**) and paste its **Client ID** here. It isn't a password: your friends can use the same one."
+      "clientId": "The Twitch app Jarchi logs in with. Jarchi's own is filled in and works for everyone. To use your own instead, make one at dev.twitch.tv/console (**Register Your Application**, Client Type **Public**) and paste its **Client ID** here. Empty the field to go back to Jarchi's."
     },
     "settings": {
       "showBadge": "A small Kick or Twitch badge on alerts. It only shows when both accounts are connected.",
@@ -707,7 +715,7 @@
       },
       "goals": {
         "title": "Goals",
-        "intro": "Three goals for your stream: a Sub goal (subs, resubs and gifted subs from Kick, and from Twitch if you turn that on), a Kicks goal and a Followers goal (Kick). They count real events by themselves. With **Sync from Kick**, a goal you also set on your Kick channel shows Kick's own numbers.",
+        "intro": "Four goals for your stream: a Sub goal (subs, resubs and gifted subs from Kick, and from Twitch if you turn that on), a Kicks goal, a Followers goal and a Bits goal (Twitch). They count real events by themselves. With **Sync from Kick** or **Sync from Twitch**, a goal you also set on that channel shows its own numbers; set on both, **Source** picks whose (or both added up).",
         "steps": [
           ["Open a goal", "Open **Goals** and click **Sub goal** or **Kicks goal** in the list."],
           ["Title and target", "Type the title viewers see and the number to reach."],

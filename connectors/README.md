@@ -15,7 +15,7 @@ Both export `connect(channel, { onStatus, onMessage, onClear, onChannel })` and 
 
 ## Twitch account (built)
 
-`twitch-account.js`: the streamer's own Twitch login (Connections page), for follows and the Twitch channel's goals. Twitch's Device Code Flow with the Client ID of a **Public** app from dev.twitch.tv/console (no secret, no redirect page); tokens in `data/twitch.json`, refreshed by themselves. Events come over EventSub's WebSocket (no public address needed): `channel.follow` becomes a Twitch Follow alert, `channel.goal.*` keeps the goal list the panel shows. Not connected: nothing runs.
+`twitch-account.js`: the streamer's own Twitch login (Connections page), for follows and the Twitch channel's goals. Twitch's Device Code Flow with Jarchi's own **Public** Twitch app (its Client ID is built in; Connections can set another); no secret, no redirect page. Tokens in `data/twitch.json`, refreshed by themselves. Events come over EventSub's WebSocket (no public address needed): `channel.follow` becomes a Twitch Follow alert, `channel.goal.*` keeps the goal list (Home's Twitch tab, and "Sync from Twitch" in `core/goals.js`). Not connected: nothing runs.
 
 A connector for follows, subs, Kicks, bits and raids calls `emitEvent()`:
 

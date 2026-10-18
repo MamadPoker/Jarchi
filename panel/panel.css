@@ -24,9 +24,10 @@
   --on-gold: #1b1404;
   --on-color: #fff; /* text on red */
   --j: #c99a2e; /* the J of Jarchi, in every theme */
-  --goal-subs: #d6a83e; /* each goal's icon and bar (panel only): gold, Kick green, green */
+  --goal-subs: #d6a83e; /* each goal's icon and bar (panel only): gold, Kick green, green, Twitch purple */
   --goal-kicks: #53fc18;
   --goal-followers: #3fa76f;
+  --goal-bits: #a970ff;
   --kick-mark: #53fc18; /* "From Kick" */
   --focus: var(--gold);
   --danger: #f43f5e;
@@ -62,6 +63,7 @@
   --goal-subs: #8a6210; /* 3.5:1 or more on the light cards and background */
   --goal-kicks: #2a7d0b;
   --goal-followers: #257a49;
+  --goal-bits: #772ce8;
   --kick-mark: #2a7d0b;
   --main: #16605c;
   --main-soft: rgba(22, 96, 92, 0.14);
@@ -501,24 +503,25 @@ input.count-input { width: 62px; padding: 3px 6px; border-color: transparent; ba
 input.count-input:hover, input.count-input:focus { border-color: var(--border-hi); background: var(--card2); }
 .goal-count .of { white-space: nowrap; }
 .goal-count .zero { margin-inline-start: auto; padding: 3px 10px; font-size: 12px; white-space: nowrap; }
-.goal-count .from-kick { margin-inline-start: 4px; }
+.goal-count .from-kick, .goal-count .from-twitch { margin-inline-start: 4px; }
 input.count-input[readonly]:hover { border-color: transparent; background: transparent; }
 /* "Sync from Kick" under the goals; Kick's K ("From Kick" tooltip) marks numbers that come from Kick (read-only). */
 .list-foot { display: grid; gap: 4px; margin-top: 8px; padding: 10px 10px 2px; border-top: 1px solid var(--border); }
 .list-foot small { font-size: 12px; line-height: 1.4; }
-.list-foot .tabs button { display: flex; align-items: center; gap: 6px; padding: 6px 12px; font-size: 13px; }
-.list-foot .tabs img { width: 14px; height: 14px; }
-.list-foot .pane { grid-template-columns: none; gap: 8px; margin: 6px 0 0; }
-.list-foot .home-goals { gap: 12px; margin: 0; padding: 0; list-style: none; }
-.list-foot .home-goal b { min-width: 0; overflow-wrap: anywhere; font-size: 13px; }
-#twitchGoalsConnect { justify-self: start; padding: 5px 12px; font-size: 13px; }
-.from-kick { display: inline-grid; place-items: center; flex: none; color: var(--kick-mark); cursor: help; }
-.from-kick svg { width: 13px; height: 13px; }
+/* Kick | Twitch tabs (Goals list, Home goals): small. */
+.tab-box .tabs button { display: flex; align-items: center; gap: 6px; padding: 6px 12px; font-size: 13px; }
+.tab-box .tabs img { width: 14px; height: 14px; }
+.tab-box .pane { grid-template-columns: none; gap: 8px; margin: 6px 0 0; }
+.home-goal b { min-width: 0; overflow-wrap: anywhere; }
+.small-btn { justify-self: start; padding: 5px 12px; font-size: 13px; }
+.from-kick, .from-twitch { display: inline-grid; place-items: center; flex: none; color: var(--kick-mark); cursor: help; }
+.from-kick svg, .from-twitch img { width: 13px; height: 13px; }
 .kick-k { fill: currentColor; stroke: none; } /* a filled logo, not a line icon */
 /* Each goal's colour: its icon (lists, editor title, Home) and its bar on Home. */
 [data-goal="subs"] { --goal: var(--goal-subs); }
 [data-goal="kicks"] { --goal: var(--goal-kicks); }
 [data-goal="followers"] { --goal: var(--goal-followers); }
+[data-goal="bits"] { --goal: var(--goal-bits); }
 .goal-icon { display: inline-grid; place-items: center; flex: none; color: var(--goal); }
 .title .goal-icon svg { width: 22px; height: 22px; }
 input[readonly] { color: var(--muted); cursor: default; }

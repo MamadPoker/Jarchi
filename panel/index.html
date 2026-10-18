@@ -101,9 +101,21 @@
               <h2 data-i18n="widgetsTitle"></h2>
               <ul id="widgetList" class="widget-list"></ul>
             </div>
-            <div class="box">
+            <!-- Kick: Jarchi's goals (Kick's / Twitch's numbers when synced). Twitch: the Twitch channel's own goals. -->
+            <div class="box tab-box" id="homeGoalsBox">
               <h2 data-i18n="navGoals"></h2>
-              <div id="homeGoals" class="home-goals"></div>
+              <div class="tabs" role="tablist" data-aria="goalSources">
+                <button role="tab" id="tab-h-kick" aria-controls="pane-h-kick" data-tab="kick"><img src="/assets/platform-logos/kick.svg" alt=""><span>Kick</span></button>
+                <button role="tab" id="tab-h-twitch" aria-controls="pane-h-twitch" data-tab="twitch"><img src="/assets/platform-logos/twitch.svg" alt=""><span>Twitch</span></button>
+              </div>
+              <div class="pane" role="tabpanel" id="pane-h-kick" aria-labelledby="tab-h-kick" data-tab="kick">
+                <div id="homeGoals" class="home-goals"></div>
+              </div>
+              <div class="pane" role="tabpanel" id="pane-h-twitch" aria-labelledby="tab-h-twitch" data-tab="twitch" hidden>
+                <div id="twitchGoals" class="home-goals"></div>
+                <small id="twitchGoalsHint"></small>
+                <button id="twitchGoalsConnect" class="ghost small-btn" data-i18n="twConnect"></button>
+              </div>
             </div>
             <div class="stats">
               <div><b id="statAlerts"></b><small data-i18n="statAlerts"></small></div>
@@ -400,9 +412,9 @@
       <section class="view split" data-view="goal" hidden>
         <div class="split-body">
         <div class="list"><h2 class="group-title" data-i18n="navGoals" data-help="groups.goals"></h2><ul id="goalList" class="nav-list"></ul>
-          <!-- Kick: goals set on the Kick channel show Kick's numbers (core/goals.js). Twitch: the Twitch channel's goals,
-               with the account connected (connectors/twitch-account.js). -->
-          <div class="list-foot">
+          <!-- Goals set on the Kick / Twitch channel show that platform's numbers (core/goals.js); Twitch needs the account
+               connected (connectors/twitch-account.js). -->
+          <div class="list-foot tab-box">
             <div class="tabs" role="tablist" data-aria="goalSources">
               <button role="tab" id="tab-g-kick" aria-controls="pane-g-kick" data-tab="kick"><img src="/assets/platform-logos/kick.svg" alt=""><span>Kick</span></button>
               <button role="tab" id="tab-g-twitch" aria-controls="pane-g-twitch" data-tab="twitch"><img src="/assets/platform-logos/twitch.svg" alt=""><span>Twitch</span></button>
@@ -412,9 +424,9 @@
               <small id="kickSyncHint"></small>
             </div>
             <div class="pane" role="tabpanel" id="pane-g-twitch" aria-labelledby="tab-g-twitch" data-tab="twitch" hidden>
-              <ul id="twitchGoals" class="home-goals"></ul>
-              <small id="twitchGoalsHint"></small>
-              <button id="twitchGoalsConnect" class="ghost" data-i18n="twConnect"></button>
+              <label class="row between toggle-row"><span data-i18n="twitchSync" data-help="goal.twitchSync"></span><span class="switch"><input type="checkbox" id="twitchSync"><span></span></span></label>
+              <small id="twitchSyncHint"></small>
+              <button id="twitchSyncConnect" class="ghost small-btn" data-i18n="twConnect"></button>
             </div>
           </div>
         </div>
@@ -447,11 +459,11 @@
             <input type="text" data-f="title" maxlength="60" data-aria="goalTitle" dir="auto">
           </div>
           <div class="box">
-            <div class="row between"><h2 data-i18n="goalTarget" data-help="goal.target"></h2><span class="from-kick" data-only="fromKick" data-title="fromKick" role="img"></span></div>
+            <div class="row between"><h2 data-i18n="goalTarget" data-help="goal.target"></h2><span class="row"><span class="from-kick" data-only="fromKick" data-title="fromKick" role="img"></span><span class="from-twitch" data-only="fromTwitch" data-title="fromTwitch" role="img"><img src="/assets/platform-logos/twitch.svg" alt=""></span></span></div>
             <input type="number" data-f="target" min="1" step="1" data-aria="goalTarget">
           </div>
           <div class="box">
-            <div class="row between"><h2 data-i18n="goalCurrent" data-help="goal.current"></h2><span class="from-kick" data-only="fromKick" data-title="fromKick" role="img"></span></div>
+            <div class="row between"><h2 data-i18n="goalCurrent" data-help="goal.current"></h2><span class="row"><span class="from-kick" data-only="fromKick" data-title="fromKick" role="img"></span><span class="from-twitch" data-only="fromTwitch" data-title="fromTwitch" role="img"><img src="/assets/platform-logos/twitch.svg" alt=""></span></span></div>
             <div class="stepper">
               <button id="goalMinus" aria-label="−">−</button>
               <input type="number" id="goalCurrent" min="0" step="1" data-aria="goalCurrent">
@@ -463,6 +475,18 @@
 
         <div class="box" data-only="subsGoal">
           <label class="row between toggle-row"><span data-i18n="goalCountTwitch" data-help="goal.countTwitch"></span><span class="switch"><input type="checkbox" data-f="countTwitch"><span></span></span></label>
+        </div>
+
+        <!-- Synced from Kick and Twitch, both with this goal: whose numbers it shows. -->
+        <div class="box" data-only="bothSync">
+          <div class="row between">
+            <span class="row"><b data-i18n="goalSource" data-help="goal.source"></b></span>
+            <div class="seg" role="radiogroup" data-aria="goalSource">
+              <label><input type="radio" name="goalSource" data-f="source" value="kick"><span>Kick</span></label>
+              <label><input type="radio" name="goalSource" data-f="source" value="twitch"><span>Twitch</span></label>
+              <label><input type="radio" name="goalSource" data-f="source" value="both"><span data-i18n="goalBoth"></span></label>
+            </div>
+          </div>
         </div>
 
         <div class="box">

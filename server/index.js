@@ -47,7 +47,8 @@ app.get('/api/accent', (req, res) => execFile('reg', ['query', 'HKCU\\Software\\
 app.patch('/api/settings', (req, res) => {
   const s = settings.update(req.body);
   for (const [id, fields] of Object.entries(req.body.goals ?? {})) if ('target' in fields) goals.retarget(id);
-  if ('kickGoalSync' in req.body) goals.refresh(); // widgets switch between Kick's numbers and their own
+  // Widgets switch between Kick's / Twitch's numbers and their own.
+  if ('kickGoalSync' in req.body || 'twitchGoalSync' in req.body || Object.values(req.body.goals ?? {}).some((f) => 'source' in f)) goals.refresh();
   if (Object.keys(req.body).some((k) => k.startsWith('proxy'))) { // reconnect through the new proxy
     chat.restart();
     twitchAccount.start();
@@ -108,7 +109,7 @@ app.post('/api/twitch/connect', async (req, res) => res.json(await twitchAccount
 app.post('/api/twitch/disconnect', async (req, res) => res.json(await twitchAccount.disconnect()));
 
 // Goals: counts (current / reached) live in core/goals; their look and target are regular settings.
-app.get('/api/goals', (req, res) => res.json({ state: goals.all(), styles: settings.GOAL_STYLES, fonts: settings.FONTS }));
+app.get('/api/goals', (req, res) => res.json({ state: goals.all(), styles: settings.GOAL_STYLES, fonts: settings.FONTS, twitchTypes: goals.TWITCH_TYPES }));
 app.patch('/api/goals/:id', (req, res) => res.json(goals.change(req.params.id, req.body)));
 app.post('/api/goals/:id/reset-style', (req, res) => res.json(changed(settings.resetGoalStyle(req.params.id))));
 app.post('/api/goals/:id/sound', raw, (req, res) => res.json(changed(settings.saveGoalSound(req.params.id, req.body, fileName(req)))));
@@ -155,7 +156,7 @@ app.get('/remote', async (req, res) => {
 });
 
 app.use('/uploads', express.static(UPLOADS_DIR, { setHeaders: (res) => res.set('X-Content-Type-Options', 'nosniff') }));
-// One goal page, two OBS URLs: /widgets/goal/subs and /widgets/goal/kicks.
+// One goal page, an OBS URL per goal: /widgets/goal/subs, /kicks, /followers, /bits.
 app.get('/widgets/goal/:id{/}', (req, res, next) => {
   if (!settings.GOAL_IDS.includes(req.params.id)) return next();
   res.sendFile(path.join(ROOT, 'widgets', 'goal', 'index.html'));
@@ -219,7 +220,10 @@ bus.on('chat', (m) => {
 bus.on('chatClear', (c) => io.emit('chatClear', c));
 bus.on('chatAvatar', (a) => io.emit('chatAvatar', a));
 chat.events.on('status', (st) => io.emit('chatStatus', st));
-twitchAccount.events.on('status', (st) => io.emit('twitchAccount', st));
+twitchAccount.events.on('status', (st) => {
+  io.emit('twitchAccount', st);
+  goals.twitchGoals(st.goals); // "Sync from Twitch"
+});
 
 server.on('error', (err) => {
   console.error(err.code === 'EADDRINUSE' ? `Port ${PORT} is already in use. Set JARCHI_PORT in .env to another port.` : err);

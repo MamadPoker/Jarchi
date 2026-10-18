@@ -44,7 +44,8 @@
   "goals": {
     "subs": { "name": "هدف ساب", "title": "Subs", "test": "آزمایش +۱ ساب", "counts": "ساب، تمدید ساب و ساب هدیهٔ Kick را می‌شمارد (هدیهٔ ۵ ساب = ۵)، و با روشن بودن «ساب‌های Twitch را هم بشمار»، مال Twitch را هم." },
     "kicks": { "name": "هدف کیکس", "title": "Kicks", "test": "آزمایش +۱۰۰ کیکس", "counts": "کیکس‌های Kick را می‌شمارد." },
-    "followers": { "name": "هدف فالوور", "title": "Followers", "test": "آزمایش +۱ فالوور", "counts": "فالوورهای Kick. Kick علنی نمی‌گوید چه کسی فالو کرده، پس این هدف یا هدف فالوورِ کانال Kick شما را نشان می‌دهد (با «همگام‌سازی از Kick») یا عددی را که خودتان می‌نویسید." }
+    "followers": { "name": "هدف فالوور", "title": "Followers", "test": "آزمایش +۱ فالوور", "counts": "فالوورها. این هدف، هدف فالوورِ کانال Kick یا Twitch شما را نشان می‌دهد (با «همگام‌سازی از Kick» / «همگام‌سازی از Twitch») یا عددی را که خودتان می‌نویسید." },
+    "bits": { "name": "هدف بیتس", "title": "Bits", "test": "آزمایش +۱۰۰ بیتس", "counts": "بیتس‌های Twitch را می‌شمارد." }
   },
   "chatStyles": {"kick":"پیش‌فرض Kick","classic":"کادر کلاسیک","bubbles":"حبابی","floating":"شناور","neon":"نئون","terminal":"ترمینال","retro":"رترو","glass":"شیشه‌ای","popin":"پاپ‌آپ","side":"ستون کناری","ticker":"نوار متحرک","cyberpunk":"سایبرپانک","comic":"کمیک","hud":"HUD گیمری","sticky":"یادداشت چسبان","pastel":"پاستلی","galaxy":"کهکشان","rpg":"دیالوگ RPG","persian":"کاشی ایرانی","news":"زیرنویس خبری","neonstrip":"نوار نئون","pills":"کپسولی","minimal":"مینیمال","led":"تابلوی LED","cyberbar":"نوار سایبرپانک","candy":"آب‌نباتی","glassbar":"نوار شیشه‌ای"},
   "chatText": {"kickSub":"{user} subscribed for {months} months!","kickGift":"{user} gifted {count} subs!","subTag":"SUBSCRIBER","firstTag":"FIRST MESSAGE","windowTitle":"chat","liveLabel":"LIVE CHAT","events":{"kicks":"{user} sent {gift} ×1 · {amount} Kicks","sub":"{user} subscribed!","resub":"{user} subscribed for {months} months!","gift_sub":"{user} gifted {amount} subs!","gift_one":"{user} gifted a sub!","bits":"{user} cheered {amount} bits!","raid":"{user} is raiding with {amount} viewers!"},"badges":{"broadcaster":"HOST","moderator":"MOD","vip":"VIP","subscriber":"SUB","og":"OG","founder":"FOUNDER","sub_gifter":"GIFTER","verified":"VERIFIED","staff":"STAFF"}},
@@ -72,14 +73,19 @@
     "twOpen": "باز کردن Twitch",
     "twWaiting": "منتظر تأیید شما در Twitch…",
     "twClientId": "Client ID برنامهٔ Twitch",
-    "twClientHint": "از برنامهٔ خودتان در dev.twitch.tv/console (Client Type: Public). یک بار اینجا بچسبانید؛ روی همین کامپیوتر می‌ماند.",
-    "twNeedClient": "اول Client ID برنامهٔ Twitch را بچسبانید.",
+    "twClientHint": "مال خود Jarchi از قبل نوشته شده: کاری لازم نیست. برای استفاده از برنامهٔ Twitch خودتان (dev.twitch.tv/console، Client Type: Public)، Client ID آن را بچسبانید؛ برای برگشتن، خانه را خالی کنید.",
     "twStates": { "off": "وصل نیست", "waiting": "منتظر تأیید", "connecting": "در حال اتصال", "connected": "وصل به حساب {login}" },
     "twErrors": { "expired": "ورود به Twitch تمام شد. دوباره وصل کنید.", "denied": "در Twitch تأیید نشد.", "timeout": "وقت کد تمام شد. دوباره وصل کنید.", "client": "Twitch این Client ID را نپذیرفت. آن را بررسی کنید و ببینید Client Type برنامه Public باشد.", "network": "الان به Twitch دسترسی نیست." },
     "goalSources": "هدف‌ها از",
     "twitchGoalsOff": "حساب Twitch خود را وصل کنید تا هدف‌های کانال Twitch شما اینجا دیده شوند.",
     "twitchGoalsNone": "الان هدفی در کانال Twitch شما نیست. آن را در داشبورد سازندهٔ Twitch بگذارید.",
     "twitchGoalTypes": { "follow": "فالوور", "subscription": "امتیاز ساب", "subscription_count": "ساب", "new_subscription": "امتیاز ساب جدید", "new_subscription_count": "ساب جدید", "new_bit": "بیتس", "new_cheerer": "بیتس‌دهنده‌ها" },
+    "fromTwitch": "از Twitch",
+    "twitchSync": "همگام‌سازی از Twitch",
+    "twitchSyncNoAccount": "اول حساب Twitch خود را وصل کنید.",
+    "twitchSyncOnTwitch": "در Twitch: {goals}",
+    "goalSource": "منبع",
+    "goalBoth": "هر دو",
     "homeTest": "ارسال الرت آزمایشی",
     "obsLinks": "لینک‌های OBS",
     "readyTitle": "برای استریم آماده‌اید",
@@ -557,6 +563,8 @@
       "celebrate": "یک بار کاغذ رنگی و درخشش، وقتی به هدف رسیدید.",
       "countTwitch": "روشن: ساب‌های جدید، تمدید ساب‌ها و ساب‌های هدیهٔ Twitch هم شمرده می‌شوند، مثل Kick (هدیهٔ ۵ ساب، ۵ حساب می‌شود). کانال Twitch شما باید در **چت** نوشته شده باشد. خاموش: فقط ساب‌های Kick شمرده می‌شوند.",
       "kickSync": "هدف‌هایی که در کانال Kick گذاشته‌اید (داشبورد سازندهٔ Kick: فالوور، ساب، KICKs) شمارش و عدد هدف خود Kick را نشان می‌دهند، این‌جا و روی استریم: هر دقیقه خوانده می‌شوند و هر وقت Kick تغییری بفرستد فوراً. هدفی که در Kick گذاشته نشده همان‌طور که این‌جا تنظیمش کرده‌اید می‌ماند. اگر به Kick دسترسی نباشد، آخرین اعداد می‌مانند.",
+      "twitchSync": "هدف‌هایی که در کانال Twitch گذاشته‌اید (داشبورد سازندهٔ Twitch: فالوور، ساب، بیتس) شمارش و عدد هدف خود Twitch را نشان می‌دهند، این‌جا و روی استریم، همان لحظه که Twitch می‌فرستد. حساب Twitch باید در **اتصال‌ها** وصل باشد. هدفی که در Twitch گذاشته نشده همان‌طور که این‌جا تنظیمش کرده‌اید می‌ماند.",
+      "source": "این هدف هم در کانال Kick و هم در کانال Twitch شما گذاشته شده. **Kick** یا **Twitch**: اعداد همان یکی. **هر دو**: دو شمارش با هم جمع می‌شوند، و دو عدد هدف هم.",
       "celebrateSound": "صدای جشن: صدای تم، فایل خودتان، یا بی‌صدا.",
       "volume": "بلندی صدای جشن."
     },
@@ -652,7 +660,7 @@
       "eventLonger": "خط‌های ویژه دو برابر روی صفحه می‌مانند: دو برابر زمان **پنهان‌شدن هر پیام بعد از**، و تا وقتی دو برابر **بیشترین تعداد پیام روی صفحه** پیام تازه‌تر بیاید. در نوار افقی دو بار رد می‌شوند."
     },
     "connections": {
-      "clientId": "Twitch فقط به برنامه‌هایی که می‌شناسد اجازهٔ ورود می‌دهد. یک برنامهٔ رایگان در dev.twitch.tv/console بسازید (**Register Your Application**، Client Type: **Public**) و **Client ID** آن را اینجا بچسبانید. رمز نیست: دوستانتان هم می‌توانند از همین استفاده کنند."
+      "clientId": "برنامهٔ Twitch که Jarchi با آن وارد می‌شود. مال خود Jarchi نوشته شده و برای همه کار می‌کند. برای استفاده از برنامهٔ خودتان، یکی در dev.twitch.tv/console بسازید (**Register Your Application**، Client Type: **Public**) و **Client ID** آن را این‌جا بچسبانید. برای برگشتن به مال Jarchi، خانه را خالی کنید."
     },
     "settings": {
       "showBadge": "یک نشان کوچک Kick یا Twitch روی الرت‌ها. فقط وقتی دیده می‌شود که هر دو حساب وصل باشند.",
@@ -707,7 +715,7 @@
       },
       "goals": {
         "title": "هدف‌ها",
-        "intro": "سه هدف برای استریمتان: هدف ساب (ساب، تمدید ساب و ساب هدیه از Kick، و اگر روشنش کنید از Twitch)، هدف کیکس و هدف فالوور (Kick). رویدادهای واقعی را خودشان می‌شمارند. با **همگام‌سازی از Kick**، هدفی که در کانال Kick هم گذاشته‌اید اعداد خود Kick را نشان می‌دهد.",
+        "intro": "چهار هدف برای استریمتان: هدف ساب (ساب، تمدید ساب و ساب هدیه از Kick، و اگر روشنش کنید از Twitch)، هدف کیکس، هدف فالوور و هدف بیتس (Twitch). رویدادهای واقعی را خودشان می‌شمارند. با **همگام‌سازی از Kick** یا **همگام‌سازی از Twitch**، هدفی که در آن کانال هم گذاشته‌اید اعداد خود آن را نشان می‌دهد؛ اگر در هر دو گذاشته شده، **منبع** انتخاب می‌کند کدام (یا جمع هر دو).",
         "steps": [
           ["یک هدف را باز کنید", "**هدف‌ها** را باز کنید و در فهرست روی **هدف ساب** یا **هدف کیکس** کلیک کنید."],
           ["عنوان و عدد هدف", "عنوانی را که بیننده‌ها می‌بینند و عددی را که می‌خواهید به آن برسید بنویسید."],

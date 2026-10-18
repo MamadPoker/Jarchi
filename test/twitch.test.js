@@ -61,9 +61,8 @@ const subscriptions = () => calls.filter((c) => c.path === '/helix/eventsub/subs
 const notify = (s, type, event) => s.say('notification', { subscription: { type }, event });
 
 test('Twitch account: code login, refresh, follows, goals, reconnect, disconnect', async () => {
-  // Nothing saved: off, and no login without a Client ID.
-  assert.equal(account.status().state, 'off');
-  await assert.rejects(account.login());
+  // Nothing saved: off, with Jarchi's own Client ID. Another one can be set (here: for the rest of the test).
+  assert.deepEqual([account.status().state, account.status().clientId], ['off', '6z5ycye2mjhj10jk1jkwkelft0l7p3']);
   assert.throws(() => account.setClientId('not an id!'));
   account.setClientId(' abc123 ');
   assert.equal(file().clientId, 'abc123');
@@ -72,6 +71,7 @@ test('Twitch account: code login, refresh, follows, goals, reconnect, disconnect
   const waiting = await account.login();
   assert.deepEqual([waiting.state, waiting.code, waiting.uri], ['waiting', 'ABCD-EFGH', 'https://www.twitch.tv/activate?public=true&device-code=ABCDEFGH']);
   assert.throws(() => account.setClientId('other'), 'not while logging in');
+  assert.equal(calls.find((c) => c.path === '/oauth2/device').body.client_id, 'abc123');
   await waitFor(() => sockets.length === 1, 'socket');
   assert.equal(sockets[0].url, 'wss://eventsub.wss.twitch.tv/ws');
   assert.deepEqual([file().refresh, file().userId, file().login], ['R1', '42', 'mamad']);
@@ -132,4 +132,6 @@ test('Twitch account: code login, refresh, follows, goals, reconnect, disconnect
   assert.equal(calls.at(-1).body.token, 'A2');
   assert.ok(sockets[2].closed);
   assert.deepEqual(connectedPlatforms(), []);
+  // An empty Client ID: Jarchi's own again.
+  assert.equal(account.setClientId('').clientId, '6z5ycye2mjhj10jk1jkwkelft0l7p3');
 });
