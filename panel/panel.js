@@ -495,7 +495,8 @@ const svgIn = (cls, markup) => { // fixed markup only
   s.innerHTML = markup;
   return s;
 };
-// A Kick / Twitch channel goal's look (Home): the Jarchi goal of the same kind; cheerers are bits too.
+// A Kick / Twitch channel goal's icon and bar colour (Home), by its type, never its title: the Jarchi goal of the same
+// kind, so a Twitch followers goal looks exactly like Kick's (green heart). Cheerers are bits too.
 const CHANNEL_GOAL = { followers: 'followers', subscriptions: 'subs', kicks: 'kicks', follow: 'followers', subscription: 'subs', subscription_count: 'subs',
   new_subscription: 'subs', new_subscription_count: 'subs', new_bit: 'bits', new_cheerer: 'bits' };
 const goalIcon = (id) => svgIn('goal-icon', GOAL_ICON[id] ?? ''); // a goal type that's new to Jarchi: none

@@ -237,7 +237,8 @@ async function subscribe(session, my) {
   set({ state: 'connected', error: '' });
 }
 
-const goal = (g) => goals.set(g.id, { id: g.id, type: g.type, description: String(g.description ?? '').slice(0, 40), current: Number(g.current_amount) || 0, target: Number(g.target_amount) || 0 });
+// Twitch's API (GET /goals) calls a followers goal 'follower', its EventSub events 'follow': kept as 'follow'.
+const goal = (g) => goals.set(g.id, { id: g.id, type: g.type === 'follower' ? 'follow' : g.type, description: String(g.description ?? '').slice(0, 40), current: Number(g.current_amount) || 0, target: Number(g.target_amount) || 0 });
 
 // One EventSub event. A follow alerts once per viewer in 6 hours (core/events key), so follow / unfollow spam alerts once.
 function handle(type, e) {

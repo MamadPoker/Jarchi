@@ -31,7 +31,7 @@ globalThis.fetch = async (url, init = {}) => {
       return json(200, { access_token: `A${issued}`, refresh_token: `R${issued}`, expires_in: 14400, scope: [], token_type: 'bearer' });
     case '/oauth2/validate': return json(200, { client_id: 'abc123', login: 'mamad', user_id: '42', scopes: [], expires_in: 14000 });
     case '/helix/eventsub/subscriptions': return json(202, { data: [{ id: 'sub', status: 'enabled' }] });
-    case '/helix/goals': return json(200, { data: [{ id: 'g1', type: 'follow', description: '', current_amount: 5, target_amount: 10 }] });
+    case '/helix/goals': return json(200, { data: [{ id: 'g1', type: 'follower', description: 'Road to 10', current_amount: 5, target_amount: 10 }] }); // Twitch's API: 'follower'
     case '/oauth2/revoke': return new Response(null, { status: 200 });
   }
   return json(404, {});
@@ -86,7 +86,7 @@ test('Twitch account: code login, refresh, follows, goals, reconnect, disconnect
   assert.equal(subs.find((c) => c.body.type === 'channel.follow').body.condition.moderator_user_id, '42');
   assert.equal(calls.filter((c) => c.body?.grant_type === 'refresh_token').length, 1, 'one refresh at a time');
   assert.equal(file().refresh, 'R2');
-  assert.deepEqual(account.status().goals, [{ id: 'g1', type: 'follow', description: '', current: 5, target: 10 }]);
+  assert.deepEqual(account.status().goals, [{ id: 'g1', type: 'follow', description: 'Road to 10', current: 5, target: 10 }], 'the same type as EventSub says');
   assert.deepEqual([account.status().login, connectedPlatforms()], ['mamad', ['twitch']]);
 
   // A follow is a Twitch Follow alert, once per viewer (follow / unfollow spam alerts once).
