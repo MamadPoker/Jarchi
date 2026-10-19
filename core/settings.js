@@ -7,7 +7,7 @@ const store = require('./store');
 const strings = require('../i18n/en.json');
 
 const FILE = path.join(DATA_DIR, 'settings.json');
-const VERSION = 5;
+const VERSION = 6;
 const THEMES = ['neon', 'minimal', 'fun', 'retro', 'glass', 'fire', 'ice', 'galaxy', 'comic'];
 // App-wide settings (not per alert). showBadge: platform badge on alerts; it still needs both Kick and Twitch connected.
 // alertGap: seconds between two alerts. proxy*: how Jarchi reaches Kick, Twitch and 7TV (core/net.js).
@@ -91,8 +91,9 @@ const RULES = {
   textColor: (v) => v === null || hex(v),
 };
 // ---------- Goals ----------
-// followers: only from a goal set on Kick / Twitch (no follow counting); bits: Twitch's.
-const GOAL_IDS = ['subs', 'kicks', 'followers', 'bits'];
+// Kick's goals, then Twitch's (the ids before v6 stay, so their OBS links keep working). Each counts and syncs from its
+// own platform only. Followers: only from a goal set on that channel (no follow counting).
+const GOAL_IDS = ['subs', 'kicks', 'followers', 'twitchSubs', 'bits', 'twitchFollowers'];
 const FONTS = ['Segoe UI', 'Arial Black', 'Impact', 'Trebuchet MS', 'Georgia', 'Consolas'];
 // Each style is a complete set of look values; users then tweak any of them. Picking a style or "Reset style" restores these.
 const GOAL_STYLES = {
@@ -105,16 +106,14 @@ const GOAL_STYLES = {
 };
 const GOAL_LOOK = Object.keys(GOAL_STYLES.classic); // the fields a style sets
 const GOAL_DEFAULTS = Object.fromEntries(GOAL_IDS.map((id) => [id, {
-  enabled: id !== 'followers' && id !== 'bits', // new: off, so the Home page doesn't ask existing users to add it to OBS
+  enabled: id === 'subs' || id === 'kicks', // the later ones: off, so the Home page doesn't ask existing users to add them to OBS
   title: strings.goals[id].title,
-  target: { subs: 50, kicks: 1000, followers: 100, bits: 1000 }[id],
+  target: { subs: 50, kicks: 1000, followers: 100, twitchSubs: 50, bits: 1000, twitchFollowers: 100 }[id],
   style: 'classic',
   celebrate: true,
   celebrateSound: 'theme',
   sound: null, // { file, name } once uploaded
   volume: 0.7,
-  ...(id === 'subs' && { countTwitch: false }), // Twitch subs count only when this is on; Kick's always do
-  ...((id === 'subs' || id === 'followers') && { source: 'both' }), // set on Kick and Twitch: whose numbers (both: added up)
 }]));
 const bool = (v) => typeof v === 'boolean';
 const GOAL_RULES = {
@@ -123,8 +122,6 @@ const GOAL_RULES = {
   target: (v) => Number.isInteger(v) && v >= 1 && v <= 1e9,
   style: (v) => v in GOAL_STYLES,
   celebrate: bool,
-  countTwitch: bool,
-  source: oneOf('both', 'kick', 'twitch'),
   celebrateSound: oneOf('theme', 'custom', 'none'),
   volume: num(0, 1),
   barColor: hex,
@@ -277,6 +274,14 @@ if (from < 5) {
     for (const kind of ['image', 'sound']) if (old[kind]) { if (to[kind]) removeFile(old[kind]); else to[kind] = old[kind]; }
     to.on ||= !!old.on;
     delete tiers[500];
+  }
+}
+if (from < 6) {
+  // v5 -> v6: goals split into Kick's and Twitch's, nothing added up. The Sub and Followers goals stay as Kick's (same
+  // ids, same OBS links); their "Also count Twitch subs" and Kick/Twitch/Both source go.
+  for (const g of Object.values(saved.goals ?? {})) {
+    delete g?.countTwitch;
+    delete g?.source;
   }
 }
 if (from < VERSION) {

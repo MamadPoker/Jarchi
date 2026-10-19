@@ -2,7 +2,8 @@
 // Saved in goals.json, apart from settings, so restarts and "Reset everything" keep the counts.
 // With "Sync from Kick" (settings.kickGoalSync) / "Sync from Twitch" (settings.twitchGoalSync), a goal that's also set on
 // the Kick / Twitch channel shows that platform's own count and target instead; the rest stay manual, and the manual
-// counts go on underneath. Set on both (subs, followers): the goal's source says Kick's, Twitch's or both added up.
+// counts go on underneath. Each goal is Kick's or Twitch's (subs, kicks, followers / twitchSubs, bits, twitchFollowers):
+// it counts and syncs from that platform only, nothing is added up.
 const path = require('node:path');
 const { EventEmitter } = require('node:events');
 const { DATA_DIR } = require('./config');
@@ -11,17 +12,17 @@ const settings = require('./settings');
 const store = require('./store');
 
 const FILE = path.join(DATA_DIR, 'goals.json');
-// How much each normalized event adds to each goal. Followers: nothing (Kick sends no public follow events).
+// How much each normalized event adds to each goal. Followers: nothing (only a goal set on the channel moves them).
+const subsIn = (ev) => (ev.type === 'sub' || ev.type === 'resub' ? 1 : ev.type === 'gift_sub' ? ev.amount : 0); // a gift of 5 = 5
 const COUNT = {
-  // Kick's, and Twitch's when the sub goal's "Also count Twitch subs" is on.
-  subs: (ev) => (ev.platform === 'twitch' && !settings.get().goals.subs.countTwitch ? 0
-    : ev.type === 'sub' || ev.type === 'resub' ? 1 : ev.type === 'gift_sub' ? ev.amount : 0),
-  kicks: (ev) => (ev.type === 'kicks' && ev.platform !== 'twitch' ? ev.amount : 0), // Kicks are Kick's
-  bits: (ev) => (ev.type === 'bits' && ev.platform !== 'kick' ? ev.amount : 0), // bits are Twitch's
+  subs: (ev) => (ev.platform === 'kick' ? subsIn(ev) : 0),
+  kicks: (ev) => (ev.type === 'kicks' && ev.platform === 'kick' ? ev.amount : 0),
+  twitchSubs: (ev) => (ev.platform === 'twitch' ? subsIn(ev) : 0),
+  bits: (ev) => (ev.type === 'bits' && ev.platform === 'twitch' ? ev.amount : 0),
 };
 const KICK_TYPES = { followers: 'followers', subscriptions: 'subs', kicks: 'kicks' }; // Kick's goal type -> ours
-// Twitch's goal type -> ours. Its four sub goals (points or subs, all or only new ones) are each the Sub goal.
-const TWITCH_TYPES = { follow: 'followers', subscription: 'subs', subscription_count: 'subs', new_subscription: 'subs', new_subscription_count: 'subs', new_bit: 'bits' };
+// Twitch's goal type -> ours. Its four sub goals (points or subs, all or only new ones) are each the Twitch Sub goal.
+const TWITCH_TYPES = { follow: 'twitchFollowers', subscription: 'twitchSubs', subscription_count: 'twitchSubs', new_subscription: 'twitchSubs', new_subscription_count: 'twitchSubs', new_bit: 'bits' };
 const SHOWN = ['active', 'achieved']; // what kick.com still shows; canceled and expired ones go
 
 const goals = new EventEmitter(); // 'change' (idThatJustReachedItsTarget | null)
@@ -41,20 +42,19 @@ function setKickList(next) {
 }
 
 const bad = () => Object.assign(new Error('bad_request'), { status: 400, code: 'bad_request' });
-// The platforms a goal has numbers from (sync on, set there), and of those the ones it shows: with both, its source picks.
-function sources(id) {
+// The platform whose numbers a goal shows (its sync on, the goal set there), else undefined: its own count.
+function synced(id) {
   const s = settings.get();
-  const have = ['kick', 'twitch'].filter((p) => s[`${p}GoalSync`] && on[p][id]);
-  return { have, use: have.length === 2 && have.includes(s.goals[id].source) ? [s.goals[id].source] : have };
+  return ['kick', 'twitch'].find((p) => s[`${p}GoalSync`] && on[p][id]);
 }
 // What widgets and the panel show, per goal: { current, target, reached, kick / twitch (its numbers are that platform's),
-// onKick / onTwitch (set there), both (synced from both: the source choice applies) }.
+// onKick / onTwitch (set there) }.
 const all = () => Object.fromEntries(settings.GOAL_IDS.map((id) => {
-  const { have, use } = sources(id);
-  const marks = { kick: use.includes('kick'), twitch: use.includes('twitch'), onKick: !!on.kick[id], onTwitch: !!on.twitch[id], both: have.length === 2 };
-  if (!use.length) return [id, { ...state[id], target: settings.get().goals[id].target, ...marks }];
-  const sum = (k) => use.reduce((n, p) => n + on[p][id][k], 0);
-  return [id, { current: sum('current'), target: sum('target'), reached: sum('current') >= sum('target'), ...marks }];
+  const p = synced(id);
+  const marks = { kick: p === 'kick', twitch: p === 'twitch', onKick: !!on.kick[id], onTwitch: !!on.twitch[id] };
+  if (!p) return [id, { ...state[id], target: settings.get().goals[id].target, ...marks }];
+  const { current, target } = on[p][id];
+  return [id, { current, target, reached: current >= target, ...marks }];
 }));
 
 // "Reached" latches: the bar stays full until the count goes back to 0 or the target changes.
@@ -65,7 +65,7 @@ function set(id, value) {
   const hit = !s.reached && s.current >= settings.get().goals[id].target;
   if (hit) s.reached = true;
   store.save(FILE, state);
-  goals.emit('change', hit && !sources(id).use.length ? id : null); // a goal showing Kick's / Twitch's numbers celebrates theirs
+  goals.emit('change', hit && !synced(id) ? id : null); // a goal showing Kick's / Twitch's numbers celebrates theirs
 }
 
 // From the panel: { add: n } (Test, + and -) or { set: n } (number field, Reset to 0).
@@ -127,7 +127,7 @@ function twitchGoals(list) {
   }
   platformChanged('twitch', next);
 }
-// A sync switched, or a goal's source changed: widgets get the other numbers.
+// A sync switched: widgets get the other numbers.
 const refresh = () => goals.emit('change', null);
 
 // Counting goes on while a goal is switched off; off only hides it on stream.

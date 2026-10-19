@@ -49,7 +49,7 @@ app.patch('/api/settings', (req, res) => {
   const s = settings.update(req.body);
   for (const [id, fields] of Object.entries(req.body.goals ?? {})) if ('target' in fields) goals.retarget(id);
   // Widgets switch between Kick's / Twitch's numbers and their own.
-  if ('kickGoalSync' in req.body || 'twitchGoalSync' in req.body || Object.values(req.body.goals ?? {}).some((f) => 'source' in f)) goals.refresh();
+  if ('kickGoalSync' in req.body || 'twitchGoalSync' in req.body) goals.refresh();
   if (Object.keys(req.body).some((k) => k.startsWith('proxy'))) { // reconnect through the new proxy
     chat.restart();
     twitchAccount.start();
@@ -169,7 +169,7 @@ app.get('/remote', async (req, res) => {
 });
 
 app.use('/uploads', express.static(UPLOADS_DIR, { setHeaders: (res) => res.set('X-Content-Type-Options', 'nosniff') }));
-// One goal page, an OBS URL per goal: /widgets/goal/subs, /kicks, /followers, /bits.
+// One goal page, an OBS URL per goal: Kick's /widgets/goal/subs, /kicks, /followers; Twitch's /twitchSubs, /bits, /twitchFollowers.
 app.get('/widgets/goal/:id{/}', (req, res, next) => {
   if (!settings.GOAL_IDS.includes(req.params.id)) return next();
   res.sendFile(path.join(ROOT, 'widgets', 'goal', 'index.html'));

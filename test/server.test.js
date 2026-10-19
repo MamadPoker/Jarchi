@@ -12,6 +12,7 @@ fs.writeFileSync(path.join(dataDir, 'uploads', 'sub-sound-1.wav'), 'RIFF\0\0\0\0
 fs.writeFileSync(path.join(dataDir, 'settings.json'), JSON.stringify({
   theme: 'fun',
   alerts: { sub: { volume: 0.4, sound: { file: 'sub-sound-1.wav', name: 'old.wav' } } },
+  goals: { subs: { title: 'Road to 50', countTwitch: true, source: 'twitch' }, followers: { source: 'both' } }, // before v6
 }));
 // The Home page's feed and today's numbers from before a restart (a broken feed entry is dropped).
 fs.writeFileSync(path.join(dataDir, 'feed.json'), JSON.stringify([{ id: 'old', time: 1, platform: 'kick', type: 'sub', user: 'Saved', amount: 0, months: 0, message: '', test: false }, { type: 'nope' }]));
@@ -55,7 +56,9 @@ test('migration, settings, uploads, reset, events', async () => {
   assert.equal(s.alerts.sub.soundMode, 'custom');
   assert.equal(s.alerts.sub.volume, 0.4);
   assert.equal(s.alerts.follow.soundMode, 'theme');
-  assert.equal(JSON.parse(fs.readFileSync(path.join(dataDir, 'settings.json'))).version, 5);
+  assert.equal(JSON.parse(fs.readFileSync(path.join(dataDir, 'settings.json'))).version, 6);
+  // v5 -> v6: the Sub and Followers goals stay (as Kick's), without "Also count Twitch subs" and Source.
+  assert.deepEqual([s.goals.subs.title, 'countTwitch' in s.goals.subs, 'source' in s.goals.subs, 'source' in s.goals.followers], ['Road to 50', false, false, false]);
   assert.equal(s.chat.style, 'classic', 'an earlier user who never picked a chat style keeps Classic (Kick default is for new users)');
   assert.equal((await fetch(`${base}/uploads/sub-sound-1.wav`)).status, 200);
 
@@ -137,12 +140,10 @@ test('migration, settings, uploads, reset, events', async () => {
 test('goals: count from events, latch when reached, saved, styles', async () => {
   const goalsNow = async () => (await (await call('GET', '/api/goals')).json()).state;
   const count = async (id, body) => (await call('PATCH', `/api/goals/${id}`, body)).json();
-  for (const id of ['subs', 'kicks']) await count(id, { set: 0 });
+  for (const id of ['subs', 'kicks', 'twitchSubs']) await count(id, { set: 0 });
 
-  // From the event bus: Kick subs/resubs +1 and each gifted sub +1; Twitch's the same, but only with the sub goal's
-  // "Also count Twitch subs" on (off by default). Kicks only from Kick.
-  const before = (await (await call('GET', '/api/settings')).json()).goals;
-  assert.deepEqual([before.subs.countTwitch, 'countTwitch' in before.kicks], [false, false]);
+  // From the event bus, each goal only its own platform's: subs/resubs +1 and each gifted sub +1 (Kick's to the Sub goal,
+  // Twitch's to the Twitch Sub goal), Kicks only from Kick. Nothing is added up across platforms any more.
   emitEvent({ platform: 'kick', type: 'resub', user: 'a', months: 3 });
   emitEvent({ platform: 'twitch', type: 'sub', user: 'a' });
   emitEvent({ platform: 'twitch', type: 'gift_sub', user: 'a', amount: 5 });
@@ -150,19 +151,15 @@ test('goals: count from events, latch when reached, saved, styles', async () => 
   emitEvent({ platform: 'kick', type: 'kicks', user: 'a', amount: 250 });
   emitEvent({ platform: 'twitch', type: 'bits', user: 'a', amount: 500 });
   let st = await goalsNow();
-  assert.deepEqual([st.subs.current, st.kicks.current], [1, 250], 'Twitch subs: not counted by default');
-  assert.equal((await call('PATCH', '/api/settings', { goals: { subs: { countTwitch: true } } })).status, 200);
-  assert.equal((await call('PATCH', '/api/settings', { goals: { kicks: { countTwitch: true } } })).status, 400, 'the Kicks goal is Kick only');
-  emitEvent({ platform: 'twitch', type: 'sub', user: 'b' });
-  emitEvent({ platform: 'twitch', type: 'gift_sub', user: 'b', amount: 5 });
-  emitEvent({ platform: 'twitch', type: 'kicks', user: 'b', amount: 100 });
-  st = await goalsNow();
-  assert.deepEqual([st.subs.current, st.kicks.current], [7, 250], 'on: a Twitch gift of 5 counts 5');
+  assert.deepEqual([st.subs.current, st.twitchSubs.current, st.kicks.current], [1, 6, 250], 'a Twitch gift of 5 counts 5');
+  for (const old of [{ countTwitch: true }, { source: 'both' }]) {
+    assert.equal((await call('PATCH', '/api/settings', { goals: { subs: old } })).status, 400, JSON.stringify(old));
+  }
 
   // Reaching the target latches "reached" and announces it once.
   await call('PATCH', '/api/settings', { goals: { subs: { target: 10 } } });
   const announced = new Promise((r) => goals.events.once('change', r));
-  st = await count('subs', { add: 3 });
+  st = await count('subs', { add: 9 });
   assert.equal(await announced, 'subs');
   assert.deepEqual([st.subs.current, st.subs.reached], [10, true]);
   st = await count('subs', { add: 3 });
@@ -202,6 +199,7 @@ test('goals: count from events, latch when reached, saved, styles', async () => 
   // One OBS page per goal.
   assert.equal((await fetch(`${base}/widgets/goal/subs`)).status, 200);
   assert.equal((await fetch(`${base}/widgets/goal/kicks/`)).status, 200);
+  assert.equal((await fetch(`${base}/widgets/goal/twitchSubs`)).status, 200);
   assert.equal((await fetch(`${base}/widgets/goal/nope`)).status, 404);
 });
 
@@ -268,7 +266,7 @@ test("Kick goals: a goal set on Kick shows Kick's numbers (live events too), the
   assert.deepEqual(goals.kickList(), []);
   goals.events.off('change', onChange);
 });
-test('Twitch goals: Sync from Twitch shows Twitch\'s numbers, a Bits goal; set on Kick and Twitch: Source Kick / Twitch / Both', async () => {
+test('Twitch goals: Sync from Twitch shows Twitch\'s numbers in the Twitch goals only, never in Kick\'s', async () => {
   const reached = [];
   const onChange = (id) => reached.push(id);
   goals.events.on('change', onChange);
@@ -287,36 +285,31 @@ test('Twitch goals: Sync from Twitch shows Twitch\'s numbers, a Bits goal; set o
     { id: 't4', type: 'new_cheerer', description: '', current: 3, target: 10 },
   ]);
   let a = goals.all();
-  const marks = (g) => [g.current, g.target, g.kick, g.twitch, g.both];
-  assert.deepEqual(marks(a.followers), [340, 600, true, true, true], 'on both: added up by default');
-  assert.deepEqual(marks(a.subs), [12, 50, false, true, false]);
-  assert.deepEqual(marks(a.bits), [900, 1000, false, true, false]);
+  const marks = (g) => [g.current, g.target, g.kick, g.twitch];
+  assert.deepEqual(marks(a.followers), [300, 500, true, false], "Kick's Followers goal: Kick's numbers only");
+  assert.deepEqual(marks(a.twitchFollowers), [40, 100, false, true]);
+  assert.deepEqual(marks(a.twitchSubs), [12, 50, false, true]);
+  assert.deepEqual([a.subs.twitch, a.subs.onTwitch], [false, false]);
+  assert.deepEqual(marks(a.bits), [900, 1000, false, true]);
   assert.equal(a.kicks.twitch, false);
-
-  // Source: Twitch's, Kick's, both again. Only the goals Kick and Twitch both have take one.
-  await call('PATCH', '/api/settings', { goals: { followers: { source: 'twitch' } } });
-  assert.deepEqual(marks(goals.all().followers), [40, 100, false, true, true]);
-  await call('PATCH', '/api/settings', { goals: { followers: { source: 'kick' } } });
-  assert.deepEqual(marks(goals.all().followers), [300, 500, true, false, true]);
-  assert.equal((await call('PATCH', '/api/settings', { goals: { bits: { source: 'kick' } } })).status, 400);
-  assert.equal((await call('PATCH', '/api/settings', { goals: { followers: { source: 'all' } } })).status, 400);
-  await call('PATCH', '/api/settings', { goals: { followers: { source: 'both' } } });
 
   // Twitch's bits goal reached: it celebrates once.
   goals.twitchGoals([{ id: 't3', type: 'new_bit', description: '', current: 1000, target: 1000 }]);
   assert.deepEqual([goals.all().bits.reached, reached.at(-1)], [true, 'bits']);
 
-  // Sync from Twitch off: Kick's followers only, the Bits goal its own count again (Twitch's still known).
+  // Sync from Twitch off: the Twitch goals their own counts again (Twitch's still known); Kick's untouched.
   goals.twitchGoals([{ id: 't1', type: 'follow', current: 40, target: 100 }, { id: 't3', type: 'new_bit', current: 1000, target: 1000 }]);
   assert.equal((await call('PATCH', '/api/settings', { twitchGoalSync: false })).status, 200);
   a = goals.all();
-  assert.deepEqual([...marks(a.followers), a.bits.twitch, a.bits.onTwitch, a.bits.current], [300, 500, true, false, false, false, true, bitsBefore + 250]);
+  assert.deepEqual(marks(a.followers), [300, 500, true, false]);
+  assert.deepEqual([a.twitchFollowers.twitch, a.twitchFollowers.onTwitch, a.bits.twitch, a.bits.onTwitch, a.bits.current], [false, true, false, true, bitsBefore + 250]);
   await call('PATCH', '/api/settings', { twitchGoalSync: true });
   // Not connected (no goals) and no Kick channel: all manual.
   goals.twitchGoals([]);
   goals.kickGoals(null);
   a = goals.all();
-  assert.deepEqual([a.followers.kick, a.followers.twitch, a.bits.onTwitch], [false, false, false]);
+  assert.deepEqual([a.followers.kick, a.twitchFollowers.twitch, a.bits.onTwitch], [false, false, false]);
   assert.equal((await fetch(`${base}/widgets/goal/bits`)).status, 200);
+  assert.equal((await fetch(`${base}/widgets/goal/twitchFollowers`)).status, 200);
   goals.events.off('change', onChange);
 });

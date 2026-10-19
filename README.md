@@ -31,7 +31,7 @@ Jarchi must be running before OBS loads the source. If you started OBS first, ri
 - **Top bar**: the page's title; a warning when a Kick or Twitch connection has been down for over 30 seconds (a click opens where it's set up); **Kick** and **Twitch** with a green dot when their chat connection is up (a click opens Connections); the **Dark / Light** switch; the **فا | EN** language switch.
 - **Home**: a banner that says **You're ready to stream** when Kick and Twitch are connected and every widget that's switched on is open in OBS, or lists what's missing, each with **Fix** (opens the right page); **Send test alert** (a random type) and **OBS links** (copy any widget's link). **Live feed**: the last 20 events, newest first (platform, name, what they did, how long ago; test ones say so), filters All / Subs / Kicks / Raids / Follows, **Replay** on each. **Widgets**: Alerts, Chat and each goal, green while a page of it is open in OBS, with a copy button. **Goals**: both goals with their bar (they move by themselves). Then alerts today, chat messages today (real ones, not tests; from midnight) and Jarchi's uptime. The feed and today's numbers are kept across restarts in `data/feed.json` and `data/today.json`.
 - **Alerts**: the main **Theme** on top (opens a page with a live card per theme; click one to use it) and **Copy OBS link**; the alert list, each with an on/off switch; next to it the selected alert: live preview with Play, its own theme (or the main one), then image/GIF/video, sound and text, **Different media by amount** (Kicks, gifted subs, bits); **More options** opens frame, colors, font size, text position, text alignment (left/center/right), duration, volume, minimum amount and video sound.
-- **Goals**: the three goals, each with an on/off switch, its count (click it and type another) and **Reset to 0** (click twice), next to the selected goal. **Chat**: the chat widget, with its on/off switch next to the title. Each has its own **Copy OBS link**.
+- **Goals**: the goals in a Kick group and a Twitch group (each with its logo and its **Sync from …** switch in the header), each goal with an on/off switch, its count (click it and type another) and **Reset to 0** (click twice), next to the selected goal. **Chat**: the chat widget, with its on/off switch next to the title. Each has its own **Copy OBS link**.
 - **Alert queue**: now playing (with a bar for the time left), **Pause / Resume**, **Skip**, **Clear queue** (click twice), the waiting alerts in order (× removes one), the last 10 played (each with **Replay**), and a notice when no OBS alerts overlay is open.
 - **?** next to every setting: a short explanation on hover, keyboard focus or a tap.
 - **Guide**: Getting started, Add Jarchi to OBS, Alerts, Goals, Chat widget, Alert queue, Proxy & VPN, and If something doesn't work (questions that open their answers). The links in it are this PC's real ones.
@@ -90,7 +90,7 @@ The Twitch channel in **Chat** brings real alerts the same way, from Twitch's an
 | Bits | Bits, with amount and message | a chat message with bits (Twitch's cheer words like Cheer100 are left out of the alert's message; in the chat widget they show as Twitch's gem and the amount) |
 | Follow | not available | needs a Twitch login |
 
-In a shared chat, the other channels' events don't make alerts here. The Sub goal counts these only with its **Also count Twitch subs** box on.
+In a shared chat, the other channels' events don't make alerts here. The Twitch Sub goal and the Bits goal count these.
 
 **Event log**: `data/logs/events.log` keeps the last 500 alert events exactly as Kick and Twitch sent them (subs, gifts, Kicks, raids, Twitch bits; not chat messages), one per line with the local time. Look there when an alert looked wrong. Each alert that started on an alerts page (OBS or a browser) also leaves a `timing` line there and in the server window: when the event reached Jarchi (`received`), then how long Jarchi took to decide it (`check`: a Kick sub waits a moment for a gift), how long it waited in the queue (`queue`: the alert before it, the gap, no alerts page open, paused) and how long until the page started it (`overlay`). Replays leave none. Follows can't be logged: neither public connection sends them.
 
@@ -115,13 +115,18 @@ Everything Jarchi reaches online goes through it: Kick, Twitch, 7TV, and the emo
 
 ## Goals
 
-Three goal widgets, each with its own OBS URL (transparent background):
+Six goal widgets in two groups, each with its own OBS URL (transparent background) and on/off switch. Each counts and syncs from its own platform only; nothing is added up across Kick and Twitch.
 
-- **Sub goal**: `http://127.0.0.1:3000/widgets/goal/subs` counts Kick subs, resubs and gifted subs (a gift of 5 subs = 5). With **Also count Twitch subs** on (off by default), Twitch's count the same way.
-- **Kicks goal**: `http://127.0.0.1:3000/widgets/goal/kicks` counts Kicks from Kick.
-- **Followers goal**: `http://127.0.0.1:3000/widgets/goal/followers` (Kick; off until you switch it on). Kick doesn't say publicly who follows, so it shows the followers goal set on your Kick channel, or a number you type.
+- **Kick**
+  - **Sub goal**: `http://127.0.0.1:3000/widgets/goal/subs` counts Kick subs, resubs and gifted subs (a gift of 5 subs = 5).
+  - **Kicks goal**: `http://127.0.0.1:3000/widgets/goal/kicks` counts Kicks.
+  - **Followers goal**: `http://127.0.0.1:3000/widgets/goal/followers` (off until you switch it on) shows the followers goal set on your Kick channel, or a number you type.
+- **Twitch** (all off until you switch them on)
+  - **Sub goal**: `http://127.0.0.1:3000/widgets/goal/twitchSubs` counts Twitch subs, resubs and gifted subs (a gift of 5 subs = 5).
+  - **Bits goal**: `http://127.0.0.1:3000/widgets/goal/bits` counts bits.
+  - **Followers goal**: `http://127.0.0.1:3000/widgets/goal/twitchFollowers` shows the followers goal set on your Twitch channel, or a number you type.
 
-**Sync from Kick** (Goals page, on by default): a goal you also set on your Kick channel (Kick's creator dashboard: followers, subscriptions, KICKs) shows Kick's own count and target, in the panel (marked **From Kick**, read-only) and on stream. Jarchi reads `kick.com/api/v2/channels/<channel>/goals` (no login) when it connects and every minute, and takes Kick's live goal events (`GoalProgressUpdateEvent` and the others) from the same public socket as the alerts. A goal with nothing set on Kick stays manual, and its own count goes on underneath. If Kick can't be reached, the last numbers stay.
+**Sync from Kick** and **Sync from Twitch** (in each group's header on the Goals page, on by default): a goal you also set on that channel shows the channel's own count and target, in the panel (marked **From Kick** / **From Twitch**, read-only) and on stream. Twitch needs the Twitch account connected on **Connections**. For Kick, Jarchi reads `kick.com/api/v2/channels/<channel>/goals` (no login) when it connects and every minute, and takes Kick's live goal events (`GoalProgressUpdateEvent` and the others) from the same public socket as the alerts. A goal with nothing set on Kick stays manual, and its own count goes on underneath. If Kick can't be reached, the last numbers stay.
 
 They listen to the same event bus as the alerts, so they'll move by themselves once Kick and Twitch are connected. Until then, test alerts and the panel's buttons move them.
 

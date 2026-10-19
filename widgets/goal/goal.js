@@ -1,4 +1,4 @@
-// Goal widget: /widgets/goal/<id> (subs | kicks | followers | bits), transparent page with the goal in the middle.
+// Goal widget: /widgets/goal/<id> (Kick's subs | kicks | followers, Twitch's twitchSubs | bits | twitchFollowers), transparent page with the goal in the middle.
 // Live (OBS): settings and counts arrive over Socket.IO. ?preview: shown even when the goal is off (panel preview).
 // ?thumb: no socket; the panel posts { strings, cfg, state } to draw a style thumbnail.
 const params = new URLSearchParams(location.search);

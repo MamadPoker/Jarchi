@@ -90,8 +90,13 @@ const FORMAT = {
   emoteSize: px, bigEmoteSize: px, badgeSize: pct, nameSize: px, padding: px, gap: px, width: px, height: px, fadeZone: px, blur: px,
   tickerSpeed: (v) => `${v} px/s`, maxMessages: (v) => String(v), hideAfter: (v) => (Number(v) ? tpl(S.panel.seconds, { n: v }) : S.panel.never), animSpeed: (v) => `×${v}`,
 };
-const GOAL_STEP = { subs: 1, kicks: 100, followers: 1, bits: 100 }; // what "Test", "+" and "−" add
-const GOAL_SAMPLE = { subs: { current: 32, target: 50 }, kicks: { current: 640, target: 1000 }, followers: { current: 374, target: 500 }, bits: { current: 3200, target: 5000 } }; // numbers on style thumbnails
+const GOAL_STEP = { subs: 1, kicks: 100, followers: 1, twitchSubs: 1, bits: 100, twitchFollowers: 1 }; // what "Test", "+" and "−" add
+const GOAL_SAMPLE = { subs: { current: 32, target: 50 }, kicks: { current: 640, target: 1000 }, followers: { current: 374, target: 500 }, // numbers on style thumbnails
+  twitchSubs: { current: 32, target: 50 }, bits: { current: 3200, target: 5000 }, twitchFollowers: { current: 374, target: 500 } };
+// Each goal is Kick's or Twitch's (its group on the Goals page). Outside its group it's named with its platform: "Sub goal (Twitch)".
+const TWITCH_GOALS = ['twitchSubs', 'bits', 'twitchFollowers'];
+const goalPlatform = (id) => (TWITCH_GOALS.includes(id) ? 'twitch' : 'kick');
+const goalName = (id) => tpl(S.panel.goalOn, { goal: S.goals[id].name, platform: S.platforms[goalPlatform(id)] });
 const isVideo = (file) => /\.(webm|mp4)$/.test(file ?? '');
 const tpl = (s, v) => s.replace(/\{(\w+)\}/g, (m, k) => v[k] ?? m);
 const kickLook = (type, cfg) => type === 'kicks' && cfg.look === 'kick';
@@ -333,7 +338,7 @@ async function goalCount(body, id = curGoal) {
 // A goal's row in the Goals list: its count (click it and type another), "/ target", and Reset to 0 (click twice).
 function goalCountRow(id) {
   const input = el('input', { type: 'number', min: 0, step: 1, className: 'count-input', onchange: () => goalCount({ set: Math.max(0, Math.round(Number(input.value) || 0)) }, id) });
-  input.setAttribute('aria-label', `${S.goals[id].name}: ${S.panel.goalCurrent}`);
+  input.setAttribute('aria-label', `${goalName(id)}: ${S.panel.goalCurrent}`);
   const zero = el('button', { className: 'ghost zero', textContent: S.panel.goalZero });
   twoClick(zero, zero, S.panel.goalZero, S.panel.confirmZero, () => goalCount({ set: 0 }, id));
   // Synced from Kick / Twitch: their count, read-only, with Kick's K / Twitch's logo instead of Reset to 0.
@@ -521,6 +526,8 @@ const GOAL_ICON = {
   followers: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${HEART}"/></svg>`, // heart
   bits: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${TYPE_ICON.bits}"/></svg>`, // gem
 };
+GOAL_ICON.twitchSubs = GOAL_ICON.subs; // Twitch's look like Kick's
+GOAL_ICON.twitchFollowers = GOAL_ICON.followers;
 const svgIn = (cls, markup) => { // fixed markup only
   const s = el('span', { className: cls });
   s.innerHTML = markup;
@@ -547,7 +554,7 @@ const copyLink = (url, msg = S.panel.copied) => navigator.clipboard.writeText(ur
 const widgetPages = () => [
   ['alerts', S.panel.groupAlerts, `${location.origin}/widgets/alerts`],
   ['chat', S.panel.chatName, `${location.origin}/widgets/chat`],
-  ...Object.keys(settings.goals).map((id) => [id, S.goals[id].name, `${location.origin}/widgets/goal/${id}`]),
+  ...Object.keys(settings.goals).map((id) => [id, goalName(id), `${location.origin}/widgets/goal/${id}`]),
 ];
 const FEED_FILTERS = { all: null, subs: ['sub', 'resub', 'gift_sub'], kicks: ['kicks'], raids: ['raid'], follows: ['follow'] };
 
@@ -557,7 +564,7 @@ function issues() {
     .map((p) => [tpl(S.panel.issuePlatform, { platform: S.platforms[p] }), ['chat']]); // the channel names are on the Chat page for now
   if (!open.alerts) out.push([S.panel.issueAlerts, ['alert']]);
   if (settings.chat.enabled && !open.chat) out.push([S.panel.issueChat, ['chat']]);
-  for (const [id, g] of Object.entries(settings.goals)) if (g.enabled && !open[id]) out.push([tpl(S.panel.issueGoal, { goal: S.goals[id].name }), ['goal', id]]);
+  for (const [id, g] of Object.entries(settings.goals)) if (g.enabled && !open[id]) out.push([tpl(S.panel.issueGoal, { goal: goalName(id) }), ['goal', id]]);
   return out;
 }
 
@@ -817,12 +824,12 @@ function build() {
   $('#brand').append(el('span', { className: 'j', textContent: first + zwj }), zwj + rest.join(''));
   $$('.nav-item').forEach((b) => (b.onclick = () => select(b.dataset.view)));
 
-  // Alerts and Goals pages: their list. An alert's row also gets a swatch that render() shows when it has its own theme,
-  // and the logos of the platforms it comes from.
+  // Alerts and Goals pages: their list (a goal goes in its platform's group). An alert's row also gets a swatch that
+  // render() shows when it has its own theme, and the logos of the platforms it comes from.
   for (const [v, items] of Object.entries(LISTS())) {
-    $(`#${v}List`).append(...items.map((it) => {
+    for (const it of items) {
       const sw = el('input', { type: 'checkbox', onchange: () => it.toggle(sw.checked) });
-      sw.setAttribute('aria-label', it.label);
+      sw.setAttribute('aria-label', v === 'goal' ? goalName(it.key) : it.label);
       const row = el('li', { className: 'nav-row' },
         el('button', { className: 'nav-btn', onclick: () => select(v, it.key) }, v === 'goal' ? goalIcon(it.key) : typeIcon(it.key), el('span', { className: 'label', textContent: it.label }),
           ...(v === 'alert' ? [el('span', { className: 'swatch mini', hidden: true }), platMarks(it.key)] : [])),
@@ -832,8 +839,8 @@ function build() {
         row.dataset.goal = it.key; // its colour
         row.append(goalCountRow(it.key));
       }
-      return row;
-    }));
+      $(v === 'goal' ? `#goalList [data-platform=${goalPlatform(it.key)}]` : '#alertList').append(row);
+    }
   }
 
   // Alerts page: the main theme (opens the theme page), with a swatch per theme (render() outlines the current one).
@@ -1008,7 +1015,6 @@ function build() {
   $('#twOpen').onclick = () => window.open(twitch.uri, '_blank', 'noopener');
   $('#twitchGoalsConnect').onclick = $('#twitchSyncConnect').onclick = () => select('connections');
   $('#twitchSync').onchange = (e) => send('PATCH', '/api/settings', { twitchGoalSync: e.target.checked });
-  wireTabs($('#goalList').parentNode, 'jarchi.goalTab');
   wireTabs($('#homeGoalsBox'), 'jarchi.homeGoalTab');
   socket.on('twitchAccount', (t) => {
     twitch = t;
@@ -1304,7 +1310,7 @@ function renderGoal() {
   const g = settings.goals[curGoal];
   ed.dataset.key = ed.dataset.goal = curGoal;
   $('.title .goal-icon', ed).innerHTML = GOAL_ICON[curGoal]; // fixed markup
-  $('.name', ed).textContent = S.goals[curGoal].name;
+  $('.name', ed).textContent = goalName(curGoal);
   $('#goalCounts').textContent = S.goals[curGoal].counts;
   $('#goalTest span').textContent = S.goals[curGoal].test;
   fill(ed, g);
@@ -1325,11 +1331,9 @@ function renderGoal() {
     box: g.bg !== 'off',
     borderOn: g.bg !== 'off' && g.border,
     goalCustomSound: g.celebrateSound === 'custom',
-    subsGoal: curGoal === 'subs', // "Also count Twitch subs": the Kicks goal is Kick's only
     fromKick: st.kick,
     fromTwitch: st.twitch,
     manual: !synced,
-    bothSync: st.both, // Source: Kick, Twitch or both
   };
   $$('[data-only]', ed).forEach((e) => (e.hidden = !show[e.dataset.only]));
   const fname = $('.file .fname', ed);

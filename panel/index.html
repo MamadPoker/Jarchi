@@ -431,23 +431,25 @@
       <!-- ===== Goals: the goal list (with switches) next to the selected goal ===== -->
       <section class="view split" data-view="goal" hidden>
         <div class="split-body">
-        <div class="list"><h2 class="group-title" data-i18n="navGoals" data-help="groups.goals"></h2><ul id="goalList" class="nav-list"></ul>
-          <!-- Goals set on the Kick / Twitch channel show that platform's numbers (core/goals.js); Twitch needs the account
-               connected (connectors/twitch-account.js). -->
-          <div class="list-foot tab-box">
-            <div class="tabs" role="tablist" data-aria="goalSources">
-              <button role="tab" id="tab-g-kick" aria-controls="pane-g-kick" data-tab="kick"><img src="/assets/platform-logos/kick.svg" alt=""><span>Kick</span></button>
-              <button role="tab" id="tab-g-twitch" aria-controls="pane-g-twitch" data-tab="twitch"><img src="/assets/platform-logos/twitch.svg" alt=""><span>Twitch</span></button>
+        <!-- Kick's goals, then Twitch's (panel.js puts each row in its platform's list). In each header, "Sync from …": goals
+             set on that channel show its numbers (core/goals.js); Twitch needs the account connected (connectors/twitch-account.js). -->
+        <div class="list" id="goalList"><h2 class="group-title" data-i18n="navGoals" data-help="groups.goals"></h2>
+          <div class="goal-group">
+            <div class="goal-head">
+              <h3><img src="/assets/platform-logos/kick.svg" alt=""><span>Kick</span></h3>
+              <label class="row toggle-row"><span data-i18n="kickSync" data-help="goal.kickSync"></span><span class="switch"><input type="checkbox" id="kickSync"><span></span></span></label>
             </div>
-            <div class="pane" role="tabpanel" id="pane-g-kick" aria-labelledby="tab-g-kick" data-tab="kick">
-              <label class="row between toggle-row"><span data-i18n="kickSync" data-help="goal.kickSync"></span><span class="switch"><input type="checkbox" id="kickSync"><span></span></span></label>
-              <small id="kickSyncHint"></small>
+            <small id="kickSyncHint"></small>
+            <ul class="nav-list" data-platform="kick"></ul>
+          </div>
+          <div class="goal-group">
+            <div class="goal-head">
+              <h3><img src="/assets/platform-logos/twitch.svg" alt=""><span>Twitch</span></h3>
+              <label class="row toggle-row"><span data-i18n="twitchSync" data-help="goal.twitchSync"></span><span class="switch"><input type="checkbox" id="twitchSync"><span></span></span></label>
             </div>
-            <div class="pane" role="tabpanel" id="pane-g-twitch" aria-labelledby="tab-g-twitch" data-tab="twitch" hidden>
-              <label class="row between toggle-row"><span data-i18n="twitchSync" data-help="goal.twitchSync"></span><span class="switch"><input type="checkbox" id="twitchSync"><span></span></span></label>
-              <small id="twitchSyncHint"></small>
-              <button id="twitchSyncConnect" class="ghost small-btn" data-i18n="twConnect"></button>
-            </div>
+            <small id="twitchSyncHint"></small>
+            <button id="twitchSyncConnect" class="ghost small-btn" data-i18n="twConnect"></button>
+            <ul class="nav-list" data-platform="twitch"></ul>
           </div>
         </div>
         <div class="editor">
@@ -490,22 +492,6 @@
               <button id="goalPlus" aria-label="+">+</button>
             </div>
             <div data-only="manual"><button id="goalZero" class="ghost" data-i18n="goalZero"></button></div>
-          </div>
-        </div>
-
-        <div class="box" data-only="subsGoal">
-          <label class="row between toggle-row"><span data-i18n="goalCountTwitch" data-help="goal.countTwitch"></span><span class="switch"><input type="checkbox" data-f="countTwitch"><span></span></span></label>
-        </div>
-
-        <!-- Synced from Kick and Twitch, both with this goal: whose numbers it shows. -->
-        <div class="box" data-only="bothSync">
-          <div class="row between">
-            <span class="row"><b data-i18n="goalSource" data-help="goal.source"></b></span>
-            <div class="seg" role="radiogroup" data-aria="goalSource">
-              <label><input type="radio" name="goalSource" data-f="source" value="kick"><span>Kick</span></label>
-              <label><input type="radio" name="goalSource" data-f="source" value="twitch"><span>Twitch</span></label>
-              <label><input type="radio" name="goalSource" data-f="source" value="both"><span data-i18n="goalBoth"></span></label>
-            </div>
           </div>
         </div>
 

@@ -508,10 +508,18 @@ input.count-input:hover, input.count-input:focus { border-color: var(--border-hi
 .goal-count .zero { margin-inline-start: auto; padding: 3px 10px; font-size: 12px; white-space: nowrap; }
 .goal-count .from-kick, .goal-count .from-twitch { margin-inline-start: 4px; }
 input.count-input[readonly]:hover { border-color: transparent; background: transparent; }
-/* "Sync from Kick" under the goals; Kick's K ("From Kick" tooltip) marks numbers that come from Kick (read-only). */
+/* Goals list: Kick's group, then Twitch's, each with its logo and "Sync from …" in the header, and a hint under it.
+   Kick's K / Twitch's logo ("From Kick" / "From Twitch" tooltip) marks numbers that come from there (read-only). */
+.goal-group + .goal-group { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); }
+.goal-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 8px; padding: 4px 10px; }
+.goal-head h3 { display: flex; align-items: center; gap: 6px; margin: 0; color: var(--text); font-size: 14px; letter-spacing: 0; text-transform: none; }
+.goal-head img { width: 16px; height: 16px; }
+.goal-head .toggle-row { gap: 6px; font-size: 12px; }
+.goal-group > small { display: block; padding: 0 10px 6px; font-size: 12px; line-height: 1.4; }
+.goal-group > .small-btn { margin: 0 10px 8px; }
 .list-foot { display: grid; gap: 4px; margin-top: 8px; padding: 10px 10px 2px; border-top: 1px solid var(--border); }
 .list-foot small { font-size: 12px; line-height: 1.4; }
-/* Kick | Twitch tabs (Goals list, Home goals): small. */
+/* Kick | Twitch tabs (Home goals): small. */
 .tab-box .tabs button { display: flex; align-items: center; gap: 6px; padding: 6px 12px; font-size: 13px; }
 .tab-box .tabs img { width: 14px; height: 14px; }
 .tab-box .pane { grid-template-columns: none; gap: 8px; margin: 6px 0 0; }
@@ -521,9 +529,9 @@ input.count-input[readonly]:hover { border-color: transparent; background: trans
 .from-kick svg, .from-twitch img { width: 13px; height: 13px; }
 .kick-k { fill: currentColor; stroke: none; } /* a filled logo, not a line icon */
 /* Each goal's colour: its icon (lists, editor title, Home) and its bar on Home. */
-[data-goal="subs"] { --goal: var(--goal-subs); }
+[data-goal="subs"], [data-goal="twitchSubs"] { --goal: var(--goal-subs); }
 [data-goal="kicks"] { --goal: var(--goal-kicks); }
-[data-goal="followers"] { --goal: var(--goal-followers); }
+[data-goal="followers"], [data-goal="twitchFollowers"] { --goal: var(--goal-followers); }
 [data-goal="bits"] { --goal: var(--goal-bits); }
 .goal-icon { display: inline-grid; place-items: center; flex: none; color: var(--goal); }
 .title .goal-icon svg { width: 22px; height: 22px; }
