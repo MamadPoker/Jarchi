@@ -859,8 +859,10 @@ function setLang(lang) {
 // Sidebar isn't in the dialog: the sidebar itself, one group of pages at a time (spotTo). Escape or Skip ends it all.
 const TOUR = ['hello', 'connect', 'obs', 'sidebar', 'done'];
 const SIDEBAR = TOUR.indexOf('sidebar');
-// Sidebar's stops: [the group's name, its pages, first to last]. Live starts at Home; Help is Guide and what's under the line.
-const SPOTS = [['navLive', ['home', 'alert', 'chat', 'goal', 'queue', 'events']], ['navBot', ['bot']], ['navSetup', ['connections', 'appearance', 'settings']], ['navHelp', ['guide', 'about', 'support']]];
+// Sidebar's stops, the sidebar's own groups: [the group's name, its pages, first to last]. Main (the pages on top) and
+// More (under the line) have no title in the sidebar.
+const SPOTS = [['navMain', ['home', 'alert', 'chat', 'goal']], ['navLive', ['queue', 'events']], ['navBot', ['bot']],
+  ['navSetup', ['connections', 'appearance', 'settings', 'guide']], ['navMore', ['about', 'support']]];
 const obsSize = (id) => (id === 'alerts' ? [1920, 1080] : id === 'chat' ? [settings.chat.width, settings.chat.height] : settings.goals[id].style === 'circle' ? [400, 400] : [800, 200]);
 const connCards = () => [$('#kcConnect'), $('#twConnect')].map((b) => b.closest('.box'));
 let tourStep = 0, spot = 0, faStrings;
@@ -931,7 +933,7 @@ function renderTour() {
   body.className = `tour-body tour-${step}`;
   if (step === 'hello') {
     const say = (s) => el('div', { lang: s.lang, dir: s.dir }, h2(s.panel.welcome.hello), el('p', { textContent: s.panel.welcome.about }));
-    body.replaceChildren(el('img', { className: 'tour-logo', src: '/assets/brand/jarchi-logo.png', alt: 'Jarchi' }), say(EN), say(faStrings),
+    body.replaceChildren(el('img', { className: 'tour-logo', src: '/assets/brand/jarchi-logo-tilted.png', alt: 'Jarchi' }), say(EN), say(faStrings),
       el('div', { className: 'tour-langs' }, ...[['en', 'English'], ['fa', 'فارسی']].map(([lang, name]) => el('button', { className: 'primary', lang, textContent: name, onclick: () => {
         if (lang === S.lang) return tourTo(1);
         try { sessionStorage.setItem('jarchi.tour', '1'); } catch {}

@@ -438,7 +438,7 @@ input[type="color"]::-webkit-color-swatch { border: 0; border-radius: 7px; }
   border-inline-end: 1px solid var(--border);
   background: var(--sidebar);
 }
-.brand { width: 150px; margin: 0 10px 14px; } /* the logo (megaphone and name) */
+.brand { flex: none; width: 140px; height: auto; margin: 2px 10px 12px; } /* the logo (the tilted megaphone with the name), whole: never squeezed */
 .nav { display: grid; gap: 2px; }
 .nav .group-title { margin: 14px 4px 6px; padding: 14px 6px 0; border-top: 1px solid var(--border); color: var(--label); font-size: 12px; font-weight: 800; }
 [lang="fa"] .nav .group-title { font-size: 13px; }
@@ -478,7 +478,7 @@ input[type="color"]::-webkit-color-swatch { border: 0; border-radius: 7px; }
 .tour-body p { margin: 0; }
 .tour-hello, .tour-done { justify-items: center; align-content: center; text-align: center; }
 .tour-hello h2 { font-size: 24px; }
-.tour-logo { width: 200px; }
+.tour-logo { width: 180px; height: auto; margin-bottom: 4px; }
 .tour-langs { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; width: 100%; margin-top: 8px; }
 .tour-langs button { justify-content: center; padding: 16px; font-size: 19px; font-weight: 800; }
 .tour .card-head .stack { flex: 1; gap: 2px; }
@@ -780,7 +780,7 @@ main { padding: 24px 28px 64px; container-type: inline-size; } /* editor rules b
 .view.soon { justify-items: center; align-content: center; gap: 8px; min-height: 55vh; text-align: center; }
 .soon svg { width: 40px; height: 40px; margin-bottom: 6px; color: var(--gold); }
 .soon h2 { font-size: 20px; }
-.about img { width: 220px; margin-bottom: 4px; }
+.about img { width: 200px; height: auto; margin-bottom: 8px; }
 .about p { max-width: 460px; margin: 6px 0; }
 .about a { color: var(--gold); font-weight: 700; }
 
@@ -1077,7 +1077,7 @@ code { padding: 1px 6px; border-radius: 6px; background: var(--card2); font: 0.9
   /* The sidebar on top: brand and pages in rows. */
   .app, .split-body { grid-template-columns: 1fr; }
   .side { position: static; flex-direction: row; flex-wrap: wrap; align-items: center; height: auto; border-inline-end: 0; border-bottom: 1px solid var(--border); }
-  .brand { width: 72px; margin: 4px 10px; }
+  .brand { width: 64px; margin: 4px 10px; }
   .nav { display: flex; flex-wrap: wrap; }
   .nav .group-title, .nav-sep { display: none; }
   .side .nav { margin-bottom: 0; }
