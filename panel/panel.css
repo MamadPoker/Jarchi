@@ -508,18 +508,14 @@ input.count-input:hover, input.count-input:focus { border-color: var(--border-hi
 .goal-count .zero { margin-inline-start: auto; padding: 3px 10px; font-size: 12px; white-space: nowrap; }
 .goal-count .from-kick, .goal-count .from-twitch { margin-inline-start: 4px; }
 input.count-input[readonly]:hover { border-color: transparent; background: transparent; }
-/* Goals list: Kick's group, then Twitch's, each with its logo and "Sync from …" in the header, and a hint under it.
+/* Goals list: Kick | Twitch tabs, each with "Sync from …" (Twitch: or Connect) and its hint above that platform's goals.
    Kick's K / Twitch's logo ("From Kick" / "From Twitch" tooltip) marks numbers that come from there (read-only). */
-.goal-group + .goal-group { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); }
-.goal-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 8px; padding: 4px 10px; }
-.goal-head h3 { display: flex; align-items: center; gap: 6px; margin: 0; color: var(--text); font-size: 14px; letter-spacing: 0; text-transform: none; }
-.goal-head img { width: 16px; height: 16px; }
-.goal-head .toggle-row { gap: 6px; font-size: 12px; }
-.goal-group > small { display: block; padding: 0 10px 6px; font-size: 12px; line-height: 1.4; }
-.goal-group > .small-btn { margin: 0 10px 8px; }
+#goalList .tabs { margin-inline: 4px; }
+#goalList .pane > :not(.nav-list) { margin-inline: 10px; }
+#goalList .pane small { font-size: 12px; line-height: 1.4; }
 .list-foot { display: grid; gap: 4px; margin-top: 8px; padding: 10px 10px 2px; border-top: 1px solid var(--border); }
 .list-foot small { font-size: 12px; line-height: 1.4; }
-/* Kick | Twitch tabs (Home goals): small. */
+/* Kick | Twitch tabs (Goals list, Home goals): small. */
 .tab-box .tabs button { display: flex; align-items: center; gap: 6px; padding: 6px 12px; font-size: 13px; }
 .tab-box .tabs img { width: 14px; height: 14px; }
 .tab-box .pane { grid-template-columns: none; gap: 8px; margin: 6px 0 0; }

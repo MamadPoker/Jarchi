@@ -82,6 +82,7 @@ let queue = { paused: false, overlays: 0, waiting: 0, now: null }; // the alert 
 let home, open = {}, feedFilter = 'all'; // Home: { feed, today, started } (/api/home, then the socket), widget pages open now (socket)
 let twitch; // the Twitch account: { state, error, code, uri, clientId, login, goals } (/api/twitch, then the socket)
 let kick; // the Kick account: { state, error, uri, login } (/api/kick, then the socket)
+let showGoalTab; // the Goals list's Kick | Twitch tab (wireTabs, in build())
 
 const pct = (v) => `${Math.round(v * 100)}%`;
 const px = (v) => `${v}px`;
@@ -386,6 +387,7 @@ function select(v, key) {
   }
   if (v === 'goal') {
     curGoal = key ?? curGoal;
+    if (key) showGoalTab(goalPlatform(key)); // e.g. Home's Fix for a Twitch goal: the Twitch tab
     const src = `/widgets/goal/${curGoal}?preview`;
     if ($('#goalPreview').getAttribute('src') !== src) $('#goalPreview').src = src;
   }
@@ -431,6 +433,7 @@ function wireTabs(root, key) {
     showTab(next.dataset.tab);
     next.focus();
   };
+  return showTab;
 }
 
 // A preview's background: dark, light or checkered (radios name=`name`, remembered in this browser under `key`).
@@ -1015,6 +1018,7 @@ function build() {
   $('#twOpen').onclick = () => window.open(twitch.uri, '_blank', 'noopener');
   $('#twitchGoalsConnect').onclick = $('#twitchSyncConnect').onclick = () => select('connections');
   $('#twitchSync').onchange = (e) => send('PATCH', '/api/settings', { twitchGoalSync: e.target.checked });
+  showGoalTab = wireTabs($('#goalList'), 'jarchi.goalTab');
   wireTabs($('#homeGoalsBox'), 'jarchi.homeGoalTab');
   socket.on('twitchAccount', (t) => {
     twitch = t;
@@ -1197,6 +1201,7 @@ function render() {
   $('#twitchSyncHint').textContent = twitch.state !== 'connected' ? S.panel.twitchSyncNoAccount
     : setOn('onTwitch') ? tpl(S.panel.twitchSyncOnTwitch, { goals: setOn('onTwitch') }) : S.panel.twitchGoalsNone;
   $('#twitchSyncConnect').hidden = twitch.state !== 'off';
+  $('#twitchSyncRow').hidden = twitch.state === 'off'; // not connected: Connect instead of the switch
 
   renderTwitch();
   renderKick();

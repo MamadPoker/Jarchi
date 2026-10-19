@@ -431,24 +431,23 @@
       <!-- ===== Goals: the goal list (with switches) next to the selected goal ===== -->
       <section class="view split" data-view="goal" hidden>
         <div class="split-body">
-        <!-- Kick's goals, then Twitch's (panel.js puts each row in its platform's list). In each header, "Sync from …": goals
-             set on that channel show its numbers (core/goals.js); Twitch needs the account connected (connectors/twitch-account.js). -->
-        <div class="list" id="goalList"><h2 class="group-title" data-i18n="navGoals" data-help="groups.goals"></h2>
-          <div class="goal-group">
-            <div class="goal-head">
-              <h3><img src="/assets/platform-logos/kick.svg" alt=""><span>Kick</span></h3>
-              <label class="row toggle-row"><span data-i18n="kickSync" data-help="goal.kickSync"></span><span class="switch"><input type="checkbox" id="kickSync"><span></span></span></label>
-            </div>
+        <!-- Kick | Twitch tabs, each with only that platform's goals (panel.js puts each row in its platform's list). On top of
+             each, "Sync from …": goals set on that channel show its numbers (core/goals.js); Twitch needs the account
+             connected (connectors/twitch-account.js), so until then its tab shows Connect instead. -->
+        <div class="list tab-box" id="goalList"><h2 class="group-title" data-i18n="navGoals" data-help="groups.goals"></h2>
+          <div class="tabs" role="tablist" data-aria="goalSources">
+            <button role="tab" id="tab-g-kick" aria-controls="pane-g-kick" data-tab="kick"><img src="/assets/platform-logos/kick.svg" alt=""><span>Kick</span></button>
+            <button role="tab" id="tab-g-twitch" aria-controls="pane-g-twitch" data-tab="twitch"><img src="/assets/platform-logos/twitch.svg" alt=""><span>Twitch</span></button>
+          </div>
+          <div class="pane" role="tabpanel" id="pane-g-kick" aria-labelledby="tab-g-kick" data-tab="kick">
+            <label class="row between toggle-row"><span data-i18n="kickSync" data-help="goal.kickSync"></span><span class="switch"><input type="checkbox" id="kickSync"><span></span></span></label>
             <small id="kickSyncHint"></small>
             <ul class="nav-list" data-platform="kick"></ul>
           </div>
-          <div class="goal-group">
-            <div class="goal-head">
-              <h3><img src="/assets/platform-logos/twitch.svg" alt=""><span>Twitch</span></h3>
-              <label class="row toggle-row"><span data-i18n="twitchSync" data-help="goal.twitchSync"></span><span class="switch"><input type="checkbox" id="twitchSync"><span></span></span></label>
-            </div>
-            <small id="twitchSyncHint"></small>
+          <div class="pane" role="tabpanel" id="pane-g-twitch" aria-labelledby="tab-g-twitch" data-tab="twitch" hidden>
+            <label class="row between toggle-row" id="twitchSyncRow"><span data-i18n="twitchSync" data-help="goal.twitchSync"></span><span class="switch"><input type="checkbox" id="twitchSync"><span></span></span></label>
             <button id="twitchSyncConnect" class="ghost small-btn" data-i18n="twConnect"></button>
+            <small id="twitchSyncHint"></small>
             <ul class="nav-list" data-platform="twitch"></ul>
           </div>
         </div>

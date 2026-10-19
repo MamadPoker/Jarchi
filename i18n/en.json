@@ -517,7 +517,7 @@
   "help": {
     "groups": {
       "alerts": "Click an alert to edit it. Its switch turns it on or off; the logos show where it comes from (Kick, Twitch).",
-      "goals": "Kick's goals and Twitch's goals, each in its own group with its sync switch. Click a goal to edit it. Its switch only hides it on stream: it keeps counting."
+      "goals": "Kick's goals and Twitch's goals, each on its own tab with its sync switch. Click a goal to edit it. Its switch only hides it on stream: it keeps counting."
     },
     "theme": { "main": "The look every alert uses, unless an alert has its own theme. Hover a card to preview it, click it to use it." },
     "appearance": {
@@ -722,9 +722,9 @@
       },
       "goals": {
         "title": "Goals",
-        "intro": "Six goals in two groups. **Kick**: a Sub goal (subs, resubs and gifted subs), a Kicks goal and a Followers goal. **Twitch**: a Sub goal, a Bits goal and a Followers goal. Each one counts its own platform's events by itself, never the other's. With **Sync from Kick** or **Sync from Twitch** (in each group's header), a goal you also set on that channel shows that channel's own numbers.",
+        "intro": "Six goals on two tabs. **Kick**: a Sub goal (subs, resubs and gifted subs), a Kicks goal and a Followers goal. **Twitch**: a Sub goal, a Bits goal and a Followers goal. Each one counts its own platform's events by itself, never the other's. With **Sync from Kick** or **Sync from Twitch** (at the top of each tab), a goal you also set on that channel shows that channel's own numbers.",
         "steps": [
-          ["Open a goal", "Open **Goals** and click a goal in the **Kick** or **Twitch** group."],
+          ["Open a goal", "Open **Goals** and click a goal on the **Kick** or **Twitch** tab."],
           ["Title and target", "Type the title viewers see and the number to reach."],
           ["Fix the count", "In the list, click a goal's number and type another one, or press **Reset to 0** (twice) for a new goal. In the editor, **−** and **+** change it by one step. The count is kept when Jarchi restarts."],
           ["Pick a look", "Choose a style, then change colors, box, font and size in **More options**. **Reset style** brings the style's own look back."],
