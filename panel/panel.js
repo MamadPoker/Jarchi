@@ -114,7 +114,7 @@ const el = (tag, props = {}, ...kids) => {
 
 // The lists inside the Alerts and Goals pages: a click opens the item, its switch turns it on or off.
 const ALERT_ORDER = ['follow', 'sub', 'gift_sub', 'resub', 'raid', 'kicks', 'bits'];
-// Who sends it (the list's logos); the others: both (follows once the accounts are connected on Connections).
+// Alerts from one platform only (the list shows its logo); the others play for both Kick and Twitch.
 const ALERT_PLATFORMS = { kicks: ['kick'], bits: ['twitch'] };
 const LISTS = () => ({
   alert: ALERT_ORDER.map((t) => ({ key: t, label: S.types[t], toggle: (on) => patchAlert(t, { enabled: on }) })),
@@ -477,9 +477,11 @@ function typeIcon(type) {
   i.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${TYPE_ICON[type]}"/></svg>`; // fixed paths, no user text
   return i;
 }
-// The platforms an alert comes from: their own logos.
-const platMarks = (type) => el('span', { className: 'plat-marks' },
-  ...(ALERT_PLATFORMS[type] ?? ['kick', 'twitch']).map((p) => el('img', { src: `/assets/platform-logos/${p}.svg`, alt: S.platforms[p], title: S.platforms[p] })));
+// An alert from one platform only: that platform's logo, "Kick only" / "Twitch only".
+const platMarks = (type) => el('span', { className: 'plat-marks' }, ...(ALERT_PLATFORMS[type] ?? []).map((p) => {
+  const only = tpl(S.panel.platformOnly, { platform: S.platforms[p] });
+  return el('img', { src: `/assets/platform-logos/${p}.svg`, alt: only, title: only });
+}));
 // "Rich · Gifted subs · 10": icon, name, type, and the amount (or a resub's months).
 function alertRow(a, action) {
   const amount = a.type === 'resub' && a.months ? tpl(S.panel.qMonths, { n: fmt(a.months) }) : a.amount ? fmt(a.amount) : '';
@@ -849,14 +851,14 @@ function build() {
   $$('.nav-item').forEach((b) => (b.onclick = () => select(b.dataset.view)));
 
   // Alerts and Goals pages: their list (a goal goes in its platform's group). An alert's row also gets a swatch that
-  // render() shows when it has its own theme, and the logos of the platforms it comes from.
+  // render() shows when it has its own theme, and the logo of its platform when it's from one platform only.
   for (const [v, items] of Object.entries(LISTS())) {
     for (const it of items) {
       const sw = el('input', { type: 'checkbox', onchange: () => it.toggle(sw.checked) });
       sw.setAttribute('aria-label', v === 'goal' ? goalName(it.key) : it.label);
       const row = el('li', { className: 'nav-row' },
         el('button', { className: 'nav-btn', onclick: () => select(v, it.key) }, v === 'goal' ? goalIcon(it.key) : typeIcon(it.key), el('span', { className: 'label', textContent: it.label }),
-          ...(v === 'alert' ? [el('span', { className: 'swatch mini', hidden: true }), platMarks(it.key)] : [])),
+          ...(v === 'alert' ? [el('span', { className: 'swatch own', hidden: true }), platMarks(it.key)] : [])),
         el('label', { className: 'switch' }, sw, el('span')));
       row.dataset.key = it.key;
       if (v === 'goal') {
@@ -1200,11 +1202,11 @@ function render() {
         $('.of', row).textContent = `/ ${fmt(st.target)}`;
         $('.zero', row).hidden = st.kick || st.twitch;
       }
-      const own = $('.swatch.mini', row);
+      const own = $('.swatch.own', row);
       if (!own) return;
       own.hidden = !cfg.theme;
-      own.className = `swatch mini sw-${cfg.theme}`;
-      own.title = cfg.theme ? S.themes[cfg.theme] : '';
+      own.className = `swatch own sw-${cfg.theme}`;
+      own.title = cfg.theme ? tpl(S.panel.themeOf, { name: S.themes[cfg.theme] }) : '';
     });
   }
 
@@ -1231,7 +1233,6 @@ function render() {
   renderKick();
   artFaces();
   $('#showBadge').checked = settings.showBadge;
-  $('#connectedList').textContent = settings.connected.map((p) => S.platforms[p]).join(FA ? '، ' : ', ') || S.panel.connectedNone;
   if (view === 'settings') renderSettings();
   if (view === 'alert') renderAlert();
   if (view === 'goal') renderGoal();

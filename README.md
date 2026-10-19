@@ -42,7 +42,7 @@ The **فا | EN** switch (remembered in the browser) puts the whole panel in Per
 
 ## Alerts
 
-- **Theme**: Neon, Minimal, Fun, Retro, Glass, Fire, Ice, Galaxy or Comic. Each has its own animations, particles and soft synthesized sounds. All of it is CSS and Web Audio, with no image or sound files.
+- **Theme**: Neon, Minimal, Fun, Retro, Glass, Fire, Ice, Galaxy, Comic or Simple. Each has its own animations, particles and soft synthesized sounds (Simple has none of the effects: light text on a soft dark box that just fades in and out). All of it is CSS and Web Audio, with no image or sound files.
 - **Live preview**: the panel plays each alert exactly as OBS will show it, and replays it whenever you change something.
 - **Per alert**:
   - on/off, text with `{user}` `{amount}` `{months}` `{platform}`, duration, minimum amount (Kicks, bits, gift subs; Kicks start at 10 so floods of 1-Kick taps stay out of the queue, while the Kicks goal still counts them)

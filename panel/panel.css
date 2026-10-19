@@ -484,6 +484,7 @@ input[type="color"]::-webkit-color-swatch { border: 0; border-radius: 7px; }
 .sw-ice { background: linear-gradient(135deg, #fff, #6ec8ff); }
 .sw-galaxy { background: radial-gradient(circle at 35% 30%, #ffd1f5, #b18cff 40%, #2a1660); }
 .sw-comic { background: radial-gradient(circle, #ff2e2e 32%, #ffe600 34%); }
+.sw-simple { background: linear-gradient(#f4f4f5, #f4f4f5) 50% 50% / 56% 2px no-repeat, #27272a; } /* a line of light text on a soft dark box */
 
 /* ---------- Alerts and Goals: the page's own list (rows with a switch) next to the selected item's editor ---------- */
 .group-title { margin: 4px 12px 8px; font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
@@ -510,8 +511,6 @@ input.count-input[readonly]:hover { border-color: transparent; background: trans
 #goalList .tabs { margin-inline: 4px; }
 #goalList .pane > :not(.nav-list) { margin-inline: 10px; }
 #goalList .pane small { font-size: 12px; line-height: 1.4; }
-.list-foot { display: grid; gap: 4px; margin-top: 8px; padding: 10px 10px 2px; border-top: 1px solid var(--border); }
-.list-foot small { font-size: 12px; line-height: 1.4; }
 /* Kick | Twitch tabs (Goals list, Home goals): small. */
 .tab-box .tabs button { display: flex; align-items: center; gap: 6px; padding: 6px 12px; font-size: 13px; }
 .tab-box .tabs img { width: 14px; height: 14px; }
@@ -595,7 +594,7 @@ main { padding: 24px 28px 64px; container-type: inline-size; } /* editor rules b
 }
 .pill-ctrl input[type="number"] { width: 80px; padding: 3px 8px; }
 
-.swatch.mini { width: 11px; height: 11px; border-radius: 3px; }
+.swatch.own { width: 11px; height: 11px; border-radius: 3px; } /* not .mini: that's Appearance's mini panel, whose background would hide the colors */
 
 /* ---------- Alert editor: the preview with its bar (background, Replay), then the settings in four tabs ---------- */
 .alert-stage { gap: 0; }

@@ -11,7 +11,8 @@
     "fire": "Fire",
     "ice": "Ice",
     "galaxy": "Galaxy",
-    "comic": "Comic"
+    "comic": "Comic",
+    "simple": "Simple"
   },
   "types": {
     "follow": "Follow",
@@ -415,9 +416,8 @@
     "remove": "Remove",
     "obsTitle": "OBS Browser Source",
     "badgeLabel": "Show the platform badge on alerts",
-    "badgeHint": "Only appears when both your Kick and Twitch accounts are connected.",
-    "connected": "Connected accounts:",
-    "connectedNone": "none yet",
+    "platformOnly": "{platform} only",
+    "themeOf": "Theme: {name}",
     "testTitle": "Test alerts",
     "testAs": "Platform for test alerts",
     "resetTitle": "Start over",
@@ -523,7 +523,7 @@
   },
   "help": {
     "groups": {
-      "alerts": "Click an alert to edit it. Its switch turns it on or off; the logos show where it comes from (Kick, Twitch).",
+      "alerts": "Click an alert to edit it. Its switch turns it on or off. Alerts play for both Kick and Twitch; a logo means it's for that platform only.",
       "goals": "Kick's goals and Twitch's goals, each on its own tab with its sync switch. Click a goal to edit it. Its switch only hides it on stream: it keeps counting."
     },
     "theme": { "main": "The look every alert uses, unless an alert has its own theme. Hover a card to preview it, click it to use it." },

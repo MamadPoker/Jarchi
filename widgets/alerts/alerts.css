@@ -754,6 +754,25 @@ body { font-family: "Segoe UI", system-ui, sans-serif; }
 @keyframes comic-jitter { 50% { transform: rotate(3deg); } }
 @keyframes comic-wobble { from { transform: rotate(-8deg) scale(1); } to { transform: rotate(8deg) scale(1.06); } }
 
+/* ---------- Simple: plain and readable, light text on a soft dark box. No motion or effects, only a short fade. ---------- */
+[data-theme="simple"] .alert { --c1: #f4f4f5; --c2: #d4d4d8; --c3: #a1a1aa; animation: simple-in 0.3s ease-out both; }
+[data-theme="simple"] .alert.out { animation: simple-out 0.3s ease-in both; }
+[data-theme="simple"] .inner, [data-theme="simple"] .w { animation: none; } /* no tier shake, words show at once */
+[data-theme="simple"] .fx, [data-theme="simple"] .ring, [data-theme="simple"] .glow, [data-theme="simple"] .sweep { display: none; }
+[data-theme="simple"] .box { color: #f4f4f5; background: rgba(24, 24, 27, 0.88); border-radius: 14px; }
+[data-theme="simple"] .text { font-weight: 600; }
+[data-theme="simple"] .hl { font-weight: 800; color: #93c5fd; }
+[data-theme="simple"] .emblem {
+  width: calc(150px * var(--s));
+  height: calc(150px * var(--s));
+  font-size: calc(40px * var(--s));
+  color: #f4f4f5;
+  background: rgba(24, 24, 27, 0.88);
+  border-radius: 50%;
+}
+@keyframes simple-in { from { opacity: 0; } }
+@keyframes simple-out { to { opacity: 0; } }
+
 /* ---------- Per-alert settings from the panel (more specific than the theme rules on purpose) ---------- */
 .alert.frame-off .box {
   padding: 0;

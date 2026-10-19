@@ -254,13 +254,7 @@
           </button>
         </div>
         <div class="split-body">
-        <div class="list"><h2 class="group-title" data-i18n="groupAlerts" data-help="groups.alerts"></h2><ul id="alertList" class="nav-list"></ul>
-          <!-- For every alert: the Kick / Twitch badge (it needs both accounts connected) -->
-          <div class="list-foot">
-            <label class="row between toggle-row"><span data-i18n="badgeLabel" data-help="settings.showBadge"></span><span class="switch"><input type="checkbox" id="showBadge"><span></span></span></label>
-            <small><span data-i18n="badgeHint"></span> <span data-i18n="connected"></span> <b id="connectedList"></b></small>
-          </div>
-        </div>
+        <div class="list"><h2 class="group-title" data-i18n="groupAlerts" data-help="groups.alerts"></h2><ul id="alertList" class="nav-list"></ul></div>
         <div class="editor">
         <div class="row between">
           <h1 class="title"><span class="q-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path/></svg></span><span class="name"></span><span class="pill" data-only="off" data-i18n="off"></span></h1>
@@ -407,7 +401,7 @@
           </div>
         </div>
 
-        <!-- Style: Kicks' own Kick look, the alert's own theme, the frame -->
+        <!-- Style: Kicks' own Kick look, the alert's own theme, the platform badge (one setting for every alert), the frame -->
         <div class="pane" role="tabpanel" id="pane-style" aria-labelledby="tab-style" data-tab="style" hidden>
           <div class="box" data-only="look">
             <h2 data-i18n="alertLook" data-help="alert.look"></h2>
@@ -425,6 +419,10 @@
               <select id="alertTheme" data-aria="alertTheme"></select>
             </div>
             <small data-i18n="alertThemeHint"></small>
+          </div>
+
+          <div class="box">
+            <label class="row between toggle-row"><span data-i18n="badgeLabel" data-help="settings.showBadge"></span><span class="switch"><input type="checkbox" id="showBadge"><span></span></span></label>
           </div>
 
           <div class="box wide">
