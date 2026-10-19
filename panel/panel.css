@@ -467,6 +467,33 @@ input[type="color"]::-webkit-color-swatch { border: 0; border-radius: 7px; }
 .seg input:disabled + span:hover { color: var(--muted); }
 .profile-err { color: var(--danger); }
 .profile-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 6px; }
+
+/* Welcome tour (first run, and the Guide's "Show welcome tour again") */
+.tour { width: min(620px, calc(100vw - 32px)); }
+.tour-dots { display: flex; justify-content: center; gap: 8px; }
+.tour-dots i { width: 8px; height: 8px; border-radius: 99px; background: var(--border-hi); transition: width 0.2s, background 0.2s; }
+.tour-dots i.on { width: 24px; background: var(--gold); }
+.tour-body { display: grid; gap: 12px; align-content: start; min-height: 280px; }
+.tour-body > h2 { font-size: 20px; }
+.tour-body p { margin: 0; }
+.tour-hello, .tour-done { justify-items: center; align-content: center; text-align: center; }
+.tour-hello h2 { font-size: 24px; }
+.tour-logo { width: 200px; }
+.tour-langs { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; width: 100%; margin-top: 8px; }
+.tour-langs button { justify-content: center; padding: 16px; font-size: 19px; font-weight: 800; }
+.tour .card-head .stack { flex: 1; gap: 2px; }
+.tour label.field { display: none; } /* the Twitch card's Client ID: only on Connections */
+.tour-links, .tour-pages { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.tour-links li { display: flex; align-items: center; gap: 12px; padding-block: 8px; padding-inline: 14px 8px; border: 1px solid var(--border); border-radius: 12px; background: var(--card2); }
+.tour-links .stack { flex: 1; min-width: 0; gap: 0; }
+.tour-links code { overflow: hidden; padding: 0; background: none; color: var(--muted); white-space: nowrap; text-overflow: ellipsis; }
+.tour-pages { grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px 20px; }
+.tour-pages li { display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 0 10px; line-height: 1.4; }
+.tour-pages svg { grid-row: span 2; width: 18px; height: 18px; margin-top: 1px; color: var(--gold-text); }
+.tour-pages span { color: var(--muted); font-size: 13px; }
+.tour-check { display: grid; place-items: center; width: 60px; height: 60px; border-radius: 50%; background: var(--gold-soft); color: var(--gold); }
+.tour-check svg { width: 30px; height: 30px; stroke-width: 2.5; }
+#tourSkip { margin-inline-end: auto; }
 .nav-item { gap: 12px; padding: 9px 10px; border: 0; background: none; color: var(--muted); text-align: start; }
 .nav-item:hover { background: var(--hover); color: var(--text); }
 .nav-item[aria-current="page"] { background: var(--main-soft); color: var(--text); }
@@ -702,7 +729,7 @@ main { padding: 24px 28px 64px; container-type: inline-size; } /* editor rules b
 .issues li { display: flex; align-items: center; gap: 10px; padding: 4px; padding-inline-start: 12px; border: 1px solid var(--warn-line); border-radius: 99px; background: var(--warn-soft); font-size: 13px; }
 .issues button { padding: 3px 12px; border-radius: 99px; font-size: 12px; }
 .banner-actions { display: flex; flex-wrap: wrap; gap: 8px; }
-#homeTest svg { fill: currentColor; stroke: none; width: 12px; height: 12px; }
+#homeTest svg, #tourTest svg { fill: currentColor; stroke: none; width: 12px; height: 12px; }
 .menu { position: relative; }
 .menu-pop { position: absolute; top: calc(100% + 6px); inset-inline-end: 0; z-index: 30; display: grid; gap: 2px; min-width: 210px; padding: 6px; border: 1px solid var(--border-hi); border-radius: 12px; background: var(--card2); box-shadow: 0 8px 24px var(--shadow); }
 .menu-pop button { justify-content: space-between; border: 0; background: none; }

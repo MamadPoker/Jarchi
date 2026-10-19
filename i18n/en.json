@@ -512,7 +512,43 @@
     "seconds": "{n}s",
     "alertPreview": "Alert preview",
     "goalPreview": "Goal preview",
-    "chatPreview": "Chat preview"
+    "chatPreview": "Chat preview",
+    "welcomeAgain": "Show welcome tour again",
+    "welcome": {
+      "title": "Welcome tour",
+      "hello": "Welcome to Jarchi",
+      "about": "Your Kick and Twitch alerts, chat and goals, together in one place for OBS.",
+      "stepOf": "Step {n} of {total}",
+      "back": "Back",
+      "skip": "Skip",
+      "finish": "Finish",
+      "connectTitle": "Connect your accounts",
+      "profileNote": "Your name and picture come from Kick. You can change them anytime from your profile at the bottom of the sidebar.",
+      "obsTitle": "Add Jarchi to OBS",
+      "obsHint": "Each widget has its own link and size:",
+      "obsSteps": [
+        "In OBS, under **Sources**, click **+** and choose **Browser**.",
+        "Paste a link into **URL** and set the width and height shown next to it.",
+        "Tick **Control audio via OBS** and click **OK**."
+      ],
+      "pagesTitle": "A quick tour",
+      "pages": {
+        "home": "Ready to stream?, the live feed, your widgets and today's numbers.",
+        "alert": "Each alert's picture, sound, text and theme.",
+        "chat": "Your channel names and the chat box's look in OBS.",
+        "goal": "Sub, Kicks, follower and bits goals for OBS.",
+        "events": "Every event that came in, by date.",
+        "bot": "A bot that thanks your viewers in chat (coming soon).",
+        "connections": "Your Kick and Twitch accounts.",
+        "appearance": "This panel's colors, text size and language.",
+        "settings": "Test alerts, the alert queue, the proxy and Start over.",
+        "guide": "Step-by-step help for everything.",
+        "about": "Jarchi's version and who made it.",
+        "support": "Report a problem or send an idea (coming soon)."
+      },
+      "doneTitle": "You're ready!",
+      "doneHint": "Send a test alert to see it in OBS. The Guide has more whenever you need it."
+    }
   },
   "net": {
     "names": { "kick": "Kick", "twitch": "Twitch", "sevenTv": "7TV" },

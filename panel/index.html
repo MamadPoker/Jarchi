@@ -779,6 +779,7 @@
 
       <!-- ===== Guide: its own topic list; the text is in i18n guide.topics (renderGuide) ===== -->
       <section class="view" data-view="guide" hidden>
+        <div class="page-head"><button id="tourAgain" data-i18n="welcomeAgain"></button></div>
         <div class="guide">
           <nav id="guideTopics" class="guide-topics" data-aria="guideTopics"></nav>
           <article id="guideBody" class="guide-body"></article>
@@ -853,6 +854,18 @@
     <div class="profile-actions">
       <button id="profileCancel" class="ghost" data-i18n="twCancel"></button>
       <button id="profileSave" class="primary" data-i18n="profileSave"></button>
+    </div>
+  </dialog>
+
+  <!-- Welcome tour: opens by itself on the first run (settings.welcomed), and from the Guide. The dots show the step; the
+       steps are built in panel.js (renderTour). The first one picks the language, so the others are in that language. -->
+  <dialog id="tour" class="profile-dialog tour">
+    <div id="tourDots" class="tour-dots" role="img"></div>
+    <div id="tourBody" class="tour-body"></div>
+    <div id="tourNav" class="profile-actions">
+      <button id="tourSkip" class="ghost"></button>
+      <button id="tourBack"></button>
+      <button id="tourNext" class="primary"></button>
     </div>
   </dialog>
 

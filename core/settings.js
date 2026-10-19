@@ -7,15 +7,17 @@ const store = require('./store');
 const strings = require('../i18n/en.json');
 
 const FILE = path.join(DATA_DIR, 'settings.json');
-const VERSION = 6;
+const VERSION = 7;
 const THEMES = ['neon', 'minimal', 'fun', 'retro', 'glass', 'fire', 'ice', 'galaxy', 'comic', 'simple'];
 // App-wide settings (not per alert). showBadge: platform badge on alerts; it still needs both Kick and Twitch connected.
 // alertGap: seconds between two alerts. proxy*: how Jarchi reaches Kick, Twitch and 7TV (core/net.js).
 // kickGoalSync / twitchGoalSync: goals set on the Kick / Twitch channel show that platform's numbers (core/goals.js).
-const GLOBAL = { theme: 'neon', showBadge: true, alertGap: 0.5, proxyMode: 'system', proxyType: 'http', proxyHost: '', proxyPort: 0, kickGoalSync: true, twitchGoalSync: true };
+// welcomed: the panel's welcome tour was shown (it opens by itself once, on the first run).
+const GLOBAL = { theme: 'neon', showBadge: true, alertGap: 0.5, proxyMode: 'system', proxyType: 'http', proxyHost: '', proxyPort: 0, kickGoalSync: true, twitchGoalSync: true, welcomed: false };
 const GLOBAL_RULES = {
   theme: (v) => THEMES.includes(v),
   showBadge: (v) => typeof v === 'boolean',
+  welcomed: (v) => typeof v === 'boolean',
   kickGoalSync: (v) => typeof v === 'boolean',
   twitchGoalSync: (v) => typeof v === 'boolean',
   alertGap: (v) => typeof v === 'number' && v >= 0 && v <= 60,
@@ -292,6 +294,10 @@ if (from < 6) {
     delete g?.countTwitch;
     delete g?.source;
   }
+}
+if (from < 7 && Object.keys(saved).some((k) => k !== 'version')) {
+  // v6 -> v7: the welcome tour is for the first run. Someone who already set Jarchi up doesn't get it.
+  saved.welcomed ??= true;
 }
 if (from < VERSION) {
   saved.version = VERSION;

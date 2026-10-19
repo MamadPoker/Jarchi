@@ -301,6 +301,7 @@ async function api(method, url, body, headers = {}) {
 let toastTimer;
 function toast(msg, isError) {
   const t = $('#toast');
+  ($('dialog[open]') ?? document.body).append(t); // over an open dialog's backdrop, not under it
   t.textContent = msg;
   t.className = isError ? 'show error' : 'show';
   clearTimeout(toastTimer);
@@ -549,12 +550,18 @@ const goalIcon = (id) => svgIn('goal-icon', GOAL_ICON[id] ?? ''); // a goal type
 // ---------- Home ----------
 const COPY_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h8"/></svg>';
 const copyLink = (url, msg = S.panel.copied) => navigator.clipboard.writeText(url).then(() => toast(msg));
-// The widget pages: [id the server counts them by, name, OBS link].
+const copyBtn = (name, url) => { // a widget's copy icon (Home's Widgets card, the welcome tour)
+  const b = el('button', { className: 'icon-btn', title: S.panel.copyObs, ariaLabel: `${S.panel.copyObs}: ${name}`, onclick: () => copyLink(url) });
+  b.innerHTML = COPY_ICON; // fixed markup
+  return b;
+};
+// The widget pages: [id the server counts them by, name, OBS link]. Only the switched-on ones are needed (alerts always).
 const widgetPages = () => [
   ['alerts', S.panel.groupAlerts, `${location.origin}/widgets/alerts`],
   ['chat', S.panel.chatName, `${location.origin}/widgets/chat`],
   ...Object.keys(settings.goals).map((id) => [id, goalName(id), `${location.origin}/widgets/goal/${id}`]),
 ];
+const widgetOn = (id) => id === 'alerts' || (id === 'chat' ? settings.chat : settings.goals[id]).enabled;
 const FEED_FILTERS = { all: null, subs: ['sub', 'resub', 'gift_sub'], kicks: ['kicks'], raids: ['raid'], follows: ['follow'] };
 const ofType = (list, f) => list.filter((ev) => !FEED_FILTERS[f] || FEED_FILTERS[f].includes(ev.type));
 const pressFilter = (box, f) => $$('button', box).forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.filter === f)));
@@ -635,13 +642,8 @@ function renderHome() {
   $('#feedEmpty').hidden = rows.length > 0;
 
   // Widgets: only the ones switched on (alerts always), green when a page of it is open (in OBS) right now.
-  const on = (id) => id === 'alerts' || (id === 'chat' ? settings.chat : settings.goals[id]).enabled;
-  $('#widgetList').replaceChildren(...widgetPages().filter(([id]) => on(id)).map(([id, name, url]) => {
-    const copy = el('button', { className: 'icon-btn', title: S.panel.copyObs, ariaLabel: `${S.panel.copyObs}: ${name}`, onclick: () => copyLink(url) });
-    copy.innerHTML = COPY_ICON; // fixed markup
-    return el('li', { className: `widget-row${open[id] ? ' on' : ''}` }, el('i', { className: 'state-dot' }),
-      el('span', { className: 'stack' }, el('b', { textContent: name }), el('small', { textContent: S.panel[open[id] ? 'widgetOpen' : 'widgetClosed'] })), copy);
-  }));
+  $('#widgetList').replaceChildren(...widgetPages().filter(([id]) => widgetOn(id)).map(([id, name, url]) => el('li', { className: `widget-row${open[id] ? ' on' : ''}` }, el('i', { className: 'state-dot' }),
+    el('span', { className: 'stack' }, el('b', { textContent: name }), el('small', { textContent: S.panel[open[id] ? 'widgetOpen' : 'widgetClosed'] })), copyBtn(name, url))));
 
   // Goals: what's set on each channel right now, exactly as Kick / Twitch list it (read-only; whatever the syncs do).
   // Kick's have no title: their type names them. A Twitch goal's title is its description, else its type.
@@ -842,6 +844,90 @@ function renderGuide() {
   );
 }
 
+// The panel's language (top bar, Appearance, the welcome tour): the page reloads in it and comes back to what was open.
+function setLang(lang) {
+  if (lang === S.lang) return;
+  remember.set('jarchi.lang', lang);
+  try { sessionStorage.setItem('jarchi.back', JSON.stringify([view, { alert: cur, goal: curGoal, guide: topic }[view]])); } catch {}
+  location.reload();
+}
+
+// ---------- Welcome tour ----------
+// Opens by itself on the first run (then settings.welcomed is saved), and from the Guide. Hello speaks both languages
+// and picks the panel's: another one reloads the panel in it, back at Connect. Connect shows the Connections page's own
+// Kick and Twitch cards (moved in while it's shown), so their states, Twitch's code and Open buttons all work here too.
+const TOUR = ['hello', 'connect', 'obs', 'pages', 'done'];
+const TOUR_PAGES = ['home', 'alert', 'chat', 'goal', 'events', 'bot', 'connections', 'appearance', 'settings', 'guide', 'about', 'support'];
+const obsSize = (id) => (id === 'alerts' ? [1920, 1080] : id === 'chat' ? [settings.chat.width, settings.chat.height] : settings.goals[id].style === 'circle' ? [400, 400] : [800, 200]);
+const connCards = () => [$('#kcConnect'), $('#twConnect')].map((b) => b.closest('.box'));
+let tourStep = 0, faStrings;
+
+async function tourTo(n) {
+  if (!n) faStrings ??= FA ? S : await (await fetch('/i18n/fa.json')).json(); // Hello's Persian half
+  tourStep = n;
+  renderTour();
+}
+async function openTour(step = 0) {
+  if (!settings.welcomed) api('PATCH', '/api/settings', { welcomed: true }).then((s) => (settings = s), () => {});
+  await tourTo(step);
+  $('#tour').showModal();
+}
+
+function renderTour() {
+  const W = S.panel.welcome, step = TOUR[tourStep], body = $('#tourBody'), h2 = (text) => el('h2', { textContent: text });
+  $('main .connections').append(...connCards()); // home again (Connect takes them back)
+  $('#tourDots').replaceChildren(...TOUR.map((s) => el('i', { className: s === step ? 'on' : '' })));
+  $('#tourDots').ariaLabel = tpl(W.stepOf, { n: fd(tourStep + 1), total: fd(TOUR.length) });
+  $('#tourNav').hidden = step === 'hello'; // its language buttons go on
+  $('#tourSkip').hidden = step === 'done';
+  $('#tourNext').textContent = step === 'done' ? W.finish : S.panel.next;
+  body.className = `tour-body tour-${step}`;
+  if (step === 'hello') {
+    const say = (s) => el('div', { lang: s.lang, dir: s.dir }, h2(s.panel.welcome.hello), el('p', { textContent: s.panel.welcome.about }));
+    body.replaceChildren(el('img', { className: 'tour-logo', src: '/assets/brand/jarchi-logo.png', alt: 'Jarchi' }), say(EN), say(faStrings),
+      el('div', { className: 'tour-langs' }, ...[['en', 'English'], ['fa', 'فارسی']].map(([lang, name]) => el('button', { className: 'primary', lang, textContent: name, onclick: () => {
+        if (lang === S.lang) return tourTo(1);
+        try { sessionStorage.setItem('jarchi.tour', '1'); } catch {}
+        setLang(lang);
+      } }))));
+  }
+  if (step === 'connect') body.replaceChildren(h2(W.connectTitle), ...connCards(), el('p', { className: 'tip', textContent: W.profileNote }));
+  if (step === 'obs') {
+    body.replaceChildren(h2(W.obsTitle), el('small', { textContent: W.obsHint }),
+      el('ul', { className: 'tour-links' }, ...widgetPages().filter(([id]) => widgetOn(id)).map(([id, name, url]) => el('li', {},
+        el('span', { className: 'stack' }, el('b', { textContent: name }), el('code', { dir: 'ltr', textContent: url })),
+        el('small', { dir: 'ltr', textContent: fd(obsSize(id).join(' × ')) }), copyBtn(name, url)))),
+      el('ol', { className: 'steps' }, ...W.obsSteps.map((text, i) => el('li', { className: 'step' },
+        el('span', { className: 'step-n', textContent: fd(i + 1) }), el('p', {}, ...rich(text))))));
+  }
+  if (step === 'pages') {
+    body.replaceChildren(h2(W.pagesTitle), el('ul', { className: 'tour-pages' }, ...TOUR_PAGES.map((v) => {
+      const item = $(`.nav-item[data-view="${v}"]`);
+      return el('li', {}, $('svg', item).cloneNode(true), el('b', { textContent: $('[data-i18n]', item).textContent }), el('span', { textContent: W.pages[v] }));
+    })));
+  }
+  if (step === 'done') {
+    const test = $('#homeTest').cloneNode(true); // Home's "Send test alert": a random alert to OBS
+    test.id = 'tourTest';
+    test.onclick = () => $('#homeTest').click();
+    body.replaceChildren(svgIn('tour-check', '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>'),
+      h2(W.doneTitle), el('p', { textContent: W.doneHint }), test);
+  }
+  if ($('#tour').open) ($('#tourNav').hidden ? $('.tour-langs button') : $('#tourNext')).focus(); // the step's way on
+}
+
+function wireTour() {
+  const d = $('#tour'), W = S.panel.welcome;
+  d.ariaLabel = W.title;
+  $('#tourSkip').textContent = W.skip;
+  $('#tourBack').textContent = W.back;
+  $('#tourSkip').onclick = () => d.close();
+  $('#tourBack').onclick = () => tourTo(tourStep - 1);
+  $('#tourNext').onclick = () => (tourStep < TOUR.length - 1 ? tourTo(tourStep + 1) : d.close());
+  d.onclose = () => $('main .connections').append(...connCards());
+  $('#tourAgain').onclick = () => openTour();
+}
+
 // ---------- Build once ----------
 function build() {
   document.documentElement.lang = S.lang;
@@ -903,14 +989,8 @@ function build() {
 
   $('#connWarn').onclick = (e) => select(e.currentTarget.dataset.page);
   setInterval(renderConnWarn, 5000); // over 30 s now, and the time in it
-  // Top bar: Kick / Twitch status opens Connections. Language (also on Appearance): the page reloads in the other language and comes back to what was open.
+  // Top bar: Kick / Twitch status opens Connections. Language (also on Appearance).
   $$('.plat').forEach((b) => (b.onclick = () => select('connections')));
-  const setLang = (lang) => {
-    if (lang === S.lang) return;
-    remember.set('jarchi.lang', lang);
-    try { sessionStorage.setItem('jarchi.back', JSON.stringify([view, { alert: cur, goal: curGoal, guide: topic }[view]])); } catch {}
-    location.reload();
-  };
   $$('.lang button').forEach((b) => {
     b.setAttribute('aria-pressed', String(b.dataset.lang === S.lang));
     b.onclick = () => setLang(b.dataset.lang);
@@ -1161,6 +1241,7 @@ function build() {
   };
   twoClick($('#resetAll'), $('#resetAll'), S.panel.resetAll, S.panel.confirmResetAll, () => send('POST', '/api/reset'));
   wireProfile();
+  wireTour();
 
   $$('[data-i18n]').forEach((e) => (e.textContent = S.panel[e.dataset.i18n]));
   $$('[data-title]').forEach((e) => e.setAttribute('aria-label', (e.title = S.panel[e.dataset.title])));
@@ -1665,4 +1746,11 @@ artRun();
   if (location.hash) history.replaceState(null, '', location.pathname);
   const ok = v === 'alert' ? key in settings.alerts : v === 'goal' ? key in settings.goals : v === 'theme' || $$('.nav-item').some((b) => b.dataset.view === v);
   select(ok ? v : 'home', ok ? key : undefined);
+  // The welcome tour: the first run, or back from its language pick (at that step).
+  let tour;
+  try {
+    tour = sessionStorage.getItem('jarchi.tour');
+    sessionStorage.removeItem('jarchi.tour');
+  } catch {}
+  if (tour || !settings.welcomed) openTour(Number(tour));
 })();
