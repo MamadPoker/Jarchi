@@ -1062,6 +1062,7 @@ function build() {
   socket.on('kickAccount', (k) => {
     kick = k;
     renderKick();
+    renderProfile();
   });
   // Home: new events (also from the test buttons), today's chat count, widget pages opening and closing.
   socket.on('event', (ev) => {
@@ -1159,6 +1160,7 @@ function build() {
     btn.disabled = false;
   };
   twoClick($('#resetAll'), $('#resetAll'), S.panel.resetAll, S.panel.confirmResetAll, () => send('POST', '/api/reset'));
+  wireProfile();
 
   $$('[data-i18n]').forEach((e) => (e.textContent = S.panel[e.dataset.i18n]));
   $$('[data-title]').forEach((e) => e.setAttribute('aria-label', (e.title = S.panel[e.dataset.title])));
@@ -1232,6 +1234,7 @@ function render() {
 
   renderTwitch();
   renderKick();
+  renderProfile();
   artFaces();
   $('#showBadge').checked = settings.showBadge;
   if (view === 'settings') renderSettings();
@@ -1335,6 +1338,142 @@ function renderKick() {
   $('#kcDisconnect').textContent = S.panel[k.state === 'waiting' ? 'twCancel' : 'twDisconnect'];
   $('#kcWait').hidden = k.state !== 'waiting';
   renderConnWarn();
+}
+
+// ---------- Profile: the sidebar's chip and Edit profile ----------
+// Name and picture from where the streamer picked (settings.profile). Kick / Twitch only while that account is connected
+// (Connections); otherwise Kick's, else Twitch's, else their own: the name typed (or "Streamer"), the picture uploaded
+// (or a plain avatar). `cropped`: a picture cropped in Edit profile, not sent yet.
+function profileOf(p, cropped) {
+  const acc = { kick, twitch };
+  const from = (want, own) => [want, 'kick', 'twitch', own].find((s) => s === own || acc[s]?.login);
+  const nameFrom = from(p.nameFrom, 'custom'), pictureFrom = from(p.pictureFrom, 'upload');
+  const picture = pictureFrom === 'upload' ? cropped || (p.picture && `/uploads/${p.picture.file}`)
+    : acc[pictureFrom].picture && `/remote?u=${encodeURIComponent(acc[pictureFrom].picture)}`;
+  const name = nameFrom === 'custom' ? p.name.trim() || S.panel.profileDefault : acc[nameFrom].name || acc[nameFrom].login;
+  return { nameFrom, pictureFrom, name, picture: picture || '' };
+}
+function paintChip(box, pr) {
+  $('.profile-name', box).textContent = pr.name;
+  const img = $('.avatar img', box);
+  img.hidden = !pr.picture; // and when it doesn't load (onerror): the plain avatar
+  if (pr.picture && img.getAttribute('src') !== pr.picture) img.src = pr.picture;
+}
+function renderProfile() {
+  paintChip($('#profileChip'), profileOf(settings.profile));
+  if ($('#profileDialog').open) renderProfileDialog();
+}
+
+let draft, crop; // Edit profile: the profile being edited, the picture being cropped { img, zoom, x, y, out, url }
+function renderProfileDialog() {
+  const d = $('#profileDialog'), pr = profileOf(draft, crop?.url), acc = { kick, twitch };
+  paintChip($('#profilePreview'), pr);
+  let off = false;
+  $$('input[type=radio]', d).forEach((r) => {
+    r.disabled = r.value in acc && !acc[r.value].login;
+    off ||= r.disabled;
+    r.checked = r.value === pr[r.name];
+  });
+  $('#profileHint').hidden = !off;
+  $('#profileName').hidden = pr.nameFrom !== 'custom';
+  $('#profileUpload').hidden = pr.pictureFrom !== 'upload';
+  $('#cropBox').hidden = $('#cropZoom').hidden = $('#cropHint').hidden = !crop;
+}
+
+// The picture in the round frame: zoom 1 = it just covers the frame, and it can be dragged anywhere that still covers
+// it. What's inside the circle is the picture (round, transparent corners).
+function drawCrop() {
+  const c = $('#cropCanvas'), n = c.width, { img } = crop;
+  const s = (n / Math.min(img.naturalWidth, img.naturalHeight)) * crop.zoom, w = img.naturalWidth * s, h = img.naturalHeight * s;
+  crop.x = Math.max((n - w) / 2, Math.min((w - n) / 2, crop.x));
+  crop.y = Math.max((n - h) / 2, Math.min((h - n) / 2, crop.y));
+  const g = c.getContext('2d');
+  g.clearRect(0, 0, n, n);
+  g.drawImage(img, (n - w) / 2 + crop.x, (n - h) / 2 + crop.y, w, h);
+  const out = el('canvas', { width: n, height: n }), o = out.getContext('2d');
+  o.beginPath();
+  o.arc(n / 2, n / 2, n / 2, 0, 2 * Math.PI);
+  o.clip();
+  o.drawImage(c, 0, 0);
+  Object.assign(crop, { out, url: out.toDataURL() });
+  renderProfileDialog();
+}
+
+function wireProfile() {
+  const d = $('#profileDialog'), canvas = $('#cropCanvas'), err = $('#profileErr');
+  $$('.avatar img').forEach((img) => (img.onerror = () => (img.hidden = true)));
+  $('#profileName').placeholder = S.panel.profileDefault;
+  $('#profileChip').onclick = () => {
+    draft = { ...settings.profile };
+    crop = null;
+    $('#profileName').value = draft.name;
+    err.hidden = true;
+    renderProfileDialog();
+    d.showModal();
+  };
+  d.onclose = () => (crop = null);
+  $('#profileCancel').onclick = () => d.close();
+  $$('input[type=radio]', d).forEach((r) => (r.onchange = () => {
+    draft[r.name] = r.value;
+    renderProfileDialog();
+  }));
+  $('#profileName').oninput = (e) => {
+    draft.name = e.target.value;
+    draft.nameFrom = 'custom'; // shown because nothing is connected: typing picks it
+    renderProfileDialog();
+  };
+  $('#profileChoose').onclick = () => $('#profileFile').click();
+  $('#profileFile').onchange = (e) => {
+    const f = e.target.files[0];
+    e.target.value = '';
+    if (!f) return;
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(img.src);
+      crop = { img, zoom: 1, x: 0, y: 0 };
+      draft.pictureFrom = 'upload';
+      $('#cropZoom').value = 1;
+      err.hidden = true;
+      drawCrop();
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(img.src);
+      err.textContent = S.errors.bad_type;
+      err.hidden = false;
+    };
+    img.src = URL.createObjectURL(f);
+  };
+  canvas.onpointerdown = (e) => {
+    if (!crop) return;
+    canvas.setPointerCapture(e.pointerId);
+    const k = canvas.width / canvas.clientWidth, start = { x: e.clientX, y: e.clientY, cx: crop.x, cy: crop.y };
+    canvas.onpointermove = (m) => {
+      crop.x = start.cx + (m.clientX - start.x) * k;
+      crop.y = start.cy + (m.clientY - start.y) * k;
+      drawCrop();
+    };
+  };
+  canvas.onpointerup = canvas.onpointercancel = () => (canvas.onpointermove = null);
+  $('#cropZoom').oninput = (e) => {
+    crop.zoom = Number(e.target.value);
+    drawCrop();
+  };
+  // Save: the new picture first (it's selected then), then where the name and picture come from.
+  $('#profileSave').onclick = async (e) => {
+    e.currentTarget.disabled = true;
+    try {
+      if (crop && draft.pictureFrom === 'upload') {
+        const png = await new Promise((r) => crop.out.toBlob(r, 'image/png'));
+        await api('POST', '/api/profile/picture', png, { 'content-type': 'image/png', 'x-filename': 'profile.png' });
+      }
+      d.close();
+      send('PATCH', '/api/settings', { profile: { nameFrom: draft.nameFrom, name: draft.name.trim(), pictureFrom: draft.pictureFrom } });
+    } catch (ex) {
+      err.textContent = ex.message;
+      err.hidden = false;
+    }
+    $('#profileSave').disabled = false;
+  };
 }
 
 function renderGoal() {

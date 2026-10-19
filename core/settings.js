@@ -235,7 +235,16 @@ const CHAT_RULES = {
   eventLook: oneOf('card', 'glow', 'line'), eventLonger: bool,
 };
 
-const ALLOWED = { image: ['png', 'jpg', 'gif', 'webp', 'webm', 'mp4'], sound: ['mp3', 'wav', 'ogg'] };
+// The sidebar's profile chip (Edit profile): name and picture from the Kick or Twitch account, or the streamer's own
+// (name; picture: { file, name } once uploaded, cropped round in the panel).
+const PROFILE = { nameFrom: 'kick', name: '', pictureFrom: 'kick', picture: null };
+const PROFILE_RULES = {
+  nameFrom: oneOf('kick', 'twitch', 'custom'),
+  name: (v) => typeof v === 'string' && v.length <= 40,
+  pictureFrom: oneOf('kick', 'twitch', 'upload'),
+};
+
+const ALLOWED = { image: ['png', 'jpg', 'gif', 'webp', 'webm', 'mp4'], sound: ['mp3', 'wav', 'ogg'], picture: ['png', 'jpg', 'webp'] };
 
 const bad = (code = 'bad_request') => Object.assign(new Error(code), { status: 400, code });
 
@@ -300,6 +309,7 @@ function get() {
     alerts: Object.fromEntries(TYPES.map((t) => [t, alert(t)])),
     goals: Object.fromEntries(GOAL_IDS.map((id) => [id, goal(id)])),
     chat: chat(),
+    profile: { ...PROFILE, ...saved.profile },
   };
 }
 
@@ -352,7 +362,13 @@ function update(patch) {
     if (!chatFields || typeof chatFields !== 'object') throw bad();
     for (const [k, v] of Object.entries(chatFields)) if (!CHAT_RULES[k] || !CHAT_RULES[k](v)) throw bad();
   }
+  const profile = patch.profile;
+  if (profile !== undefined) {
+    if (!profile || typeof profile !== 'object') throw bad();
+    for (const [k, v] of Object.entries(profile)) if (!PROFILE_RULES[k] || !PROFILE_RULES[k](v)) throw bad();
+  }
   for (const k in GLOBAL) if (k in patch) saved[k] = patch[k];
+  if (profile) Object.assign((saved.profile ??= {}), profile);
   for (const [type, fields] of alerts) Object.assign(overrides(type), fields);
   for (const [id, fields] of goals) {
     const o = goalOverrides(id);
@@ -431,6 +447,15 @@ function removeGoalSound(id) {
   if (!GOAL_IDS.includes(id)) throw bad();
   return dropUpload(saved.goals?.[id], 'sound', 'celebrateSound');
 }
+// Uploading a profile picture also selects it.
+function saveProfilePicture(buf, name) {
+  const o = (saved.profile ??= {});
+  const entry = writeUpload('profile-picture', 'picture', buf, name);
+  removeFile(o.picture);
+  Object.assign(o, { picture: entry, pictureFrom: 'upload' });
+  persist();
+  return get();
+}
 
 // ---------- Media by amount: fixed tiers ----------
 // One tier = { on, image, sound } under its amount. Uploading a file turns the tier on.
@@ -481,6 +506,7 @@ function reset(type) {
   }
   if (!type) {
     for (const id of GOAL_IDS) removeFile(saved.goals?.[id]?.sound);
+    removeFile(saved.profile?.picture);
     saved = { version: VERSION };
   }
   persist();
@@ -488,7 +514,7 @@ function reset(type) {
 }
 
 module.exports = {
-  get, update, saveUpload, removeUpload, reset, saveGoalSound, removeGoalSound, resetGoalStyle, resetChatStyle,
+  get, update, saveUpload, removeUpload, reset, saveGoalSound, removeGoalSound, saveProfilePicture, resetGoalStyle, resetChatStyle,
   setTier, saveTierFile, removeTierFile, sniff,
   GOAL_IDS, GOAL_STYLES, CHAT_STYLES, CHAT_FONTS, FONTS, KICK_GIFTS,
 };

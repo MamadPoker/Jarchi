@@ -30,7 +30,7 @@ globalThis.fetch = async (url, init = {}) => {
       if (body.refresh_token && body.refresh_token !== `R${issued}`) return json(400, { error: 'Invalid request' });
       issued++;
       return json(200, { access_token: `A${issued}`, refresh_token: `R${issued}`, expires_in: 7200, scope: 'user:read events:subscribe', token_type: 'Bearer' });
-    case 'GET api.kick.com/public/v1/users': return json(200, { data: [{ user_id: 42, name: 'mamad', email: '', profile_picture: '' }], message: 'OK' });
+    case 'GET api.kick.com/public/v1/users': return json(200, { data: [{ user_id: 42, name: 'mamad', email: '', profile_picture: 'https://files.kick.com/images/user/42/profile_image/mamad.webp' }], message: 'OK' });
     case 'GET api.kick.com/public/v1/events/subscriptions': return json(200, { data: subs, message: 'OK' });
     case 'POST api.kick.com/public/v1/events/subscriptions':
       for (const e of body.events) subs.push({ id: `s${subs.length + 1}`, event: e.name, version: e.version, broadcaster_user_id: 42, method: 'webhook' });
@@ -99,6 +99,7 @@ test('Kick account: login through the relay, follows subscribed, follow alerts, 
   assert.ok(!/A2|R2/.test(JSON.stringify(account.status())), 'tokens never reach the panel');
   sockets[0].open();
   assert.deepEqual([account.status().state, account.status().login, connectedPlatforms()], ['connected', 'mamad', ['kick']]);
+  assert.equal(account.status().picture, 'https://files.kick.com/images/user/42/profile_image/mamad.webp', 'for the profile chip');
 
   // A follow is a Kick Follow alert, once per viewer; another channel's event (never sent here) is ignored.
   const events = [];

@@ -27,7 +27,11 @@ const clientId = () => saved.clientId || CLIENT_ID;
 // error: why it's off or reconnecting (expired | denied | timeout | client | network), '' when fine.
 let st = { state: saved.refresh ? 'connecting' : 'off', error: '', code: '', uri: '' };
 const goals = new Map(); // Twitch goal id -> { id, type, description, current, target }
-const status = () => ({ ...st, clientId: clientId(), login: saved.refresh ? saved.login ?? '' : '', goals: [...goals.values()] });
+// name / picture: the account's display name and picture, for the profile chip (Edit profile).
+const status = () => ({
+  ...st, clientId: clientId(), login: saved.refresh ? saved.login ?? '' : '', goals: [...goals.values()],
+  name: saved.refresh ? saved.name || saved.login || '' : '', picture: saved.refresh ? saved.picture ?? '' : '',
+});
 function set(next) {
   st = { ...st, code: '', uri: '', ...next };
   account.emit('status', status());
@@ -232,6 +236,12 @@ async function subscribe(session, my) {
     data.forEach(goal);
   } catch (err) {
     console.warn('Twitch goals:', err.message);
+  }
+  try {
+    const u = (await authed(`${HELIX}/users?id=${me}`)).data[0];
+    keep({ name: u.display_name, picture: u.profile_image_url });
+  } catch (err) {
+    console.warn('Twitch profile:', err.message);
   }
   if (my !== run) return;
   setConnected('twitch', true);

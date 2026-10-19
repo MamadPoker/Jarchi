@@ -62,7 +62,8 @@ const fileName = (req) => {
   try { return decodeURIComponent(req.get('x-filename') || ''); } catch { return ''; }
 };
 const raw = express.raw({ type: () => true, limit: '20mb' });
-app.post('/api/upload/:type/:kind', raw, (req, res) => res.json(changed(settings.saveUpload(req.params.type, req.params.kind, req.body, fileName(req)))));
+app.post('/api/profile/picture', raw, (req, res) => res.json(changed(settings.saveProfilePicture(req.body, fileName(req)))));
+app.post('/api/upload/:type/:kind', raw,(req, res) => res.json(changed(settings.saveUpload(req.params.type, req.params.kind, req.body, fileName(req)))));
 
 // Media by amount: the fixed tiers of one alert type, by amount. { on } switches one; :kind is image | sound.
 app.patch('/api/tiers/:type/:amount', (req, res) => res.json(changed(settings.setTier(req.params.type, Number(req.params.amount), req.body))));

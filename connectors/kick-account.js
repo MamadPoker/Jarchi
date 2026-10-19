@@ -29,7 +29,8 @@ let saved = store.load(FILE); // { access, refresh, expires, userId, login }
 // state: off | waiting (Kick's login page is open) | connecting | connected.
 // error: why it's off or reconnecting (expired | denied | timeout | network | relay), '' when fine.
 let st = { state: saved.refresh && RELAY ? 'connecting' : 'off', error: '', uri: '' };
-const status = () => ({ ...st, login: saved.refresh ? saved.login ?? '' : '' });
+// picture: the account's, for the profile chip (Edit profile; Kick's login is already the name as written).
+const status = () => ({ ...st, login: saved.refresh ? saved.login ?? '' : '', picture: saved.refresh ? saved.picture ?? '' : '' });
 function set(next) {
   st = { ...st, uri: '', ...next };
   account.emit('status', status());
@@ -161,7 +162,7 @@ async function start() {
   set({ state: 'connecting', error: st.error === 'network' ? 'network' : '' });
   try {
     const me = (await authed(`${API}/users`)).data[0]; // whose channel this is
-    keep({ userId: me.user_id, login: me.name });
+    keep({ userId: me.user_id, login: me.name, picture: me.profile_picture || '' });
     await subscribe();
   } catch (err) {
     if (my === run && err.code !== 'expired') later(my);

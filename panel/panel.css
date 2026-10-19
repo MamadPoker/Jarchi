@@ -443,6 +443,30 @@ input[type="color"]::-webkit-color-swatch { border: 0; border-radius: 7px; }
 .nav .group-title { margin: 14px 4px 6px; padding: 14px 6px 0; border-top: 1px solid var(--border); color: var(--label); font-size: 12px; font-weight: 800; }
 [lang="fa"] .nav .group-title { font-size: 13px; }
 .nav-sep { width: 100%; margin: 10px 0; border: 0; border-top: 1px solid var(--border); }
+
+/* The profile chip (bottom of the sidebar, and its preview in Edit profile): round picture + name. */
+.profile-chip { display: flex; align-items: center; gap: 10px; min-width: 0; padding: 8px 10px; border: 1px solid var(--border); border-radius: 12px; background: var(--card); color: var(--text); font-weight: 700; text-align: start; }
+#profileChip { flex: none; margin-top: auto; }
+.side .nav { margin-bottom: 14px; }
+.avatar { position: relative; display: grid; place-items: center; flex: none; width: 32px; height: 32px; border-radius: 50%; overflow: hidden; background: var(--card2); color: var(--muted); }
+.avatar img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.profile-name { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+
+/* Edit profile */
+.profile-dialog { width: min(420px, calc(100vw - 32px)); padding: 22px; border: 1px solid var(--border); border-radius: 16px; background: var(--card); color: var(--text); }
+.profile-dialog[open] { display: grid; gap: 12px; }
+.profile-dialog::backdrop { background: rgb(0 0 0 / 0.6); }
+.profile-dialog h3 { margin-top: 6px; }
+#profilePreview { justify-self: center; width: 208px; }
+.profile-upload { display: grid; justify-items: start; gap: 10px; }
+.crop { position: relative; width: 200px; aspect-ratio: 1; justify-self: center; overflow: hidden; border-radius: 12px; background: var(--checker-a); cursor: grab; touch-action: none; }
+.crop:active { cursor: grabbing; }
+.crop canvas { display: block; width: 100%; height: 100%; }
+.crop::after { content: ''; position: absolute; inset: 0; border-radius: 50%; box-shadow: 0 0 0 200px rgb(0 0 0 / 0.55); pointer-events: none; } /* what's kept: the circle */
+.seg input:disabled + span { opacity: 0.45; cursor: not-allowed; }
+.seg input:disabled + span:hover { color: var(--muted); }
+.profile-err { color: var(--danger); }
+.profile-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 6px; }
 .nav-item { gap: 12px; padding: 9px 10px; border: 0; background: none; color: var(--muted); text-align: start; }
 .nav-item:hover { background: var(--hover); color: var(--text); }
 .nav-item[aria-current="page"] { background: var(--main-soft); color: var(--text); }
@@ -1023,6 +1047,8 @@ code { padding: 1px 6px; border-radius: 6px; background: var(--card2); font: 0.9
   .brand { width: 72px; margin: 4px 10px; }
   .nav { display: flex; flex-wrap: wrap; }
   .nav .group-title, .nav-sep { display: none; }
+  .side .nav { margin-bottom: 0; }
+  #profileChip { margin: 0; margin-inline-start: auto; }
   .list { position: static; }
   .basics, .cols, .pane { grid-template-columns: 1fr; }
   main { padding: 18px 16px 48px; }

@@ -49,7 +49,7 @@ test('migration, settings, uploads, reset, events', async () => {
   // Background art: no channels set, no profile pictures (and no lookups).
   assert.deepEqual(await (await call('GET', '/api/streamer')).json(), { kick: null, twitch: null });
   // Twitch account: not connected, nothing runs, Jarchi's own Client ID; a bad Client ID is refused, a good one kept.
-  assert.deepEqual(await (await call('GET', '/api/twitch')).json(), { state: 'off', error: '', code: '', uri: '', clientId: '6z5ycye2mjhj10jk1jkwkelft0l7p3', login: '', goals: [] });
+  assert.deepEqual(await (await call('GET', '/api/twitch')).json(), { state: 'off', error: '', code: '', uri: '', clientId: '6z5ycye2mjhj10jk1jkwkelft0l7p3', login: '', goals: [], name: '', picture: '' });
   assert.equal((await call('PATCH', '/api/twitch', { clientId: 'no spaces' })).status, 400);
   assert.equal((await (await call('PATCH', '/api/twitch', { clientId: 'abc123' })).json()).clientId, 'abc123');
   assert.equal(s.theme, 'fun');
@@ -115,6 +115,20 @@ test('migration, settings, uploads, reset, events', async () => {
   s = await (await call('DELETE', '/api/upload/follow/sound')).json();
   assert.equal(s.alerts.follow.soundMode, 'theme', 'removing it goes back to the theme sound');
 
+  // Profile (Edit profile): from Kick by default; an uploaded picture is selected, and goes with Reset everything.
+  s = await (await call('GET', '/api/settings')).json();
+  assert.deepStrictEqual(s.profile, { nameFrom: 'kick', name: '', pictureFrom: 'kick', picture: null });
+  assert.equal((await call('PATCH', '/api/settings', { profile: { nameFrom: 'youtube' } })).status, 400);
+  assert.equal((await call('PATCH', '/api/settings', { profile: { picture: { file: '../settings.json' } } })).status, 400, 'a picture is only uploaded');
+  assert.equal((await call('POST', '/api/profile/picture', Buffer.from('GIF89a', 'latin1'))).status, 400);
+  s = await (await call('POST', '/api/profile/picture', Buffer.from('89504e470d0a1a0a', 'hex'), { 'content-type': 'image/png', 'x-filename': 'profile.png' })).json();
+  const pic = s.profile.picture.file;
+  assert.equal(s.profile.pictureFrom, 'upload');
+  assert.equal((await fetch(`${base}/uploads/${pic}`)).status, 200);
+  s = await (await call('PATCH', '/api/settings', { profile: { nameFrom: 'custom', name: 'Mamad' } })).json();
+  assert.deepStrictEqual([s.profile.nameFrom, s.profile.name, s.profile.pictureFrom, s.profile.picture.file], ['custom', 'Mamad', 'upload', pic]);
+  assert.equal((await (await call('GET', '/api/version')).json()).version, require('../package.json').version); // About
+
   s = await (await call('POST', '/api/reset/follow')).json();
   assert.equal(s.alerts.follow.image, null);
   assert.equal(s.alerts.follow.volume, 0.7);
@@ -127,6 +141,8 @@ test('migration, settings, uploads, reset, events', async () => {
   s = await (await call('POST', '/api/reset')).json();
   assert.equal(s.theme, 'neon');
   assert.ok(!fs.existsSync(path.join(dataDir, 'uploads', 'sub-sound-1.wav')));
+  assert.ok(!fs.existsSync(path.join(dataDir, 'uploads', pic)));
+  assert.equal(s.profile.pictureFrom, 'kick');
 
   const samples = await (await call('GET', '/api/samples')).json();
   assert.equal(samples.raid.amount, 42);

@@ -44,6 +44,8 @@
         <button class="nav-item" data-view="about"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg><span data-i18n="navAbout"></span></button>
         <button class="nav-item" data-view="support"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16a1 1 0 0 1 1 1v3a2 2 0 0 0 0 4v3a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-3a2 2 0 0 0 0-4V7a1 1 0 0 1 1-1zM14 6v2M14 11v2M14 16v2"/></svg><span data-i18n="navSupport"></span></button>
       </nav>
+      <!-- The streamer's name and picture (renderProfile); a click opens Edit profile. -->
+      <button id="profileChip" class="profile-chip" data-title="profileEdit"><span class="avatar"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="9" r="4"/><path d="M4.5 20a7.5 7.5 0 0 1 15 0"/></svg><img alt="" hidden></span><span class="profile-name"></span></button>
     </aside>
 
     <div class="page">
@@ -820,6 +822,39 @@
     </main>
     </div>
   </div>
+
+  <!-- Edit profile (the sidebar's chip): the chip as it will look, then where its name and picture come from. Kick /
+       Twitch only with that account connected (Connections). A new picture is cropped round here and sent on Save. -->
+  <dialog id="profileDialog" class="profile-dialog" aria-labelledby="profileTitle">
+    <h2 id="profileTitle" data-i18n="profileEdit"></h2>
+    <div id="profilePreview" class="profile-chip"><span class="avatar"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="9" r="4"/><path d="M4.5 20a7.5 7.5 0 0 1 15 0"/></svg><img alt="" hidden></span><span class="profile-name"></span></div>
+    <h3 data-i18n="profileName"></h3>
+    <div class="seg" role="radiogroup" data-aria="profileName">
+      <label><input type="radio" name="nameFrom" value="kick"><span data-i18n="fromKick"></span></label>
+      <label><input type="radio" name="nameFrom" value="twitch"><span data-i18n="fromTwitch"></span></label>
+      <label><input type="radio" name="nameFrom" value="custom"><span data-i18n="profileCustom"></span></label>
+    </div>
+    <input type="text" id="profileName" maxlength="40" data-aria="profileName">
+    <h3 data-i18n="profilePicture"></h3>
+    <div class="seg" role="radiogroup" data-aria="profilePicture">
+      <label><input type="radio" name="pictureFrom" value="kick"><span data-i18n="fromKick"></span></label>
+      <label><input type="radio" name="pictureFrom" value="twitch"><span data-i18n="fromTwitch"></span></label>
+      <label><input type="radio" name="pictureFrom" value="upload"><span data-i18n="upload"></span></label>
+    </div>
+    <div id="profileUpload" class="profile-upload">
+      <div id="cropBox" class="crop" hidden><canvas id="cropCanvas" width="256" height="256"></canvas></div>
+      <input type="range" id="cropZoom" min="1" max="4" step="0.01" value="1" data-aria="profileZoom" hidden>
+      <small id="cropHint" data-i18n="profileCropHint" hidden></small>
+      <button id="profileChoose" data-i18n="profileChoose"></button>
+      <input type="file" id="profileFile" hidden accept="image/png,image/jpeg,image/webp">
+    </div>
+    <small id="profileHint" data-i18n="profileConnectHint" hidden></small>
+    <small id="profileErr" class="profile-err" role="alert" hidden></small>
+    <div class="profile-actions">
+      <button id="profileCancel" class="ghost" data-i18n="twCancel"></button>
+      <button id="profileSave" class="primary" data-i18n="profileSave"></button>
+    </div>
+  </dialog>
 
   <div id="tip" role="tooltip" hidden></div>
   <div id="toast" role="status" aria-live="polite"></div>
