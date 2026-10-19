@@ -83,6 +83,7 @@ app.post('/api/alerts/replay/:id', (req, res) => res.json(alertQueue.replay(req.
 const STARTED = Date.now();
 app.get('/api/home', (req, res) => res.json({ today: today(), started: STARTED, kickGoals: goals.kickList() }));
 app.get('/api/history', (req, res) => res.json(alertQueue.feed()));
+app.get('/api/version', (req, res) => res.json({ version: require('../package.json').version })); // About
 
 // Proxy: "Test connection" (Kick, Twitch, 7TV), and which proxy is in use right now.
 app.post('/api/net/test', async (req, res) => res.json(await chat.check()));

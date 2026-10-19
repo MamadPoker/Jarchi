@@ -395,6 +395,7 @@ function select(v, key) {
   if (v === 'home') loadHome(); // today's numbers may have started again at midnight
   if (v === 'events') loadHistory();
   if (v === 'settings') showProxyNow();
+  if (v === 'about') api('GET', '/api/version').then(({ version }) => ($('#aboutVersion').textContent = S.panel.version.replace('{version}', version)), () => {});
   if (v === 'guide') {
     if (S.guide.topics[key]) topic = key;
     renderGuide();
