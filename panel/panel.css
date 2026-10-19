@@ -23,7 +23,6 @@
   --gold-line: rgba(214, 168, 62, 0.35);
   --on-gold: #1b1404;
   --on-color: #fff; /* text on red */
-  --j: #c99a2e; /* the J of Jarchi, in every theme */
   --goal-subs: #d6a83e; /* each goal's icon and bar (panel only): gold, Kick green, green, Twitch purple */
   --goal-kicks: #53fc18;
   --goal-followers: #3fa76f;
@@ -439,8 +438,7 @@ input[type="color"]::-webkit-color-swatch { border: 0; border-radius: 7px; }
   border-inline-end: 1px solid var(--border);
   background: var(--sidebar);
 }
-.brand { padding: 4px 10px 18px; font-size: 22px; font-weight: 800; }
-.brand .j { color: var(--j); }
+.brand { width: 150px; margin: 0 10px 14px; } /* the logo (megaphone and name) */
 .nav { display: grid; gap: 2px; }
 .nav .group-title { margin: 14px 4px 6px; padding: 14px 6px 0; border-top: 1px solid var(--border); color: var(--label); font-size: 12px; font-weight: 800; }
 [lang="fa"] .nav .group-title { font-size: 13px; }
@@ -1019,7 +1017,7 @@ code { padding: 1px 6px; border-radius: 6px; background: var(--card2); font: 0.9
   /* The sidebar on top: brand and pages in rows. */
   .app, .split-body { grid-template-columns: 1fr; }
   .side { position: static; flex-direction: row; flex-wrap: wrap; align-items: center; height: auto; border-inline-end: 0; border-bottom: 1px solid var(--border); }
-  .brand { padding: 4px 10px; }
+  .brand { width: 72px; margin: 4px 10px; }
   .nav { display: flex; flex-wrap: wrap; }
   .nav .group-title { display: none; }
   .list { position: static; }

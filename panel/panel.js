@@ -845,9 +845,7 @@ function build() {
   document.documentElement.dir = S.dir;
   document.title = S.panel.title;
 
-  // Sidebar: the brand (a gold first letter; in Persian, zero-width joiners keep it joined to the next one) and the pages.
-  const [first, ...rest] = S.panel.title, zwj = FA ? String.fromCharCode(0x200d) : '';
-  $('#brand').append(el('span', { className: 'j', textContent: first + zwj }), zwj + rest.join(''));
+  // Sidebar: the pages.
   $$('.nav-item').forEach((b) => (b.onclick = () => select(b.dataset.view)));
 
   // Alerts and Goals pages: their list (a goal goes in its platform's group). An alert's row also gets a swatch that

@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Jarchi</title>
+  <link rel="icon" href="/assets/brand/icons/jarchi.ico">
   <link rel="stylesheet" href="panel.css">
   <!-- The look kept by panel.js (mode, color theme and System's accent, text size, background art), set before the first
        paint so a light panel doesn't flash dark. System without an accent color is Jarchi. -->
@@ -23,7 +24,7 @@
   <div class="app">
     <!-- Sidebar: the brand, then one item per page. Each opens its <section data-view> (select() in panel.js). -->
     <aside class="side">
-      <div class="brand" id="brand"></div>
+      <img class="brand" src="/assets/brand/jarchi-logo.png" alt="Jarchi">
       <nav class="nav" data-aria="menu">
         <button class="nav-item" data-view="home"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5L12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg><span data-i18n="navHome"></span></button>
         <button class="nav-item" data-view="alert"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.9 1.9 0 0 0 3.4 0"/></svg><span data-i18n="groupAlerts"></span></button>
