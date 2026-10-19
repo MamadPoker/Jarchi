@@ -514,6 +514,7 @@
     "goalPreview": "Goal preview",
     "chatPreview": "Chat preview",
     "welcomeAgain": "Show welcome tour again",
+    "navHelp": "Help",
     "welcome": {
       "title": "Welcome tour",
       "hello": "Welcome to Jarchi",
@@ -531,12 +532,12 @@
         "Paste a link into **URL** and set the width and height shown next to it.",
         "Tick **Control audio via OBS** and click **OK**."
       ],
-      "pagesTitle": "A quick tour",
       "pages": {
         "home": "Ready to stream?, the live feed, your widgets and today's numbers.",
         "alert": "Each alert's picture, sound, text and theme.",
         "chat": "Your channel names and the chat box's look in OBS.",
         "goal": "Sub, Kicks, follower and bits goals for OBS.",
+        "queue": "Alerts waiting to play: pause, skip or clear them.",
         "events": "Every event that came in, by date.",
         "bot": "A bot that thanks your viewers in chat (coming soon).",
         "connections": "Your Kick and Twitch accounts.",

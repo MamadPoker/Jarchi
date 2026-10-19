@@ -856,21 +856,68 @@ function setLang(lang) {
 // Opens by itself on the first run (then settings.welcomed is saved), and from the Guide. Hello speaks both languages
 // and picks the panel's: another one reloads the panel in it, back at Connect. Connect shows the Connections page's own
 // Kick and Twitch cards (moved in while it's shown), so their states, Twitch's code and Open buttons all work here too.
-const TOUR = ['hello', 'connect', 'obs', 'pages', 'done'];
-const TOUR_PAGES = ['home', 'alert', 'chat', 'goal', 'events', 'bot', 'connections', 'appearance', 'settings', 'guide', 'about', 'support'];
+// Sidebar isn't in the dialog: the sidebar itself, one group of pages at a time (spotTo). Escape or Skip ends it all.
+const TOUR = ['hello', 'connect', 'obs', 'sidebar', 'done'];
+const SIDEBAR = TOUR.indexOf('sidebar');
+// Sidebar's stops: [the group's name, its pages, first to last]. Live starts at Home; Help is Guide and what's under the line.
+const SPOTS = [['navLive', ['home', 'alert', 'chat', 'goal', 'queue', 'events']], ['navBot', ['bot']], ['navSetup', ['connections', 'appearance', 'settings']], ['navHelp', ['guide', 'about', 'support']]];
 const obsSize = (id) => (id === 'alerts' ? [1920, 1080] : id === 'chat' ? [settings.chat.width, settings.chat.height] : settings.goals[id].style === 'circle' ? [400, 400] : [800, 200]);
 const connCards = () => [$('#kcConnect'), $('#twConnect')].map((b) => b.closest('.box'));
-let tourStep = 0, faStrings;
+let tourStep = 0, spot = 0, faStrings;
 
-async function tourTo(n) {
+// A step (and in Sidebar, which stop): the dialog for the others, the sidebar's spotlight for Sidebar.
+async function tourTo(n, stop = 0) {
   if (!n) faStrings ??= FA ? S : await (await fetch('/i18n/fa.json')).json(); // Hello's Persian half
   tourStep = n;
+  const d = $('#tour');
+  (n === SIDEBAR ? d : $('#spot')).close();
+  if (n === SIDEBAR) return spotTo(stop);
   renderTour();
+  if (!d.open) d.showModal();
+  ($('#tourNav').hidden ? $('.tour-langs button') : $('#tourNext')).focus(); // the step's way on
 }
-async function openTour(step = 0) {
+function openTour(step = 0) {
   if (!settings.welcomed) api('PATCH', '/api/settings', { welcomed: true }).then((s) => (settings = s), () => {});
-  await tourTo(step);
-  $('#tour').showModal();
+  return tourTo(step);
+}
+
+// The sidebar's elements in the stop's group: its pages, the titles among them and the group's own title above them.
+function spotGroup() {
+  const kids = [...$('.nav').children], at = (v) => kids.indexOf($(`.nav-item[data-view="${v}"]`)), views = SPOTS[spot][1];
+  const a = at(views[0]);
+  return kids.slice(kids[a - 1]?.matches('.group-title') ? a - 1 : a, at(views.at(-1)) + 1);
+}
+function spotTo(i) {
+  const s = $('#spot'), W = S.panel.welcome, [name, views] = SPOTS[i];
+  spot = i;
+  $('#spotTitle').textContent = S.panel[name];
+  $('#spotCount').textContent = fd(`${i + 1}/${SPOTS.length}`);
+  $('#spotCount').ariaLabel = tpl(W.stepOf, { n: fd(i + 1), total: fd(SPOTS.length) });
+  $('#spotItems').replaceChildren(...views.map((v) => el('li', {},
+    el('b', { textContent: $(`.nav-item[data-view="${v}"] [data-i18n]`).textContent }), el('span', { textContent: W.pages[v] }))));
+  const group = spotGroup();
+  group.at(-1).scrollIntoView({ block: 'nearest' }); // a sidebar taller than the window (large text) scrolls to it
+  group[0].scrollIntoView({ block: 'nearest' });
+  const first = !s.open;
+  s.classList.toggle('still', first); // the first stop shows at once, no glide in from the corner
+  if (first) s.showModal();
+  placeSpot();
+  void s.offsetWidth; // (that's where the next glide starts)
+  s.classList.remove('still');
+  $('#spotNext').focus();
+}
+// The bright hole around the group, and the popover beside it: right of it, left in Persian, under it where there's no
+// room beside it (the narrow layout's sidebar on top). Always inside the window.
+// ponytail: the narrow layout's wrapped rows make the hole the group's whole bounding box, other pages included.
+function placeSpot() {
+  const rs = spotGroup().map((k) => k.getBoundingClientRect()).filter((r) => r.width), pad = 6, gap = 14, m = 8;
+  const left = Math.min(...rs.map((r) => r.left)) - pad, right = Math.max(...rs.map((r) => r.right)) + pad;
+  const top = Math.min(...rs.map((r) => r.top)) - pad, bottom = Math.max(...rs.map((r) => r.bottom)) + pad;
+  Object.assign($('.spot-hole').style, { left: px(left), top: px(top), width: px(right - left), height: px(bottom - top) });
+  const pop = $('.spot-pop'), w = pop.offsetWidth, h = pop.offsetHeight;
+  let x = FA ? left - gap - w : right + gap, y = top;
+  if (x < m || x + w > innerWidth - m) [x, y] = [FA ? right - w : left, bottom + gap];
+  Object.assign(pop.style, { left: px(Math.min(Math.max(m, x), innerWidth - w - m)), top: px(Math.min(Math.max(m, y), innerHeight - h - m)) });
 }
 
 function renderTour() {
@@ -900,12 +947,6 @@ function renderTour() {
       el('ol', { className: 'steps' }, ...W.obsSteps.map((text, i) => el('li', { className: 'step' },
         el('span', { className: 'step-n', textContent: fd(i + 1) }), el('p', {}, ...rich(text))))));
   }
-  if (step === 'pages') {
-    body.replaceChildren(h2(W.pagesTitle), el('ul', { className: 'tour-pages' }, ...TOUR_PAGES.map((v) => {
-      const item = $(`.nav-item[data-view="${v}"]`);
-      return el('li', {}, $('svg', item).cloneNode(true), el('b', { textContent: $('[data-i18n]', item).textContent }), el('span', { textContent: W.pages[v] }));
-    })));
-  }
   if (step === 'done') {
     const test = $('#homeTest').cloneNode(true); // Home's "Send test alert": a random alert to OBS
     test.id = 'tourTest';
@@ -913,18 +954,24 @@ function renderTour() {
     body.replaceChildren(svgIn('tour-check', '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>'),
       h2(W.doneTitle), el('p', { textContent: W.doneHint }), test);
   }
-  if ($('#tour').open) ($('#tourNav').hidden ? $('.tour-langs button') : $('#tourNext')).focus(); // the step's way on
 }
 
 function wireTour() {
-  const d = $('#tour'), W = S.panel.welcome;
+  const d = $('#tour'), s = $('#spot'), W = S.panel.welcome;
   d.ariaLabel = W.title;
-  $('#tourSkip').textContent = W.skip;
-  $('#tourBack').textContent = W.back;
+  $$('#tourSkip, #spotSkip').forEach((b) => (b.textContent = W.skip));
+  $$('#tourBack, #spotBack').forEach((b) => (b.textContent = W.back));
+  $('#spotNext').textContent = S.panel.next;
   $('#tourSkip').onclick = () => d.close();
-  $('#tourBack').onclick = () => tourTo(tourStep - 1);
+  $('#tourBack').onclick = () => tourTo(tourStep - 1, SPOTS.length - 1); // from Done: Sidebar's last stop
   $('#tourNext').onclick = () => (tourStep < TOUR.length - 1 ? tourTo(tourStep + 1) : d.close());
   d.onclose = () => $('main .connections').append(...connCards());
+  $('#spotSkip').onclick = () => s.close();
+  $('#spotBack').onclick = () => (spot ? spotTo(spot - 1) : tourTo(SIDEBAR - 1));
+  $('#spotNext').onclick = () => (spot < SPOTS.length - 1 ? spotTo(spot + 1) : tourTo(SIDEBAR + 1));
+  const follow = () => s.open && placeSpot(); // the window resized, the page or the sidebar scrolled
+  addEventListener('resize', follow);
+  addEventListener('scroll', follow, true);
   $('#tourAgain').onclick = () => openTour();
 }
 

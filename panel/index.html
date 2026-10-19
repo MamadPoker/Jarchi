@@ -868,6 +868,20 @@
       <button id="tourNext" class="primary"></button>
     </div>
   </dialog>
+  <!-- The tour's Sidebar step (spotTo): a see-through dialog over the whole window. Its hole is around one sidebar group
+       (bright, gold edge; its shadow dims the rest), with a popover beside it. Being modal, it keeps clicks off the app. -->
+  <dialog id="spot" class="spot" aria-labelledby="spotTitle">
+    <div class="spot-hole"></div>
+    <div class="spot-pop">
+      <div class="row between"><h2 id="spotTitle"></h2><small id="spotCount" role="img"></small></div>
+      <ul id="spotItems" class="spot-items"></ul>
+      <div class="profile-actions">
+        <button id="spotSkip" class="ghost"></button>
+        <button id="spotBack"></button>
+        <button id="spotNext" class="primary"></button>
+      </div>
+    </div>
+  </dialog>
 
   <div id="tip" role="tooltip" hidden></div>
   <div id="toast" role="status" aria-live="polite"></div>

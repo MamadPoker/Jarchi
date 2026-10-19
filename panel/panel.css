@@ -483,17 +483,23 @@ input[type="color"]::-webkit-color-swatch { border: 0; border-radius: 7px; }
 .tour-langs button { justify-content: center; padding: 16px; font-size: 19px; font-weight: 800; }
 .tour .card-head .stack { flex: 1; gap: 2px; }
 .tour label.field { display: none; } /* the Twitch card's Client ID: only on Connections */
-.tour-links, .tour-pages { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.tour-links, .spot-items { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
 .tour-links li { display: flex; align-items: center; gap: 12px; padding-block: 8px; padding-inline: 14px 8px; border: 1px solid var(--border); border-radius: 12px; background: var(--card2); }
 .tour-links .stack { flex: 1; min-width: 0; gap: 0; }
 .tour-links code { overflow: hidden; padding: 0; background: none; color: var(--muted); white-space: nowrap; text-overflow: ellipsis; }
-.tour-pages { grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px 20px; }
-.tour-pages li { display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 0 10px; line-height: 1.4; }
-.tour-pages svg { grid-row: span 2; width: 18px; height: 18px; margin-top: 1px; color: var(--gold-text); }
-.tour-pages span { color: var(--muted); font-size: 13px; }
 .tour-check { display: grid; place-items: center; width: 60px; height: 60px; border-radius: 50%; background: var(--gold-soft); color: var(--gold); }
 .tour-check svg { width: 30px; height: 30px; stroke-width: 2.5; }
-#tourSkip { margin-inline-end: auto; }
+#tourSkip, #spotSkip { margin-inline-end: auto; }
+/* The tour's Sidebar step: the hole around a sidebar group (its huge shadow dims everything else), the popover beside it */
+.spot { inset: 0; width: auto; height: auto; max-width: none; max-height: none; margin: 0; padding: 0; border: 0; background: none; overflow: hidden; }
+.spot::backdrop { background: none; }
+.spot-hole { position: fixed; border-radius: 14px; box-shadow: 0 0 0 2px var(--gold-line), 0 0 18px 2px var(--gold-line), 0 0 0 100vmax rgb(0 0 0 / 0.6); pointer-events: none; transition: left 0.3s, top 0.3s, width 0.3s, height 0.3s; }
+.spot.still .spot-hole { transition: none; }
+.spot-pop { position: fixed; display: grid; gap: 12px; width: min(320px, calc(100vw - 16px)); padding: 16px; border: 1px solid var(--border-hi); border-radius: 14px; background: var(--card); color: var(--text); box-shadow: 0 8px 24px var(--shadow); }
+.spot-pop .profile-actions { margin-top: 0; }
+.spot-items li { display: grid; line-height: 1.4; }
+.spot-items span { color: var(--muted); font-size: 13px; }
+@media (prefers-reduced-motion: reduce) { .spot-hole { transition: none; } }
 .nav-item { gap: 12px; padding: 9px 10px; border: 0; background: none; color: var(--muted); text-align: start; }
 .nav-item:hover { background: var(--hover); color: var(--text); }
 .nav-item[aria-current="page"] { background: var(--main-soft); color: var(--text); }
