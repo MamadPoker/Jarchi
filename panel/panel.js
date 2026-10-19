@@ -600,8 +600,9 @@ function renderHome() {
     el('button', { className: 'replay', textContent: S.panel.qReplay, onclick: () => queueCall('POST', `replay/${encodeURIComponent(ev.id)}`).then((q) => q && toast(S.panel.qReplayed)) }))));
   $('#feedEmpty').hidden = rows.length > 0;
 
-  // Widgets: green when a page of it is open (in OBS) right now.
-  $('#widgetList').replaceChildren(...widgetPages().map(([id, name, url]) => {
+  // Widgets: only the ones switched on (alerts always), green when a page of it is open (in OBS) right now.
+  const on = (id) => id === 'alerts' || (id === 'chat' ? settings.chat : settings.goals[id]).enabled;
+  $('#widgetList').replaceChildren(...widgetPages().filter(([id]) => on(id)).map(([id, name, url]) => {
     const copy = el('button', { className: 'icon-btn', title: S.panel.copyObs, ariaLabel: `${S.panel.copyObs}: ${name}`, onclick: () => copyLink(url) });
     copy.innerHTML = COPY_ICON; // fixed markup
     return el('li', { className: `widget-row${open[id] ? ' on' : ''}` }, el('i', { className: 'state-dot' }),
@@ -861,6 +862,7 @@ function build() {
     return b;
   }));
   wireMenu($('#obsMenuBtn'), $('#obsMenu'));
+  $('#widgetsManage').onclick = () => select('goal'); // the Widgets card shows only what's on: switch goals on or off there
   setInterval(() => view === 'home' && loadHome(), 30000); // "2 min ago", uptime, and today's numbers from 0 after midnight
 
   $('#connWarn').onclick = (e) => select(e.currentTarget.dataset.page);

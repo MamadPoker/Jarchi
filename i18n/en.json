@@ -112,6 +112,7 @@
     "feedDid": { "follow": "followed", "sub": "subscribed", "resub": "resubscribed for {n} months", "gift_sub": "gifted {n} subs", "kicks": "sent {n} Kicks", "bits": "cheered {n} bits", "raid": "raided with {n} viewers" },
     "feedDidOne": { "resub": "resubscribed", "gift_sub": "gifted a sub", "kicks": "sent 1 Kick", "bits": "cheered 1 bit", "raid": "raided with 1 viewer" },
     "widgetsTitle": "Widgets",
+    "widgetsManage": "Manage",
     "widgetOpen": "Open in OBS",
     "widgetClosed": "Not open",
     "statAlerts": "Alerts today",

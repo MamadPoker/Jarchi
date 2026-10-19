@@ -112,6 +112,7 @@
     "feedDid": { "follow": "فالو کرد", "sub": "ساب شد", "resub": "ساب را تمدید کرد ({n} ماه)", "gift_sub": "{n} ساب هدیه داد", "kicks": "{n} کیکس فرستاد", "bits": "{n} بیتس فرستاد", "raid": "با {n} بیننده رید کرد" },
     "feedDidOne": { "resub": "ساب را تمدید کرد", "gift_sub": "یک ساب هدیه داد", "kicks": "۱ کیکس فرستاد", "bits": "۱ بیتس فرستاد", "raid": "با ۱ بیننده رید کرد" },
     "widgetsTitle": "ویجت‌ها",
+    "widgetsManage": "مدیریت",
     "widgetOpen": "در OBS باز است",
     "widgetClosed": "باز نیست",
     "statAlerts": "الرت‌های امروز",

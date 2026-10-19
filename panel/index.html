@@ -101,7 +101,11 @@
           </div>
           <div class="home-side">
             <div class="box">
-              <h2 data-i18n="widgetsTitle"></h2>
+              <!-- Only the widgets that are switched on (alerts always); Manage opens the Goals page. -->
+              <div class="row between">
+                <h2 data-i18n="widgetsTitle"></h2>
+                <button id="widgetsManage" class="link-btn" data-i18n="widgetsManage"></button>
+              </div>
               <ul id="widgetList" class="widget-list"></ul>
             </div>
             <!-- Read-only: the goals set on each channel right now, as Kick / Twitch have them (Jarchi's own goals, the syncs

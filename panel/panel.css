@@ -700,6 +700,8 @@ main { padding: 24px 28px 64px; container-type: inline-size; } /* editor rules b
 .feed-what .pill { margin-inline-start: 8px; }
 .feed-row small { flex: none; }
 
+.link-btn, .link-btn:hover { padding: 0; border: 0; background: none; color: var(--gold-text); font-size: 13px; font-weight: 600; } /* a small text link */
+.link-btn:hover { text-decoration: underline; }
 .widget-list { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; }
 .widget-row { display: flex; align-items: center; gap: 12px; padding: 6px 0; }
 .widget-row .stack { flex: 1; gap: 0; line-height: 1.3; }
