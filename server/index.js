@@ -77,11 +77,11 @@ app.post('/api/alerts/pause', (req, res) => res.json(alertQueue.pause(req.body?.
 app.delete('/api/alerts/queue/:id', (req, res) => res.json(alertQueue.remove(req.params.id)));
 app.post('/api/alerts/replay/:id', (req, res) => res.json(alertQueue.replay(req.params.id)));
 
-// The panel's Home page: the last 24 hours' events, today's numbers, when Jarchi started (uptime) and the Kick channel's
-// goals. Open widgets and goal changes come by socket (Twitch's goals with the Twitch account's status). History: every
-// saved event.
+// The panel's Home page: today's numbers, when Jarchi started (uptime) and the Kick channel's goals. Open widgets and
+// goal changes come by socket (Twitch's goals with the Twitch account's status). History: every saved event (Home's live
+// feed and the History feed page; new ones come by socket).
 const STARTED = Date.now();
-app.get('/api/home', (req, res) => res.json({ feed: alertQueue.feed().filter((e) => Date.now() - e.time < 864e5), today: today(), started: STARTED, kickGoals: goals.kickList() }));
+app.get('/api/home', (req, res) => res.json({ today: today(), started: STARTED, kickGoals: goals.kickList() }));
 app.get('/api/history', (req, res) => res.json(alertQueue.feed()));
 
 // Proxy: "Test connection" (Kick, Twitch, 7TV), and which proxy is in use right now.

@@ -79,8 +79,8 @@ let chatStyles, chatFonts, chatStatus; // chat style looks and fonts (/api/chat/
 let chatThumbs; // sample messages for the chat style thumbnails (/api/chat/thumbs: random viewers and badges each visit)
 let view = 'home', cur = 'follow', curGoal = 'subs', topic = 'start'; // the open page, and the alert, goal and guide topic selected in theirs
 let queue = { paused: false, overlays: 0, waiting: 0, now: null }; // the alert queue (follows the socket)
-let home, open = {}, feedFilter = 'all'; // Home: { feed, today, started } (/api/home, then the socket), widget pages open now (socket)
-let hist = { list: [], filter: 'all', page: 0 }; // History: every saved event (/api/history when opened, then the socket), its filter and page
+let home, open = {}, feedFilter = 'all'; // Home: { today, started, kickGoals } (/api/home, then the socket), widget pages open now (socket)
+let hist = { list: [], filter: 'all', page: 0 }; // every saved event (/api/history, then the socket): Home's live feed and History; History's filter and page
 let twitch; // the Twitch account: { state, error, code, uri, clientId, login, goals } (/api/twitch, then the socket)
 let kick; // the Kick account: { state, error, uri, login } (/api/kick, then the socket)
 let showGoalTab; // the Goals list's Kick | Twitch tab (wireTabs, in build())
@@ -592,17 +592,20 @@ const feedRow = (ev, when) => el('li', { className: 'feed-row' },
   el('small', { textContent: when }),
   el('button', { className: 'replay', textContent: S.panel.qReplay, onclick: () => queueCall('POST', `replay/${encodeURIComponent(ev.id)}`).then((q) => q && toast(S.panel.qReplayed)) }));
 
-// History: every saved event, newest first, 20 a page. Page buttons: all of them up to 7, else the first, the last and
+// History: every saved event, newest first, 20 a page, each with its local date and time ("19 Oct 2026, 04:50"; in
+// Persian the Persian calendar: "۲۷ مهر ۱۴۰۵، ۰۴:۵۰"). Page buttons: all of them up to 7, else the first, the last and
 // the ones beside the open one.
 const PAGE = 20;
-const dateTime = new Intl.DateTimeFormat(FA ? 'fa-IR' : 'en', { dateStyle: 'medium', timeStyle: 'short' });
+const dayFmt = new Intl.DateTimeFormat(FA ? 'fa-IR' : 'en-GB', { day: 'numeric', month: FA ? 'long' : 'short', year: 'numeric' });
+const timeFmt = new Intl.DateTimeFormat(FA ? 'fa-IR' : 'en-GB', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+const dateTime = (t) => `${dayFmt.format(t)}${FA ? '، ' : ', '}${timeFmt.format(t)}`; // one fa-IR format would say "ساعت"
 const loadHistory = () => api('GET', '/api/history').then((list) => { hist.list = list; if (view === 'events') renderHistory(); }, () => {});
 function renderHistory() {
   pressFilter($('#histChips'), hist.filter);
   const rows = ofType(hist.list, hist.filter);
   const pages = Math.max(1, Math.ceil(rows.length / PAGE));
   hist.page = Math.min(hist.page, pages - 1);
-  $('#histList').replaceChildren(...rows.slice(hist.page * PAGE, (hist.page + 1) * PAGE).map((ev) => feedRow(ev, dateTime.format(ev.time))));
+  $('#histList').replaceChildren(...rows.slice(hist.page * PAGE, (hist.page + 1) * PAGE).map((ev) => feedRow(ev, dateTime(ev.time))));
   $('#histEmpty').hidden = rows.length > 0;
   const go = (p, text, props) => el('button', { textContent: text, onclick: () => { hist.page = p; renderHistory(); }, ...props });
   const nums = [];
@@ -622,9 +625,9 @@ function renderHome() {
   $('#issues').replaceChildren(...missing.map(([text, page]) => el('li', {}, el('span', { textContent: text }),
     el('button', { textContent: S.panel.fix, onclick: () => select(...page) }))));
 
-  // Live feed: the last 24 hours (the server sends only those), newest first, at most 8. View all = History.
+  // Live feed: the 10 newest events, whenever they came. View all = History.
   pressFilter($('#feedChips'), feedFilter);
-  const rows = ofType(home.feed, feedFilter).slice(0, 8);
+  const rows = ofType(hist.list, feedFilter).slice(0, 10);
   $('#feedList').replaceChildren(...rows.map((ev) => feedRow(ev, ago(ev.time))));
   $('#feedEmpty').hidden = rows.length > 0;
 
@@ -1061,7 +1064,6 @@ function build() {
   });
   // Home: new events (also from the test buttons), today's chat count, widget pages opening and closing.
   socket.on('event', (ev) => {
-    home.feed.unshift(ev);
     hist.list.unshift(ev);
     if (!ev.test) home.today.alerts++;
     if (view === 'home') renderHome();
@@ -1506,8 +1508,8 @@ artRun();
   EN = await (await fetch('/i18n/en.json')).json();
   S = FA ? await (await fetch('/i18n/fa.json')).json() : EN;
   try {
-    [settings, samples, goalData, { styles: chatStyles, fonts: chatFonts }, chatStatus, home, twitch, kick] = await Promise.all([
-      api('GET', '/api/settings'), api('GET', '/api/samples'), api('GET', '/api/goals'), api('GET', '/api/chat/styles'), api('GET', '/api/chat/status'), api('GET', '/api/home'),
+    [settings, samples, goalData, { styles: chatStyles, fonts: chatFonts }, chatStatus, home, hist.list, twitch, kick] = await Promise.all([
+      api('GET', '/api/settings'), api('GET', '/api/samples'), api('GET', '/api/goals'), api('GET', '/api/chat/styles'), api('GET', '/api/chat/status'), api('GET', '/api/home'), api('GET', '/api/history'),
       api('GET', '/api/twitch'), api('GET', '/api/kick'),
     ]);
   } catch (err) {
