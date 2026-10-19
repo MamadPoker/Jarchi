@@ -342,9 +342,8 @@ function goalCountRow(id) {
   input.setAttribute('aria-label', `${goalName(id)}: ${S.panel.goalCurrent}`);
   const zero = el('button', { className: 'ghost zero', textContent: S.panel.goalZero });
   twoClick(zero, zero, S.panel.goalZero, S.panel.confirmZero, () => goalCount({ set: 0 }, id));
-  // Synced from Kick / Twitch: their count, read-only, with Kick's K / Twitch's logo instead of Reset to 0.
-  const marks = ['kick', 'twitch'].map((p) => Object.assign(syncMark(p), { hidden: true }));
-  return el('div', { className: 'goal-count' }, input, el('small', { className: 'of' }), ...marks, zero);
+  // Synced from Kick / Twitch: their count, read-only, without Reset to 0 (the tab already says which platform).
+  return el('div', { className: 'goal-count' }, input, el('small', { className: 'of' }), zero);
 }
 
 // ---------- Previews ----------
@@ -519,7 +518,7 @@ function renderQueue() {
 }
 const queueCall = (method, what, body) => api(method, `/api/alerts/${what}`, body).then((q) => { queue = q; renderQueue(); return q; }, (err) => toast(err.message, true));
 
-// ---------- Goal marks (panel only): an icon per goal in its colour (CSS [data-goal]), Kick's K / Twitch's logo for "From …" ----------
+// ---------- Goal marks (panel only): an icon per goal in its colour (CSS [data-goal]), Kick's K ----------
 // Kick's own logo shape (assets/platform-logos/kick.svg), drawn in currentColor so light mode can use a darker green.
 const KICK_K = '<svg class="kick-k" viewBox="0 0 26 26" aria-hidden="true"><path fill-rule="evenodd" d="M1 0H9.76711V5.79452H12.589V2.82193H15.5616V0H24.1781V8.61645H21.3561V11.589H18.3836V14.411H21.3561V17.3836H24.1781V26H15.5616V23.1781H12.589V20.2055H9.76711V26H1V0Z"/></svg>';
 const HEART = 'M12 20.5s-7.6-4.5-9.4-9.2C1.4 8.1 3.5 4.7 7 4.7c2 0 3.6 1.1 5 2.9 1.4-1.8 3-2.9 5-2.9 3.5 0 5.6 3.4 4.4 6.6-1.8 4.7-9.4 9.2-9.4 9.2z';
@@ -541,14 +540,6 @@ const svgIn = (cls, markup) => { // fixed markup only
 const CHANNEL_GOAL = { followers: 'followers', subscriptions: 'subs', kicks: 'kicks', follow: 'followers', subscription: 'subs', subscription_count: 'subs',
   new_subscription: 'subs', new_subscription_count: 'subs', new_bit: 'bits', new_cheerer: 'bits' };
 const goalIcon = (id) => svgIn('goal-icon', GOAL_ICON[id] ?? ''); // a goal type that's new to Jarchi: none
-// "From Kick" / "From Twitch": Kick's K or Twitch's logo, with the words as its tooltip and for screen readers.
-function syncMark(p) {
-  const s = p === 'kick' ? svgIn('from-kick', KICK_K) : el('span', { className: 'from-twitch' }, el('img', { src: '/assets/platform-logos/twitch.svg', alt: '' }));
-  s.title = S.panel[p === 'kick' ? 'fromKick' : 'fromTwitch'];
-  s.setAttribute('role', 'img');
-  s.setAttribute('aria-label', s.title);
-  return s;
-}
 
 // ---------- Home ----------
 const COPY_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h8"/></svg>';
@@ -1172,8 +1163,6 @@ function render() {
         if (count !== document.activeElement) count.value = st.current;
         count.readOnly = st.kick || st.twitch;
         $('.of', row).textContent = `/ ${fmt(st.target)}`;
-        $('.from-kick', row).hidden = !st.kick;
-        $('.from-twitch', row).hidden = !st.twitch;
         $('.zero', row).hidden = st.kick || st.twitch;
       }
       const own = $('.swatch.mini', row);

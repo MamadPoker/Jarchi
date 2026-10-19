@@ -506,10 +506,9 @@ input.count-input { width: 62px; padding: 3px 6px; border-color: transparent; ba
 input.count-input:hover, input.count-input:focus { border-color: var(--border-hi); background: var(--card2); }
 .goal-count .of { white-space: nowrap; }
 .goal-count .zero { margin-inline-start: auto; padding: 3px 10px; font-size: 12px; white-space: nowrap; }
-.goal-count .from-kick, .goal-count .from-twitch { margin-inline-start: 4px; }
 input.count-input[readonly]:hover { border-color: transparent; background: transparent; }
 /* Goals list: Kick | Twitch tabs, each with "Sync from …" (Twitch: or Connect) and its hint above that platform's goals.
-   Kick's K / Twitch's logo ("From Kick" / "From Twitch" tooltip) marks numbers that come from there (read-only). */
+   In the editor, Kick's K / Twitch's logo ("From Kick" / "From Twitch" tooltip) marks Target / Current that come from there. */
 #goalList .tabs { margin-inline: 4px; }
 #goalList .pane > :not(.nav-list) { margin-inline: 10px; }
 #goalList .pane small { font-size: 12px; line-height: 1.4; }
