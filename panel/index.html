@@ -98,6 +98,7 @@
             </div>
             <ol id="feedList" class="feed-list"></ol>
             <p id="feedEmpty" class="q-empty" data-i18n="feedEmpty"></p>
+            <button id="feedAll" class="link-btn" data-i18n="viewAll"></button>
           </div>
           <div class="home-side">
             <div class="box">
@@ -135,11 +136,14 @@
         </div>
       </section>
 
-      <!-- ===== Pages that aren't built yet ===== -->
-      <section class="view soon" data-view="events" hidden>
-        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
-        <h2 data-i18n="soonTitle"></h2>
-        <small data-i18n="soonHint"></small>
+      <!-- ===== History: every saved event, newest first, 20 a page (renderHistory) ===== -->
+      <section class="view narrow" data-view="events" hidden>
+        <div class="box">
+          <div id="histChips" class="filters" role="group" data-aria="navEvents"></div>
+          <ol id="histList" class="feed-list"></ol>
+          <p id="histEmpty" class="q-empty" data-i18n="historyEmpty"></p>
+          <nav id="histPages" class="pager" data-aria="pages"></nav>
+        </div>
       </section>
 
       <!-- ===== Connections: the streamer's own Kick account (follows; renderKick()) and Twitch account (follows, Twitch

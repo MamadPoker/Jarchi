@@ -80,6 +80,7 @@ let chatThumbs; // sample messages for the chat style thumbnails (/api/chat/thum
 let view = 'home', cur = 'follow', curGoal = 'subs', topic = 'start'; // the open page, and the alert, goal and guide topic selected in theirs
 let queue = { paused: false, overlays: 0, waiting: 0, now: null }; // the alert queue (follows the socket)
 let home, open = {}, feedFilter = 'all'; // Home: { feed, today, started } (/api/home, then the socket), widget pages open now (socket)
+let hist = { list: [], filter: 'all', page: 0 }; // History: every saved event (/api/history when opened, then the socket), its filter and page
 let twitch; // the Twitch account: { state, error, code, uri, clientId, login, goals } (/api/twitch, then the socket)
 let kick; // the Kick account: { state, error, uri, login } (/api/kick, then the socket)
 let showGoalTab; // the Goals list's Kick | Twitch tab (wireTabs, in build())
@@ -392,6 +393,7 @@ function select(v, key) {
   }
   if (v === 'chat' && !$('#chatPreview').getAttribute('src')) $('#chatPreview').src = '/widgets/chat?preview';
   if (v === 'home') loadHome(); // today's numbers may have started again at midnight
+  if (v === 'events') loadHistory();
   if (v === 'settings') showProxyNow();
   if (v === 'guide') {
     if (S.guide.topics[key]) topic = key;
@@ -551,6 +553,8 @@ const widgetPages = () => [
   ...Object.keys(settings.goals).map((id) => [id, goalName(id), `${location.origin}/widgets/goal/${id}`]),
 ];
 const FEED_FILTERS = { all: null, subs: ['sub', 'resub', 'gift_sub'], kicks: ['kicks'], raids: ['raid'], follows: ['follow'] };
+const ofType = (list, f) => list.filter((ev) => !FEED_FILTERS[f] || FEED_FILTERS[f].includes(ev.type));
+const pressFilter = (box, f) => $$('button', box).forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.filter === f)));
 
 // What's missing before going live: [text, the page (and item) that fixes it]. Widgets switched off aren't needed.
 function issues() {
@@ -581,6 +585,35 @@ function uptime() {
 
 const loadHome = () => api('GET', '/api/home').then((h) => { home = h; if (view === 'home') renderHome(); }, () => {});
 
+// An event (Home's live feed, History), with when it came; a test button's alert says so.
+const feedRow = (ev, when) => el('li', { className: 'feed-row' },
+  ev.platform === 'test' ? typeIcon(ev.type) : el('img', { className: 'feed-logo', src: `/assets/platform-logos/${ev.platform}.svg`, alt: S.platforms[ev.platform], title: S.platforms[ev.platform] }),
+  el('span', { className: 'feed-what' }, el('b', { textContent: ev.user, dir: 'auto' }), ` ${did(ev)}`, ev.test ? el('span', { className: 'pill', textContent: S.platforms.test }) : ''),
+  el('small', { textContent: when }),
+  el('button', { className: 'replay', textContent: S.panel.qReplay, onclick: () => queueCall('POST', `replay/${encodeURIComponent(ev.id)}`).then((q) => q && toast(S.panel.qReplayed)) }));
+
+// History: every saved event, newest first, 20 a page. Page buttons: all of them up to 7, else the first, the last and
+// the ones beside the open one.
+const PAGE = 20;
+const dateTime = new Intl.DateTimeFormat(FA ? 'fa-IR' : 'en', { dateStyle: 'medium', timeStyle: 'short' });
+const loadHistory = () => api('GET', '/api/history').then((list) => { hist.list = list; if (view === 'events') renderHistory(); }, () => {});
+function renderHistory() {
+  pressFilter($('#histChips'), hist.filter);
+  const rows = ofType(hist.list, hist.filter);
+  const pages = Math.max(1, Math.ceil(rows.length / PAGE));
+  hist.page = Math.min(hist.page, pages - 1);
+  $('#histList').replaceChildren(...rows.slice(hist.page * PAGE, (hist.page + 1) * PAGE).map((ev) => feedRow(ev, dateTime.format(ev.time))));
+  $('#histEmpty').hidden = rows.length > 0;
+  const go = (p, text, props) => el('button', { textContent: text, onclick: () => { hist.page = p; renderHistory(); }, ...props });
+  const nums = [];
+  for (let p = 0; p < pages; p++) {
+    if (pages <= 7 || p === 0 || p === pages - 1 || Math.abs(p - hist.page) <= 1) nums.push(go(p, fd(p + 1), p === hist.page && { ariaCurrent: 'page' }));
+    else if (nums.at(-1).tagName !== 'SPAN') nums.push(el('span', { textContent: '…' }));
+  }
+  $('#histPages').hidden = pages < 2;
+  $('#histPages').replaceChildren(go(hist.page - 1, S.panel.prev, { disabled: !hist.page }), ...nums, go(hist.page + 1, S.panel.next, { disabled: hist.page === pages - 1 }));
+}
+
 function renderHome() {
   const missing = issues();
   $('#banner').classList.toggle('ready', !missing.length);
@@ -589,15 +622,10 @@ function renderHome() {
   $('#issues').replaceChildren(...missing.map(([text, page]) => el('li', {}, el('span', { textContent: text }),
     el('button', { textContent: S.panel.fix, onclick: () => select(...page) }))));
 
-  // Live feed: newest first; a test button's alert says so.
-  $$('#feedChips button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.filter === feedFilter)));
-  const types = FEED_FILTERS[feedFilter];
-  const rows = home.feed.filter((ev) => !types || types.includes(ev.type));
-  $('#feedList').replaceChildren(...rows.map((ev) => el('li', { className: 'feed-row' },
-    ev.platform === 'test' ? typeIcon(ev.type) : el('img', { className: 'feed-logo', src: `/assets/platform-logos/${ev.platform}.svg`, alt: S.platforms[ev.platform], title: S.platforms[ev.platform] }),
-    el('span', { className: 'feed-what' }, el('b', { textContent: ev.user, dir: 'auto' }), ` ${did(ev)}`, ev.test ? el('span', { className: 'pill', textContent: S.platforms.test }) : ''),
-    el('small', { textContent: ago(ev.time) }),
-    el('button', { className: 'replay', textContent: S.panel.qReplay, onclick: () => queueCall('POST', `replay/${encodeURIComponent(ev.id)}`).then((q) => q && toast(S.panel.qReplayed)) }))));
+  // Live feed: the last 24 hours (the server sends only those), newest first, at most 8. View all = History.
+  pressFilter($('#feedChips'), feedFilter);
+  const rows = ofType(home.feed, feedFilter).slice(0, 8);
+  $('#feedList').replaceChildren(...rows.map((ev) => feedRow(ev, ago(ev.time))));
   $('#feedEmpty').hidden = rows.length > 0;
 
   // Widgets: only the ones switched on (alerts always), green when a page of it is open (in OBS) right now.
@@ -846,12 +874,16 @@ function build() {
   }));
   $('#themeRow').onclick = () => select('theme');
 
-  // Home: feed filters, a test alert of any type, and the OBS links menu (closes on a click elsewhere or Escape).
-  $('#feedChips').append(...Object.keys(FEED_FILTERS).map((f) => {
-    const b = el('button', { textContent: S.panel.feedFilters[f], onclick: () => { feedFilter = f; renderHome(); } });
+  // Home: feed filters, View all (History, with the feed's filter), a test alert of any type, and the OBS links menu
+  // (closes on a click elsewhere or Escape). History has the same filters.
+  const filterChips = (box, pick) => box.append(...Object.keys(FEED_FILTERS).map((f) => {
+    const b = el('button', { textContent: S.panel.feedFilters[f], onclick: () => pick(f) });
     b.dataset.filter = f;
     return b;
   }));
+  filterChips($('#feedChips'), (f) => { feedFilter = f; renderHome(); });
+  filterChips($('#histChips'), (f) => { hist.filter = f; hist.page = 0; renderHistory(); });
+  $('#feedAll').onclick = () => { hist.filter = feedFilter; hist.page = 0; select('events'); };
   $('#homeTest').onclick = () => {
     const types = Object.keys(settings.alerts);
     api('POST', `/api/test/${types[Math.floor(Math.random() * types.length)]}`, { platform: $('#testAs').value }).then(() => toast(S.panel.testSent), (err) => toast(err.message, true));
@@ -1030,9 +1062,10 @@ function build() {
   // Home: new events (also from the test buttons), today's chat count, widget pages opening and closing.
   socket.on('event', (ev) => {
     home.feed.unshift(ev);
-    home.feed.length = Math.min(home.feed.length, 20);
+    hist.list.unshift(ev);
     if (!ev.test) home.today.alerts++;
     if (view === 'home') renderHome();
+    if (view === 'events') renderHistory();
   });
   socket.on('chat', (m) => { if (!m.test && m.kind !== 'event') $('#statChat').textContent = fmt(++home.today.chat); }); // Kicks / raid lines aren't messages
   socket.on('kickGoals', (list) => {
@@ -1204,6 +1237,7 @@ function render() {
   if (view === 'goal') renderGoal();
   if (view === 'chat') renderChat();
   if (view === 'home') renderHome();
+  if (view === 'events') renderHistory();
 }
 
 function renderSettings() {

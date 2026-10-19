@@ -3,7 +3,7 @@
 // - a refreshed overlay gets the alert that's playing now with the time it has left, so nothing replays;
 // - while no overlay is open (OBS closed) alerts wait; an alert that ends with no overlay open goes back to the front.
 // The panel can skip the current alert, clear or remove waiting ones, pause / resume, and replay one of the last played
-// or of the last events (the Home page's live feed).
+// or of the saved events (the Home page's live feed, the History page).
 const path = require('node:path');
 const { EventEmitter } = require('node:events');
 const { randomUUID } = require('node:crypto');
@@ -15,7 +15,7 @@ const store = require('./store');
 const STEPS = { gift_sub: [5, 20], kicks: [100, 1000], bits: [100, 1000] }; // as in widgets/alerts/alerts.js: bigger amounts play longer
 const OUT_MS = 600; // the overlay's exit animation
 const GRACE_MS = 3000; // the last overlay left less than this before the end: a refresh, the alert counts as seen
-const MAX_WAITING = 200, HISTORY = 10, FEED = 20;
+const MAX_WAITING = 200, HISTORY = 10, FEED = 1000; // ponytail: feed.json is rewritten whole per event; an append-only log if more than 1000 ever matters
 
 const alerts = new EventEmitter(); // 'play' ({ id, ev, left }), 'skip' (id), 'state' (state())
 const queue = []; // { id, ev }

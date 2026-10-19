@@ -37,9 +37,11 @@ const patch = (fields) => call('PATCH', '/api/settings', { alerts: { follow: fie
 test('migration, settings, uploads, reset, events', async () => {
   if (!server.listening) await new Promise((r) => server.once('listening', r));
 
-  // Home: the feed and today's numbers are back after a restart.
+  // Home: the saved events and today's numbers are back after a restart (History has the old event; Home's feed is
+  // only the last 24 hours).
   const home = await (await call('GET', '/api/home')).json();
-  assert.deepEqual([home.feed.map((e) => e.user), home.today], [['Saved'], { alerts: 5, chat: 7 }]);
+  assert.deepEqual([home.feed, home.today], [[], { alerts: 5, chat: 7 }]);
+  assert.deepEqual((await (await call('GET', '/api/history')).json()).map((e) => e.user), ['Saved']);
 
   // v1 -> v2: old custom sound keeps playing, old values kept, file still served.
   let s = await (await call('GET', '/api/settings')).json();

@@ -500,7 +500,7 @@ test('alert queue: one at a time to every overlay, survives refreshes and OBS cl
   queue.leave();
 });
 
-test("Home: the last 20 events (any can replay), today's real alerts and chat, widget pages open right now", async () => {
+test("Home: the last 24 hours' events (any can replay), History: all, today's real alerts and chat, widget pages open right now", async () => {
   queue.clear();
   const home = async () => (await call('GET', '/api/home')).json();
   const before = (await home()).today;
@@ -509,7 +509,9 @@ test("Home: the last 20 events (any can replay), today's real alerts and chat, w
   emitChat({ platform: 'twitch', user: { name: 'viewer' }, text: 'hi' });
   emitChat({ platform: 'twitch', user: { name: 'tester' }, text: 'hi', test: true });
   const h = await home();
-  assert.deepEqual([h.feed.length, ...h.feed.slice(0, 3).map((e) => e.user)], [20, 'Small', 'T22', 'T21'], 'newest first');
+  assert.deepEqual(h.feed.slice(0, 3).map((e) => e.user), ['Small', 'T22', 'T21'], 'newest first');
+  assert.ok(h.feed.length >= 23, 'no longer only the last 20');
+  assert.deepEqual((await (await call('GET', '/api/history')).json()).slice(0, 23), h.feed.slice(0, 23), 'History has them too');
   assert.deepEqual(h.today, { alerts: before.alerts + 1, chat: before.chat + 1 }, 'test alerts and test messages not counted');
   const q = await (await call('POST', `/api/alerts/replay/${h.feed[0].id}`)).json();
   assert.equal(q.list.at(-1).user, 'Small', 'replays from the feed, even one that never played');

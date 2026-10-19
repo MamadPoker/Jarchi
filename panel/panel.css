@@ -719,10 +719,13 @@ main { padding: 24px 28px 64px; container-type: inline-size; } /* editor rules b
 .stats b { font-size: 20px; }
 .stats small { font-size: 12px; line-height: 1.35; }
 
-/* ---------- Pages that aren't built yet ---------- */
-.view.soon { justify-items: center; align-content: center; gap: 8px; min-height: 55vh; text-align: center; }
-.soon svg { width: 40px; height: 40px; margin-bottom: 6px; color: var(--gold); }
-.soon h2 { font-size: 20px; }
+#feedAll { justify-self: start; }
+
+/* ---------- History: the same rows as the live feed, page buttons ---------- */
+.pager { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 6px; }
+.pager button { min-width: 34px; justify-content: center; padding: 4px 10px; border-radius: 99px; font-size: 13px; }
+.pager button[aria-current="page"] { border-color: transparent; background: var(--main-fill); color: var(--on-main); }
+.pager span { color: var(--muted); }
 
 .stack { display: grid; gap: 4px; }
 .theme-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
