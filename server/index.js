@@ -239,11 +239,35 @@ bus.on('chat', (m) => {
 bus.on('chatClear', (c) => io.emit('chatClear', c));
 bus.on('chatAvatar', (a) => io.emit('chatAvatar', a));
 chat.events.on('status', (st) => io.emit('chatStatus', st));
+// A Kick / Twitch account connected on the Connections page fills that platform's channel on the Chat page, only when
+// it's empty there (a name typed there always stays), so its chat, alerts and the panel's background art start at once.
+// For each new login, and at start (below) for the accounts connected before.
+const accountLogin = { kick: kickAccount.status().login, twitch: twitchAccount.status().login };
+function fillChannel(platform, login) {
+  const key = `${platform}Channel`;
+  if (!login || settings.get().chat[key]) return;
+  // ponytail: Kick's channel is the account name made a slug (lowercase, _ as -), like kick.com does; if one ever
+  // doesn't match, ask Kick for it (GET /public/v1/channels).
+  try {
+    changed(settings.update({ chat: { [key]: platform === 'kick' ? login.toLowerCase().replace(/_/g, '-') : login } }));
+  } catch {
+    return; // a name the channel rules don't take: left empty
+  }
+  chat.sync();
+}
+const accountChanged = (platform, st) => {
+  if (st.login !== accountLogin[platform]) fillChannel(platform, st.login);
+  accountLogin[platform] = st.login;
+};
 twitchAccount.events.on('status', (st) => {
   io.emit('twitchAccount', st);
   goals.twitchGoals(st.goals); // "Sync from Twitch"
+  accountChanged('twitch', st);
 });
-kickAccount.events.on('status', (st) => io.emit('kickAccount', st));
+kickAccount.events.on('status', (st) => {
+  io.emit('kickAccount', st);
+  accountChanged('kick', st);
+});
 
 server.on('error', (err) => {
   console.error(err.code === 'EADDRINUSE' ? `Port ${PORT} is already in use. Set JARCHI_PORT in .env to another port.` : err);
@@ -253,6 +277,8 @@ server.listen(PORT, HOST, () => {
   console.log(`Jarchi is running
   Settings panel: http://${HOST}:${PORT}/
   OBS alerts URL: http://${HOST}:${PORT}/widgets/alerts`);
+  fillChannel('kick', accountLogin.kick); // a channel from each account connected before, where the Chat page has none
+  fillChannel('twitch', accountLogin.twitch);
   chat.sync(); // connect to the saved Kick / Twitch channels
   twitchAccount.start(); // and the Twitch and Kick accounts, when they're connected
   kickAccount.start();

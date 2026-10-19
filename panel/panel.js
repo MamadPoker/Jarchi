@@ -1161,6 +1161,10 @@ function build() {
     goalData.state = state;
     render();
   });
+  socket.on('settings', (s) => { // also changed by the server itself (a connected account fills its chat channel)
+    settings = s;
+    render();
+  });
   socket.on('chatStatus', (st) => {
     chatStatus = st;
     renderStatus();

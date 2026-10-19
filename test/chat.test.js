@@ -407,3 +407,27 @@ test('"Show chat timing": a widget\'s "shown" becomes one server line with each 
     await call('PATCH', '/api/settings', { chat: { showTiming: false } });
   }
 });
+
+test('a connected account fills its empty chat channel, never a name typed there', async () => {
+  if (!server.listening) await new Promise((r) => server.once('listening', r));
+  const kickAccount = require('../connectors/kick-account'), twitchAccount = require('../connectors/twitch-account');
+  const realKick = kick.connect, realTwitch = twitch.connect, joined = [];
+  kick.connect = twitch.connect = (channel) => (joined.push(channel), { stop() {} });
+  const channels = async () => { const { chat: c } = await (await call('GET', '/api/settings')).json(); return [c.kickChannel, c.twitchChannel]; };
+  try {
+    await call('PATCH', '/api/settings', { chat: { kickChannel: '', twitchChannel: 'typedname' } });
+    kickAccount.events.emit('status', { state: 'connected', login: 'Mamad_Poker' }); // Kick's name -> its channel slug
+    twitchAccount.events.emit('status', { state: 'connected', login: 'mamad', goals: [] });
+    assert.deepEqual(await channels(), ['mamad-poker', 'typedname']);
+    assert.ok(joined.includes('mamad-poker'), 'its chat connects at once');
+    await call('PATCH', '/api/settings', { chat: { kickChannel: 'other' } });
+    kickAccount.events.emit('status', { state: 'connected', login: 'Mamad_Poker' }); // the same login again: nothing
+    assert.deepEqual(await channels(), ['other', 'typedname']);
+  } finally {
+    kickAccount.events.emit('status', { state: 'off', login: '' });
+    twitchAccount.events.emit('status', { state: 'off', login: '', goals: [] });
+    await call('PATCH', '/api/settings', { chat: { kickChannel: '', twitchChannel: '' } });
+    Object.assign(kick, { connect: realKick });
+    Object.assign(twitch, { connect: realTwitch });
+  }
+});
