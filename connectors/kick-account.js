@@ -1,4 +1,5 @@
-// The streamer's own Kick account, for what Kick's public chat socket doesn't tell: follows (the Follow alert). Kick's
+// The streamer's own Kick account, for what Kick's public chat socket doesn't tell: follows (the Follow alert), and
+// subs and gifted subs once more, for when the socket misses one (it alerts once either way). Kick's
 // login needs its app's secret and Kick sends follows only to a public address (webhooks), so both go through Jarchi's
 // Kick relay (relay/, a Cloudflare Worker): Connect opens Kick's login through it, it comes back to /api/kick/callback
 // here, codes and refreshes are swapped for tokens there. Jarchi subscribes its own channel to follows with that login
@@ -10,13 +11,16 @@ const { EventEmitter } = require('node:events');
 const { DATA_DIR, PORT } = require('../core/config');
 const store = require('../core/store');
 const { emitEvent, setConnected, logIncoming } = require('../core/events');
+const net = require('../core/net');
+const kickChat = require('./kick-chat');
 
 const FILE = path.join(DATA_DIR, 'kick.json');
 // Jarchi's own relay; KICK_RELAY_URL in .env sets another (your own deploy of relay/).
 const JARCHI_RELAY = 'https://jarchi-kick.thejarchi.workers.dev';
 const RELAY = (process.env.KICK_RELAY_URL || JARCHI_RELAY).replace(/\/+$/, '');
 const API = 'https://api.kick.com/public/v1';
-const EVENTS = [{ name: 'channel.followed', version: 1 }];
+// Follows; and subs, renewals and gifted subs as a second source beside the public chat socket (kick-chat official()).
+const EVENTS = ['channel.followed', 'channel.subscription.new', 'channel.subscription.renewal', 'channel.subscription.gifts'].map((name) => ({ name, version: 1 }));
 const LOGIN_MS = 10 * 60 * 1000; // the Kick login page waits this long for the streamer
 const QUIET_MS = 90 * 1000; // we ping every 30 s; no pong for this long means the socket is dead
 
@@ -179,7 +183,7 @@ function open(my) {
   let quiet;
   const watch = () => {
     clearTimeout(quiet);
-    quiet = setTimeout(() => s.close(), QUIET_MS);
+    quiet = setTimeout(() => net.hangUp(s), QUIET_MS);
   };
   s.onopen = () => {
     if (my !== run) return s.close();
@@ -204,11 +208,13 @@ function open(my) {
   };
 }
 
-// One event from Kick. A follow alerts once per viewer in 6 hours (core/events key), so follow / unfollow spam alerts once.
+// One event from Kick (each goes to the event log). A follow alerts once per viewer in 6 hours (core/events key), so
+// follow / unfollow spam alerts once. Subs and gifts: kick-chat official(), which knows what the chat socket told.
 function handle(type, d) {
-  if (type !== 'channel.followed' || String(d?.broadcaster?.user_id) !== String(saved.userId)) return;
+  if (String(d?.broadcaster?.user_id) !== String(saved.userId)) return;
   logIncoming('kick', type, d);
-  emitEvent({ platform: 'kick', type: 'follow', user: d.follower?.username, key: `kick:follow:${d.follower?.user_id}` });
+  if (type === 'channel.followed') return emitEvent({ platform: 'kick', type: 'follow', user: d.follower?.username, key: `kick:follow:${d.follower?.user_id}` });
+  kickChat.official(type, d, { onAlert: (a) => emitEvent({ ...a, platform: 'kick' }) });
 }
 
 setInterval(() => ws?.readyState === WebSocket.OPEN && ws.send('ping'), 30000).unref();

@@ -148,6 +148,24 @@ setGlobalDispatcher(new Agent({
 // Can we reach host:443 (TCP + TLS, through the proxy)? Throws like secure().
 const reach = (host) => secure(host, 443, ['http/1.1']).then((s) => s.destroy());
 
+// Give up on a WebSocket that went quiet, so whatever reconnects in its onclose does. On a dead connection (nothing
+// comes back at all) close() never fires onclose (Node's WebSocket: still "closing" after 40 s), so it's fired here a
+// moment later, once. Nothing the socket still receives is passed on.
+function hangUp(ws, ms = 3000) {
+  if (!ws || ws.hungUp) return;
+  ws.hungUp = true;
+  const onclose = ws.onclose;
+  let fired = false;
+  ws.onmessage = ws.onerror = null;
+  ws.onclose = (e) => {
+    if (fired) return;
+    fired = true;
+    onclose?.call(ws, e);
+  };
+  try { ws.close(); } catch {}
+  setTimeout(() => ws.onclose({ code: 1006, reason: 'no answer' }), ms).unref?.();
+}
+
 // An error -> what the panel says about it: proxy_down | proxy_refused | dns | timeout | network.
 function why(err) {
   const c = err?.code ?? err?.cause?.code;
@@ -157,4 +175,4 @@ function why(err) {
   return 'network'; // reset, refused, TLS failure: usually a filtered network
 }
 
-module.exports = { tunnel, secure, reach, why, fail, current, windowsProxy, parseWindows };
+module.exports = { tunnel, secure, reach, hangUp, why, fail, current, windowsProxy, parseWindows };

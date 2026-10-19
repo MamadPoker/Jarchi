@@ -33,8 +33,8 @@ globalThis.fetch = async (url, init = {}) => {
     case 'GET api.kick.com/public/v1/users': return json(200, { data: [{ user_id: 42, name: 'mamad', email: '', profile_picture: '' }], message: 'OK' });
     case 'GET api.kick.com/public/v1/events/subscriptions': return json(200, { data: subs, message: 'OK' });
     case 'POST api.kick.com/public/v1/events/subscriptions':
-      subs.push({ id: 's1', event: body.events[0].name, version: body.events[0].version, broadcaster_user_id: 42, method: 'webhook' });
-      return json(200, { data: [{ name: 'channel.followed', version: 1, subscription_id: 's1', error: '' }], message: 'OK' });
+      for (const e of body.events) subs.push({ id: `s${subs.length + 1}`, event: e.name, version: e.version, broadcaster_user_id: 42, method: 'webhook' });
+      return json(200, { data: body.events.map((e, i) => ({ ...e, subscription_id: `s${i + 1}`, error: '' })), message: 'OK' });
     case 'DELETE api.kick.com/public/v1/events/subscriptions': return new Response(null, { status: 204 });
     case 'POST id.kick.com/oauth/revoke': return new Response('OK', { status: 200 });
   }
@@ -94,7 +94,8 @@ test('Kick account: login through the relay, follows subscribed, follow alerts, 
   assert.equal(sockets[0].url, 'wss://relay.test/ws');
   assert.equal(sockets[0].opts.headers.authorization, 'Bearer A2');
   assert.deepEqual([file().refresh, file().userId, file().login], ['R2', 42, 'mamad']);
-  assert.deepEqual(posted().map((c) => c.body), [{ events: [{ name: 'channel.followed', version: 1 }], method: 'webhook' }]);
+  assert.deepEqual(posted().map((c) => c.body), [{ events: ['channel.followed', 'channel.subscription.new', 'channel.subscription.renewal', 'channel.subscription.gifts']
+    .map((name) => ({ name, version: 1 })), method: 'webhook' }]);
   assert.ok(!/A2|R2/.test(JSON.stringify(account.status())), 'tokens never reach the panel');
   sockets[0].open();
   assert.deepEqual([account.status().state, account.status().login, connectedPlatforms()], ['connected', 'mamad', ['kick']]);
@@ -107,6 +108,10 @@ test('Kick account: login through the relay, follows subscribed, follow alerts, 
   sockets[0].say(follow(8, 'Leo', 99));
   sockets[0].say('pong');
   assert.deepEqual(events.map((e) => [e.platform, e.type, e.user]), [['kick', 'follow', 'Ava']]);
+  // A sub through the relay: a Kick Sub alert, a moment later (kick-chat official(), shared with the chat socket's).
+  sockets[0].say({ type: 'channel.subscription.new', data: { broadcaster: { user_id: 42 }, subscriber: { user_id: 5, username: 'Sam' }, duration: 1 } });
+  await waitFor(() => events.length === 2, 'sub alert');
+  assert.deepEqual([events[1].type, events[1].user, events[1].months], ['sub', 'Sam', 1]);
 
   // Dropped: connecting again by itself (2 s later); Kick still has the subscription, so it isn't made again.
   sockets[0].close();
@@ -124,7 +129,7 @@ test('Kick account: login through the relay, follows subscribed, follow alerts, 
   assert.deepEqual([off.state, off.login], ['off', '']);
   assert.deepEqual(file(), {});
   const del = calls.find((c) => c.method === 'DELETE');
-  assert.equal(del.query, '?id=s1');
+  assert.equal(del.query, '?id=s1&id=s2&id=s3&id=s4');
   assert.equal(calls.at(-1).path, '/oauth/revoke');
   assert.match(calls.at(-1).query, /token=A2/);
   assert.ok(sockets[1].closed);

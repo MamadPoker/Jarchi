@@ -8,6 +8,7 @@ const { EventEmitter } = require('node:events');
 const { DATA_DIR } = require('../core/config');
 const store = require('../core/store');
 const { emitEvent, setConnected, logIncoming } = require('../core/events');
+const net = require('../core/net');
 
 const FILE = path.join(DATA_DIR, 'twitch.json');
 const ID = 'https://id.twitch.tv/oauth2';
@@ -179,7 +180,7 @@ function open(url, my) {
   let keepalive = 10, quiet;
   const watch = () => { // nothing (not even a keepalive) for that long: the socket is dead
     clearTimeout(quiet);
-    quiet = setTimeout(() => s.close(), (keepalive + 10) * 1000);
+    quiet = setTimeout(() => net.hangUp(s), (keepalive + 10) * 1000);
   };
   watch();
   s.onmessage = (e) => {

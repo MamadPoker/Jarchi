@@ -141,9 +141,18 @@ async function subMonths(slug, user) {
   return status === 200 ? Number(json?.subscribed_for) || null : null;
 }
 
-// One Pusher event -> callbacks. Exported for tests.
+const login = (n) => String(n ?? '').toLowerCase();
+// A sub or resub alert. Its key is the viewer (one sub a month at most), so the same sub told by the public socket
+// and by Kick's official events (official()) alerts once. None for a viewer a gift just named.
+function subAlert(cb, user, months, message = '', received = Date.now()) {
+  mark(`sub:${login(user)}`);
+  if (isRecent(`to:${login(user)}`)) return;
+  cb.onAlert?.({ type: months > 1 ? 'resub' : 'sub', user, months, message, received, key: `kick:sub:${login(user)}` });
+}
+
+// One Pusher event -> callbacks. Exported for tests. Kick names its events with or without "App\Events\" (both work).
 // Alerts (cb.onAlert), each with a key naming that one real event, so a repeat is dropped (core/events):
-//   SubscriptionEvent (chatrooms.<id>.v2)          sub (1 month) or resub; key: viewer + month count. After hold(), and
+//   SubscriptionEvent (chatrooms.<id>.v2)          sub (1 month) or resub; key: the viewer. After hold(), and
 //                                                  none if a gift named the viewer (Kick sends it for gifted subs too)
 //   ChannelSubscriptionEvent (channel_<id>)        Kick sends every sub here too, and automatic renewals ONLY here, without
 //                                                  the months: if the chat socket didn't announce it (and it's no gift),
@@ -151,35 +160,28 @@ async function subMonths(slug, user) {
 //                                                  October 2026 every Kick sub came only this way
 //   ChatMessageEvent type "celebration"            resub: a viewer shares their renewal in chat, with their message (same key)
 //   GiftedSubscriptionsEvent (chatroom_<id>)       gifted subs: ONE alert per purchase (Kick's correlation_id; a big gift
-//                                                  can come in chunks), amount = gifted_total
+//                                                  can come in chunks), amount = gifted_total; none if Kick's official
+//                                                  event already told of a gift to one of these viewers
 //   KicksGifted (channel_<id>)                     Kicks, keyed by Kick's gift transaction id
 //   StreamHostEvent (.v2)                          raid (Kick calls it a host), amount = viewers
-// Each of these (not other chat messages) goes to the event log (data/logs/events.log) as it came.
+// Every event but chat itself goes to the event log (data/logs/events.log) as it came, also ones Jarchi doesn't know
+// (so an alert Kick sends under a new name is never silent).
 // Their chat lines carry what happened (event, for the chat's special lines): subs, resubs and gifts on their usual line;
 // Kicks and hosts get a line of their own (kind 'event'), once per gift / host.
-const ALERT_EVENTS = new Set(['App\\Events\\SubscriptionEvent', 'App\\Events\\ChannelSubscriptionEvent', 'GiftedSubscriptionsEvent',
-  'App\\Events\\GiftedSubscriptionsEvent', 'KicksGifted', 'App\\Events\\StreamHostEvent']);
+const CHAT_EVENTS = new Set(['ChatMessageEvent', 'MessageDeletedEvent', 'UserBannedEvent', 'ChatroomClearEvent']);
 // The channel's goals (Kick's creator dashboard) on channel_<id>, each with the whole goal as kick.com's /goals lists it:
 // kick.com's own page swaps its goal for the one in the event. Passed on as cb.onGoal(goal); a canceled one says so.
 const GOAL_EVENTS = new Set(['GoalCreatedEvent', 'GoalUpdatedEvent', 'GoalProgressUpdateEvent', 'GoalAchievedEvent', 'GoalCanceledEvent']);
 function handle(event, raw, channel, info, cb) {
   const d = typeof raw === 'string' ? JSON.parse(raw) : raw;
-  if (ALERT_EVENTS.has(event) || d?.metadata?.celebration) logIncoming('kick', event, d);
   const plain = event.replace(/^App\\Events\\/, '');
-  if (GOAL_EVENTS.has(plain)) {
-    logIncoming('kick', event, d);
-    return cb.onGoal?.(plain === 'GoalCanceledEvent' ? { ...d, status: 'canceled' } : d);
-  }
+  if (!CHAT_EVENTS.has(plain) || d?.metadata?.celebration) logIncoming('kick', event, d);
+  if (GOAL_EVENTS.has(plain)) return cb.onGoal?.(plain === 'GoalCanceledEvent' ? { ...d, status: 'canceled' } : d);
   const name = (n) => ({ name: n, login: n });
-  const login = (n) => String(n ?? '').toLowerCase();
   const received = Date.now(); // for the alert timing line: a sub alert comes out of hold() later
-  const sub = (user, months, message = '') => {
-    mark(`sub:${login(user)}`);
-    if (isRecent(`to:${login(user)}`)) return;
-    cb.onAlert?.({ type: months > 1 ? 'resub' : 'sub', user, months, message, received, key: `kick:sub:${login(user)}:${months}` });
-  };
-  switch (event) {
-    case 'App\\Events\\ChatMessageEvent': {
+  const sub = (user, months, message = '') => subAlert(cb, user, months, message, received);
+  switch (plain) {
+    case 'ChatMessageEvent': {
       const s = d.sender ?? {};
       const c = d.metadata?.celebration;
       const renewed = d.type === 'celebration' && c?.type === 'subscription_renewed' && (Number(c.total_months) || 2);
@@ -193,10 +195,10 @@ function handle(event, raw, channel, info, cb) {
       if (renewed) sub(s.username, renewed, (d.content ?? '').replace(EMOTE, '$2'));
       return;
     }
-    case 'App\\Events\\MessageDeletedEvent': return cb.onClear({ platform: 'kick', messageId: d.message?.id });
-    case 'App\\Events\\UserBannedEvent': return cb.onClear({ platform: 'kick', userId: d.user?.id });
-    case 'App\\Events\\ChatroomClearEvent': return cb.onClear({ platform: 'kick' });
-    case 'App\\Events\\SubscriptionEvent': {
+    case 'MessageDeletedEvent': return cb.onClear({ platform: 'kick', messageId: d.message?.id });
+    case 'UserBannedEvent': return cb.onClear({ platform: 'kick', userId: d.user?.id });
+    case 'ChatroomClearEvent': return cb.onClear({ platform: 'kick' });
+    case 'SubscriptionEvent': {
       const months = Number(d.months) || 1, who = login(d.username), gifted = isRecent(`to:${who}`);
       // A viewer a gift just named got their sub from that gift: a plain line (the gift has the special one).
       // ponytail: a "subscribed" that comes before its gift still gets the special line (chat lines never wait); if
@@ -207,7 +209,7 @@ function handle(event, raw, channel, info, cb) {
       mark(`sub:${who}`); // the channel socket's copy of this sub makes no alert of its own
       return hold(who, () => sub(d.username, months));
     }
-    case 'App\\Events\\ChannelSubscriptionEvent': {
+    case 'ChannelSubscriptionEvent': {
       if ((d.user_ids?.length ?? 1) > 1) return; // several viewers at once: a gift
       const who = login(d.username);
       const known = () => ['sub', 'to', 'from'].some((k) => isRecent(`${k}:${who}`)); // announced in chat, gifted, the gifter
@@ -219,11 +221,11 @@ function handle(event, raw, channel, info, cb) {
       });
       return;
     }
-    case 'GiftedSubscriptionsEvent':
-    case 'App\\Events\\GiftedSubscriptionsEvent': {
+    case 'GiftedSubscriptionsEvent': {
       const to = d.gifted_usernames ?? [];
       const count = Number(d.gifted_total) || to.length || 1;
       const key = `kick:gift:${d.correlation_id ?? `${login(d.gifter_username)}:${d.gifter_total ?? to.map(login).sort().join(',')}`}`;
+      const told = to.some((u) => isRecent(`api-to:${login(u)}`)); // Kick's official event came first: alerted already
       for (const u of to) {
         mark(`to:${login(u)}`);
         waiting.delete(login(u)); // decided: no sub alert, and no reason for other subs to wait for a gift
@@ -234,7 +236,8 @@ function handle(event, raw, channel, info, cb) {
         cb.onMessage({ platform: 'kick', channel, kind: 'sub', user: name(d.gifter_username), system: fill(strings.chatText.kickGift, { user: d.gifter_username, count }), text: '', parts: [],
           event: { type: 'gift_sub', amount: count } });
       }
-      return cb.onAlert?.({ type: 'gift_sub', user: d.gifter_username, amount: count, key });
+      if (!told) cb.onAlert?.({ type: 'gift_sub', user: d.gifter_username, amount: count, key });
+      return;
     }
     case 'KicksGifted': {
       const s = d.sender ?? {}, amount = Number(d.gift?.amount) || 0, message = d.message ?? '';
@@ -247,7 +250,7 @@ function handle(event, raw, channel, info, cb) {
       }
       return cb.onAlert?.({ type: 'kicks', user: s.username, amount, message, key });
     }
-    case 'App\\Events\\StreamHostEvent': {
+    case 'StreamHostEvent': {
       const viewers = Number(d.number_viewers) || 0, message = d.optional_message ?? '', key = `kick:host:${login(d.host_username)}:${d.number_viewers}`;
       if (!isRecent(key)) {
         mark(key);
@@ -255,6 +258,35 @@ function handle(event, raw, channel, info, cb) {
       }
       return cb.onAlert?.({ type: 'raid', user: d.host_username, amount: viewers, message, key });
     }
+  }
+}
+
+// Kick's official events (the Kick account, through Jarchi's relay): a second source for the subs and gifts above, so
+// one still alerts when the public socket misses it. Same keys and marks as handle(), so one sub or gift told by both
+// alerts once, whichever comes first. Alerts only (chat lines come from the socket).
+//   channel.subscription.new / .renewal   sub / resub (renewal: Kick's duration = months), after hold() like the socket's
+//   channel.subscription.gifts            gifted subs; none if the socket's gift (or this one, sent twice) named one of
+//                                         these viewers already
+// ponytail: an official gift is taken as one event per purchase; if Kick ever splits a big one, the parts alert apart.
+function official(type, d, cb) {
+  const received = Date.now();
+  if (type === 'channel.subscription.new' || type === 'channel.subscription.renewal') {
+    const user = d.subscriber?.username, who = login(user);
+    if (!who || ['to', 'from'].some((k) => isRecent(`${k}:${who}`))) return; // gifted, or the gifter (as on the socket)
+    const months = type === 'channel.subscription.new' ? 1 : Math.max(2, Number(d.duration) || 2);
+    return hold(who, () => subAlert(cb, user, months, '', received));
+  }
+  if (type === 'channel.subscription.gifts') {
+    const to = (d.giftees ?? []).map((g) => g.username).filter(Boolean);
+    const gifter = d.gifter?.username || 'Anonymous';
+    const told = to.some((u) => isRecent(`to:${login(u)}`));
+    for (const u of to) {
+      mark(`to:${login(u)}`);
+      mark(`api-to:${login(u)}`);
+      waiting.delete(login(u));
+    }
+    mark(`from:${login(gifter)}`);
+    if (!told) cb.onAlert?.({ type: 'gift_sub', user: gifter, amount: to.length || 1, received, key: `kick:gift:api:${login(gifter)}:${to.map(login).sort().join(',')}` });
   }
 }
 
@@ -275,7 +307,7 @@ function connect(slug, cb) {
   const goals = () => readGoals(slug, (list) => !stopped && cb.onGoals?.(list)); // never after stop(): another channel by then
   const keepAlive = setInterval(() => {
     if (ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ event: 'pusher:ping', data: {} }));
-    if (Date.now() - last > QUIET_MS) ws?.close();
+    if (Date.now() - last > QUIET_MS) net.hangUp(ws); // no answer to our pings: connect again
     goals();
   }, 60000);
   goals();
@@ -306,7 +338,7 @@ function connect(slug, cb) {
         cb.onStatus('connected');
       } else if (msg.event === 'pusher:ping') {
         ws.send(JSON.stringify({ event: 'pusher:pong', data: {} }));
-      } else {
+      } else if (msg.event !== 'pusher:pong') { // the answer to our ping: nothing to do
         try { handle(msg.event, msg.data, slug, info, cb); } catch (err) { console.warn('Kick chat:', err.message); }
       }
     };
@@ -324,4 +356,4 @@ function connect(slug, cb) {
   return { stop() { stopped = true; clearTimeout(timer); clearInterval(keepAlive); ws?.close(); } };
 }
 
-module.exports = { connect, handle, kickParts, kickBadges, biggest, avatar, kickGet, subMonths, pusherUrl, PUSHER, SETTLE_MS, GIFT_WAIT_MS };
+module.exports = { connect, handle, official, kickParts, kickBadges, biggest, avatar, kickGet, subMonths, pusherUrl, PUSHER, SETTLE_MS, GIFT_WAIT_MS };

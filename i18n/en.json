@@ -76,6 +76,8 @@
     "twClientHint": "Jarchi's own is filled in: nothing to do. To use your own Twitch app (dev.twitch.tv/console, Client Type: Public), paste its Client ID; empty the field to go back.",
     "twStates": { "off": "Not connected", "waiting": "Waiting for approval", "connecting": "Connecting", "connected": "Connected as {login}" },
     "twErrors": { "expired": "The Twitch login ended. Connect again.", "denied": "Not approved on Twitch.", "timeout": "The code ran out. Connect again.", "client": "Twitch didn't take this Client ID. Check it, and that the app's Client Type is Public.", "network": "Can't reach Twitch right now." },
+    "connDown": "{platforms} disconnected for {time}: alerts may be missed",
+    "connDownHint": "Jarchi keeps reconnecting by itself. Click to see the connection.",
     "kcConnect": "Connect Kick",
     "kcWhat": "Connect your Kick account for follow alerts. Chat, subs, gifted subs, Kicks and hosts work without it.",
     "kcWaiting": "Log in on Kick's page (it opened in a new tab) and allow Jarchi. Waiting for you…",

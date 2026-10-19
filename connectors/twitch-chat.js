@@ -3,11 +3,12 @@
 // see alertOf()). Reconnects by itself.
 const badges = require('./twitch-badges');
 const { logIncoming } = require('../core/events');
+const net = require('../core/net');
 
 const URL = 'wss://irc-ws.chat.twitch.tv:443';
 const ROLE = { broadcaster: 'broadcaster', moderator: 'moderator', vip: 'vip', subscriber: 'subscriber', founder: 'subscriber' };
 const SUB_NOTICES = new Set(['sub', 'resub', 'subgift', 'submysterygift', 'anonsubgift', 'anonsubmysterygift', 'giftpaidupgrade', 'primepaidupgrade']);
-const QUIET_MS = 6 * 60 * 1000; // Twitch pings every ~5 minutes; silence longer than this means the socket is dead
+const QUIET_MS = 90 * 1000; // we PING every 30 s (Twitch answers PONG); silence longer than this means the socket is dead
 
 const unescapeTag = (v) => v.replace(/\\(.)/g, (m, c) => ({ s: ' ', ':': ';', '\\': '\\', r: '\r', n: '\n' })[c] ?? c);
 
@@ -155,7 +156,10 @@ function handle(line, channel, cb) {
 // cb: { onStatus(state, detail), onMessage(msg), onClear(clear), onChannel({ userId }), onAlert(alert) }. Returns { stop() }.
 function connect(channel, cb) {
   let ws, timer, last = Date.now(), retry = 0, stopped = false;
-  const watchdog = setInterval(() => { if (Date.now() - last > QUIET_MS) ws?.close(); }, 30000);
+  const watchdog = setInterval(() => {
+    if (Date.now() - last > QUIET_MS) return net.hangUp(ws); // no answer: connect again
+    if (ws?.readyState === WebSocket.OPEN) ws.send('PING :tmi.twitch.tv');
+  }, 30000);
   const open = () => {
     cb.onStatus('connecting');
     last = Date.now();

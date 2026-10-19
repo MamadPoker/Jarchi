@@ -305,6 +305,66 @@ test('Kick subs: a sub on its own plays after a moment; a gift of 2 is one gift 
   assert.deepEqual([log().length, log()[0].endsWith('filler {"i":0}')], [500, true]);
 });
 
+test("Kick subs from two sources: the chat socket and Kick's official events (Connect Kick) alert each sub and gift once", (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'], now: Date.now() });
+  const got = [];
+  const cb = { onMessage() {}, onClear() {}, onAlert: (a) => { const e = emitEvent({ ...a, platform: 'kick' }); if (e) got.push([e.type, e.user, e.amount || e.months]); } };
+  const H = (event, data) => kick.handle(event, JSON.stringify(data), 'somechannel', { subBadges: [] }, cb);
+  const O = (type, data) => kick.official(type, { broadcaster: { user_id: 1 }, ...data }, cb);
+  const wait = (ms = kick.GIFT_WAIT_MS) => { for (let i = 0; i < ms / 100; i++) t.mock.timers.tick(100); };
+  const realLookup = kick.subMonths;
+  kick.subMonths = async () => null;
+
+  // Official first, then the socket's copies (one named without "App\Events\", as Kick does for newer events).
+  O('channel.subscription.new', { subscriber: { username: 'OffFirst' }, duration: 1 });
+  wait();
+  H('App\\Events\\ChannelSubscriptionEvent', { user_ids: [1], username: 'OffFirst', channel_id: 1 });
+  H('SubscriptionEvent', { chatroom_id: 1, username: 'OffFirst', months: 1 });
+  wait();
+  // The socket first, then the official renewal.
+  H('App\\Events\\SubscriptionEvent', { chatroom_id: 1, username: 'SockFirst', months: 4 });
+  wait();
+  O('channel.subscription.renewal', { subscriber: { username: 'SockFirst' }, duration: 4 });
+  wait();
+  // The socket missed it: the official event alone.
+  O('channel.subscription.renewal', { subscriber: { username: 'Missed' }, duration: 7 });
+  wait();
+  // Gifts: official first (and a "new sub" for a viewer it named); the socket first; official sent twice; anonymous.
+  O('channel.subscription.gifts', { gifter: { username: 'GiverA' }, giftees: [{ username: 'g1' }, { username: 'g2' }] });
+  O('channel.subscription.new', { subscriber: { username: 'g1' }, duration: 1 });
+  H('GiftedSubscriptionsEvent', { chatroom_id: 1, correlation_id: 'pi_a', gifted_usernames: ['g1', 'g2'], gifter_username: 'GiverA', gifted_total: 2, gifter_total: 2 });
+  H('GiftedSubscriptionsEvent', { chatroom_id: 1, correlation_id: 'pi_b', gifted_usernames: ['h1'], gifter_username: 'GiverB', gifted_total: 1, gifter_total: 1 });
+  O('channel.subscription.gifts', { gifter: { username: 'GiverB' }, giftees: [{ username: 'h1' }] });
+  O('channel.subscription.gifts', { gifter: { username: 'GiverC' }, giftees: [{ username: 'k1' }] });
+  O('channel.subscription.gifts', { gifter: { username: 'GiverC' }, giftees: [{ username: 'k1' }] });
+  O('channel.subscription.gifts', { gifter: { is_anonymous: true, username: null }, giftees: [{ username: 'm1' }] });
+  wait();
+  kick.subMonths = realLookup;
+  assert.deepEqual(got, [['sub', 'OffFirst', 1], ['resub', 'SockFirst', 4], ['resub', 'Missed', 7],
+    ['gift_sub', 'GiverA', 2], ['gift_sub', 'GiverB', 1], ['gift_sub', 'GiverC', 1], ['gift_sub', 'Anonymous', 1]]);
+
+  // Every socket event but chat itself goes to the event log, also ones Jarchi doesn't know.
+  const log = () => fs.readFileSync(path.join(dataDir, 'logs', 'events.log'), 'utf8').trim().split('\n');
+  H('SomethingNewEvent', { username: 'Who' });
+  H('App\\Events\\ChatMessageEvent', { id: 'm2', content: 'hi', sender: { username: 'Chatter', slug: 'chatter' } });
+  assert.match(log().at(-1), / kick SomethingNewEvent \{"username":"Who"\}$/);
+  queue.clear();
+});
+
+test('a WebSocket that went quiet is given up on: its onclose runs once, even when the connection never answers', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const closes = [];
+  const dead = { close() {}, onclose: (e) => closes.push(e.code), onmessage: () => assert.fail('nothing passed on after hangUp') };
+  net.hangUp(dead);
+  assert.equal(dead.onmessage, null);
+  t.mock.timers.tick(3000);
+  assert.deepEqual(closes, [1006]);
+  dead.onclose({ code: 1000 }); // the real close, if it ever comes
+  net.hangUp(dead);
+  t.mock.timers.tick(3000);
+  assert.deepEqual(closes, [1006]);
+});
+
 test('Twitch IRC events become one alert each: a community gift is one alert, not one per viewer', () => {
   for (const id of ['subs', 'kicks']) goals.change(id, { set: 0 });
   const got = [];

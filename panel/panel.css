@@ -466,6 +466,9 @@ input[type="color"]::-webkit-color-swatch { border: 0; border-radius: 7px; }
   backdrop-filter: blur(10px);
 }
 .page-title { margin-inline-end: auto; font-size: 19px; }
+.conn-warn { gap: 7px; padding: 6px 12px; border-color: var(--warn-line); border-radius: 99px; background: var(--warn-soft); color: var(--warn); font-size: 13px; }
+.conn-warn:hover { border-color: var(--warn); background: var(--warn-soft); }
+.conn-warn svg { width: 15px; height: 15px; }
 .plats { display: flex; gap: 6px; }
 .plat { gap: 7px; padding: 6px 11px; border-radius: 99px; }
 .plat img { width: 16px; height: 16px; }

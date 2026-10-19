@@ -242,6 +242,36 @@ function renderStatus() {
     pill.classList.toggle('on', st.state === 'connected');
     pill.setAttribute('aria-label', (pill.title = `${S.platforms[p]}: ${e.textContent}`));
   }
+  renderConnWarn();
+}
+
+// The top bar's warning: a Kick / Twitch connection that should be up (a channel set, an account connected) has been
+// down for over 30 s, counted from when this panel saw it go (or opened). A click opens where it's set up.
+const DOWN_MS = 30000, downSince = {};
+const secs = new Intl.NumberFormat(FA ? 'fa' : 'en', { style: 'unit', unit: 'second', unitDisplay: 'short' });
+const mins = new Intl.NumberFormat(FA ? 'fa' : 'en', { style: 'unit', unit: 'minute', unitDisplay: 'short' });
+function renderConnWarn() {
+  const now = Date.now(), long = [];
+  const conns = [
+    ['kickChat', 'kick', 'chat', !['off', 'connected'].includes(chatStatus.kick.state)],
+    ['twitchChat', 'twitch', 'chat', !['off', 'connected'].includes(chatStatus.twitch.state)],
+    ['kickAccount', 'kick', 'connections', kick?.state === 'connecting'],
+    ['twitchAccount', 'twitch', 'connections', twitch?.state === 'connecting'],
+  ];
+  for (const [id, platform, page, down] of conns) {
+    if (!down) delete downSince[id];
+    else if (now - (downSince[id] ??= now) > DOWN_MS) long.push({ platform, page, since: downSince[id] });
+  }
+  const w = $('#connWarn');
+  w.hidden = !long.length;
+  if (!long.length) return;
+  const s = Math.floor((now - Math.min(...long.map((c) => c.since))) / 1000);
+  w.dataset.page = long[0].page;
+  w.title = S.panel.connDownHint;
+  $('span', w).textContent = tpl(S.panel.connDown, {
+    platforms: [...new Set(long.map((c) => S.platforms[c.platform]))].join(FA ? '، ' : ', '),
+    time: s < 60 ? secs.format(s) : mins.format(Math.floor(s / 60)),
+  });
 }
 
 async function api(method, url, body, headers = {}) {
@@ -832,6 +862,8 @@ function build() {
   wireMenu($('#obsMenuBtn'), $('#obsMenu'));
   setInterval(() => view === 'home' && loadHome(), 30000); // "2 min ago", uptime, and today's numbers from 0 after midnight
 
+  $('#connWarn').onclick = (e) => select(e.currentTarget.dataset.page);
+  setInterval(renderConnWarn, 5000); // over 30 s now, and the time in it
   // Top bar: Kick / Twitch status opens Connections. Language (also on Appearance): the page reloads in the other language and comes back to what was open.
   $$('.plat').forEach((b) => (b.onclick = () => select('connections')));
   const setLang = (lang) => {
@@ -1251,7 +1283,7 @@ function renderTwitch() {
   const id = $('#twClientId');
   if (id !== document.activeElement) id.value = t.clientId;
   id.readOnly = on; // a login belongs to the app it was made with
-
+  renderConnWarn();
 }
 
 // The Connections page's Kick card.
@@ -1264,6 +1296,7 @@ function renderKick() {
   $('#kcDisconnect').hidden = !on;
   $('#kcDisconnect').textContent = S.panel[k.state === 'waiting' ? 'twCancel' : 'twDisconnect'];
   $('#kcWait').hidden = k.state !== 'waiting';
+  renderConnWarn();
 }
 
 function renderGoal() {

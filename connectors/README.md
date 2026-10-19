@@ -19,7 +19,7 @@ Both export `connect(channel, { onStatus, onMessage, onClear, onChannel })` and 
 
 ## Kick account (built)
 
-`kick-account.js`: the streamer's own Kick login (Connections page), for follows. Kick's login needs its app's secret and Kick sends follows only as webhooks to a public address, so both go through Jarchi's Kick relay (`relay/`, a free Cloudflare Worker; `KICK_RELAY_URL` in `.env` sets another): the login (OAuth with PKCE) opens through it and comes back to `/api/kick/callback`, codes and refreshes are swapped for tokens there. With that login Jarchi subscribes its own channel to `channel.followed` and keeps a WebSocket open to the relay, which checks Kick's signature on each webhook and hands it to that channel's sockets (it stores nothing). A follow becomes a Kick Follow alert. Tokens in `data/kick.json`. Not connected: nothing runs.
+`kick-account.js`: the streamer's own Kick login (Connections page), for follows, and Kick's official sub events (`channel.subscription.new` / `.renewal` / `.gifts`) as a second source beside the public socket: they go through `kick-chat.js` `official()`, which shares the socket's dedupe (same keys and marks), so a sub or gift told by both alerts once and one the socket misses still alerts. Kick's login needs its app's secret and Kick sends follows only as webhooks to a public address, so both go through Jarchi's Kick relay (`relay/`, a free Cloudflare Worker; `KICK_RELAY_URL` in `.env` sets another): the login (OAuth with PKCE) opens through it and comes back to `/api/kick/callback`, codes and refreshes are swapped for tokens there. With that login Jarchi subscribes its own channel to `channel.followed` and keeps a WebSocket open to the relay, which checks Kick's signature on each webhook and hands it to that channel's sockets (it stores nothing). A follow becomes a Kick Follow alert. Tokens in `data/kick.json`. Not connected: nothing runs.
 
 A connector for follows, subs, Kicks, bits and raids calls `emitEvent()`:
 
@@ -34,7 +34,7 @@ emitEvent({ platform: 'kick', type: 'kicks', user: 'someone', amount: 100, messa
 - `amount`: Kicks, bits, gifted sub count or raid viewers. `months` is for resubs.
 - `key` (optional): names the one real event; a repeat of the same key within 6 hours is dropped, so an event that arrives twice alerts once.
 
-Outgoing connections must go through `core/net.js` (the proxy setting): `fetch()` and `WebSocket` already do (global dispatcher); raw sockets use `net.tunnel()` / `net.secure()`.
+Outgoing connections must go through `core/net.js` (the proxy setting): `fetch()` and `WebSocket` already do (global dispatcher); raw sockets use `net.tunnel()` / `net.secure()`. A socket that goes quiet (no answer to pings) is dropped with `net.hangUp(ws)`, not `ws.close()`: on a dead connection `close()` never fires `onclose`, so nothing would reconnect.
 
 Alerts and goals both listen to these events, so a connector feeds everything at once. When an account connects or disconnects, report it with `setConnected('kick', true)` (also from `core/events.js`). Widgets use this list, for example to show the Kick/Twitch badge only when both are connected.
 

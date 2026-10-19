@@ -43,6 +43,9 @@
     <div class="page">
     <header class="topbar">
       <h1 id="pageTitle" class="page-title"></h1>
+      <!-- A Kick / Twitch connection down for over 30 s (renderConnWarn): its alerts may be missed. A click opens where
+           it's set up. -->
+      <button id="connWarn" class="conn-warn" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2 20h20zM12 10v4M12 17v.5"/></svg><span></span></button>
       <!-- Kick / Twitch: green dot when the chat connection is up (renderStatus). -->
       <div class="plats">
         <button class="plat" data-p="kick"><img src="/assets/platform-logos/kick.svg" alt=""><i></i></button>
