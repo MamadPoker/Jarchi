@@ -13,6 +13,8 @@ npm start
 
 Then open **http://127.0.0.1:3000** in your browser. That's the settings panel.
 
+Or run it as a desktop app with `npm run app` (instead of `npm start`): the panel opens in its own window, and closing the window keeps Jarchi running in the system tray (right-click the tray icon to quit).
+
 Optional: copy `.env.example` to `.env` to change the port or the data folder.
 
 ## Add the alerts to OBS

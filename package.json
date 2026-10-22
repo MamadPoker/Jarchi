@@ -3,10 +3,11 @@
   "version": "0.1.0",
   "private": true,
   "description": "Stream alerts (and later more widgets) for OBS. Runs locally on your own PC.",
-  "main": "server/index.js",
+  "main": "electron/main.js",
   "type": "commonjs",
   "scripts": {
     "start": "node server/index.js",
+    "app": "electron .",
     "test": "node --test"
   },
   "engines": {
@@ -21,5 +22,8 @@
     "express": "^5.2.1",
     "socket.io": "^4.8.4",
     "undici": "^7.30.0"
+  },
+  "devDependencies": {
+    "electron": "^45.0.0"
   }
 }
