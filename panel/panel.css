@@ -505,7 +505,6 @@ input[type="color"]::-webkit-color-swatch { border: 0; border-radius: 7px; }
 .nav-item[aria-current="page"] { background: var(--main-soft); color: var(--text); }
 .nav-item svg { width: 18px; height: 18px; }
 .nav-item .q-count { margin-inline-start: auto; background: var(--gold); color: var(--on-gold); }
-.soon-tag { margin-inline-start: auto; padding: 0 7px; border-color: var(--gold-line); color: var(--gold-text); font-size: 11px; line-height: 1.5; } /* a page that isn't built yet */
 [dir="rtl"] .flip { transform: scaleX(-1); } /* list bullets, and the Persian question mark, on the other side */
 
 .page { min-width: 0; }
