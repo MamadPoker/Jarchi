@@ -30,6 +30,8 @@ const rgba = (hex, a) => {
   return `rgba(${n >> 16},${(n >> 8) & 255},${n & 255},${a})`;
 };
 const isVideo = (file) => /\.(webm|mp4)$/.test(file);
+// A font picked in the Text tab, as CSS; nothing for the theme's own ('theme', or settings from before it existed).
+const fontOf = (f) => f && f !== 'theme' && `"${f}", "Segoe UI", system-ui, sans-serif`;
 // The Kick/Twitch badge only means something when you stream to both, so it needs both accounts connected.
 const badgeVisible = () => settings.showBadge && ['kick', 'twitch'].every((p) => settings.connected?.includes(p));
 
@@ -40,7 +42,7 @@ function applyStrings(s) {
 }
 function applySettings(s) {
   settings = s;
-  for (const a of Object.values(s.alerts)) if (a.font && a.font !== 'theme') document.fonts.load(`16px "${a.font}"`); // ready before an alert needs it
+  for (const a of Object.values(s.alerts)) for (const f of [a.nameFont, a.textFont]) if (fontOf(f)) document.fonts.load(`16px "${f}"`); // ready before an alert needs it
   fit(); // Alert size may have changed
 }
 
@@ -56,13 +58,14 @@ function fit() {
   stage.style.cssText = `width:${w}px;height:${h}px;--f:${Math.min(w / 1920, h / 1080)};transform:translate(${(W * (1 - a)) / 2}px,${(H * (1 - a)) / 2}px) scale(${k * a})`;
   const el = onStage;
   if (!el) return;
-  const iw = w - 2 * PAD, ih = h - 2 * PAD, over = el.classList.contains('pos-over'), gap = ih * 0.04;
-  const m = Math.min(iw, over ? ih : ih * 0.58); // the picture's square; text on top of it gets a band across its middle
+  const iw = w - 2 * PAD, ih = h - 2 * PAD, over = el.classList.contains('pos-over');
+  const pic = !el.classList.contains('no-media'), gap = pic ? ih * 0.04 : 0;
+  const m = !pic ? 0 : Math.min(iw, over ? ih : ih * 0.58); // the picture's square; text on top of it gets a band across its middle
   el.style.setProperty('--m', `${m}px`);
   el.style.setProperty('--gap', `${gap}px`);
   el.style.setProperty('--tw', `${iw}px`);
   if (el.dataset.s) el.style.setProperty('--s', (el.dataset.s * m) / 330); // a theme's emblem: a raid's fills most of the square
-  sizeText(el, over ? ih * 0.4 : ih - m - gap, Number(el.dataset.fs));
+  sizeText(el, pic && over ? ih * 0.4 : ih - m - gap, Number(el.dataset.fs));
 }
 addEventListener('resize', fit);
 document.fonts.addEventListener('loadingdone', fit);
@@ -181,16 +184,18 @@ async function show(ev, { muted = false, hold = false, ms, id } = {}) {
   onStage = null;
 }
 
-// The alert's own text style (Text tab) over its look: name and message colors, font, outline/shadow off. alerts.css.
+// The alert's own text style (Text tab) over its look, the name's and the message's each: color, font, bold off,
+// outline/shadow off. alerts.css: .nc .nf .nreg .nflat (name), .tc .tf .treg .flat (the rest).
 function textStyle(el, cfg) {
-  const font = cfg.font && cfg.font !== 'theme' ? cfg.font : null; // settings from before text styles have none
-  el.classList.toggle('tc', !!cfg.textColor);
-  el.classList.toggle('nc', !!cfg.nameColor);
-  el.classList.toggle('ff', !!font);
+  const vars = { '--nc': cfg.nameColor, '--nf': fontOf(cfg.nameFont), '--tc': cfg.textColor, '--tf': fontOf(cfg.textFont) };
+  for (const [k, v] of Object.entries(vars)) {
+    el.classList.toggle(k.slice(2), !!v);
+    if (v) el.style.setProperty(k, v);
+  }
+  el.classList.toggle('nreg', cfg.nameBold === false);
+  el.classList.toggle('treg', cfg.textBold === false);
+  el.classList.toggle('nflat', cfg.nameShadow === false);
   el.classList.toggle('flat', cfg.textShadow === false);
-  if (cfg.textColor) el.style.setProperty('--tc', cfg.textColor);
-  if (cfg.nameColor) el.style.setProperty('--nc', cfg.nameColor);
-  if (font) el.style.setProperty('--ff', `"${font}", "Segoe UI", system-ui, sans-serif`);
 }
 
 // The theme look: media with the theme's particles, rings and glow, the text box, all inside a theme wrapper.
@@ -208,7 +213,9 @@ function themed(cfg, ev, v, files, theme, tier, grows) {
   if (ev.message) box.append(h('div', { className: 'msg', textContent: ev.message }));
   if (tier === 4) box.append(h('b', { className: 'sweep' }));
 
-  const el = h('div', { className: `alert tier-${tier} type-${ev.type} plat-${ev.platform} pos-${cfg.textPos} align-${cfg.textAlign} frame-${cfg.frame}` },
+  // None draws no emblem of its own: without the user's picture (or bits' gem) the text has the whole box.
+  const bare = theme === 'none' && !files.image && !gem;
+  const el = h('div', { className: `alert tier-${tier} type-${ev.type} plat-${ev.platform} pos-${cfg.textPos} align-${cfg.textAlign} frame-${cfg.frame}${bare ? ' no-media' : ''}` },
     h('div', { className: 'inner' }, media, box));
   // The theme CSS keys off [data-theme] on an ancestor, so each alert gets its own (layout-neutral) theme wrapper.
   const scope = h('div', { className: 'theme-scope' }, el);

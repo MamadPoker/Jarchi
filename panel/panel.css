@@ -505,6 +505,7 @@ input[type="color"]::-webkit-color-swatch { border: 0; border-radius: 7px; }
 .nav-item[aria-current="page"] { background: var(--main-soft); color: var(--text); }
 .nav-item svg { width: 18px; height: 18px; }
 .nav-item .q-count { margin-inline-start: auto; background: var(--gold); color: var(--on-gold); }
+.soon-tag { margin-inline-start: auto; padding: 0 7px; border-color: var(--gold-line); color: var(--gold-text); font-size: 11px; line-height: 1.5; } /* a page that isn't built yet */
 [dir="rtl"] .flip { transform: scaleX(-1); } /* list bullets, and the Persian question mark, on the other side */
 
 .page { min-width: 0; }
@@ -543,6 +544,7 @@ input[type="color"]::-webkit-color-swatch { border: 0; border-radius: 7px; }
 .sw-galaxy { background: radial-gradient(circle at 35% 30%, #ffd1f5, #b18cff 40%, #2a1660); }
 .sw-comic { background: radial-gradient(circle, #ff2e2e 32%, #ffe600 34%); }
 .sw-simple { background: linear-gradient(#f4f4f5, #f4f4f5) 50% 50% / 56% 2px no-repeat, #27272a; } /* a line of light text on a soft dark box */
+.sw-none { background: repeating-conic-gradient(#c8c8c8 0 25%, #fff 0 50%) 0 0 / 6px 6px; } /* no box at all: see-through */
 
 /* ---------- Alerts and Goals: the page's own list (rows with a switch) next to the selected item's editor ---------- */
 .group-title { margin: 4px 12px 8px; font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
@@ -659,6 +661,9 @@ main { padding: 24px 28px 64px; container-type: inline-size; } /* editor rules b
 /* The alert as in an 800 x 600 Browser Source (the recommended size); it fills whatever size the source has. */
 .stage.alert-stage .preview { width: min(100%, 400px); aspect-ratio: 4 / 3; }
 .alert-stage .preview iframe { width: 800px; height: 600px; }
+/* Text style: the name's and the message's settings side by side */
+.style-cols { align-items: start; }
+.style-cols .stack { gap: 12px; }
 /* Paste a link: a field under a file's buttons */
 .link-row { display: flex; flex-basis: 100%; gap: 6px; }
 .link-row input { flex: 1; min-width: 0; }

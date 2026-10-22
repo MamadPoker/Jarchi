@@ -775,6 +775,20 @@ body { font-family: "Segoe UI", system-ui, sans-serif; }
 @keyframes simple-in { from { opacity: 0; } }
 @keyframes simple-out { to { opacity: 0; } }
 
+/* ---------- None: no box, no background, no effects. Just the picture (if there is one) and the text, white with a dark
+   outline and soft shadow so it reads on any game; Text tab: Outline / shadow off takes it away. ---------- */
+[data-theme="none"] .alert { animation: simple-in 0.3s ease-out both; }
+[data-theme="none"] .alert.out { animation: simple-out 0.3s ease-in both; }
+[data-theme="none"] .inner, [data-theme="none"] .w { animation: none; }
+[data-theme="none"] .fx, [data-theme="none"] .ring, [data-theme="none"] .glow, [data-theme="none"] .sweep { display: none; }
+[data-theme="none"] .box { padding: 0; color: #fff; }
+[data-theme="none"] .hl { color: #fff; }
+/* On .text and .msg, not .box: the em sizes follow the text's own size. */
+[data-theme="none"] .text, [data-theme="none"] .msg {
+  text-shadow: -0.04em -0.04em 0 #000, 0.04em -0.04em 0 #000, -0.04em 0.04em 0 #000, 0.04em 0.04em 0 #000, 0 0.06em 0.2em rgba(0, 0, 0, 0.8);
+}
+.no-media .media { display: none; } /* None without a picture: the text has the whole box */
+
 /* ---------- Per-alert settings from the panel (more specific than the theme rules on purpose) ---------- */
 .alert.frame-off .box {
   padding: 0;
@@ -796,10 +810,15 @@ body { font-family: "Segoe UI", system-ui, sans-serif; }
   backdrop-filter: none;
   animation: none;
 }
-/* Text style (Text tab): message color (numbers keep the theme's highlight), name color, font, no outline/shadow.
-   The Kicks alert's Kick look takes them too. */
-.alert.tc .box, .kick-alert.tc .kick-text { color: var(--tc); }
+/* Text style (Text tab), over the theme's: the name's own and the message's own (every other word, and the viewer's
+   message under it) color, font, bold and outline/shadow. Numbers keep the theme's highlight color. Bold on is the
+   theme's weight, or 800 in a font picked here (Comic's 400 is only for Impact). The Kicks alert's Kick look takes them too. */
+.alert.tc .box, .kick-alert.tc .w:not([data-k="user"]):not(.green), .kick-alert.tc .msg { color: var(--tc); }
 .alert.nc .hl[data-k="user"], .kick-alert.nc [data-k="user"] { color: var(--nc); }
-.alert.ff .box, .kick-alert.ff .kick-text { font-family: var(--ff); }
-.alert.ff .text { font-weight: 800; } /* Comic's 400 is only for Impact */
-.alert.flat .box, .alert.flat .box *, .kick-alert.flat .kick-text, .kick-alert.flat .kick-text * { text-shadow: none; }
+.tf .w:not([data-k="user"]), .tf .msg { font-family: var(--tf); }
+.nf [data-k="user"] { font-family: var(--nf); }
+.alert.tf .w:not([data-k="user"]), .alert.nf .hl[data-k="user"] { font-weight: 800; }
+.alert.treg .w:not([data-k="user"]), .alert.treg .msg, .kick-alert.treg .w:not([data-k="user"]), .kick-alert.treg .msg { font-weight: 400; }
+.alert.nreg .hl[data-k="user"], .kick-alert.nreg [data-k="user"] { font-weight: 400; }
+.alert.flat .w:not([data-k="user"]), .alert.flat .msg, .kick-alert.flat .w:not([data-k="user"]), .kick-alert.flat .msg { text-shadow: none; }
+.alert.nflat .hl[data-k="user"], .kick-alert.nflat [data-k="user"] { text-shadow: none; }

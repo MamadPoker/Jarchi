@@ -13,7 +13,7 @@ fs.mkdirSync(path.join(dataDir, 'uploads'));
 fs.writeFileSync(path.join(dataDir, 'uploads', 'sub-sound-1.wav'), 'RIFF\0\0\0\0WAVE');
 fs.writeFileSync(path.join(dataDir, 'settings.json'), JSON.stringify({
   theme: 'fun',
-  alerts: { sub: { volume: 0.4, sound: { file: 'sub-sound-1.wav', name: 'old.wav' } } },
+  alerts: { sub: { volume: 0.4, sound: { file: 'sub-sound-1.wav', name: 'old.wav' } }, raid: { font: 'Lalezar', textShadow: false } }, // raid: before v8
   goals: { subs: { title: 'Road to 50', countTwitch: true, source: 'twitch' }, followers: { source: 'both' } }, // before v6
 }));
 // The Home page's feed and today's numbers from before a restart (a broken feed entry is dropped).
@@ -58,7 +58,10 @@ test('migration, settings, uploads, reset, events', async () => {
   assert.equal(s.alerts.sub.soundMode, 'custom');
   assert.equal(s.alerts.sub.volume, 0.4);
   assert.equal(s.alerts.follow.soundMode, 'theme');
-  assert.equal(JSON.parse(fs.readFileSync(path.join(dataDir, 'settings.json'))).version, 7);
+  assert.equal(JSON.parse(fs.readFileSync(path.join(dataDir, 'settings.json'))).version, 8);
+  // v7 -> v8: one font and one outline switch became the name's and the message's own; both keep the old choice.
+  const raid = s.alerts.raid;
+  assert.deepEqual([raid.nameFont, raid.textFont, raid.nameShadow, raid.textShadow, 'font' in raid], ['Lalezar', 'Lalezar', false, false, false]);
   // v6 -> v7: an existing user doesn't get the first-run welcome tour; it takes only true / false.
   assert.equal(s.welcomed, true);
   assert.equal((await call('PATCH', '/api/settings', { welcomed: 'yes' })).status, 400);
@@ -92,6 +95,7 @@ test('migration, settings, uploads, reset, events', async () => {
   s = await (await patch({ theme: 'fire', textAlign: 'left' })).json();
   assert.deepEqual([s.alerts.follow.theme, s.alerts.follow.textAlign, s.theme], ['fire', 'left', 'galaxy']);
   assert.equal((await (await patch({ theme: null })).json()).alerts.follow.theme, null);
+  assert.equal((await (await patch({ theme: 'none' })).json()).alerts.follow.theme, 'none', 'None: no box, background or effects');
   await patch({ theme: 'ice' });
 
   for (const bad of [{ volume: 5 }, { minAmount: 5 }, { frameBg: 'red' }, { soundMode: 'loud' }, { textPos: 'left' }, { fontSize: 500 }, { theme: 'casino' }, { textAlign: 'justify' }]) {
@@ -102,12 +106,15 @@ test('migration, settings, uploads, reset, events', async () => {
 
   // Text style (Text tab): checked, and its Reset puts back only these (the text position set above stays).
   assert.equal(s.alerts.follow.autoSize, true, 'text size: Auto by default');
-  s = await (await patch({ nameColor: '#ff0000', textColor: '#00ff00', font: 'Lalezar', autoSize: false, fontSize: 60, textShadow: false })).json();
-  assert.deepEqual([s.alerts.follow.nameColor, s.alerts.follow.font, s.alerts.follow.autoSize, s.alerts.follow.textShadow], ['#ff0000', 'Lalezar', false, false]);
-  for (const bad of [{ font: 'Comic Sans' }, { nameColor: 'red' }, { textShadow: 'no' }, { autoSize: 'yes' }]) assert.equal((await patch(bad)).status, 400, JSON.stringify(bad));
+  const style = (a) => [a.nameColor, a.nameFont, a.nameBold, a.nameShadow, a.textColor, a.textFont, a.textBold, a.textShadow, a.autoSize, a.fontSize];
+  s = await (await patch({ nameColor: '#ff0000', nameFont: 'Lalezar', nameBold: false, nameShadow: false, textColor: '#00ff00', textFont: 'Changa', textBold: false, textShadow: false, autoSize: false, fontSize: 60 })).json();
+  assert.deepEqual(style(s.alerts.follow), ['#ff0000', 'Lalezar', false, false, '#00ff00', 'Changa', false, false, false, 60], 'the name and the message each have their own style');
+  for (const bad of [{ nameFont: 'Comic Sans' }, { textFont: 'Comic Sans' }, { font: 'Lalezar' }, { nameColor: 'red' }, { nameBold: 1 }, { textShadow: 'no' }, { autoSize: 'yes' }]) {
+    assert.equal((await patch(bad)).status, 400, JSON.stringify(bad));
+  }
   s = await (await call('POST', '/api/alerts/follow/reset-text')).json();
-  const f = s.alerts.follow;
-  assert.deepEqual([f.nameColor, f.textColor, f.font, f.autoSize, f.fontSize, f.textShadow, f.textPos], [null, null, 'theme', true, 38, true, 'over']);
+  assert.deepEqual(style(s.alerts.follow), [null, 'theme', true, true, null, 'theme', true, true, true, 38], 'Reset: the theme\'s look again');
+  assert.equal(s.alerts.follow.textPos, 'over', 'Reset keeps the text position');
   assert.equal((await call('POST', '/api/alerts/nope/reset-text')).status, 400);
   // Alert size (every alert): how much of the source it fills, 50% to 100%.
   assert.equal(s.alertSize, 1);

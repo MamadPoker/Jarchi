@@ -21,6 +21,7 @@ window.JarchiSounds = (() => {
     simple: { root: 440, wave: 'sine', cutoff: 1800, len: 0.6, step: 0.13, gain: 0.6 }, // plain sine notes, no extras
     kick: { root: 783.99, wave: 'sine', cutoff: 2600, partial: 2, len: 0.5, step: 0.075, echo: 0.12, gain: 0.5 }, // the Kicks alert's Kick look
   };
+  VOICES.none = VOICES.simple; // None (no box, no effects): the plainest sound
 
   // Short major-key phrases (semitones above the root). Tier 0..4 adds a note or two for bigger events.
   const PHRASES = {

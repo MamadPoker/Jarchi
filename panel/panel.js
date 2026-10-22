@@ -365,8 +365,9 @@ function preview() {
 }
 
 // Theme cards: the sub alert in that theme with its own look and sound; it stays on the card (hold) until the next play.
+const THEME_TEXT = { nameColor: null, nameFont: 'theme', nameBold: true, nameShadow: true, textColor: null, textFont: 'theme', textBold: true, textShadow: true, autoSize: true };
 function playTile(frame, muted = true) {
-  const sub = { ...settings.alerts.sub, theme: null, image: null, soundMode: 'theme', frame: 'theme', textColor: null, nameColor: null, font: 'theme', autoSize: true, textShadow: true, textPos: 'below', textAlign: 'center' };
+  const sub = { ...settings.alerts.sub, ...THEME_TEXT, theme: null, image: null, soundMode: 'theme', frame: 'theme', textPos: 'below', textAlign: 'center' };
   post(frame, { theme: frame.dataset.theme, alerts: { sub } }, sample('sub'), muted, true);
 }
 
@@ -892,7 +893,7 @@ const TOUR = ['hello', 'connect', 'obs', 'sidebar', 'done'];
 const SIDEBAR = TOUR.indexOf('sidebar');
 // Sidebar's stops, the sidebar's own groups: [the group's name, its pages, first to last]. Main (the pages on top) and
 // More (under the line) have no title in the sidebar.
-const SPOTS = [['navMain', ['home', 'alert', 'chat', 'goal']], ['navLive', ['queue', 'events']], ['navBot', ['bot']],
+const SPOTS = [['navMain', ['home', 'alert', 'chat', 'goal']], ['navLive', ['queue', 'events']], ['navBot', ['bot']], ['navDonations', ['donations']],
   ['navSetup', ['connections', 'appearance', 'settings', 'guide']], ['navMore', ['about', 'support']]];
 const obsSize = (id) => (id === 'alerts' ? [800, 600] : id === 'chat' ? [settings.chat.width, settings.chat.height] : settings.goals[id].style === 'circle' ? [400, 400] : [800, 200]);
 const connCards = () => [$('#kcConnect'), $('#twConnect')].map((b) => b.closest('.box'));

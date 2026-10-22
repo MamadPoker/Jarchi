@@ -7,8 +7,9 @@ const store = require('./store');
 const strings = require('../i18n/en.json');
 
 const FILE = path.join(DATA_DIR, 'settings.json');
-const VERSION = 7;
-const THEMES = ['neon', 'minimal', 'fun', 'retro', 'glass', 'fire', 'ice', 'galaxy', 'comic', 'simple'];
+const VERSION = 8;
+// 'none': no box, background or effects, just the picture and outlined text.
+const THEMES = ['neon', 'minimal', 'fun', 'retro', 'glass', 'fire', 'ice', 'galaxy', 'comic', 'simple', 'none'];
 // App-wide settings (not per alert). showBadge: platform badge on alerts; it still needs both Kick and Twitch connected.
 // alertGap: seconds between two alerts. proxy*: how Jarchi reaches Kick, Twitch and 7TV (core/net.js).
 // kickGoalSync / twitchGoalSync: goals set on the Kick / Twitch channel show that platform's numbers (core/goals.js).
@@ -66,18 +67,23 @@ const DEFAULTS = Object.fromEntries(TYPES.map((t) => [t, {
   frameRadius: 16,
   textPos: 'below',
   textAlign: 'center',
-  // Text style (Text tab; Reset text style restores these): name and message colors (null = the theme's), font ('theme'
-  // or one of ALERT_FONTS), size (autoSize: the biggest that fits; off: fontSize from PER_TYPE, smaller only if it
-  // wouldn't fit), the theme's outline/shadow on the text or none.
+  // Text style (Text tab; Reset text style restores these). The viewer's name (name*) and the rest of the text (text*)
+  // each have a color (null = the theme's), a font ('theme' or one of ALERT_FONTS), bold (true = the theme's weight)
+  // and the theme's outline/shadow (or none). One size for the whole line: autoSize, the biggest that fits; off:
+  // fontSize from PER_TYPE, smaller only if it wouldn't fit.
   nameColor: null,
+  nameFont: 'theme',
+  nameBold: true,
+  nameShadow: true,
   textColor: null,
-  font: 'theme',
-  autoSize: true,
+  textFont: 'theme',
+  textBold: true,
   textShadow: true,
+  autoSize: true,
   theme: null, // null = the main theme
   ...PER_TYPE[t],
 }]));
-const TEXT_STYLE = ['nameColor', 'textColor', 'font', 'autoSize', 'fontSize', 'textShadow'];
+const TEXT_STYLE = ['nameColor', 'nameFont', 'nameBold', 'nameShadow', 'textColor', 'textFont', 'textBold', 'textShadow', 'autoSize', 'fontSize'];
 // Bundled fonts (assets/fonts) with both Latin and Persian letters. The panel lists them in index.html (Text tab, Font).
 const ALERT_FONTS = ['Vazirmatn', 'Lalezar', 'Changa', 'Lemonada', 'Markazi Text'];
 
@@ -105,7 +111,11 @@ const RULES = {
   fontSize: num(12, 120),
   nameColor: (v) => v === null || hex(v),
   textColor: (v) => v === null || hex(v),
-  font: oneOf('theme', ...ALERT_FONTS),
+  nameFont: oneOf('theme', ...ALERT_FONTS),
+  textFont: oneOf('theme', ...ALERT_FONTS),
+  nameBold: (v) => typeof v === 'boolean',
+  textBold: (v) => typeof v === 'boolean',
+  nameShadow: (v) => typeof v === 'boolean',
   textShadow: (v) => typeof v === 'boolean',
   autoSize: (v) => typeof v === 'boolean',
 };
@@ -317,6 +327,18 @@ if (from < 6) {
 if (from < 7 && Object.keys(saved).some((k) => k !== 'version')) {
   // v6 -> v7: the welcome tour is for the first run. Someone who already set Jarchi up doesn't get it.
   saved.welcomed ??= true;
+}
+if (from < 8) {
+  // v7 -> v8: an alert's one font and one outline/shadow switch became the name's and the message's own. Both keep the
+  // old choice.
+  for (const a of Object.values(saved.alerts ?? {})) {
+    if (a?.font) {
+      a.nameFont ??= a.font;
+      a.textFont ??= a.font;
+      delete a.font;
+    }
+    if (a?.textShadow === false) a.nameShadow ??= false;
+  }
 }
 if (from < VERSION) {
   saved.version = VERSION;

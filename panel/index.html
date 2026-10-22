@@ -36,6 +36,8 @@
         <button class="nav-item" data-view="events"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 2.6-6.4L3 8M3 3v5h5M12 7v5l3 2"/></svg><span data-i18n="navEvents"></span></button>
         <h2 class="group-title" data-i18n="navBot"></h2>
         <button class="nav-item" data-view="bot"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2v3M6 5h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-6l-4 4v-4H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2zM9 11h.01M15 11h.01"/></svg><span data-i18n="navChatBot"></span></button>
+        <h2 class="group-title" data-i18n="navDonations"></h2>
+        <button class="nav-item" data-view="donations"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M14.8 9.2a2.8 2.8 0 0 0-2.8-1.7c-1.6 0-2.8.9-2.8 2.1 0 2.9 5.6 1.5 5.6 4.5 0 1.2-1.2 2.2-2.8 2.2a2.9 2.9 0 0 1-2.8-1.8M12 6v1.5M12 16.3v1.7"/></svg><span data-i18n="navCrypto"></span><span class="pill soon-tag" data-i18n="soonTag"></span></button>
         <h2 class="group-title" data-i18n="navSetup"></h2>
         <button class="nav-item" data-view="connections"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg><span data-i18n="navConnections"></span></button>
         <button class="nav-item" data-view="appearance"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21a9 9 0 1 1 9-9c0 2-1.6 3-3.2 3H15a1.8 1.8 0 0 0-1.4 2.9A1.8 1.8 0 0 1 12 21zM7.5 11.5h.01M10 7.5h.01M14.5 7.5h.01"/></svg><span data-i18n="navAppearance"></span></button>
@@ -160,6 +162,13 @@
         <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
         <h2 data-i18n="soonTitle"></h2>
         <small data-i18n="botSoon"></small>
+      </section>
+
+      <!-- ===== Crypto donations: not built yet ===== -->
+      <section class="view soon" data-view="donations" hidden>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+        <h2 data-i18n="navCrypto"></h2>
+        <small data-i18n="cryptoSoon"></small>
       </section>
 
       <!-- ===== About: the logo, the version (GET /api/version), who made it ===== -->
@@ -426,54 +435,75 @@
             </div>
           </div>
 
-          <!-- Text style: "Theme" = the alert's theme decides; Reset brings all of these back (POST /api/alerts/:type/reset-text). -->
+          <!-- Text style: the name and the message (the rest of the text) each have their own color, font, bold and
+               outline/shadow; one size for the whole line. "Theme" = the alert's theme decides; Reset brings all of
+               these back (POST /api/alerts/:type/reset-text). Fonts: Persian and English letters (core/settings.js
+               ALERT_FONTS, alerts.css @font-face). -->
           <div class="box wide">
             <div class="row between">
               <h2 data-i18n="textStyle" data-help="alert.textStyle"></h2>
               <button id="resetText" class="ghost" data-i18n="resetTextStyle"></button>
             </div>
-            <div class="cols">
-              <div class="field">
-                <span data-i18n="nameColor" data-help="alert.nameColor"></span>
-                <div class="row">
-                  <div class="seg">
-                    <label><input type="radio" name="nameColorMode" value="theme"><span data-i18n="fromTheme"></span></label>
-                    <label><input type="radio" name="nameColorMode" value="custom"><span data-i18n="colorCustom"></span></label>
+            <div class="cols style-cols">
+              <div class="stack">
+                <h3 data-i18n="styleName"></h3>
+                <div class="field">
+                  <span data-i18n="styleColor" data-help="alert.nameColor"></span>
+                  <div class="row">
+                    <div class="seg">
+                      <label><input type="radio" name="nameColorMode" value="theme"><span data-i18n="fromTheme"></span></label>
+                      <label><input type="radio" name="nameColorMode" value="custom"><span data-i18n="colorCustom"></span></label>
+                    </div>
+                    <input type="color" class="swatch-input" data-f="nameColor" data-only="customName" data-aria="nameColor">
                   </div>
-                  <input type="color" class="swatch-input" data-f="nameColor" data-only="customName" data-aria="nameColor">
                 </div>
+                <label class="field"><span data-i18n="font" data-help="alert.font"></span>
+                  <select data-f="nameFont" data-aria="nameFont">
+                    <option value="theme" data-i18n="fontTheme"></option>
+                    <option value="Vazirmatn">Vazirmatn</option>
+                    <option value="Lalezar">Lalezar</option>
+                    <option value="Changa">Changa</option>
+                    <option value="Lemonada">Lemonada</option>
+                    <option value="Markazi Text">Markazi Text</option>
+                  </select>
+                </label>
+                <label class="row between toggle-row"><span data-i18n="bold" data-help="alert.bold"></span><span class="switch"><input type="checkbox" data-f="nameBold" data-aria="nameBold"><span></span></span></label>
+                <label class="row between toggle-row"><span data-i18n="outlineShadow" data-help="alert.textShadow"></span><span class="switch"><input type="checkbox" data-f="nameShadow" data-aria="nameShadow"><span></span></span></label>
               </div>
-              <div class="field">
-                <span data-i18n="messageColor" data-help="alert.textColor"></span>
-                <div class="row">
-                  <div class="seg">
-                    <label><input type="radio" name="textColorMode" value="theme"><span data-i18n="fromTheme"></span></label>
-                    <label><input type="radio" name="textColorMode" value="custom"><span data-i18n="colorCustom"></span></label>
+              <div class="stack">
+                <h3 data-i18n="styleMessage"></h3>
+                <div class="field">
+                  <span data-i18n="styleColor" data-help="alert.textColor"></span>
+                  <div class="row">
+                    <div class="seg">
+                      <label><input type="radio" name="textColorMode" value="theme"><span data-i18n="fromTheme"></span></label>
+                      <label><input type="radio" name="textColorMode" value="custom"><span data-i18n="colorCustom"></span></label>
+                    </div>
+                    <input type="color" class="swatch-input" data-f="textColor" data-only="customColor" data-aria="messageColor">
                   </div>
-                  <input type="color" class="swatch-input" data-f="textColor" data-only="customColor" data-aria="messageColor">
                 </div>
-              </div>
-              <!-- Fonts with Persian and English letters (core/settings.js ALERT_FONTS, alerts.css @font-face) -->
-              <label class="field"><span data-i18n="font" data-help="alert.font"></span>
-                <select data-f="font">
-                  <option value="theme" data-i18n="fontTheme"></option>
-                  <option value="Vazirmatn">Vazirmatn</option>
-                  <option value="Lalezar">Lalezar</option>
-                  <option value="Changa">Changa</option>
-                  <option value="Lemonada">Lemonada</option>
-                  <option value="Markazi Text">Markazi Text</option>
-                </select>
-              </label>
-              <div class="field">
-                <span data-help="alert.fontSize"><span data-i18n="fontSize"></span> <b data-out="fontSize" data-only="customSize"></b></span>
-                <div class="seg">
-                  <label><input type="radio" name="alertSizeMode" value="auto"><span data-i18n="sizeAuto"></span></label>
-                  <label><input type="radio" name="alertSizeMode" value="custom"><span data-i18n="colorCustom"></span></label>
-                </div>
-                <input type="range" data-f="fontSize" min="16" max="120" step="1" data-only="customSize" data-aria="fontSize">
+                <label class="field"><span data-i18n="font" data-help="alert.font"></span>
+                  <select data-f="textFont" data-aria="messageFont">
+                    <option value="theme" data-i18n="fontTheme"></option>
+                    <option value="Vazirmatn">Vazirmatn</option>
+                    <option value="Lalezar">Lalezar</option>
+                    <option value="Changa">Changa</option>
+                    <option value="Lemonada">Lemonada</option>
+                    <option value="Markazi Text">Markazi Text</option>
+                  </select>
+                </label>
+                <label class="row between toggle-row"><span data-i18n="bold" data-help="alert.bold"></span><span class="switch"><input type="checkbox" data-f="textBold" data-aria="messageBold"><span></span></span></label>
+                <label class="row between toggle-row"><span data-i18n="outlineShadow" data-help="alert.textShadow"></span><span class="switch"><input type="checkbox" data-f="textShadow" data-aria="messageShadow"><span></span></span></label>
               </div>
             </div>
-            <label class="row between toggle-row"><span data-i18n="outlineShadow" data-help="alert.textShadow"></span><span class="switch"><input type="checkbox" data-f="textShadow"><span></span></span></label>
+            <div class="field">
+              <span data-help="alert.fontSize"><span data-i18n="fontSize"></span> <b data-out="fontSize" data-only="customSize"></b></span>
+              <div class="seg">
+                <label><input type="radio" name="alertSizeMode" value="auto"><span data-i18n="sizeAuto"></span></label>
+                <label><input type="radio" name="alertSizeMode" value="custom"><span data-i18n="colorCustom"></span></label>
+              </div>
+              <input type="range" data-f="fontSize" min="16" max="120" step="1" data-only="customSize" data-aria="fontSize">
+            </div>
           </div>
         </div>
 
