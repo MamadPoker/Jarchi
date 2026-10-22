@@ -13,7 +13,8 @@ const FA = remember.get('jarchi.lang') === 'fa';
 document.documentElement.lang = FA ? 'fa' : 'en';
 document.documentElement.dir = FA ? 'rtl' : 'ltr';
 // The panel's look, remembered in this browser: Dark (default) or Light (jarchi.theme, the top bar); on Appearance a color
-// theme (jarchi.palette), the text size (jarchi.size) and the background art (jarchi.art). index.html puts them on <html>
+// theme (jarchi.palette), the text size (jarchi.size), the background art (jarchi.art) and Reduce animations
+// (jarchi.still: the art stays still). index.html puts them on <html>
 // before the first paint; panel.css has each theme's colors. A saved theme that no longer exists is Jarchi.
 const PALETTES = ['jarchi', 'system', 'graphite', 'ocean', 'wine', 'aurora', 'obsidian'];
 const SIZES = ['small', 'normal', 'large'];
@@ -44,11 +45,13 @@ const applyLook = () => {
   de.dataset.theme = remember.get('jarchi.theme') === 'light' ? 'light' : 'dark';
   de.dataset.size = SIZES.includes(remember.get('jarchi.size')) ? remember.get('jarchi.size') : 'normal';
   de.toggleAttribute('data-art', remember.get('jarchi.art') !== '0');
+  de.toggleAttribute('data-still', remember.get('jarchi.still') === '1');
   for (const k of ['--h', '--s', '--l']) accent ? de.style.setProperty(k, accent[k]) : de.style.removeProperty(k);
   show(palette());
   $$('[name=palette]').forEach((r) => (r.checked = r.value === palette()));
   $$('[name=size]').forEach((r) => (r.checked = r.value === de.dataset.size));
   $('#bgArtOn').checked = de.hasAttribute('data-art');
+  $('#stillOn').checked = de.hasAttribute('data-still');
   $$('.mode button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.mode === de.dataset.theme)));
   $$('#palettes .mini').forEach((m) => Object.assign(m.dataset, { theme: de.dataset.theme, palette: shown(m.dataset.id) })); // in the mode shown now
 };
@@ -63,6 +66,7 @@ const readAccent = () => fetch('/api/accent').then((r) => r.json()).then((r) => 
 $$('.mode button').forEach((b) => (b.onclick = () => setLook('jarchi.theme', b.dataset.mode)));
 $$('[name=size]').forEach((r) => (r.onchange = () => (setLook('jarchi.size', r.value), toast(S.panel.saved))));
 $('#bgArtOn').onchange = (e) => (setLook('jarchi.art', e.target.checked ? '1' : '0'), artRun(), toast(S.panel.saved));
+$('#stillOn').onchange = (e) => (setLook('jarchi.still', e.target.checked ? '1' : '0'), artRun(), toast(S.panel.saved));
 // The accent color can change in Windows any time: looked at again every few seconds while System is in use or on
 // screen (Appearance), and whenever the window comes back to the front.
 const watchAccent = () => !document.hidden && (palette() === 'system' || view === 'appearance') && readAccent();
@@ -1662,7 +1666,7 @@ const ART_ICONS = [
 const ART_RING = { kick: '#53fc18', twitch: '#9146ff' };
 const STILL = matchMedia('(prefers-reduced-motion: reduce)');
 const rnd = (a, b) => a + Math.random() * (b - a);
-let art = [], artPics = [], artChannels, artMouse = null, artFrame = 0, area;
+let art = [], artPics = [], artChannels, artMouse = null, artFrame = 0, artLast = 0, area;
 // Where the items go: beside the sidebar (all the width on a narrow window, where the sidebar is a bar on top), below
 // the top bar, a little in from the edges. Nothing behind the sidebar: it would barely show through.
 function artArea() {
@@ -1734,7 +1738,9 @@ function buildArt(pics) {
   $('#bgArt').replaceChildren(...art.map((a) => a.e));
   drawArt(performance.now());
 }
-function drawArt(t) {
+// dt: ms since the last frame, so the items move out of the mouse's way equally fast at any frame rate (0: just redrawn).
+function drawArt(t, dt = 0) {
+  const ease = 1 - 0.94 ** (dt / 16.7);
   for (const a of art) {
     const x = area.x + a.u * area.w + 14 * Math.sin(t * a.sp[0] + a.ph[0]), y = area.y + a.v * area.h + 14 * Math.sin(t * a.sp[1] + a.ph[1]);
     let tx = 0, ty = 0; // out of the mouse's way: 70 px when it's right on top, less and less up to 170 px away
@@ -1742,19 +1748,25 @@ function drawArt(t) {
       const dx = x - artMouse.x, dy = y - artMouse.y, d = Math.hypot(dx, dy) || 1;
       if (d < 170) [tx, ty] = [(dx / d) * 70 * (1 - d / 170), (dy / d) * 70 * (1 - d / 170)];
     }
-    a.ox += (tx - a.ox) * 0.06; // eases there, and back when the mouse goes
-    a.oy += (ty - a.oy) * 0.06;
+    a.ox += (tx - a.ox) * ease; // eases there, and back when the mouse goes
+    a.oy += (ty - a.oy) * ease;
     a.e.style.transform = `translate(${(x + a.ox - a.size / 2).toFixed(1)}px, ${(y + a.oy - a.size / 2).toFixed(1)}px) rotate(${(a.rot + 8 * Math.sin(t * a.sp[2] + a.ph[2])).toFixed(1)}deg)`;
   }
 }
+// Drawn at most every 13 ms: every frame on a 60 Hz screen, every other one at 144 Hz, every 4th at 240 Hz. The art
+// moves a few pixels a second, and each frame also re-blurs the see-through cards over it on the GPU.
 function artLoop(t) {
-  drawArt(t);
   artFrame = requestAnimationFrame(artLoop);
+  if (t - artLast < 13) return;
+  drawArt(t, Math.min(t - artLast, 100));
+  artLast = t;
 }
-// Moves only while the art is on, the tab is shown and the system doesn't ask for less motion.
+// Moves only while the art is on, the tab (or the app's window) is shown and neither Reduce animations nor the system
+// asks for less motion. Hidden, minimized or in the tray: no frames at all.
 function artRun() {
   cancelAnimationFrame(artFrame);
-  if (document.documentElement.hasAttribute('data-art') && !document.hidden && !STILL.matches) artFrame = requestAnimationFrame(artLoop);
+  const de = document.documentElement;
+  if (de.hasAttribute('data-art') && !de.hasAttribute('data-still') && !document.hidden && !STILL.matches) artFrame = requestAnimationFrame(artLoop);
 }
 // The streamer's pictures: looked up again when a channel changes (Chat page); Kick's first when both are set.
 function artFaces() {

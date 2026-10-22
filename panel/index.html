@@ -6,7 +6,7 @@
   <title>Jarchi</title>
   <link rel="icon" href="/assets/brand/icons/jarchi.ico">
   <link rel="stylesheet" href="panel.css">
-  <!-- The look kept by panel.js (mode, color theme and System's accent, text size, background art), set before the first
+  <!-- The look kept by panel.js (mode, color theme and System's accent, text size, background art, Reduce animations), set before the first
        paint so a light panel doesn't flash dark. System without an accent color is Jarchi. -->
   <script>try {
     const de = document.documentElement, ls = localStorage, accent = JSON.parse(ls.getItem('jarchi.accent'));
@@ -14,6 +14,7 @@
     de.dataset.palette = ls.getItem('jarchi.palette') || 'jarchi';
     de.dataset.size = ls.getItem('jarchi.size') || 'normal';
     if (ls.getItem('jarchi.art') !== '0') de.dataset.art = '';
+    if (ls.getItem('jarchi.still') === '1') de.dataset.still = '';
     if (accent) for (const k in accent) de.style.setProperty(k, accent[k]);
     else if (de.dataset.palette === 'system') de.dataset.palette = 'jarchi';
   } catch {}</script>
@@ -243,6 +244,13 @@
               <span class="card-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 3l1.8 4.7 4.7 1.8-4.7 1.8L10 16l-1.8-4.7L3.5 9.5l4.7-1.8zM18 14l.9 2.1 2.1.9-2.1.9L18 20l-.9-2.1-2.1-.9 2.1-.9z"/></svg></span>
               <div class="stack"><h2 data-i18n="bgArt" data-help="appearance.bgArt"></h2><small data-i18n="bgArtHint"></small></div>
               <label class="switch"><input type="checkbox" id="bgArtOn" data-aria="bgArt"><span></span></label>
+            </div>
+          </div>
+          <div class="box">
+            <div class="card-head">
+              <span class="card-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M10 9v6M14 9v6"/></svg></span>
+              <div class="stack"><h2 data-i18n="reduceMotion" data-help="appearance.reduceMotion"></h2><small data-i18n="reduceMotionHint"></small></div>
+              <label class="switch"><input type="checkbox" id="stillOn" data-aria="reduceMotion"><span></span></label>
             </div>
           </div>
           <div class="box">

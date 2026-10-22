@@ -1,8 +1,9 @@
-// Jarchi as a desktop app: the same server as `npm start`, run inside Electron, plus a window for the panel and a tray
-// icon. Closing the window only hides it, so alerts and chat keep running for OBS until Quit.
+// Jarchi as a desktop app: the same server as `npm start`, in its own process, plus a window for the panel and a tray
+// icon. Closing the window only hides it, so alerts and chat keep running for OBS until Quit. No GPU switches here:
+// the window renders like Chrome does, on the GPU Windows picks for it.
 const path = require('node:path');
 const fs = require('node:fs');
-const { app, BrowserWindow, Tray, Menu, clipboard, dialog, screen, shell } = require('electron');
+const { app, BrowserWindow, Tray, Menu, clipboard, dialog, screen, shell, utilityProcess } = require('electron');
 
 const ROOT = path.join(__dirname, '..');
 // From source the data stays in ./data like `npm start`; an installed app keeps it in the user's app data folder.
@@ -87,11 +88,20 @@ else {
   app.on('second-instance', show);
   app.on('before-quit', () => { quitting = true; });
   app.whenReady().then(() => {
-    const { server } = require('../server');
-    // The server quits when it can't listen (e.g. `npm start` already has the port); there's no console here, so say why.
-    server.prependListener('error', (err) => dialog.showErrorBox('Jarchi', err.code === 'EADDRINUSE'
-      ? `Port ${PORT} is already in use. Is Jarchi already running (npm start)? Set JARCHI_PORT in .env to use another port.`
-      : String(err)));
-    server.listening ? open() : server.once('listening', open);
+    // In its own process, the server's work (chat, alerts, files, the widgets' requests) never holds up the window. It
+    // says when it's listening. If it stops (e.g. `npm start` already has the port), so does the app, with the server's
+    // last error lines in a message: there's no console here.
+    const server = utilityProcess.fork(path.join(ROOT, 'server/index.js'), [], { serviceName: 'Jarchi server', stdio: ['ignore', 'inherit', 'pipe'] });
+    let errors = '';
+    server.stderr.on('data', (d) => {
+      process.stderr.write(d);
+      errors = (errors + d).slice(-1500);
+    });
+    server.once('message', open);
+    server.on('exit', (code) => {
+      if (quitting) return;
+      dialog.showErrorBox('Jarchi', `Jarchi stopped (code ${code}).\n\n${errors}`.trim());
+      app.quit();
+    });
   });
 }

@@ -277,6 +277,7 @@ server.listen(PORT, HOST, () => {
   console.log(`Jarchi is running
   Settings panel: http://${HOST}:${PORT}/
   OBS alerts URL: http://${HOST}:${PORT}/widgets/alerts`);
+  process.parentPort?.postMessage('listening'); // the desktop app (electron/main.js) opens its window now
   fillChannel('kick', accountLogin.kick); // a channel from each account connected before, where the Chat page has none
   fillChannel('twitch', accountLogin.twitch);
   chat.sync(); // connect to the saved Kick / Twitch channels

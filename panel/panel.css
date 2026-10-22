@@ -1021,6 +1021,7 @@ code { padding: 1px 6px; border-radius: 6px; background: var(--card2); font: 0.9
 .bg-art .gold { color: var(--gold); }
 .bg-art .pic { border: 2px solid; border-radius: 50%; object-fit: cover; }
 @keyframes art-in { from { opacity: 0; } }
+:root[data-still] .bg-art > * { animation: none; } /* Reduce animations: no fade-in either */
 /* With the art on, the sidebar, the top bar and the cards let it show through a little, blurred. At 88% the text on them
    stays within about 0.2 of its contrast on a solid card, in every theme and mode. Without color-mix: solid. */
 @supports (background: color-mix(in srgb, red 50%, transparent)) {

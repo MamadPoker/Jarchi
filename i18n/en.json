@@ -504,6 +504,8 @@
     "sizeLarge": "Large",
     "bgArt": "Background art",
     "bgArtHint": "Soft floating icons and your profile pictures behind the panel.",
+    "reduceMotion": "Reduce animations",
+    "reduceMotionHint": "The background art stays still.",
     "languageHint": "The panel's language. Your widgets in OBS don't change.",
     "guide": "Guide",
     "guideTopics": "Guide topics",
@@ -585,6 +587,7 @@
       "palette": "The panel's colors: backgrounds, cards and the main color. **System** uses your Windows accent color (Jarchi's colors if it can't be read). Point at a card to see the whole panel in it; click it to keep it. The small gold details stay gold in every theme. Dark or Light: the moon and sun in the top bar. Only this panel changes, in this browser.",
       "textSize": "Makes the whole panel bigger or smaller: text, buttons and spacing. Only this panel changes, in this browser.",
       "bgArt": "Faint, blurred icons float behind the panel and slowly drift out of the mouse's way. With a Kick or Twitch channel set (Chat page), your own profile pictures float there too, with a ring in the platform's color. The sidebar, top bar and cards become a little see-through. Turn it off for a plain background. Only this panel changes, in this browser.",
+      "reduceMotion": "Stops the background art moving: the icons and pictures stay where they are instead of drifting and moving out of the mouse's way. Less work for your PC and its graphics card while you stream or play. The art also stays still when Windows' animation effects are off (**Settings → Accessibility → Visual effects**). Only this panel changes, in this browser.",
       "language": "The panel's language. The page reloads and comes back here. The text of your widgets in OBS doesn't change."
     },
     "alert": {
