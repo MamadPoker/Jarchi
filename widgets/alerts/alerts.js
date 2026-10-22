@@ -8,6 +8,7 @@ const stage = document.getElementById('stage');
 const sounds = new Set();
 let settings, S, gen = 0;
 let onNow = null; // live: { id, end() } of the alert on screen, so the panel's Skip can end it
+let onStage = null; // the alert element on screen, for fit()
 
 // Bigger events feel bigger: tier 0 (follow) ... 4 (raid). Amount-based types climb with the amount.
 const STEPS = { gift_sub: [5, 20], kicks: [100, 1000], bits: [100, 1000] }; // same in core/alerts.js (how long alerts play)
@@ -39,10 +40,36 @@ function applyStrings(s) {
 }
 function applySettings(s) {
   settings = s;
+  for (const a of Object.values(s.alerts)) if (a.font && a.font !== 'theme') document.fonts.load(`16px "${a.font}"`); // ready before an alert needs it
+  fit(); // Alert size may have changed
 }
 
+// The alert is laid out on a 1920x1080 page, scaled as a whole (picture, text, box) to the Browser Source's size, times
+// Alert size (Alerts page). Smaller still if it wouldn't fit there (a long message), so nothing is ever cut off. Its top
+// stays where it would be on a 1920x1080 source scaled to fit. A name too long for one line gets a smaller font.
+// Runs again whenever the alert's size changes (pictures and fonts loading) or the source's.
+const TILE = params.get('preview') === 'tile';
+const resized = new ResizeObserver(() => fit());
+function fit() {
+  const a = onStage;
+  const name = a?.querySelector('[data-k=user]');
+  if (name) {
+    name.style.fontSize = '';
+    const room = name.parentElement.clientWidth;
+    if (name.offsetWidth > room) name.style.fontSize = `${room / name.offsetWidth}em`;
+  }
+  if (TILE) return; // theme cards: alerts.css centers and enlarges it
+  const W = innerWidth, H = innerHeight, base = Math.min(W / 1920, H / 1080);
+  const top = (H - 1080 * base) / 2 + 110 * base;
+  let k = base * (settings?.alertSize ?? 1);
+  if (a) k = Math.min(k, (W * 0.96) / a.offsetWidth, (H * 0.98 - top) / a.offsetHeight);
+  stage.style.transform = `translate(${W / 2 - 960 * k}px, ${top - 110 * k}px) scale(${k})`;
+}
+addEventListener('resize', fit);
+document.fonts.addEventListener('loadingdone', fit);
+
 if (params.has('preview')) {
-  if (params.get('preview') === 'tile') document.body.classList.add('tile');
+  if (TILE) document.body.classList.add('tile');
   addEventListener('message', (e) => {
     if (e.origin !== location.origin || !e.data?.event) return;
     applyStrings(e.data.strings);
@@ -72,7 +99,8 @@ if (params.has('preview')) {
 // Cut whatever is playing so the next alert starts right away.
 function stopAll() {
   gen++;
-  onNow = null;
+  onNow = onStage = null;
+  resized.disconnect();
   for (const s of sounds) s.pause();
   sounds.clear();
   stage.replaceChildren();
@@ -97,8 +125,12 @@ async function show(ev, { muted = false, hold = false, ms, id } = {}) {
   const files = mediaFor(cfg, ev);
   const kickLook = ev.type === 'kicks' && cfg.look === 'kick';
   const { el, scope, video } = kickLook ? kickAlert(cfg, ev, v, files) : themed(cfg, ev, v, files, theme, tier, grows);
+  textStyle(el, cfg);
 
   stage.append(scope);
+  onStage = el;
+  resized.observe(el);
+  fit();
   const sound = muted ? null : kickLook ? playSound(cfg, files.sound, 'kick_gift', 0, !!video, 'kick') : playSound(cfg, files.sound, ev.type, tier, !!video, theme);
   if (video) {
     video.muted = muted || cfg.videoSound === 'off';
@@ -124,6 +156,20 @@ async function show(ev, { muted = false, hold = false, ms, id } = {}) {
   sound?.pause();
   sounds.delete(sound);
   scope.remove();
+  resized.unobserve(el);
+  onStage = null;
+}
+
+// The alert's own text style (Text tab) over its look: name and message colors, font, outline/shadow off. alerts.css.
+function textStyle(el, cfg) {
+  const font = cfg.font && cfg.font !== 'theme' ? cfg.font : null; // settings from before text styles have none
+  el.classList.toggle('tc', !!cfg.textColor);
+  el.classList.toggle('nc', !!cfg.nameColor);
+  el.classList.toggle('ff', !!font);
+  el.classList.toggle('flat', cfg.textShadow === false);
+  if (cfg.textColor) el.style.setProperty('--tc', cfg.textColor);
+  if (cfg.nameColor) el.style.setProperty('--nc', cfg.nameColor);
+  if (font) el.style.setProperty('--ff', `"${font}", "Segoe UI", system-ui, sans-serif`);
 }
 
 // The theme look: media with the theme's particles, rings and glow, the text box, all inside a theme wrapper.
@@ -141,14 +187,13 @@ function themed(cfg, ev, v, files, theme, tier, grows) {
   if (ev.message) box.append(h('div', { className: 'msg', textContent: ev.message }));
   if (tier === 4) box.append(h('b', { className: 'sweep' }));
 
-  const el = h('div', { className: `alert tier-${tier} type-${ev.type} plat-${ev.platform} pos-${cfg.textPos} align-${cfg.textAlign} frame-${cfg.frame}${cfg.textColor ? ' tc' : ''}` },
+  const el = h('div', { className: `alert tier-${tier} type-${ev.type} plat-${ev.platform} pos-${cfg.textPos} align-${cfg.textAlign} frame-${cfg.frame}` },
     h('div', { className: 'inner' }, media, box));
   // The theme CSS keys off [data-theme] on an ancestor, so each alert gets its own (layout-neutral) theme wrapper.
   const scope = h('div', { className: 'theme-scope' }, el);
   scope.dataset.theme = theme;
   el.style.setProperty('--s', SCALE[tier]);
   el.style.setProperty('--fs', `${cfg.fontSize * (grows ? 1 + (tier - 1) * 0.1 : 1)}px`);
-  if (cfg.textColor) el.style.setProperty('--tc', cfg.textColor);
   if (cfg.frame === 'custom') {
     el.style.setProperty('--fbg', rgba(cfg.frameBg, cfg.frameOpacity));
     el.style.setProperty('--fbd', cfg.frameBorder);

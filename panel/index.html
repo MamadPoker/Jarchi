@@ -25,7 +25,7 @@
   <div class="app">
     <!-- Sidebar: the brand, then one item per page. Each opens its <section data-view> (select() in panel.js). -->
     <aside class="side">
-      <img class="brand" src="/assets/brand/jarchi-logo-tilted.png" alt="Jarchi">
+      <img class="brand" src="/assets/brand/jarchi-logo-v2.png" alt="Jarchi">
       <nav class="nav" data-aria="menu">
         <button class="nav-item" data-view="home"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5L12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg><span data-i18n="navHome"></span></button>
         <button class="nav-item" data-view="alert"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.9 1.9 0 0 0 3.4 0"/></svg><span data-i18n="groupAlerts"></span></button>
@@ -164,7 +164,7 @@
 
       <!-- ===== About: the logo, the version (GET /api/version), who made it ===== -->
       <section class="view soon about" data-view="about" hidden>
-        <img src="/assets/brand/jarchi-logo-tilted.png" alt="Jarchi">
+        <img src="/assets/brand/jarchi-logo-v2.png" alt="Jarchi">
         <small id="aboutVersion"></small>
         <p data-i18n="aboutText"></p>
         <small><span data-i18n="madeBy"></span> <a href="https://mamadpoker.netlify.app/" target="_blank" rel="noopener">MamadPoker</a></small>
@@ -227,6 +227,7 @@
             <div id="palettes" class="modes" role="radiogroup" data-aria="colorTheme"></div>
           </div>
         </div>
+        <!-- Text size, Background (art; Reduce animations, greyed out while the art is off) and Language, side by side. -->
         <div class="look-grid">
           <div class="box">
             <div class="card-head">
@@ -242,16 +243,16 @@
           <div class="box">
             <div class="card-head">
               <span class="card-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 3l1.8 4.7 4.7 1.8-4.7 1.8L10 16l-1.8-4.7L3.5 9.5l4.7-1.8zM18 14l.9 2.1 2.1.9-2.1.9L18 20l-.9-2.1-2.1-.9 2.1-.9z"/></svg></span>
-              <div class="stack"><h2 data-i18n="bgArt" data-help="appearance.bgArt"></h2><small data-i18n="bgArtHint"></small></div>
-              <label class="switch"><input type="checkbox" id="bgArtOn" data-aria="bgArt"><span></span></label>
+              <div class="stack"><h2 data-i18n="lookBackground"></h2><small data-i18n="lookBackgroundHint"></small></div>
             </div>
-          </div>
-          <div class="box">
-            <div class="card-head">
-              <span class="card-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M10 9v6M14 9v6"/></svg></span>
-              <div class="stack"><h2 data-i18n="reduceMotion" data-help="appearance.reduceMotion"></h2><small data-i18n="reduceMotionHint"></small></div>
-              <label class="switch"><input type="checkbox" id="stillOn" data-aria="reduceMotion"><span></span></label>
-            </div>
+            <label class="row between toggle-row look-row">
+              <span class="stack"><b data-i18n="bgArt" data-help="appearance.bgArt"></b><small data-i18n="bgArtHint"></small></span>
+              <span class="switch"><input type="checkbox" id="bgArtOn" data-aria="bgArt"><span></span></span>
+            </label>
+            <label class="row between toggle-row look-row" id="stillRow">
+              <span class="stack"><b data-i18n="reduceMotion" data-help="appearance.reduceMotion"></b><small data-i18n="reduceMotionHint"></small></span>
+              <span class="switch"><input type="checkbox" id="stillOn" data-aria="reduceMotion"><span></span></span>
+            </label>
           </div>
           <div class="box">
             <div class="card-head">
@@ -276,6 +277,12 @@
             <span class="swatches" id="themeSwatches"></span>
             <span class="change" data-i18n="change"></span>
           </button>
+          <!-- Every alert's size in OBS, on top of fitting the Browser Source (GLOBAL alertSize) -->
+          <label class="size-row">
+            <span class="group-title" data-i18n="alertSize" data-help="alert.size"></span>
+            <input type="range" id="alertSize" min="0.5" max="1.5" step="0.05">
+            <b data-out="alertSize"></b>
+          </label>
           <button id="copy">
             <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h8"/></svg>
             <span data-i18n="copyObs"></span>
@@ -387,7 +394,7 @@
           </div>
         </div>
 
-        <!-- Text: what it says, where, how big, what color -->
+        <!-- Text: what it says, where, and its style (colors, font, size, outline; the preview shows each change) -->
         <div class="pane" role="tabpanel" id="pane-text" aria-labelledby="tab-text" data-tab="text" hidden>
           <div class="box wide">
             <h2 data-i18n="textTitle" data-help="alert.template"></h2>
@@ -395,37 +402,68 @@
             <small data-i18n="templateHint"></small>
           </div>
 
-          <div class="box">
-            <div class="field">
-              <span data-i18n="textPos" data-help="alert.textPos"></span>
-              <div class="seg">
-                <label><input type="radio" name="textPos" data-f="textPos" value="above"><span data-i18n="posAbove"></span></label>
-                <label><input type="radio" name="textPos" data-f="textPos" value="below"><span data-i18n="posBelow"></span></label>
-                <label><input type="radio" name="textPos" data-f="textPos" value="over"><span data-i18n="posOver"></span></label>
+          <div class="box wide">
+            <div class="cols">
+              <div class="field">
+                <span data-i18n="textPos" data-help="alert.textPos"></span>
+                <div class="seg">
+                  <label><input type="radio" name="textPos" data-f="textPos" value="above"><span data-i18n="posAbove"></span></label>
+                  <label><input type="radio" name="textPos" data-f="textPos" value="below"><span data-i18n="posBelow"></span></label>
+                  <label><input type="radio" name="textPos" data-f="textPos" value="over"><span data-i18n="posOver"></span></label>
+                </div>
               </div>
-            </div>
-            <div class="field">
-              <span data-i18n="textAlign" data-help="alert.textAlign"></span>
-              <div class="seg" dir="ltr">
-                <label><input type="radio" name="textAlign" data-f="textAlign" value="left"><span data-i18n="alignLeft"></span></label>
-                <label><input type="radio" name="textAlign" data-f="textAlign" value="center"><span data-i18n="alignCenter"></span></label>
-                <label><input type="radio" name="textAlign" data-f="textAlign" value="right"><span data-i18n="alignRight"></span></label>
+              <div class="field">
+                <span data-i18n="textAlign" data-help="alert.textAlign"></span>
+                <div class="seg" dir="ltr">
+                  <label><input type="radio" name="textAlign" data-f="textAlign" value="left"><span data-i18n="alignLeft"></span></label>
+                  <label><input type="radio" name="textAlign" data-f="textAlign" value="center"><span data-i18n="alignCenter"></span></label>
+                  <label><input type="radio" name="textAlign" data-f="textAlign" value="right"><span data-i18n="alignRight"></span></label>
+                </div>
               </div>
             </div>
           </div>
 
-          <div class="box">
-            <label class="field"><span data-help="alert.fontSize"><span data-i18n="fontSize"></span> <b data-out="fontSize"></b></span><input type="range" data-f="fontSize" min="16" max="120" step="1"></label>
-            <div class="field">
-              <span data-i18n="textColor" data-help="alert.textColor"></span>
-              <div class="row">
-                <div class="seg">
-                  <label><input type="radio" name="textColorMode" value="theme"><span data-i18n="colorTheme"></span></label>
-                  <label><input type="radio" name="textColorMode" value="custom"><span data-i18n="colorCustom"></span></label>
-                </div>
-                <input type="color" class="swatch-input" data-f="textColor" data-only="customColor" data-aria="textColor">
-              </div>
+          <!-- Text style: "Theme" = the alert's theme decides; Reset brings all of these back (POST /api/alerts/:type/reset-text). -->
+          <div class="box wide">
+            <div class="row between">
+              <h2 data-i18n="textStyle" data-help="alert.textStyle"></h2>
+              <button id="resetText" class="ghost" data-i18n="resetTextStyle"></button>
             </div>
+            <div class="cols">
+              <div class="field">
+                <span data-i18n="nameColor" data-help="alert.nameColor"></span>
+                <div class="row">
+                  <div class="seg">
+                    <label><input type="radio" name="nameColorMode" value="theme"><span data-i18n="fromTheme"></span></label>
+                    <label><input type="radio" name="nameColorMode" value="custom"><span data-i18n="colorCustom"></span></label>
+                  </div>
+                  <input type="color" class="swatch-input" data-f="nameColor" data-only="customName" data-aria="nameColor">
+                </div>
+              </div>
+              <div class="field">
+                <span data-i18n="messageColor" data-help="alert.textColor"></span>
+                <div class="row">
+                  <div class="seg">
+                    <label><input type="radio" name="textColorMode" value="theme"><span data-i18n="fromTheme"></span></label>
+                    <label><input type="radio" name="textColorMode" value="custom"><span data-i18n="colorCustom"></span></label>
+                  </div>
+                  <input type="color" class="swatch-input" data-f="textColor" data-only="customColor" data-aria="messageColor">
+                </div>
+              </div>
+              <!-- Fonts with Persian and English letters (core/settings.js ALERT_FONTS, alerts.css @font-face) -->
+              <label class="field"><span data-i18n="font" data-help="alert.font"></span>
+                <select data-f="font">
+                  <option value="theme" data-i18n="fontTheme"></option>
+                  <option value="Vazirmatn">Vazirmatn</option>
+                  <option value="Lalezar">Lalezar</option>
+                  <option value="Changa">Changa</option>
+                  <option value="Lemonada">Lemonada</option>
+                  <option value="Markazi Text">Markazi Text</option>
+                </select>
+              </label>
+              <label class="field"><span data-help="alert.fontSize"><span data-i18n="fontSize"></span> <b data-out="fontSize"></b></span><input type="range" data-f="fontSize" min="16" max="120" step="1"></label>
+            </div>
+            <label class="row between toggle-row"><span data-i18n="outlineShadow" data-help="alert.textShadow"></span><span class="switch"><input type="checkbox" data-f="textShadow"><span></span></span></label>
           </div>
         </div>
 
@@ -726,6 +764,7 @@
 
       <!-- ===== Theme ===== -->
       <section class="view" data-view="theme" hidden>
+        <button id="themeBack" class="ghost back"><svg class="flip" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5M11 18l-6-6 6-6"/></svg><span data-i18n="groupAlerts"></span></button>
         <div class="stack">
           <h1 class="title" data-i18n="themeTitle" data-help="theme.main"></h1>
           <small data-i18n="themeHint"></small>

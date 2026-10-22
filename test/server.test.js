@@ -98,6 +98,19 @@ test('migration, settings, uploads, reset, events', async () => {
   assert.equal((await call('PATCH', '/api/settings', { theme: 'casino' })).status, 400);
   assert.equal((await fetch(base + '/api/reset', { method: 'POST' })).status, 403, 'missing x-jarchi header must be rejected');
 
+  // Text style (Text tab): checked, and its Reset puts back only these (the text position set above stays).
+  s = await (await patch({ nameColor: '#ff0000', textColor: '#00ff00', font: 'Lalezar', fontSize: 60, textShadow: false })).json();
+  assert.deepEqual([s.alerts.follow.nameColor, s.alerts.follow.font, s.alerts.follow.textShadow], ['#ff0000', 'Lalezar', false]);
+  for (const bad of [{ font: 'Comic Sans' }, { nameColor: 'red' }, { textShadow: 'no' }]) assert.equal((await patch(bad)).status, 400, JSON.stringify(bad));
+  s = await (await call('POST', '/api/alerts/follow/reset-text')).json();
+  const f = s.alerts.follow;
+  assert.deepEqual([f.nameColor, f.textColor, f.font, f.fontSize, f.textShadow, f.textPos], [null, null, 'theme', 38, true, 'over']);
+  assert.equal((await call('POST', '/api/alerts/nope/reset-text')).status, 400);
+  // Alert size (every alert): 50% to 150%.
+  assert.equal(s.alertSize, 1);
+  assert.equal((await (await call('PATCH', '/api/settings', { alertSize: 0.5 })).json()).alertSize, 0.5);
+  assert.equal((await call('PATCH', '/api/settings', { alertSize: 2 })).status, 400);
+
   r = await upload('follow', 'image', Buffer.from('GIF89a\x01\x00\x01\x00\x00\x00\x00;', 'latin1'));
   assert.equal(r.status, 200);
   const file = (await r.json()).alerts.follow.image.file;

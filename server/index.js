@@ -77,6 +77,7 @@ app.post('/api/alerts/clear', (req, res) => res.json(alertQueue.clear()));
 app.post('/api/alerts/pause', (req, res) => res.json(alertQueue.pause(req.body?.paused === true)));
 app.delete('/api/alerts/queue/:id', (req, res) => res.json(alertQueue.remove(req.params.id)));
 app.post('/api/alerts/replay/:id', (req, res) => res.json(alertQueue.replay(req.params.id)));
+app.post('/api/alerts/:type/reset-text', (req, res) => res.json(changed(settings.resetAlertText(req.params.type))));
 
 // The panel's Home page: today's numbers, when Jarchi started (uptime) and the Kick channel's goals. Open widgets and
 // goal changes come by socket (Twitch's goals with the Twitch account's status). History: every saved event (Home's live

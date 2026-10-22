@@ -13,10 +13,12 @@ const THEMES = ['neon', 'minimal', 'fun', 'retro', 'glass', 'fire', 'ice', 'gala
 // alertGap: seconds between two alerts. proxy*: how Jarchi reaches Kick, Twitch and 7TV (core/net.js).
 // kickGoalSync / twitchGoalSync: goals set on the Kick / Twitch channel show that platform's numbers (core/goals.js).
 // welcomed: the panel's welcome tour was shown (it opens by itself once, on the first run).
-const GLOBAL = { theme: 'neon', showBadge: true, alertGap: 0.5, proxyMode: 'system', proxyType: 'http', proxyHost: '', proxyPort: 0, kickGoalSync: true, twitchGoalSync: true, welcomed: false };
+// alertSize: the alerts' size in OBS, on top of fitting the Browser Source (0.5-1.5).
+const GLOBAL = { theme: 'neon', showBadge: true, alertGap: 0.5, alertSize: 1, proxyMode: 'system', proxyType: 'http', proxyHost: '', proxyPort: 0, kickGoalSync: true, twitchGoalSync: true, welcomed: false };
 const GLOBAL_RULES = {
   theme: (v) => THEMES.includes(v),
   showBadge: (v) => typeof v === 'boolean',
+  alertSize: (v) => typeof v === 'number' && v >= 0.5 && v <= 1.5,
   welcomed: (v) => typeof v === 'boolean',
   kickGoalSync: (v) => typeof v === 'boolean',
   twitchGoalSync: (v) => typeof v === 'boolean',
@@ -63,10 +65,18 @@ const DEFAULTS = Object.fromEntries(TYPES.map((t) => [t, {
   frameRadius: 16,
   textPos: 'below',
   textAlign: 'center',
-  textColor: null, // null = the theme's color
+  // Text style (Text tab; Reset text style restores these): name and message colors (null = the theme's), font ('theme'
+  // or one of ALERT_FONTS), fontSize (PER_TYPE), the theme's outline/shadow on the text or none.
+  nameColor: null,
+  textColor: null,
+  font: 'theme',
+  textShadow: true,
   theme: null, // null = the main theme
   ...PER_TYPE[t],
 }]));
+const TEXT_STYLE = ['nameColor', 'textColor', 'font', 'fontSize', 'textShadow'];
+// Bundled fonts (assets/fonts) with both Latin and Persian letters. The panel lists them in index.html (Text tab, Font).
+const ALERT_FONTS = ['Vazirmatn', 'Lalezar', 'Changa', 'Lemonada', 'Markazi Text'];
 
 const num = (min, max) => (v) => typeof v === 'number' && v >= min && v <= max;
 const oneOf = (...list) => (v) => list.includes(v);
@@ -90,7 +100,10 @@ const RULES = {
   textAlign: oneOf('left', 'center', 'right'),
   theme: (v) => v === null || THEMES.includes(v),
   fontSize: num(12, 120),
+  nameColor: (v) => v === null || hex(v),
   textColor: (v) => v === null || hex(v),
+  font: oneOf('theme', ...ALERT_FONTS),
+  textShadow: (v) => typeof v === 'boolean',
 };
 // ---------- Goals ----------
 // Kick's goals, then Twitch's (the ids before v6 stay, so their OBS links keep working). Each counts and syncs from its
@@ -494,6 +507,14 @@ function resetGoalStyle(id) {
   return get();
 }
 
+// An alert's text style back to its defaults; its words, position and everything else stay.
+function resetAlertText(type) {
+  if (!TYPES.includes(type)) throw bad();
+  for (const k of TEXT_STYLE) delete saved.alerts?.[type]?.[k];
+  persist();
+  return get();
+}
+
 // Back to the selected chat style's look; channels, filters and emote sources stay.
 function resetChatStyle() {
   for (const k of CHAT_LOOK) delete saved.chat?.[k];
@@ -521,6 +542,6 @@ function reset(type) {
 
 module.exports = {
   get, update, saveUpload, removeUpload, reset, saveGoalSound, removeGoalSound, saveProfilePicture, resetGoalStyle, resetChatStyle,
-  setTier, saveTierFile, removeTierFile, sniff,
+  resetAlertText, setTier, saveTierFile, removeTierFile, sniff,
   GOAL_IDS, GOAL_STYLES, CHAT_STYLES, CHAT_FONTS, FONTS, KICK_GIFTS,
 };

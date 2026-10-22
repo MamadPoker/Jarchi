@@ -48,7 +48,7 @@ function open() {
   win = new BrowserWindow({
     ...bounds,
     title: 'Jarchi',
-    icon: path.join(ROOT, 'assets/brand/jarchi-logo-tilted.png'),
+    icon: path.join(ROOT, 'assets/brand/icons', process.platform === 'win32' ? 'jarchi.ico' : 'jarchi-256.png'), // the logo, square: every size sharp
     autoHideMenuBar: true,
     show: false,
   });

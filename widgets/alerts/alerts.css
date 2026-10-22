@@ -1,9 +1,10 @@
-/* Alerts overlay, 1920x1080, transparent. Themes switch via body[data-theme]; each theme block is self-contained.
+/* Alerts overlay, transparent. Laid out on a 1920x1080 #stage that alerts.js fit() scales to the Browser Source's
+   size. Themes switch via body[data-theme]; each theme block is self-contained.
    Runs in OBS's built-in Chromium, which can lag desktop Chrome: stick to well-supported CSS. */
 html, body {
   margin: 0;
-  width: 1920px;
-  height: 1080px;
+  width: 100%;
+  height: 100%;
   overflow: hidden;
   background: transparent;
 }
@@ -11,13 +12,27 @@ body { font-family: "Segoe UI", system-ui, sans-serif; }
 
 #stage {
   position: absolute;
-  inset: 0;
+  top: 0;
+  left: 0;
+  box-sizing: border-box;
+  width: 1920px;
+  height: 1080px;
   display: flex;
   justify-content: center;
   align-items: flex-start;
   padding-top: 110px;
+  transform-origin: 0 0;
 }
-.tile #stage { align-items: center; padding-top: 0; transform: scale(1.8); } /* theme cards in the panel */
+.tile #stage { align-items: center; padding-top: 0; transform: scale(1.8); transform-origin: 50% 50%; } /* theme cards in the panel */
+
+/* Fonts an alert can pick (Text tab), Persian and English. Lalezar has one weight: claimed for all, so it's never
+   drawn fake-bold. */
+@font-face { font-family: "Vazirmatn"; src: url("/assets/fonts/vazirmatn/Vazirmatn-Variable.ttf") format("truetype"); font-weight: 100 900; font-display: swap; }
+@font-face { font-family: "Lalezar"; src: url("/assets/fonts/lalezar/Lalezar-Regular.ttf") format("truetype"); font-weight: 100 900; font-display: swap; }
+@font-face { font-family: "Changa"; src: url("/assets/fonts/changa/Changa-Variable.ttf") format("truetype"); font-weight: 200 800; font-display: swap; }
+@font-face { font-family: "Lemonada"; src: url("/assets/fonts/lemonada/Lemonada-Variable.ttf") format("truetype"); font-weight: 300 700; font-display: swap; }
+@font-face { font-family: "Markazi Text"; src: url("/assets/fonts/markazi-text/MarkaziText-Variable.ttf") format("truetype"); font-weight: 400 700; font-display: swap; }
+[data-k="user"] { white-space: nowrap; } /* the name stays on one line; fit() makes a long one smaller */
 
 /* ---------- Kicks alert, Kick look (no theme): the gift that was sent, big, and Kick-style text, no box ---------- */
 @font-face { font-family: "Inter"; src: url("/assets/fonts/inter/Inter-Variable.ttf") format("truetype"); font-weight: 100 900; font-display: swap; }
@@ -794,4 +809,10 @@ body { font-family: "Segoe UI", system-ui, sans-serif; }
   backdrop-filter: none;
   animation: none;
 }
-.alert.tc .box { color: var(--tc); }
+/* Text style (Text tab): message color (numbers keep the theme's highlight), name color, font, no outline/shadow.
+   The Kicks alert's Kick look takes them too. */
+.alert.tc .box, .kick-alert.tc .kick-text { color: var(--tc); }
+.alert.nc .hl[data-k="user"], .kick-alert.nc [data-k="user"] { color: var(--nc); }
+.alert.ff .box, .kick-alert.ff .kick-text { font-family: var(--ff); }
+.alert.ff .text { font-weight: 800; } /* Comic's 400 is only for Impact */
+.alert.flat .box, .alert.flat .box *, .kick-alert.flat .kick-text, .kick-alert.flat .kick-text * { text-shadow: none; }

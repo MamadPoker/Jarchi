@@ -52,6 +52,8 @@ const applyLook = () => {
   $$('[name=size]').forEach((r) => (r.checked = r.value === de.dataset.size));
   $('#bgArtOn').checked = de.hasAttribute('data-art');
   $('#stillOn').checked = de.hasAttribute('data-still');
+  $('#stillOn').disabled = !de.hasAttribute('data-art'); // nothing to keep still without the art
+  $('#stillRow').classList.toggle('dim', !de.hasAttribute('data-art'));
   $$('.mode button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.mode === de.dataset.theme)));
   $$('#palettes .mini').forEach((m) => Object.assign(m.dataset, { theme: de.dataset.theme, palette: shown(m.dataset.id) })); // in the mode shown now
 };
@@ -92,7 +94,7 @@ let showGoalTab; // the Goals list's Kick | Twitch tab (wireTabs, in build())
 const pct = (v) => `${Math.round(v * 100)}%`;
 const px = (v) => `${v}px`;
 const FORMAT = {
-  volume: pct, frameOpacity: pct, frameRadius: px, fontSize: px, bgOpacity: pct, borderWidth: px, radius: px, scale: pct,
+  volume: pct, frameOpacity: pct, frameRadius: px, fontSize: px, bgOpacity: pct, borderWidth: px, radius: px, scale: pct, alertSize: pct,
   emoteSize: px, bigEmoteSize: px, badgeSize: pct, nameSize: px, padding: px, gap: px, width: px, height: px, fadeZone: px, blur: px,
   tickerSpeed: (v) => `${v} px/s`, maxMessages: (v) => String(v), hideAfter: (v) => (Number(v) ? tpl(S.panel.seconds, { n: v }) : S.panel.never), animSpeed: (v) => `×${v}`,
 };
@@ -364,7 +366,7 @@ function preview() {
 
 // Theme cards: the sub alert in that theme with its own look and sound; it stays on the card (hold) until the next play.
 function playTile(frame, muted = true) {
-  const sub = { ...settings.alerts.sub, theme: null, image: null, soundMode: 'theme', frame: 'theme', textColor: null, textPos: 'below', textAlign: 'center' };
+  const sub = { ...settings.alerts.sub, theme: null, image: null, soundMode: 'theme', frame: 'theme', textColor: null, nameColor: null, font: 'theme', textShadow: true, textPos: 'below', textAlign: 'center' };
   post(frame, { theme: frame.dataset.theme, alerts: { sub } }, sample('sub'), muted, true);
 }
 
@@ -937,7 +939,7 @@ function renderTour() {
   body.className = `tour-body tour-${step}`;
   if (step === 'hello') {
     const say = (s) => el('div', { lang: s.lang, dir: s.dir }, h2(s.panel.welcome.hello), el('p', { textContent: s.panel.welcome.about }));
-    body.replaceChildren(el('img', { className: 'tour-logo', src: '/assets/brand/jarchi-logo-tilted.png', alt: 'Jarchi' }), say(EN), say(faStrings),
+    body.replaceChildren(el('img', { className: 'tour-logo', src: '/assets/brand/jarchi-logo-v2.png', alt: 'Jarchi' }), say(EN), say(faStrings),
       el('div', { className: 'tour-langs' }, ...[['en', 'English'], ['fa', 'فارسی']].map(([lang, name]) => el('button', { className: 'primary', lang, textContent: name, onclick: () => {
         if (lang === S.lang) return tourTo(1);
         try { sessionStorage.setItem('jarchi.tour', '1'); } catch {}
@@ -1016,6 +1018,11 @@ function build() {
     return sw;
   }));
   $('#themeRow').onclick = () => select('theme');
+  $('#themeBack').onclick = () => select('alert');
+  // Alert size: every alert's size in OBS (the preview replays at the new size once the slider is let go).
+  const size = $('#alertSize');
+  size.oninput = () => showRange(size, 'alertSize');
+  size.onchange = () => send('PATCH', '/api/settings', { alertSize: Number(size.value) });
 
   // Home: feed filters, View all (History, with the feed's filter), a test alert of any type, and the OBS links menu
   // (closes on a click elsewhere or Escape). History has the same filters.
@@ -1130,8 +1137,12 @@ function build() {
   }));
   wireTabs(editor, 'jarchi.alertTab'); // Media, Sound, Text, Style
   wireBg($('#previewBox'), 'previewBg', 'jarchi.previewBg');
-  $$('input[type=range]', editor).forEach((inp) => inp.addEventListener('input', () => showRange(inp)));
-  $$('[name=textColorMode]').forEach((r) => (r.onchange = () => patchAlert(cur, { textColor: r.value === 'custom' ? $('[data-f=textColor]', editor).value : null })));
+  $$('input[type=range][data-f]', editor).forEach((inp) => inp.addEventListener('input', () => showRange(inp)));
+  // Name and message colors: Theme (null) or Custom, which starts from the color input's value.
+  for (const f of ['nameColor', 'textColor']) {
+    $$(`[name=${f}Mode]`).forEach((r) => (r.onchange = () => patchAlert(cur, { [f]: r.value === 'custom' ? $(`[data-f=${f}]`, editor).value : null })));
+  }
+  $('#resetText').onclick = () => send('POST', `/api/alerts/${cur}/reset-text`);
   // Per-alert theme: "" = same as the main theme.
   $('#alertTheme').append(new Option('', ''), ...Object.entries(S.themes).map(([id, name]) => new Option(name, id)));
   $('#alertTheme').onchange = (e) => patchAlert(cur, { theme: e.target.value || null });
@@ -1308,11 +1319,12 @@ function build() {
   wireHelp();
 }
 
-// Range sliders: filled track + value label (labels are per editor: both editors have e.g. "volume").
-function showRange(inp) {
+// Range sliders: filled track + value label (labels are per editor: both editors have e.g. "volume"). `f`: the field
+// it shows, for a slider that isn't a [data-f] one.
+function showRange(inp, f = inp.dataset.f) {
   inp.style.setProperty('--fill', `${((inp.value - inp.min) / (inp.max - inp.min)) * 100}%`);
-  const out = $(`[data-out="${inp.dataset.f}"]`, inp.closest('.view'));
-  if (out) out.textContent = fd(FORMAT[inp.dataset.f](inp.value));
+  const out = $(`[data-out="${f}"]`, inp.closest('.view'));
+  if (out) out.textContent = fd(FORMAT[f](inp.value));
 }
 
 // Put a config's values into an editor's [data-f] inputs.
@@ -1351,6 +1363,8 @@ function render() {
     });
   }
 
+  $('#alertSize').value = settings.alertSize;
+  showRange($('#alertSize'), 'alertSize');
   $('#themeSwatch').className = `swatch sw-${settings.theme}`;
   $('#themeName').textContent = S.themes[settings.theme];
   $$('#themeSwatches .swatch').forEach((s) => s.classList.toggle('current', s.dataset.theme === settings.theme));
@@ -1417,7 +1431,7 @@ function renderAlert() {
   $('.title path', editor).setAttribute('d', TYPE_ICON[cur]);
   $('.name', editor).textContent = S.types[cur];
   fill(editor, cfg);
-  $$('[name=textColorMode]').forEach((r) => (r.checked = (r.value === 'custom') === (cfg.textColor !== null)));
+  for (const f of ['nameColor', 'textColor']) $$(`[name=${f}Mode]`).forEach((r) => (r.checked = (r.value === 'custom') === (cfg[f] !== null)));
   $('#alertTheme').options[0].textContent = S.panel.sameAsMain.replace('{theme}', S.themes[settings.theme]);
   $('#alertTheme').value = cfg.theme ?? '';
   $('#alertThemeSwatch').className = `swatch sw-${cfg.theme ?? settings.theme}`;
@@ -1429,6 +1443,7 @@ function renderAlert() {
     customSound: cfg.soundMode === 'custom',
     customFrame: cfg.frame === 'custom',
     customColor: cfg.textColor !== null,
+    customName: cfg.nameColor !== null,
     amount: samples[cur].amount > 0,
     tiers: 'tiersOn' in cfg,
     tiersOn: cfg.tiersOn,
