@@ -277,10 +277,10 @@
             <span class="swatches" id="themeSwatches"></span>
             <span class="change" data-i18n="change"></span>
           </button>
-          <!-- Every alert's size in OBS, on top of fitting the Browser Source (GLOBAL alertSize) -->
+          <!-- How much of the Browser Source every alert fills (GLOBAL alertSize, 50%-100%) -->
           <label class="size-row">
             <span class="group-title" data-i18n="alertSize" data-help="alert.size"></span>
-            <input type="range" id="alertSize" min="0.5" max="1.5" step="0.05">
+            <input type="range" id="alertSize" min="0.5" max="1" step="0.05">
             <b data-out="alertSize"></b>
           </label>
           <button id="copy">
@@ -330,12 +330,14 @@
         <div class="pane" role="tabpanel" id="pane-media" aria-labelledby="tab-media" data-tab="media">
           <div class="box">
             <h2 data-i18n="mediaTitle" data-help="alert.media"></h2>
+            <!-- Upload, Paste a link (added by wireFile()), Remove -->
             <div class="file" data-kind="image">
               <span class="fname"></span>
               <div class="row">
                 <button class="upload" data-i18n="upload"></button>
                 <button class="ghost remove" data-i18n="remove"></button>
               </div>
+              <small class="rec" data-i18n="mediaRecommend"></small>
               <input type="file" hidden accept="image/png,image/jpeg,image/gif,image/webp,video/webm,video/mp4,.webm,.mp4">
             </div>
             <small data-i18n="mediaHint"></small>
@@ -357,6 +359,7 @@
               <span class="switch"><input type="checkbox" data-f="tiersOn"><span></span></span>
             </label>
             <small data-only="tiersOn" data-i18n="tiersRule"></small>
+            <small class="rec" data-only="tiersOn" data-i18n="mediaRecommend"></small>
             <div id="tiers" class="tiers" data-only="tiersOn"></div>
           </div>
         </div>
@@ -461,7 +464,14 @@
                   <option value="Markazi Text">Markazi Text</option>
                 </select>
               </label>
-              <label class="field"><span data-help="alert.fontSize"><span data-i18n="fontSize"></span> <b data-out="fontSize"></b></span><input type="range" data-f="fontSize" min="16" max="120" step="1"></label>
+              <div class="field">
+                <span data-help="alert.fontSize"><span data-i18n="fontSize"></span> <b data-out="fontSize" data-only="customSize"></b></span>
+                <div class="seg">
+                  <label><input type="radio" name="alertSizeMode" value="auto"><span data-i18n="sizeAuto"></span></label>
+                  <label><input type="radio" name="alertSizeMode" value="custom"><span data-i18n="colorCustom"></span></label>
+                </div>
+                <input type="range" data-f="fontSize" min="16" max="120" step="1" data-only="customSize" data-aria="fontSize">
+              </div>
             </div>
             <label class="row between toggle-row"><span data-i18n="outlineShadow" data-help="alert.textShadow"></span><span class="switch"><input type="checkbox" data-f="textShadow"><span></span></span></label>
           </div>
@@ -624,8 +634,15 @@
             <div class="box">
               <h3 data-i18n="goalLook"></h3>
               <div class="cols">
-                <label class="field"><span data-help="goal.scale"><span data-i18n="scale"></span> <b data-out="scale"></b></span><input type="range" data-f="scale" min="0.5" max="3" step="0.05"></label>
-                <label class="field"><span data-help="goal.fontSize"><span data-i18n="fontSize"></span> <b data-out="fontSize"></b></span><input type="range" data-f="fontSize" min="12" max="120" step="1"></label>
+                <label class="field"><span data-help="goal.scale"><span data-i18n="scale"></span> <b data-out="scale"></b></span><input type="range" data-f="scale" min="0.5" max="1" step="0.05"></label>
+                <div class="field">
+                  <span data-help="goal.fontSize"><span data-i18n="fontSize"></span> <b data-out="fontSize" data-only="customSize"></b></span>
+                  <div class="seg">
+                    <label><input type="radio" name="goalSizeMode" value="auto"><span data-i18n="sizeAuto"></span></label>
+                    <label><input type="radio" name="goalSizeMode" value="custom"><span data-i18n="colorCustom"></span></label>
+                  </div>
+                  <input type="range" data-f="fontSize" min="12" max="120" step="1" data-only="customSize" data-aria="fontSize">
+                </div>
               </div>
               <label class="field"><span data-i18n="font" data-help="goal.font"></span><select id="goalFont" data-f="font"></select></label>
               <div class="field">

@@ -91,7 +91,7 @@ test("media by amount: fixed tiers (Kick's gift amounts), on/off and files; old 
   assert.ok(!fs.existsSync(file('bits-tier-image-500.gif')) && fs.existsSync(file(b100.sound)), "500's image went, its sound moved");
 
   // On/off, a file per kind (uploading turns the tier on and replaces the old file), remove.
-  const gif = Buffer.from('GIF89a\x01\x00\x01\x00\x00\x00\x00;', 'latin1');
+  const gif = Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64'); // a real 1 x 1 GIF
   const wav = Buffer.from('RIFF\0\0\0\0WAVE', 'latin1');
   const up = (type, amount, kind, buf, name) => call('POST', `/api/tiers/${type}/${amount}/${kind}`, buf, { 'content-type': 'application/octet-stream', 'x-filename': name });
   const tier = (s, type, amount) => s.alerts[type].tiers.find((t) => t.amount === amount);

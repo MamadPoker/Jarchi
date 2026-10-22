@@ -2,7 +2,7 @@
 // Live (OBS): the server's queue (core/alerts.js) sends each alert to every open overlay with the time it has left;
 // the overlay just shows it. A refreshed overlay gets the alert that's on now. Socket.IO reconnects on its own.
 // Preview (?preview, inside the panel): the panel posts { strings, settings, event, muted, hold }; each post replays at once.
-// ?preview=tile centers and enlarges the alert for small theme cards; hold keeps it on screen until the next post.
+// hold keeps it on screen until the next post (the theme cards, ?preview=tile).
 const params = new URLSearchParams(location.search);
 const stage = document.getElementById('stage');
 const sounds = new Set();
@@ -44,32 +44,54 @@ function applySettings(s) {
   fit(); // Alert size may have changed
 }
 
-// The alert is laid out on a 1920x1080 page, scaled as a whole (picture, text, box) to the Browser Source's size, times
-// Alert size (Alerts page). Smaller still if it wouldn't fit there (a long message), so nothing is ever cut off. Its top
-// stays where it would be on a 1920x1080 source scaled to fit. A name too long for one line gets a smaller font.
-// Runs again whenever the alert's size changes (pictures and fonts loading) or the source's.
-const TILE = params.get('preview') === 'tile';
-const resized = new ResizeObserver(() => fit());
+// The alert fills the Browser Source, whatever its size or shape: #stage is a page as big as the source, in units of an
+// 800x600 one (so borders, shadows and effects keep their proportions), scaled onto it; Alert size shrinks it toward
+// the middle. Inside, the picture gets a fixed square (an image fits in it whatever its own pixel size) and the text the
+// rest, in the biggest font size that fits there (or the alert's own size, if that fits). Runs again when the source
+// changes size or a font finishes loading.
+const PAD = 16; // around the alert: room for the platform badge, the shake and a frame's shadow
 function fit() {
-  const a = onStage;
-  const name = a?.querySelector('[data-k=user]');
-  if (name) {
-    name.style.fontSize = '';
-    const room = name.parentElement.clientWidth;
-    if (name.offsetWidth > room) name.style.fontSize = `${room / name.offsetWidth}em`;
-  }
-  if (TILE) return; // theme cards: alerts.css centers and enlarges it
-  const W = innerWidth, H = innerHeight, base = Math.min(W / 1920, H / 1080);
-  const top = (H - 1080 * base) / 2 + 110 * base;
-  let k = base * (settings?.alertSize ?? 1);
-  if (a) k = Math.min(k, (W * 0.96) / a.offsetWidth, (H * 0.98 - top) / a.offsetHeight);
-  stage.style.transform = `translate(${W / 2 - 960 * k}px, ${top - 110 * k}px) scale(${k})`;
+  const W = innerWidth, H = innerHeight, a = Math.min(settings?.alertSize ?? 1, 1), k = Math.min(W / 800, H / 600);
+  const w = W / k, h = H / k;
+  stage.style.cssText = `width:${w}px;height:${h}px;--f:${Math.min(w / 1920, h / 1080)};transform:translate(${(W * (1 - a)) / 2}px,${(H * (1 - a)) / 2}px) scale(${k * a})`;
+  const el = onStage;
+  if (!el) return;
+  const iw = w - 2 * PAD, ih = h - 2 * PAD, over = el.classList.contains('pos-over'), gap = ih * 0.04;
+  const m = Math.min(iw, over ? ih : ih * 0.58); // the picture's square; text on top of it gets a band across its middle
+  el.style.setProperty('--m', `${m}px`);
+  el.style.setProperty('--gap', `${gap}px`);
+  el.style.setProperty('--tw', `${iw}px`);
+  if (el.dataset.s) el.style.setProperty('--s', (el.dataset.s * m) / 330); // a theme's emblem: a raid's fills most of the square
+  sizeText(el, over ? ih * 0.4 : ih - m - gap, Number(el.dataset.fs));
 }
 addEventListener('resize', fit);
 document.fonts.addEventListener('loadingdone', fit);
 
+// The text's font size: the biggest that fits in th (height; the width is the box's max-width) with every word on one
+// line, or `own` (px) when that fits. A name too long for its line gets a smaller font of its own instead. Layout sizes
+// only (offset*): the words' entry animations scale them, which scroll sizes would count.
+function sizeText(el, th, own) {
+  const box = el.querySelector('.box, .kick-text'), text = box.querySelector('.text'), name = text.querySelector('[data-k=user]');
+  const words = [...text.querySelectorAll('.w')];
+  const fits = (fs) => {
+    el.style.setProperty('--fs', `${fs}px`);
+    if (name) {
+      name.style.fontSize = '';
+      if (name.offsetWidth > text.clientWidth) name.style.fontSize = `${text.clientWidth / name.offsetWidth}em`;
+    }
+    return box.offsetHeight <= th && words.every((w) => w.offsetWidth <= text.clientWidth + 1);
+  };
+  let lo = 6, hi = own || th;
+  if (fits(hi)) return;
+  while (hi - lo > 0.5) {
+    const mid = (lo + hi) / 2;
+    if (fits(mid)) lo = mid;
+    else hi = mid;
+  }
+  fits(lo);
+}
+
 if (params.has('preview')) {
-  if (TILE) document.body.classList.add('tile');
   addEventListener('message', (e) => {
     if (e.origin !== location.origin || !e.data?.event) return;
     applyStrings(e.data.strings);
@@ -100,7 +122,6 @@ if (params.has('preview')) {
 function stopAll() {
   gen++;
   onNow = onStage = null;
-  resized.disconnect();
   for (const s of sounds) s.pause();
   sounds.clear();
   stage.replaceChildren();
@@ -126,10 +147,11 @@ async function show(ev, { muted = false, hold = false, ms, id } = {}) {
   const kickLook = ev.type === 'kicks' && cfg.look === 'kick';
   const { el, scope, video } = kickLook ? kickAlert(cfg, ev, v, files) : themed(cfg, ev, v, files, theme, tier, grows);
   textStyle(el, cfg);
+  // The alert's own text size (Text tab, not Auto); amounts that grow get a bit more, like before.
+  if (cfg.autoSize === false) el.dataset.fs = cfg.fontSize * (grows && !kickLook ? 1 + (tier - 1) * 0.1 : 1);
 
   stage.append(scope);
   onStage = el;
-  resized.observe(el);
   fit();
   const sound = muted ? null : kickLook ? playSound(cfg, files.sound, 'kick_gift', 0, !!video, 'kick') : playSound(cfg, files.sound, ev.type, tier, !!video, theme);
   if (video) {
@@ -156,7 +178,6 @@ async function show(ev, { muted = false, hold = false, ms, id } = {}) {
   sound?.pause();
   sounds.delete(sound);
   scope.remove();
-  resized.unobserve(el);
   onStage = null;
 }
 
@@ -192,8 +213,7 @@ function themed(cfg, ev, v, files, theme, tier, grows) {
   // The theme CSS keys off [data-theme] on an ancestor, so each alert gets its own (layout-neutral) theme wrapper.
   const scope = h('div', { className: 'theme-scope' }, el);
   scope.dataset.theme = theme;
-  el.style.setProperty('--s', SCALE[tier]);
-  el.style.setProperty('--fs', `${cfg.fontSize * (grows ? 1 + (tier - 1) * 0.1 : 1)}px`);
+  el.dataset.s = SCALE[tier]; // fit() sizes the emblem by it, in the picture's square
   if (cfg.frame === 'custom') {
     el.style.setProperty('--fbg', rgba(cfg.frameBg, cfg.frameOpacity));
     el.style.setProperty('--fbd', cfg.frameBorder);
@@ -213,7 +233,6 @@ function kickAlert(cfg, ev, v, files) {
   amount?.classList.add('green');
   if (amount?.nextElementSibling && !amount.nextElementSibling.classList.contains('hl')) amount.nextElementSibling.classList.add('green');
   const el = h('div', { className: 'kick-alert' }, media, h('div', { className: 'kick-text' }, words, ev.message ? h('div', { className: 'msg', textContent: ev.message }) : ''));
-  el.style.setProperty('--fs', `${cfg.fontSize}px`);
   return { el, scope: el, video: media.querySelector('video') };
 }
 

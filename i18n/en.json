@@ -143,7 +143,7 @@
     "statUptime": "Jarchi uptime",
     "uptimeHM": "{h}h {m}m",
     "uptimeM": "{m}m",
-    "copyObsHint": "Add it in OBS as a Browser Source, width 1920, height 1080.",
+    "copyObsHint": "Add it in OBS as a Browser Source, width 800, height 600. The alert fills the box: drag and resize it in OBS to place it.",
     "copied": "OBS link copied!",
     "groupTheme": "Theme",
     "change": "Change",
@@ -315,7 +315,7 @@
     "lookGlow": "Glow",
     "lookLine": "Simple line",
     "eventLonger": "Keep special lines longer",
-    "goalCopyHint": "Add it in OBS as a Browser Source, width 800, height 200 (Circle style: 400 × 400). The goal sits in the middle.",
+    "goalCopyHint": "Add it in OBS as a Browser Source, width 800, height 200 (Circle style: 400 × 400). The goal fills the box: drag and resize it in OBS to place it.",
     "goalCopied": "Goal link copied!",
     "goalResetStyle": "Reset style",
     "goalOffHint": "Off hides it on stream. It keeps counting.",
@@ -383,14 +383,18 @@
     "mediaTwitchGem": "Twitch gem (default)",
     "soundKickDefault": "Kick chime (default)",
     "soundKick": "Kick chime",
-    "mediaHint": "PNG, JPG, GIF, WebP, WebM or MP4, max 20 MB. Only WebM keeps a transparent background.",
+    "mediaHint": "PNG, JPG, GIF, WebP, WebM or MP4, max 10 MB. Bigger images and GIFs are made 512 px (GIFs stay animated). Only WebM keeps a transparent background.",
+    "mediaRecommend": "Recommended: square, 512×512, under 3 MB",
+    "pasteLink": "Paste a link",
+    "linkAdd": "Add",
+    "linkLoading": "Downloading…",
     "soundTitle": "Sound",
     "soundTheme": "Theme default",
     "soundCustom": "My sound",
     "soundNone": "No sound",
     "soundNoFile": "No file yet, the theme sound plays",
     "soundNoFileKick": "No file yet, the Kick chime plays",
-    "soundHint": "mp3, wav or ogg, max 20 MB.",
+    "soundHint": "mp3, wav or ogg, max 10 MB.",
     "textTitle": "Text",
     "templateHint": "Variables: {user} {amount} {months} {platform}",
     "moreOptions": "More options",
@@ -416,6 +420,7 @@
     "alignCenter": "Center",
     "alignRight": "Right",
     "fontSize": "Font size",
+    "sizeAuto": "Auto",
     "fromTheme": "Theme",
     "colorCustom": "Custom",
     "textStyle": "Text style",
@@ -539,7 +544,8 @@
       "obsSteps": [
         "In OBS, under **Sources**, click **+** and choose **Browser**.",
         "Paste a link into **URL** and set the width and height shown next to it.",
-        "Tick **Control audio via OBS** and click **OK**."
+        "Tick **Control audio via OBS** and click **OK**.",
+      "Drag the box in the OBS preview to where you want it. Alerts and goals fill their box, however big you make it."
       ],
       "pages": {
         "home": "Ready to stream?, the live feed, your widgets and today's numbers.",
@@ -577,7 +583,11 @@
   },
   "errors": {
     "bad_type": "That file type isn't allowed.",
-    "too_large": "File is too big (max 20 MB).",
+    "too_large": "File is too big (max 10 MB).",
+    "bad_file": "That file can't be read. It may be damaged.",
+    "bad_link": "That isn't a web link. Copy the whole address, for example https://giphy.com/gifs/…",
+    "link_failed": "Couldn't download that link. Check the link, your internet and the proxy (Settings).",
+    "not_media": "That link isn't an image, GIF, video or sound. Giphy and Tenor page links work too.",
     "bad_request": "Invalid value.",
     "forbidden": "Request blocked.",
     "server_error": "Something went wrong.",
@@ -599,7 +609,7 @@
     "alert": {
       "look": "**Kick gift** shows Kick's own picture of the gift with Kick-style text. **Use theme** shows it like the other alerts.",
       "theme": "A theme for this alert only. Keep \"Same as main\" to follow the main theme.",
-      "media": "Your own image, GIF or video instead of the theme's animation. Max 20 MB; only WebM keeps a transparent background.",
+      "media": "Your own image, GIF or video instead of the theme's animation: upload a file or paste a link (a Giphy or Tenor page works too; Jarchi downloads it once). It always fits the alert's picture area, whatever its size. Max 10 MB; bigger images and GIFs are made 512 px, still animated. Only WebM keeps a transparent background.",
       "sound": "**Theme default** plays the theme's sound, **My sound** a file you upload, **No sound** nothing.",
       "template": "The text on screen. `{user}` becomes the viewer's name, `{amount}` the amount, `{months}` the months, `{platform}` Kick or Twitch.",
       "tiers": "A different image and sound for bigger amounts. Example: one GIF for 100 Kicks, another for 1,000.",
@@ -610,13 +620,13 @@
       "frameRadius": "How round the frame's corners are.",
       "textPos": "Where the text goes: above, below, or on top of the image.",
       "textAlign": "Lines the text up on the left, in the center or on the right.",
-      "fontSize": "Size of the alert text, in pixels.",
+      "fontSize": "**Auto** (the default): the biggest size that fits the alert, so the text is always readable. **Custom**: your own size; text that wouldn't fit still gets smaller.",
       "textStyle": "How the alert's text looks. **Theme** leaves it to the alert's theme. The preview shows every change; **Reset** brings the theme's look back.",
       "nameColor": "Color of the viewer's name. **Theme** uses the theme's color, **Custom** your own.",
       "textColor": "Color of the rest of the text and of the viewer's message. Numbers keep the theme's highlight color. **Theme** uses the theme's color, **Custom** your own.",
       "font": "The typeface of the alert's text. Each of these has Persian and English letters. **Theme's font** keeps the theme's own.",
       "textShadow": "The theme's outline or shadow around the letters, which keeps them readable over a busy game. Off: plain letters.",
-      "size": "Makes every alert smaller or bigger in OBS, without changing the Browser Source. Alerts always fit the source, whatever its size: a long name or message gets smaller instead of being cut off.",
+      "size": "How much of the Browser Source box every alert fills. At 100% it fills the whole box; lower makes it smaller without touching OBS. To move it or make it bigger, drag and resize the box in OBS. Nothing is ever cut off.",
       "duration": "How many seconds the alert stays on screen. Bigger amounts add a little more.",
       "volume": "How loud this alert's sound (and video) plays.",
       "minAmount": "Smaller amounts don't play an alert; goals still count them. Example: 10 keeps single Kicks out.",
@@ -638,8 +648,8 @@
       "borderColor": "Color of that line.",
       "borderWidth": "How thick that line is.",
       "radius": "How round the corners of the box and the bar are.",
-      "scale": "Makes the whole goal bigger or smaller. Above 100%, make the OBS source bigger too.",
-      "fontSize": "Size of the title and numbers.",
+      "scale": "How much of the Browser Source box the goal fills. At 100% it fills the box; to move it or make it bigger, drag and resize the box in OBS.",
+      "fontSize": "**Auto** (the default): the biggest size that fits, so the title and numbers are always readable. **Custom**: your own size; text that wouldn't fit still gets smaller.",
       "font": "The typeface of the goal's text.",
       "titlePos": "The title above or below the bar, inside it, or hidden.",
       "showPercent": "Shows how far along it is, for example 64%.",
@@ -752,7 +762,7 @@
       "proxyType": "Your VPN or proxy app tells you which. v2rayN: SOCKS5 on `10808`, HTTP on `10809`.",
       "proxyHost": "The proxy's address. For a VPN app on this PC: `127.0.0.1`.",
       "proxyPort": "The proxy's port, for example `10808`.",
-      "obsUrl": "The alerts link for OBS. Add it as a Browser Source, 1920 × 1080.",
+      "obsUrl": "The alerts link for OBS. Add it as a Browser Source, 800 × 600, then drag the box where you want the alerts.",
       "reset": "Deletes every change and every uploaded file. Click twice to confirm."
     }
   },
@@ -777,9 +787,10 @@
         "steps": [
           ["Copy the link", "On the **Alerts** page, click **Copy OBS link**. The alerts link is `{alertsUrl}`."],
           ["Add a Browser Source", "In OBS: **Sources → + → Browser**. Give it a name, for example \"Jarchi Alerts\"."],
-          ["Paste it and set the size", "Paste the link into **URL**. Width **1920**, height **1080**."],
+          ["Paste it and set the size", "Paste the link into **URL**. Width **800**, height **600**."],
           ["Turn on the sound", "Tick **Control audio via OBS**, so alert sounds go through the OBS mixer to your stream. Then click **OK**."],
-          ["Chat and goals", "The same steps, with their own link and size. Chat: `{chatUrl}`, 420 × 600. Goals: `{goalSubsUrl}` and `{goalKicksUrl}`, 800 × 200 (Circle style: 400 × 400)."]
+          ["Place it", "In the OBS preview, drag the box to where the alerts should show and pull its corners to make it bigger or smaller. The alert always fills the box, picture and text together, so what you see is what plays. **Alert size** on the **Alerts** page makes it smaller inside the box."],
+          ["Chat and goals", "The same steps, with their own link and size. Chat: `{chatUrl}`, 420 × 600. Goals: `{goalSubsUrl}` and `{goalKicksUrl}`, 800 × 200 (Circle style: 400 × 400); a goal fills its box too."]
         ],
         "tip": "Jarchi must be running when OBS loads the source. If you started OBS first, right-click the source and choose **Refresh**. After that it reconnects by itself whenever Jarchi restarts."
       },
@@ -803,7 +814,7 @@
           ["Title and target", "Type the title viewers see and the number to reach."],
           ["Fix the count", "In the list, click a goal's number and type another one, or press **Reset to 0** (twice) for a new goal. In the editor, **−** and **+** change it by one step. The count is kept when Jarchi restarts."],
           ["Pick a look", "Choose a style, then change colors, box, font and size in **More options**. **Reset style** brings the style's own look back."],
-          ["Add it to OBS", "Click **Copy OBS link** and add it as a Browser Source, 800 × 200 (Circle style: 400 × 400)."]
+          ["Add it to OBS", "Click **Copy OBS link** and add it as a Browser Source, 800 × 200 (Circle style: 400 × 400). The goal fills the box: drag and resize it in OBS."]
         ],
         "tip": "When the target is reached, the bar turns the \"full\" color and celebrates once. The switch in the list only hides the goal on stream; it keeps counting."
       },
@@ -849,7 +860,7 @@
           { "q": "The alert doesn't show in OBS", "a": [
             "Is Jarchi running? Start it before OBS, or right-click the source in OBS and choose **Refresh**.",
             "If the **Alert queue** page says the OBS overlay isn't open, OBS hasn't loaded the page. Check that the URL is exactly `{alertsUrl}`.",
-            "The source should be 1920 × 1080, visible, and in the scene you're live on.",
+            "The source should be visible and in the scene you're live on. The alert fills its box: if the box is tiny in the OBS preview, pull its corners.",
             "Is the alert switched on in the list? Is the queue paused? Kicks below the **Minimum amount** (10 by default) don't play."
           ] },
           { "q": "There's no sound", "a": [

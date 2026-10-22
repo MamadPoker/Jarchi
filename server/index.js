@@ -7,6 +7,7 @@ const { HOST, PORT, UPLOADS_DIR } = require('../core/config');
 const { bus, emitEvent, connectedPlatforms, today, TYPES, PLATFORMS } = require('../core/events');
 const settings = require('../core/settings');
 const net = require('../core/net'); // first: every outgoing connection after this goes through the proxy setting
+const media = require('../core/media');
 const goals = require('../core/goals');
 const chat = require('../core/chat');
 const alertQueue = require('../core/alerts');
@@ -61,13 +62,19 @@ app.patch('/api/settings', (req, res) => {
 const fileName = (req) => {
   try { return decodeURIComponent(req.get('x-filename') || ''); } catch { return ''; }
 };
-const raw = express.raw({ type: () => true, limit: '20mb' });
+const raw = express.raw({ type: () => true, limit: media.MAX_BYTES });
 app.post('/api/profile/picture', raw, (req, res) => res.json(changed(settings.saveProfilePicture(req.body, fileName(req)))));
-app.post('/api/upload/:type/:kind', raw,(req, res) => res.json(changed(settings.saveUpload(req.params.type, req.params.kind, req.body, fileName(req)))));
+// A widget's file: the request's body, or (x-link header: "Paste a link") the file at that link, downloaded once. Either
+// way at most 10 MB, and an image or GIF over 512 px is shrunk (core/media.js) before save(params, buf, name) keeps it.
+const upload = (save) => [raw, async (req, res) => {
+  const { buf, name } = req.get('x-link') ? await media.download(req.get('x-link')) : { buf: req.body, name: fileName(req) };
+  res.json(changed(save(req.params, await media.shrink(buf), name)));
+}];
+app.post('/api/upload/:type/:kind', ...upload((p, buf, name) => settings.saveUpload(p.type, p.kind, buf, name)));
 
 // Media by amount: the fixed tiers of one alert type, by amount. { on } switches one; :kind is image | sound.
 app.patch('/api/tiers/:type/:amount', (req, res) => res.json(changed(settings.setTier(req.params.type, Number(req.params.amount), req.body))));
-app.post('/api/tiers/:type/:amount/:kind', raw, (req, res) => res.json(changed(settings.saveTierFile(req.params.type, Number(req.params.amount), req.params.kind, req.body, fileName(req)))));
+app.post('/api/tiers/:type/:amount/:kind', ...upload((p, buf, name) => settings.saveTierFile(p.type, Number(p.amount), p.kind, buf, name)));
 app.delete('/api/tiers/:type/:amount/:kind', (req, res) => res.json(changed(settings.removeTierFile(req.params.type, Number(req.params.amount), req.params.kind))));
 
 // Alert queue (core/alerts): what's playing, how many wait, and the panel's controls.
@@ -130,7 +137,7 @@ app.get('/api/kick/callback', async (req, res) => {
 app.get('/api/goals', (req, res) => res.json({ state: goals.all(), styles: settings.GOAL_STYLES, fonts: settings.FONTS }));
 app.patch('/api/goals/:id', (req, res) => res.json(goals.change(req.params.id, req.body)));
 app.post('/api/goals/:id/reset-style', (req, res) => res.json(changed(settings.resetGoalStyle(req.params.id))));
-app.post('/api/goals/:id/sound', raw, (req, res) => res.json(changed(settings.saveGoalSound(req.params.id, req.body, fileName(req)))));
+app.post('/api/goals/:id/sound', ...upload((p, buf, name) => settings.saveGoalSound(p.id, buf, name)));
 app.delete('/api/goals/:id/sound', (req, res) => res.json(changed(settings.removeGoalSound(req.params.id))));
 
 // Sample events for the Test button and the panel's live preview.

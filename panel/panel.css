@@ -656,6 +656,14 @@ main { padding: 24px 28px 64px; container-type: inline-size; } /* editor rules b
 
 /* ---------- Alert editor: the preview with its bar (background, Replay), then the settings in four tabs ---------- */
 .alert-stage { gap: 0; }
+/* The alert as in an 800 x 600 Browser Source (the recommended size); it fills whatever size the source has. */
+.stage.alert-stage .preview { width: min(100%, 400px); aspect-ratio: 4 / 3; }
+.alert-stage .preview iframe { width: 800px; height: 600px; }
+/* Paste a link: a field under a file's buttons */
+.link-row { display: flex; flex-basis: 100%; gap: 6px; }
+.link-row input { flex: 1; min-width: 0; }
+.link-row button { padding-block: 4px; }
+.rec { font-size: 12px; }
 .stage-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; width: 100%; padding: 10px 12px; border-top: 1px solid var(--border); background: var(--card); }
 .preview[data-bg="dark"] { background: var(--preview-dark); }
 .preview[data-bg="light"] { background: var(--preview-light); }

@@ -1,4 +1,4 @@
-// Goal widget: /widgets/goal/<id> (Kick's subs | kicks | followers, Twitch's twitchSubs | bits | twitchFollowers), transparent page with the goal in the middle.
+// Goal widget: /widgets/goal/<id> (Kick's subs | kicks | followers, Twitch's twitchSubs | bits | twitchFollowers), transparent page the goal fills (fit()).
 // Live (OBS): settings and counts arrive over Socket.IO. ?preview: shown even when the goal is off (panel preview).
 // ?thumb: no socket; the panel posts { strings, cfg, state } to draw a style thumbnail.
 const params = new URLSearchParams(location.search);
@@ -55,7 +55,7 @@ function draw() {
   const vars = {
     '--bar': cfg.barColor, '--bar-bg': cfg.barBg, '--text': cfg.textColor, '--full': cfg.fullColor,
     '--bg': rgba(cfg.bgColor, cfg.bgOpacity), '--bd': cfg.borderColor, '--bw': `${cfg.borderWidth}px`,
-    '--radius': `${cfg.radius}px`, '--scale': cfg.scale, '--font': `"${cfg.font}", "Segoe UI", system-ui, sans-serif`, '--fs': `${cfg.fontSize}px`,
+    '--radius': `${cfg.radius}px`, '--font': `"${cfg.font}", "Segoe UI", system-ui, sans-serif`,
   };
   for (const [k, v] of Object.entries(vars)) root.style.setProperty(k, v);
 
@@ -68,7 +68,31 @@ function draw() {
   const parts = !viz ? [label] : spot === 'inside' ? [viz] : spot === 'below' ? [viz, label] : [label, viz];
   root.replaceChildren(...parts, h('div', { className: 'fx' }));
   update(false, true);
+  fit();
 }
+
+// The goal fills the Browser Source: drawn at its own width, its text the biggest size that fits (Auto: the goal is
+// then as tall as the source's shape allows, and no text spills out of its bar or ring), or the style's own size when
+// that fits; then scaled the same both ways to the source, times Size (50%-100%). Again when the source or numbers change.
+function fit() {
+  if (!cfg || root.hidden) return;
+  const room = (root.offsetWidth * innerHeight) / innerWidth;
+  const fits = (fs) => {
+    root.style.setProperty('--fs', `${fs}px`);
+    return root.offsetHeight <= room + 0.5 && [...root.querySelectorAll('.label, .ring-pct')].every((e) => e.scrollWidth <= e.clientWidth + 1 && e.scrollHeight <= e.clientHeight + 1);
+  };
+  let lo = 8, hi = cfg.autoSize === false ? cfg.fontSize : 200;
+  if (!fits(hi)) {
+    while (hi - lo > 0.5) {
+      const mid = (lo + hi) / 2;
+      if (fits(mid)) lo = mid;
+      else hi = mid;
+    }
+    fits(lo);
+  }
+  root.style.setProperty('--k', Math.min(innerWidth / root.offsetWidth, innerHeight / root.offsetHeight) * Math.min(cfg.scale ?? 1, 1));
+}
+addEventListener('resize', fit);
 
 function ring() {
   const ns = 'http://www.w3.org/2000/svg';
@@ -108,6 +132,7 @@ function countTo(to, instant) {
     shown = Math.round(from + (to - from) * (1 - (1 - t) ** 3));
     writeNumbers(shown);
     if (t < 1) tween = requestAnimationFrame(step);
+    else if (!instant) fit(); // a new number can be wider (draw() fits after an instant one)
   };
   step(start);
 }

@@ -13,12 +13,13 @@ const THEMES = ['neon', 'minimal', 'fun', 'retro', 'glass', 'fire', 'ice', 'gala
 // alertGap: seconds between two alerts. proxy*: how Jarchi reaches Kick, Twitch and 7TV (core/net.js).
 // kickGoalSync / twitchGoalSync: goals set on the Kick / Twitch channel show that platform's numbers (core/goals.js).
 // welcomed: the panel's welcome tour was shown (it opens by itself once, on the first run).
-// alertSize: the alerts' size in OBS, on top of fitting the Browser Source (0.5-1.5).
+// alertSize: how much of the Browser Source the alerts fill (0.5-1; 1 = all of it). A saved size over 1 (from before the
+// alerts filled the source) reads as 1.
 const GLOBAL = { theme: 'neon', showBadge: true, alertGap: 0.5, alertSize: 1, proxyMode: 'system', proxyType: 'http', proxyHost: '', proxyPort: 0, kickGoalSync: true, twitchGoalSync: true, welcomed: false };
 const GLOBAL_RULES = {
   theme: (v) => THEMES.includes(v),
   showBadge: (v) => typeof v === 'boolean',
-  alertSize: (v) => typeof v === 'number' && v >= 0.5 && v <= 1.5,
+  alertSize: (v) => typeof v === 'number' && v >= 0.5 && v <= 1,
   welcomed: (v) => typeof v === 'boolean',
   kickGoalSync: (v) => typeof v === 'boolean',
   twitchGoalSync: (v) => typeof v === 'boolean',
@@ -66,15 +67,17 @@ const DEFAULTS = Object.fromEntries(TYPES.map((t) => [t, {
   textPos: 'below',
   textAlign: 'center',
   // Text style (Text tab; Reset text style restores these): name and message colors (null = the theme's), font ('theme'
-  // or one of ALERT_FONTS), fontSize (PER_TYPE), the theme's outline/shadow on the text or none.
+  // or one of ALERT_FONTS), size (autoSize: the biggest that fits; off: fontSize from PER_TYPE, smaller only if it
+  // wouldn't fit), the theme's outline/shadow on the text or none.
   nameColor: null,
   textColor: null,
   font: 'theme',
+  autoSize: true,
   textShadow: true,
   theme: null, // null = the main theme
   ...PER_TYPE[t],
 }]));
-const TEXT_STYLE = ['nameColor', 'textColor', 'font', 'fontSize', 'textShadow'];
+const TEXT_STYLE = ['nameColor', 'textColor', 'font', 'autoSize', 'fontSize', 'textShadow'];
 // Bundled fonts (assets/fonts) with both Latin and Persian letters. The panel lists them in index.html (Text tab, Font).
 const ALERT_FONTS = ['Vazirmatn', 'Lalezar', 'Changa', 'Lemonada', 'Markazi Text'];
 
@@ -104,6 +107,7 @@ const RULES = {
   textColor: (v) => v === null || hex(v),
   font: oneOf('theme', ...ALERT_FONTS),
   textShadow: (v) => typeof v === 'boolean',
+  autoSize: (v) => typeof v === 'boolean',
 };
 // ---------- Goals ----------
 // Kick's goals, then Twitch's (the ids before v6 stay, so their OBS links keep working). Each counts and syncs from its
@@ -129,6 +133,7 @@ const GOAL_DEFAULTS = Object.fromEntries(GOAL_IDS.map((id) => [id, {
   celebrateSound: 'theme',
   sound: null, // { file, name } once uploaded
   volume: 0.7,
+  autoSize: true, // text: the biggest that fits (off: the style's fontSize, smaller only if it wouldn't fit). Kept when the style changes
 }]));
 const bool = (v) => typeof v === 'boolean';
 const GOAL_RULES = {
@@ -150,7 +155,8 @@ const GOAL_RULES = {
   borderColor: hex,
   borderWidth: num(1, 12),
   radius: num(0, 60),
-  scale: num(0.5, 3),
+  scale: num(0.5, 1), // how much of the Browser Source the goal fills (a saved size over 1 reads as 1 in the widget)
+  autoSize: bool,
   font: oneOf(...FONTS),
   fontSize: num(12, 120),
   titlePos: oneOf('above', 'below', 'inside', 'hidden'),

@@ -366,7 +366,7 @@ function preview() {
 
 // Theme cards: the sub alert in that theme with its own look and sound; it stays on the card (hold) until the next play.
 function playTile(frame, muted = true) {
-  const sub = { ...settings.alerts.sub, theme: null, image: null, soundMode: 'theme', frame: 'theme', textColor: null, nameColor: null, font: 'theme', textShadow: true, textPos: 'below', textAlign: 'center' };
+  const sub = { ...settings.alerts.sub, theme: null, image: null, soundMode: 'theme', frame: 'theme', textColor: null, nameColor: null, font: 'theme', autoSize: true, textShadow: true, textPos: 'below', textAlign: 'center' };
   post(frame, { theme: frame.dataset.theme, alerts: { sub } }, sample('sub'), muted, true);
 }
 
@@ -380,7 +380,7 @@ function drawThumbs() {
   }
 }
 
-// Scale each iframe (1920x1080 alerts, 1000x400 goals) down to its box.
+// Scale each iframe (the alert editor's 800x600, the theme cards' 1920x1080, goals' 1000x400) down to its box.
 const fit = new ResizeObserver((entries) => {
   for (const e of entries) e.target.style.setProperty('--k', e.contentRect.width / e.target.querySelector('iframe').offsetWidth);
 });
@@ -761,16 +761,41 @@ function renderNet({ proxy, results }) {
   $('#netResults').replaceChildren(...[...lines].map(([text, ok]) => el('li', { className: ok ? 'ok' : 'bad', textContent: text })));
 }
 
-// Upload / remove buttons of a .file row.
+// A .file row's Upload, Paste a link and Remove. A link: Jarchi downloads the file once and keeps it like an upload
+// (the x-link header; the same 10 MB limit and shrinking, core/media.js). A file over 10 MB isn't even sent.
+const MAX_FILE = 10 * 1024 * 1024;
 function wireFile(row, upload, remove) {
-  const input = $('input', row);
-  $('.upload', row).onclick = () => input.click();
+  const input = $('input[type=file]', row), up = $('.upload', row);
+  up.onclick = () => input.click();
   input.onchange = () => {
     const f = input.files[0];
     input.value = '';
-    if (f) send('POST', upload(), f, { 'content-type': f.type || 'application/octet-stream', 'x-filename': encodeURIComponent(f.name) });
+    if (!f) return;
+    if (f.size > MAX_FILE) return toast(S.errors.too_large, true);
+    send('POST', upload(), f, { 'content-type': f.type || 'application/octet-stream', 'x-filename': encodeURIComponent(f.name) });
   };
   $('.remove', row).onclick = () => send('DELETE', remove());
+  // Paste a link: a field under the buttons. "giphy.com/…" without https:// is fine too.
+  const field = el('input', { type: 'text', inputMode: 'url', dir: 'ltr', placeholder: 'https://', spellcheck: false });
+  field.setAttribute('aria-label', S.panel.pasteLink);
+  const form = el('form', { className: 'link-row', hidden: true }, field,
+    el('button', { className: 'primary', textContent: S.panel.linkAdd }),
+    el('button', { type: 'button', className: 'ghost', textContent: S.panel.twCancel, onclick: () => (form.hidden = true) }));
+  form.onsubmit = (e) => {
+    e.preventDefault();
+    const text = field.value.trim();
+    let link;
+    try { link = new URL(/^[a-z]+:\/\//i.test(text) ? text : `https://${text}`).href; } catch { return toast(S.errors.bad_link, true); }
+    form.hidden = true;
+    field.value = '';
+    toast(S.panel.linkLoading);
+    send('POST', upload(), null, { 'x-link': link });
+  };
+  up.after(el('button', { className: up.className.replace('upload', 'link'), textContent: S.panel.pasteLink, onclick: () => {
+    form.hidden = !form.hidden;
+    if (!form.hidden) field.focus();
+  } }));
+  up.parentElement.append(form);
 }
 
 // ---------- Help ("?") and Guide text ----------
@@ -869,7 +894,7 @@ const SIDEBAR = TOUR.indexOf('sidebar');
 // More (under the line) have no title in the sidebar.
 const SPOTS = [['navMain', ['home', 'alert', 'chat', 'goal']], ['navLive', ['queue', 'events']], ['navBot', ['bot']],
   ['navSetup', ['connections', 'appearance', 'settings', 'guide']], ['navMore', ['about', 'support']]];
-const obsSize = (id) => (id === 'alerts' ? [1920, 1080] : id === 'chat' ? [settings.chat.width, settings.chat.height] : settings.goals[id].style === 'circle' ? [400, 400] : [800, 200]);
+const obsSize = (id) => (id === 'alerts' ? [800, 600] : id === 'chat' ? [settings.chat.width, settings.chat.height] : settings.goals[id].style === 'circle' ? [400, 400] : [800, 200]);
 const connCards = () => [$('#kcConnect'), $('#twConnect')].map((b) => b.closest('.box'));
 let tourStep = 0, spot = 0, faStrings;
 
@@ -1143,6 +1168,8 @@ function build() {
     $$(`[name=${f}Mode]`).forEach((r) => (r.onchange = () => patchAlert(cur, { [f]: r.value === 'custom' ? $(`[data-f=${f}]`, editor).value : null })));
   }
   $('#resetText').onclick = () => send('POST', `/api/alerts/${cur}/reset-text`);
+  // Font size: Auto (the biggest that fits) or Custom (the slider).
+  $$('[name=alertSizeMode]').forEach((r) => (r.onchange = () => patchAlert(cur, { autoSize: r.value === 'auto' })));
   // Per-alert theme: "" = same as the main theme.
   $('#alertTheme').append(new Option('', ''), ...Object.entries(S.themes).map(([id, name]) => new Option(name, id)));
   $('#alertTheme').onchange = (e) => patchAlert(cur, { theme: e.target.value || null });
@@ -1166,6 +1193,7 @@ function build() {
   $('#goalCurrent').onchange = (e) => goalCount({ set: Math.max(0, Math.round(Number(e.target.value) || 0)) });
   twoClick($('#goalZero'), $('#goalZero'), S.panel.goalZero, S.panel.confirmZero, () => goalCount({ set: 0 }));
   $('#goalResetStyle').onclick = () => send('POST', `/api/goals/${curGoal}/reset-style`);
+  $$('[name=goalSizeMode]').forEach((r) => (r.onchange = () => patchGoal(curGoal, { autoSize: r.value === 'auto' }))); // font size: Auto or Custom
   $('#kickSync').onchange = (e) => send('PATCH', '/api/settings', { kickGoalSync: e.target.checked });
   $$('.from-kick', goalEd).forEach((m) => (m.innerHTML = KICK_K)); // Target / Current: Kick's K (tooltip from data-title)
   $('#goalCopy').title = S.panel.goalCopyHint;
@@ -1432,6 +1460,7 @@ function renderAlert() {
   $('.name', editor).textContent = S.types[cur];
   fill(editor, cfg);
   for (const f of ['nameColor', 'textColor']) $$(`[name=${f}Mode]`).forEach((r) => (r.checked = (r.value === 'custom') === (cfg[f] !== null)));
+  $$('[name=alertSizeMode]').forEach((r) => (r.checked = (r.value === 'auto') === cfg.autoSize));
   $('#alertTheme').options[0].textContent = S.panel.sameAsMain.replace('{theme}', S.themes[settings.theme]);
   $('#alertTheme').value = cfg.theme ?? '';
   $('#alertThemeSwatch').className = `swatch sw-${cfg.theme ?? settings.theme}`;
@@ -1444,6 +1473,7 @@ function renderAlert() {
     customFrame: cfg.frame === 'custom',
     customColor: cfg.textColor !== null,
     customName: cfg.nameColor !== null,
+    customSize: !cfg.autoSize,
     amount: samples[cur].amount > 0,
     tiers: 'tiersOn' in cfg,
     tiersOn: cfg.tiersOn,
@@ -1638,6 +1668,7 @@ function renderGoal() {
   $('#goalCounts').textContent = S.goals[curGoal].counts;
   $('#goalTest span').textContent = S.goals[curGoal].test;
   fill(ed, g);
+  $$('[name=goalSizeMode]').forEach((r) => (r.checked = (r.value === 'auto') === g.autoSize));
   // Synced from Kick / Twitch: their count and target, read-only (no −, +, Test or Reset to 0).
   const st = goalData.state[curGoal], synced = st.kick || st.twitch, target = $('[data-f=target]', ed);
   if (synced) target.value = st.target;
@@ -1655,6 +1686,7 @@ function renderGoal() {
     box: g.bg !== 'off',
     borderOn: g.bg !== 'off' && g.border,
     goalCustomSound: g.celebrateSound === 'custom',
+    customSize: !g.autoSize,
     fromKick: st.kick,
     fromTwitch: st.twitch,
     manual: !synced,

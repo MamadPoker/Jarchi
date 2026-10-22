@@ -1,29 +1,32 @@
-/* Goal widget: transparent page, goal in the middle. The style-* class picks the layout;
+/* Goal widget: transparent page, the goal in the middle, filling it: drawn 560 px wide (Circle 320) with the text size
+   goal.js fit() picks (--fs), then scaled to the Browser Source. The style-* class picks the layout;
    colors and sizes come from CSS variables set in goal.js, so every option works with every style.
    Runs in OBS's built-in Chromium: stick to well-supported CSS. */
 html, body { margin: 0; height: 100%; overflow: hidden; background: transparent; }
-body { display: grid; place-items: center; font-family: "Segoe UI", system-ui, sans-serif; }
-body.thumb .goal { transform: scale(1.5); }
+body { font-family: "Segoe UI", system-ui, sans-serif; }
 
 .goal {
   --fill: 0;
   --bar-h: 12px;
-  position: relative;
+  position: absolute;
+  top: 50%;
+  left: 50%;
   box-sizing: border-box;
   display: grid;
   justify-items: center;
-  gap: calc(12px * var(--scale));
-  width: calc(560px * var(--scale));
-  padding: calc(18px * var(--scale)) calc(24px * var(--scale));
+  gap: 12px;
+  width: 560px;
+  padding: 18px 24px;
   border-radius: var(--radius);
   background: var(--bg);
   color: var(--text);
   font-family: var(--font);
-  font-size: calc(var(--fs) * var(--scale));
+  font-size: var(--fs);
   text-align: center;
+  transform: translate(-50%, -50%) scale(var(--k, 1)); /* --k: fit() */
 }
 .goal[hidden] { display: none; }
-.goal.bordered { border: calc(var(--bw) * var(--scale)) solid var(--bd); }
+.goal.bordered { border: var(--bw) solid var(--bd); }
 .goal.bg-transparent { background: transparent; }
 .goal.bg-off { padding: 0; border: 0; background: none; }
 
@@ -35,7 +38,7 @@ body.thumb .goal { transform: scale(1.5); }
 .full.style-text .label { color: var(--full); }
 
 /* Bar (classic, pill, neon) */
-.track { position: relative; width: 100%; height: calc(var(--bar-h) * var(--scale)); overflow: hidden; border-radius: var(--radius); background: var(--bar-bg); }
+.track { position: relative; width: 100%; height: var(--bar-h); overflow: hidden; border-radius: var(--radius); background: var(--bar-bg); }
 .fill {
   position: absolute;
   top: 0;
@@ -64,8 +67,8 @@ body.thumb .goal { transform: scale(1.5); }
 .style-neon .label { text-shadow: 0 0 10px var(--bar); }
 
 /* Ring (circle): percentage inside, title + numbers under it */
-.style-circle { width: auto; min-width: calc(240px * var(--scale)); }
-.ring { position: relative; width: calc(180px * var(--scale)); height: calc(180px * var(--scale)); }
+.style-circle { width: 320px; }
+.ring { position: relative; width: 180px; height: 180px; }
 .ring svg { display: block; width: 100%; height: 100%; transform: rotate(-90deg); }
 .ring circle { fill: none; stroke-width: 10; }
 .ring-bg { stroke: var(--bar-bg); }
@@ -80,12 +83,10 @@ body.thumb .goal { transform: scale(1.5); }
 .ring-pct { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 1.5em; font-weight: 800; }
 .spot-inside .ring-pct, .style-circle:not(.spot-inside) .label .pct { display: none; }
 
-.style-text { width: auto; }
-
 /* Retro: pixel look, a bar of 10 blocks */
 .style-retro { --bar-h: 26px; }
 .style-retro .label { text-transform: uppercase; letter-spacing: 0.06em; text-shadow: 3px 3px 0 rgba(0, 0, 0, 0.55); }
-.blocks { position: relative; display: grid; grid-template-columns: repeat(10, 1fr); gap: calc(5px * var(--scale)); width: 100%; height: calc(var(--bar-h) * var(--scale)); }
+.blocks { position: relative; display: grid; grid-template-columns: repeat(10, 1fr); gap: 5px; width: 100%; height: var(--bar-h); }
 .blocks i { border-radius: var(--radius); background: var(--bar-bg); transition: background-color 0.2s calc(var(--i) * 60ms); }
 .blocks i.on { background: var(--bar); }
 .full .blocks i.on { background: var(--full); }

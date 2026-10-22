@@ -21,9 +21,10 @@ Optional: copy `.env.example` to `.env` to change the port or the data folder.
 
 1. In OBS, go to **Sources → + → Browser**, name it e.g. "Jarchi Alerts".
 2. URL: `http://127.0.0.1:3000/widgets/alerts` (**Copy OBS link** on the panel's **Alerts** page).
-3. Width **1920**, height **1080**. Another size works too: the alert scales to fit the source, nothing gets cut off. **Alert size** (Alerts page) makes every alert smaller or bigger without changing the source.
-4. Tick **Control audio via OBS** so alert sounds show up in the OBS mixer.
-5. Click OK, then pick an alert on the panel's **Alerts** page and press **Test in OBS**.
+3. Width **800**, height **600**.
+4. In the OBS preview, drag the box to where the alerts should show and pull its corners to make it as big as you want. The alert always fills the box, picture and text together, whatever its size or shape, and nothing gets cut off. **Alert size** (Alerts page, 50%–100%) makes it smaller inside the box without touching OBS.
+5. Tick **Control audio via OBS** so alert sounds show up in the OBS mixer.
+6. Click OK, then pick an alert on the panel's **Alerts** page and press **Test in OBS**.
 
 Jarchi must be running before OBS loads the source. If you started OBS first, right-click the source and choose **Refresh**. Once loaded, the overlay reconnects by itself if Jarchi restarts.
 
@@ -32,7 +33,7 @@ Jarchi must be running before OBS loads the source. If you started OBS first, ri
 - **Sidebar**: **Jarchi** at the top, then one item per page: **Home**, **Alerts**, **Chat**, **Goals**; under **Live**: **Alert queue** (with the number of waiting alerts), **Event log**; under **Setup**: **Connections**, **Appearance**, **Settings** (badge switch, test platform, gap between alerts, connection / proxy, reset everything), **Guide**. Event log, Connections and Appearance say "Coming soon" for now.
 - **Top bar**: the page's title; a warning when a Kick or Twitch connection has been down for over 30 seconds (a click opens where it's set up); **Kick** and **Twitch** with a green dot when their chat connection is up (a click opens Connections); the **Dark / Light** switch; the **فا | EN** language switch.
 - **Home**: a banner that says **You're ready to stream** when Kick and Twitch are connected and every widget that's switched on is open in OBS, or lists what's missing, each with **Fix** (opens the right page); **Send test alert** (a random type) and **OBS links** (copy any widget's link). **Live feed**: the last 20 events, newest first (platform, name, what they did, how long ago; test ones say so), filters All / Subs / Kicks / Raids / Follows, **Replay** on each. **Widgets**: the widgets that are switched on (Alerts, Chat and each goal whose switch is on), green while a page of it is open in OBS, with a copy button; **Manage** opens the Goals page. **Goals**: both goals with their bar (they move by themselves). Then alerts today, chat messages today (real ones, not tests; from midnight) and Jarchi's uptime. The feed and today's numbers are kept across restarts in `data/feed.json` and `data/today.json`.
-- **Alerts**: the main **Theme** on top (opens a page with a live card per theme; click one to use it, **← Alerts** goes back), **Alert size** (50%–150%) and **Copy OBS link**; the alert list, each with an on/off switch; next to it the selected alert: live preview with Play, its own theme (or the main one), then image/GIF/video, sound and text, **Different media by amount** (Kicks, gifted subs, bits); **More options** opens frame, colors, font size, text position, text alignment (left/center/right), duration, volume, minimum amount and video sound.
+- **Alerts**: the main **Theme** on top (opens a page with a live card per theme; click one to use it, **← Alerts** goes back), **Alert size** (50%–100% of the Browser Source box) and **Copy OBS link**; the alert list, each with an on/off switch; next to it the selected alert: live preview with Play, its own theme (or the main one), then image/GIF/video, sound and text, **Different media by amount** (Kicks, gifted subs, bits); **More options** opens frame, colors, font size, text position, text alignment (left/center/right), duration, volume, minimum amount and video sound.
 - **Goals**: Kick | Twitch tabs (logo + name), each with only that platform's goals and its **Sync from …** switch on top (Twitch: **Connect** until the account is connected), each goal with an on/off switch, its count (click it and type another) and **Reset to 0** (click twice), next to the selected goal. **Chat**: the chat widget, with its on/off switch next to the title. Each has its own **Copy OBS link**.
 - **Alert queue**: now playing (with a bar for the time left), **Pause / Resume**, **Skip**, **Clear queue** (click twice), the waiting alerts in order (× removes one), the last 10 played (each with **Replay**), and a notice when no OBS alerts overlay is open.
 - **?** next to every setting: a short explanation on hover, keyboard focus or a tap.
@@ -48,10 +49,11 @@ The **فا | EN** switch (remembered in the browser) puts the whole panel in Per
 - **Live preview**: the panel plays each alert exactly as OBS will show it, and replays it whenever you change something.
 - **Per alert**:
   - on/off, text with `{user}` `{amount}` `{months}` `{platform}`, duration, minimum amount (Kicks, bits, gift subs; Kicks start at 10 so floods of 1-Kick taps stay out of the queue, while the Kicks goal still counts them)
-  - image/GIF/WebM/MP4 (only WebM keeps a transparent background), with an option to play the video's own sound
+  - image/GIF/WebM/MP4 (only WebM keeps a transparent background), with an option to play the video's own sound. It always fits a fixed picture area (whole, never cropped or stretched), whatever its own pixel size; **Recommended: square, 512×512, under 3 MB**
+  - every image/GIF and sound has **Upload** and **Paste a link**: Jarchi downloads a link once, keeps the file and treats it like an upload. A Giphy or Tenor page link works too (Jarchi takes the GIF on the page, or its MP4 if the GIF is over 10 MB)
   - sound: theme default, your own mp3/wav/ogg, or none, plus volume
   - frame: theme style, custom (background, opacity, border, roundness) or off; text above/below/on top of the media
-  - **Text style**, with the live preview: name color, message color (each the theme's or your own), font (the theme's, or Vazirmatn, Lalezar, Changa, Lemonada or Markazi Text: all with Persian and English letters), font size, outline/shadow on or off; **Reset** brings the theme's look back
+  - **Text style**, with the live preview: name color, message color (each the theme's or your own), font (the theme's, or Vazirmatn, Lalezar, Changa, Lemonada or Markazi Text: all with Persian and English letters), font size (**Auto**, the default: the biggest that fits, so it's always readable; or your own size, made smaller only if it wouldn't fit), outline/shadow on or off; **Reset** brings the theme's look back
   - a long name gets smaller to stay on one line
 - **Bigger events feel bigger**: follow is small and quick; sub is bigger; gift subs, Kicks and bits grow with the amount (gift subs at 5/20, Kicks and bits at 100/1000) and play longer; raid is the biggest.
 - **Kick/Twitch badge**: only appears when both accounts are connected; it can be switched off in Settings.
@@ -60,7 +62,7 @@ The **فا | EN** switch (remembered in the browser) puts the whole panel in Per
   - **Kicks**: Kick's own gifts: Hell Yeah 1, Hype 10, Skull Emoji 50, Full Send 100, Rage Quit 500, Pack It Up 1,000, YAP 2,000, Stomp 5,000, Flex 10,000, BOOOOOM 50,000 (from Kick's gift list, `web.kick.com/api/v1/kicks/gifts`, the same as in kick.com's web app).
   - **Gifted subs**: 1, 5, 10, 20, 50, 100. **Bits**: 1, 100, 1,000, 5,000, 10,000, Twitch's own gems: a bits alert without its own file shows the gem for the amount (`assets/twitch-bits`). Raid always uses its one alert.
   - Each tier: on/off, its own image/GIF/video and sound (none = the theme's), and **Test**. An amount plays its own tier; if that tier is off, the closest lower tier that's on plays, or else the normal media. Uploading a file turns its tier on.
-- Uploads are checked by their real file type and are limited to 20 MB.
+- Uploads and links are checked by their real file type and are limited to 10 MB. Images and GIFs bigger than 512 px on their longest side are made 512 px (`core/media.js`, with sharp); GIFs and animated WebP stay animated, smaller ones are kept exactly as they are.
 - **Reset to default** per alert, or **Reset everything**.
 
 ### Real Kick alerts (no login)
@@ -134,7 +136,7 @@ Six goal widgets on two tabs, each with its own OBS URL (transparent background)
 
 They listen to the same event bus as the alerts, so they'll move by themselves once Kick and Twitch are connected. Until then, test alerts and the panel's buttons move them.
 
-In OBS: **Sources → + → Browser**, paste the goal's URL (the panel has **Copy OBS link**), width **800**, height **200** (Circle style: **400** × **400**). The goal sits in the middle; use the panel's **Size** option or OBS to scale it.
+In OBS: **Sources → + → Browser**, paste the goal's URL (the panel has **Copy OBS link**), width **800**, height **200** (Circle style: **400** × **400**). The goal fills the box: drag and resize it in OBS to place it. Its text is the biggest that fits (**Font size: Auto**, or your own size); the panel's **Size** (50%–100%) makes it smaller inside the box.
 
 In the panel (**Goals**): title, target, current count (−, +, number, **Reset to 0** with a second click to confirm), **Test**, 6 styles (Classic, Pill, Neon, Circle, Text only, Retro), colors, and **More options** for background, border, corners, size, font, title position, percentage/numbers and the celebration. A style is a starting point: every option works with every style, and **Reset style** brings the style's own look back.
 
@@ -173,6 +175,7 @@ server/index.js      HTTP + Socket.IO server, API routes
 core/config.js       port and data folder (the one place to change them)
 core/events.js       event bus + the normalized event shape
 core/settings.js     defaults, user changes, uploads (alerts, tiers and goal looks)
+core/media.js        uploaded and linked files: 10 MB limit, images shrunk to 512 px, Giphy / Tenor pages
 core/alerts.js       the alert queue: what plays when, for every overlay
 core/net.js          proxy: every outgoing connection goes through it
 core/goals.js        goal counters, fed by the event bus; Kick's own goals with Sync from Kick

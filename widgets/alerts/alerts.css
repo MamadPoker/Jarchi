@@ -1,5 +1,6 @@
-/* Alerts overlay, transparent. Laid out on a 1920x1080 #stage that alerts.js fit() scales to the Browser Source's
-   size. Themes switch via body[data-theme]; each theme block is self-contained.
+/* Alerts overlay, transparent. The alert fills the Browser Source: #stage is a page as big as the source, which
+   alerts.js fit() sizes and scales (and sets --m, the picture's square, --tw, the text's width, --fs, the text size).
+   Themes switch via body[data-theme]; each theme block is self-contained.
    Runs in OBS's built-in Chromium, which can lag desktop Chrome: stick to well-supported CSS. */
 html, body {
   margin: 0;
@@ -10,20 +11,7 @@ html, body {
 }
 body { font-family: "Segoe UI", system-ui, sans-serif; }
 
-#stage {
-  position: absolute;
-  top: 0;
-  left: 0;
-  box-sizing: border-box;
-  width: 1920px;
-  height: 1080px;
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  padding-top: 110px;
-  transform-origin: 0 0;
-}
-.tile #stage { align-items: center; padding-top: 0; transform: scale(1.8); transform-origin: 50% 50%; } /* theme cards in the panel */
+#stage { position: absolute; top: 0; left: 0; transform-origin: 0 0; } /* size and scale: fit() */
 
 /* Fonts an alert can pick (Text tab), Persian and English. Lalezar has one weight: claimed for all, so it's never
    drawn fake-bold. */
@@ -32,15 +20,13 @@ body { font-family: "Segoe UI", system-ui, sans-serif; }
 @font-face { font-family: "Changa"; src: url("/assets/fonts/changa/Changa-Variable.ttf") format("truetype"); font-weight: 200 800; font-display: swap; }
 @font-face { font-family: "Lemonada"; src: url("/assets/fonts/lemonada/Lemonada-Variable.ttf") format("truetype"); font-weight: 300 700; font-display: swap; }
 @font-face { font-family: "Markazi Text"; src: url("/assets/fonts/markazi-text/MarkaziText-Variable.ttf") format("truetype"); font-weight: 400 700; font-display: swap; }
-[data-k="user"] { white-space: nowrap; } /* the name stays on one line; fit() makes a long one smaller */
 
 /* ---------- Kicks alert, Kick look (no theme): the gift that was sent, big, and Kick-style text, no box ---------- */
 @font-face { font-family: "Inter"; src: url("/assets/fonts/inter/Inter-Variable.ttf") format("truetype"); font-weight: 100 900; font-display: swap; }
-.kick-alert { display: flex; flex-direction: column; align-items: center; gap: 14px; max-width: 1400px; text-align: center; animation: kick-in 0.55s cubic-bezier(0.2, 1.3, 0.4, 1) both; }
+.kick-alert { position: absolute; inset: 16px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--gap); text-align: center; animation: kick-in 0.55s cubic-bezier(0.2, 1.3, 0.4, 1) both; }
 .kick-alert.out { animation: kick-out 0.5s ease-in both; }
-.kick-alert .media img, .kick-alert .media video { display: block; width: 300px; height: 300px; object-fit: contain; }
-.kick-alert .media.custom img, .kick-alert .media.custom video { width: auto; height: auto; max-width: 600px; max-height: 460px; } /* the user's own file: its own size */
-.kick-text { font-family: "Inter", "Segoe UI", system-ui, sans-serif; color: #fff; text-shadow: 0 2px 8px rgba(0, 0, 0, 0.75), 0 0 2px rgba(0, 0, 0, 0.6); }
+.kick-alert .media img, .kick-alert .media video { display: block; width: 100%; height: 100%; object-fit: contain; } /* Kick's gift, or the user's file */
+.kick-text { flex: none; max-width: var(--tw); font-family: "Inter", "Segoe UI", system-ui, sans-serif; color: #fff; text-shadow: 0 2px 8px rgba(0, 0, 0, 0.75), 0 0 2px rgba(0, 0, 0, 0.6); }
 .kick-text .text { font-size: var(--fs); font-weight: 600; line-height: 1.2; }
 .kick-text .w { animation: none; } /* one clean pop for the whole alert, not word by word */
 .kick-text [data-k="user"] { font-weight: 800; }
@@ -51,17 +37,17 @@ body { font-family: "Segoe UI", system-ui, sans-serif; }
 
 /* ---------- Layout ---------- */
 .alert {
-  --s: 1;           /* size by tier */
+  --s: 1;           /* size by tier (fit(): in proportion to the picture's square) */
   --in: 0.8s;       /* enter duration */
   --idle: none 0s;  /* looping motion of the media while shown */
   --c1: #fff; --c2: #ddd; --c3: #aaa; /* effect palette */
-  position: relative;
-  max-width: 1400px;
+  position: absolute;
+  inset: 16px;
   text-align: center;
 }
 .tier-0 { --in: 0.5s; }
 .tier-4 { --in: 1.1s; }
-.inner { display: flex; flex-direction: column; align-items: center; gap: calc(26px * var(--s)); }
+.inner { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--gap); height: 100%; }
 .pos-above .inner { flex-direction: column-reverse; }
 .pos-over .inner { display: grid; place-items: center; }
 .pos-over .inner > * { grid-area: 1 / 1; }
@@ -77,14 +63,15 @@ body { font-family: "Segoe UI", system-ui, sans-serif; }
 .align-left.pos-over .inner { justify-items: start; }
 .align-right.pos-over .inner { justify-items: end; }
 
-.media { position: relative; display: grid; place-items: center; animation: var(--idle); }
-.media img, .media video { display: block; max-width: 600px; max-height: 460px; }
-.media.gem img { width: calc(200px * var(--s)); height: calc(200px * var(--s)); object-fit: contain; } /* Twitch's bits gem: the emblem's size */
+/* The picture's fixed square: the user's image, GIF or video fits in it (whole, never stretched), whatever its size. */
+.media { position: relative; flex: none; display: grid; place-items: center; width: var(--m); height: var(--m); animation: var(--idle); }
+.media.custom img, .media.custom video { display: block; width: 100%; height: 100%; object-fit: contain; }
+.media.gem img { display: block; width: calc(200px * var(--s)); height: calc(200px * var(--s)); object-fit: contain; } /* Twitch's bits gem: the emblem's size */
 
-.box { position: relative; z-index: 1; padding: 20px 46px; }
+.box { position: relative; z-index: 1; flex: none; box-sizing: border-box; max-width: var(--tw); padding: 20px 46px; }
 .text { font-size: var(--fs, 46px); font-weight: 800; line-height: 1.2; overflow-wrap: anywhere; }
 .msg { margin-top: 8px; font-size: calc(var(--fs, 46px) * 0.55); font-weight: 500; opacity: 0.85; overflow-wrap: anywhere; }
-.w { display: inline-block; animation: word-in 0.6s cubic-bezier(0.2, 0.9, 0.3, 1.2) calc(var(--in) * 0.5 + var(--i) * 60ms) both; }
+.w { display: inline-block; white-space: nowrap; animation: word-in 0.6s cubic-bezier(0.2, 0.9, 0.3, 1.2) calc(var(--in) * 0.5 + var(--i) * 60ms) both; }
 @keyframes word-in { from { opacity: 0; transform: translateY(0.5em); } }
 
 /* Platform badge: plain text pill with a small square marker. No logos. */
@@ -141,15 +128,15 @@ body { font-family: "Segoe UI", system-ui, sans-serif; }
   left: 50%;
   top: 50%;
   z-index: -1;
-  width: 1400px;
-  height: 900px;
-  margin: -450px 0 0 -700px;
+  width: calc(1400px * var(--f, 1)); /* --f: the page's size next to a 1920x1080 one (fit()) */
+  height: calc(900px * var(--f, 1));
+  margin: calc(-450px * var(--f, 1)) 0 0 calc(-700px * var(--f, 1));
   background: radial-gradient(closest-side, var(--c1), transparent);
   opacity: 0;
   pointer-events: none;
   animation: glow 1.6s ease-out 0.2s both;
 }
-.fx { position: absolute; left: 50%; top: 50%; z-index: 3; width: 0; height: 0; pointer-events: none; }
+.fx { position: absolute; left: 50%; top: 50%; z-index: 3; width: 0; height: 0; pointer-events: none; transform: scale(var(--f, 1)); } /* particles fly as far as on a 1920x1080 page, in proportion */
 .fx i {
   position: absolute;
   left: -6px;

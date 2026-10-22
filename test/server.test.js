@@ -4,6 +4,8 @@ const assert = require('node:assert');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const http = require('node:http');
+const sharp = require('sharp');
 
 // Start from a v0.1 (unversioned) settings file with an uploaded sound, like an existing user would have.
 const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'jarchi-'));
@@ -99,19 +101,20 @@ test('migration, settings, uploads, reset, events', async () => {
   assert.equal((await fetch(base + '/api/reset', { method: 'POST' })).status, 403, 'missing x-jarchi header must be rejected');
 
   // Text style (Text tab): checked, and its Reset puts back only these (the text position set above stays).
-  s = await (await patch({ nameColor: '#ff0000', textColor: '#00ff00', font: 'Lalezar', fontSize: 60, textShadow: false })).json();
-  assert.deepEqual([s.alerts.follow.nameColor, s.alerts.follow.font, s.alerts.follow.textShadow], ['#ff0000', 'Lalezar', false]);
-  for (const bad of [{ font: 'Comic Sans' }, { nameColor: 'red' }, { textShadow: 'no' }]) assert.equal((await patch(bad)).status, 400, JSON.stringify(bad));
+  assert.equal(s.alerts.follow.autoSize, true, 'text size: Auto by default');
+  s = await (await patch({ nameColor: '#ff0000', textColor: '#00ff00', font: 'Lalezar', autoSize: false, fontSize: 60, textShadow: false })).json();
+  assert.deepEqual([s.alerts.follow.nameColor, s.alerts.follow.font, s.alerts.follow.autoSize, s.alerts.follow.textShadow], ['#ff0000', 'Lalezar', false, false]);
+  for (const bad of [{ font: 'Comic Sans' }, { nameColor: 'red' }, { textShadow: 'no' }, { autoSize: 'yes' }]) assert.equal((await patch(bad)).status, 400, JSON.stringify(bad));
   s = await (await call('POST', '/api/alerts/follow/reset-text')).json();
   const f = s.alerts.follow;
-  assert.deepEqual([f.nameColor, f.textColor, f.font, f.fontSize, f.textShadow, f.textPos], [null, null, 'theme', 38, true, 'over']);
+  assert.deepEqual([f.nameColor, f.textColor, f.font, f.autoSize, f.fontSize, f.textShadow, f.textPos], [null, null, 'theme', true, 38, true, 'over']);
   assert.equal((await call('POST', '/api/alerts/nope/reset-text')).status, 400);
-  // Alert size (every alert): 50% to 150%.
+  // Alert size (every alert): how much of the source it fills, 50% to 100%.
   assert.equal(s.alertSize, 1);
   assert.equal((await (await call('PATCH', '/api/settings', { alertSize: 0.5 })).json()).alertSize, 0.5);
-  assert.equal((await call('PATCH', '/api/settings', { alertSize: 2 })).status, 400);
+  assert.equal((await call('PATCH', '/api/settings', { alertSize: 1.25 })).status, 400);
 
-  r = await upload('follow', 'image', Buffer.from('GIF89a\x01\x00\x01\x00\x00\x00\x00;', 'latin1'));
+  r = await upload('follow', 'image', Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64')); // a real 1 x 1 GIF
   assert.equal(r.status, 200);
   const file = (await r.json()).alerts.follow.image.file;
   assert.ok(fs.existsSync(path.join(dataDir, 'uploads', file)));
@@ -124,7 +127,20 @@ test('migration, settings, uploads, reset, events', async () => {
 
   assert.equal((await upload('follow', 'image', Buffer.from('<html>not an image</html>'))).status, 400);
   assert.equal((await upload('follow', 'sound', Buffer.from('GIF89a', 'latin1'))).status, 400, 'gif is not a sound');
-  assert.equal((await upload('follow', 'image', Buffer.alloc(21 * 1024 * 1024))).status, 413);
+  assert.equal((await upload('follow', 'image', Buffer.alloc(11 * 1024 * 1024))).status, 413, 'over 10 MB');
+
+  // A big image is shrunk to 512 px on the way in; "Paste a link" (x-link) downloads the file once and treats it the same.
+  const big = await sharp({ create: { width: 1000, height: 600, channels: 4, background: '#0f0' } }).png().toBuffer();
+  const files = http.createServer((req, res) => (req.url === '/big.png' ? res.end(big) : res.writeHead(404).end()));
+  await new Promise((done) => files.listen(0, '127.0.0.1', done));
+  const link = (url, kind = 'image') => call('POST', `/api/upload/follow/${kind}`, null, { 'x-link': url });
+  s = await (await link(`http://127.0.0.1:${files.address().port}/big.png`)).json();
+  const m = await sharp(path.join(dataDir, 'uploads', s.alerts.follow.image.file)).metadata();
+  assert.deepEqual([m.width, m.height, s.alerts.follow.image.name], [512, 307, 'big.png']);
+  assert.equal((await (await link(`http://127.0.0.1:${files.address().port}/gone.png`)).json()).error, 'link_failed');
+  assert.equal((await (await link(`http://127.0.0.1:${files.address().port}/big.png`, 'sound')).json()).error, 'bad_type', 'an image is not a sound');
+  assert.equal((await (await link('ftp://example.com/a.gif')).json()).error, 'bad_link');
+  files.close();
 
   s = await (await upload('follow', 'sound', Buffer.from('RIFF\0\0\0\0WAVE', 'latin1'))).json();
   assert.equal(s.alerts.follow.soundMode, 'custom', 'uploading a sound selects it');
