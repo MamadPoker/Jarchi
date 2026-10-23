@@ -26,8 +26,9 @@ test('Kick relay: redirects, tokens, signed webhooks, sockets, rooms', async () 
   const env = {
     KICK_CLIENT_ID: 'cid', KICK_CLIENT_SECRET: 'shh',
     ROOMS: { idFromName: (n) => `id:${n}`, get: (id) => ({ fetch: async (req, init) => { rooms.push({ id, req, init }); return new Response('ok'); } }) },
+    DB: { prepare: () => ({ bind: () => ({ run: async () => ({}) }) }) }, // the request count (test/stats.test.js checks it)
   };
-  const go = (p, init) => worker.fetch(new Request(`https://relay.test${p}`, init), env);
+  const go = (p, init) => worker.fetch(new Request(`https://relay.test${p}`, init), env, { waitUntil() {} });
   const STATE = '3000.abcdefghijklmnopqrstuvwx', CHALLENGE = 'x'.repeat(43);
 
   // /login -> Kick's login page with this app, the relay's own callback and PKCE.

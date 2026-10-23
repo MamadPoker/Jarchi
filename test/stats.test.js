@@ -30,6 +30,23 @@ const stats = require('../core/stats');
 const pings = () => calls.filter((c) => c.at === 'relay.test/ping');
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 
+// D1 stand-in: SQLite with the real schema; D1's ?NNN parameters made plain ? for node:sqlite.
+function d1() {
+  const db = new DatabaseSync(':memory:');
+  db.exec(fs.readFileSync(path.join(__dirname, '..', 'relay', 'schema.sql'), 'utf8'));
+  const statement = (sql, args = []) => {
+    const run = (how) => db.prepare(sql.replace(/\?\d+/g, '?'))[how](...[...sql.matchAll(/\?(\d+)/g)].map((m) => args[m[1] - 1]));
+    return {
+      bind: (...a) => statement(sql, a),
+      run: async () => ({ meta: { changes: run('run').changes } }),
+      first: async () => run('get') ?? null,
+      all: async () => ({ results: run('all') }),
+    };
+  };
+  return { db, DB: { prepare: (sql) => statement(sql) } };
+}
+const ctx = { waitUntil() {} };
+
 let sent; // the ping Jarchi sent, for the relay test below
 test('usage ping: only after the Privacy Policy, only its fields, silent when the relay is down', async () => {
   await stats.ping();
@@ -73,14 +90,8 @@ test('usage ping: only after the Privacy Policy, only its fields, silent when th
 
 test('relay POST /ping: one row per install, UTC times, refusals, rate limit', async (t) => {
   const { default: worker } = await import('../relay/worker.mjs');
-  // D1 stand-in: SQLite with the real schema; D1's ?NNN parameters made plain ? for node:sqlite.
-  const db = new DatabaseSync(':memory:');
-  db.exec(fs.readFileSync(path.join(__dirname, '..', 'relay', 'schema.sql'), 'utf8'));
-  const DB = { prepare: (sql) => ({ bind: (...args) => ({ run: async () => {
-    const order = [...sql.matchAll(/\?(\d+)/g)].map((m) => args[m[1] - 1]);
-    return { meta: { changes: db.prepare(sql.replace(/\?\d+/g, '?')).run(...order).changes } };
-  } }) }) };
-  const post = (body, headers = { 'content-type': 'application/json' }) => worker.fetch(new Request('https://relay.test/ping', { method: 'POST', headers, body: typeof body === 'string' ? body : JSON.stringify(body) }), { DB });
+  const { db, DB } = d1();
+  const post = (body, headers = { 'content-type': 'application/json' }) => worker.fetch(new Request('https://relay.test/ping', { method: 'POST', headers, body: typeof body === 'string' ? body : JSON.stringify(body) }), { DB }, ctx);
   const row = (id) => db.prepare('SELECT * FROM installs WHERE id = ?').get(id);
   t.mock.timers.enable({ apis: ['Date'], now: Date.parse('2026-10-23T09:00:00.000Z') });
 
@@ -125,6 +136,151 @@ test('relay POST /ping: one row per install, UTC times, refusals, rate limit', a
     Object.fromEntries(Object.entries(sent).filter(([k]) => k !== 'twitch'))]) {
     assert.equal((await post(bad)).status, 400, JSON.stringify(bad)?.slice(0, 80));
   }
-  assert.equal((await worker.fetch(new Request('https://relay.test/ping'), { DB })).status, 405);
+  assert.equal((await worker.fetch(new Request('https://relay.test/ping'), { DB }, ctx)).status, 405);
   assert.equal(db.prepare('SELECT COUNT(*) AS n FROM installs').get().n, 2);
+});
+
+test('relay /admin: key, lockout, stats, installs, downloads, delete, requests per day', async (t) => {
+  const { default: worker } = await import('../relay/worker.mjs');
+  const { db, DB } = d1();
+  const KEY = 'k'.repeat(96), env = { DB, ADMIN_KEY: KEY }, made = {};
+  const call = (p, { key = KEY, auth = key === null ? null : `Bearer ${key}`, method = 'GET', ip = '10.0.0.1', body, to = env } = {}) => {
+    const day = new Date().toISOString().slice(0, 10);
+    made[day] = (made[day] ?? 0) + 1;
+    return worker.fetch(new Request(`https://relay.test${p}`, { method, body, headers: {
+      'content-type': 'application/json', 'cf-connecting-ip': ip, ...(auth === null ? {} : { authorization: auth }),
+    } }), to, ctx);
+  };
+  const get = async (p, o) => {
+    const r = await call(p, o);
+    assert.equal(r.status, 200, p);
+    return r.json();
+  };
+  const at = (when) => t.mock.timers.setTime(Date.parse(when));
+  t.mock.timers.enable({ apis: ['Date'], now: Date.parse('2026-10-20T20:00:00.000Z') });
+
+  // A: 3 days ago, then quit. B: 2 hours ago, still "open" but silent since. C (live on Kick) and D: just now.
+  const ping = async (p) => assert.equal((await call('/ping', { method: 'POST', body: JSON.stringify(p) })).status, 200);
+  const id = { A: crypto.randomUUID(), B: crypto.randomUUID(), C: crypto.randomUUID(), D: crypto.randomUUID() };
+  const base = { version: '1.0.0', installed: true, open: true, kick: null, twitch: null, privacy: { version: 1, acceptedAt: null } };
+  const A = { ...base, id: id.A, version: '0.9.0', kick: { name: 'Mamad_Poker', picture: '', live: false } };
+  await ping(A);
+  await ping({ ...A, open: false });
+  at('2026-10-23T18:00:00.000Z');
+  await ping({ ...base, id: id.B, twitch: { name: 'mamadpoker', picture: 'https://p.test/b.png', live: true } });
+  at('2026-10-23T19:55:00.000Z');
+  await ping({ ...base, id: id.C, kick: { name: 'MamadXPoker', picture: '', live: true }, twitch: { name: 'cTwitch', picture: '', live: false },
+    privacy: { version: 1, acceptedAt: '2026-10-20T20:00:00.000Z' } });
+  at('2026-10-23T19:56:00.000Z');
+  await ping({ ...base, id: id.D, installed: false });
+  at('2026-10-23T20:00:00.000Z');
+
+  // No key, a wrong one, one character more or less, not "Bearer": refused.
+  for (const key of [null, 'nope', `${KEY}k`, KEY.slice(1)]) assert.equal((await call('/admin/stats', { key })).status, 401);
+  assert.equal((await call('/admin/stats', { auth: KEY })).status, 401);
+  assert.equal((await call('/admin/nope', { key: 'nope' })).status, 401, 'unknown admin addresses say nothing either');
+
+  const { requests, ...counts } = await get('/admin/stats');
+  assert.deepEqual(counts, { installs: 4, online: 2, activeToday: 3, active7Days: 4, live: 1,
+    versions: [{ version: '1.0.0', installs: 3 }, { version: '0.9.0', installs: 1 }] });
+  assert.equal(requests.limit, 100000);
+  assert.equal((await get('/admin/stats?tz=300')).activeToday, 2, 'UTC+5: it is already the 24th there, B was yesterday');
+  assert.equal((await get('/admin/stats?tz=-600')).activeToday, 3);
+  for (const tz of ['x', '1.5', '900']) assert.equal((await call(`/admin/stats?tz=${tz}`)).status, 400);
+
+  // The installs, newest first, shaped like a ping.
+  const list = await get('/admin/installs');
+  assert.deepEqual([list.total, list.limit, list.offset], [4, 50, 0]);
+  assert.deepEqual(list.installs.map((i) => i.id), [id.D, id.C, id.B, id.A]);
+  assert.deepEqual(list.installs[1], {
+    id: id.C, version: '1.0.0', installed: true, open: true, online: true, live: true,
+    kick: { name: 'MamadXPoker', picture: '', live: true }, twitch: { name: 'cTwitch', picture: '', live: false },
+    firstSeen: '2026-10-23T19:55:00.000Z', lastSeen: '2026-10-23T19:55:00.000Z', privacy: { version: 1, acceptedAt: '2026-10-20T20:00:00.000Z' },
+  });
+  assert.deepEqual(list.installs[2].twitch, { name: 'mamadpoker', picture: 'https://p.test/b.png', live: true });
+  assert.deepEqual([list.installs[2].online, list.installs[2].live], [false, false], 'silent for 2 hours: not online, so not live');
+  assert.deepEqual([list.installs[3].open, list.installs[3].firstSeen, list.installs[3].kick.live, list.installs[3].twitch], [false, '2026-10-20T20:00:00.000Z', false, null]);
+  assert.equal(list.installs[0].installed, false);
+
+  // Search by channel name (any case, Kick or Twitch; _ and % are letters), paging.
+  const found = async (q) => (await get(`/admin/installs?q=${encodeURIComponent(q)}`)).installs.map((i) => i.id);
+  assert.deepEqual(await found('MAMAD'), [id.C, id.B, id.A]);
+  assert.deepEqual(await found('d_p'), [id.A]);
+  assert.deepEqual(await found('ctwitch'), [id.C]);
+  assert.deepEqual(await found('100%'), []);
+  const page = await get('/admin/installs?limit=2&offset=2');
+  assert.deepEqual([page.total, page.installs.map((i) => i.id)], [4, [id.B, id.A]]);
+  assert.equal((await get('/admin/installs?limit=5000')).limit, 200);
+
+  assert.equal((await call('/admin/stats', { method: 'POST' })).status, 405);
+  assert.equal((await call(`/admin/installs/${id.A}`)).status, 405);
+  assert.equal((await call('/admin/nope')).status, 404);
+
+  // Delete one install (a data-deletion request); a wrong key deletes nothing.
+  assert.equal((await call(`/admin/installs/${id.B}`, { method: 'DELETE', key: 'nope' })).status, 401);
+  assert.deepEqual(await get(`/admin/installs/${id.A}`, { method: 'DELETE' }), { deleted: id.A });
+  assert.equal((await call(`/admin/installs/${id.A}`, { method: 'DELETE' })).status, 404);
+  assert.deepEqual(db.prepare('SELECT id FROM installs ORDER BY first_seen').all().map((r) => r.id), [id.B, id.C, id.D]);
+
+  // Downloads from GitHub: kept 10 minutes; while GitHub fails, the last answer again.
+  const real = globalThis.fetch, asked = [];
+  let github = new Response('rate limited', { status: 403 });
+  globalThis.fetch = async (url, init) => (asked.push([url, init.headers['user-agent']]), github.clone());
+  assert.equal((await call('/admin/downloads')).status, 502, 'nothing to show yet');
+  github = Response.json([
+    { tag_name: 'v1.0.1', name: 'Jarchi 1.0.1', published_at: '2026-10-23T12:00:00Z', prerelease: false, assets: [
+      { name: 'Jarchi-Setup-1.0.1.exe', size: 1000, download_count: 7 }, { name: 'latest.yml', size: 10, download_count: 30 }] },
+    { tag_name: 'v1.0.0', name: 'Jarchi 1.0.0', published_at: '2026-10-20T12:00:00Z', prerelease: false, assets: [
+      { name: 'Jarchi-Setup-1.0.0.exe', size: 900, download_count: 5 }] },
+  ]);
+  const d = await get('/admin/downloads');
+  assert.deepEqual(d, { fetchedAt: '2026-10-23T20:00:00.000Z', downloads: 42, releases: [
+    { tag: 'v1.0.1', name: 'Jarchi 1.0.1', publishedAt: '2026-10-23T12:00:00Z', prerelease: false, downloads: 37, files: [
+      { name: 'Jarchi-Setup-1.0.1.exe', size: 1000, downloads: 7 }, { name: 'latest.yml', size: 10, downloads: 30 }] },
+    { tag: 'v1.0.0', name: 'Jarchi 1.0.0', publishedAt: '2026-10-20T12:00:00Z', prerelease: false, downloads: 5, files: [
+      { name: 'Jarchi-Setup-1.0.0.exe', size: 900, downloads: 5 }] },
+  ] });
+  assert.deepEqual(asked.at(-1), ['https://api.github.com/repos/MamadPoker/Jarchi-releases/releases?per_page=100', 'jarchi-relay']);
+  at('2026-10-23T20:09:59.000Z');
+  assert.deepEqual(await get('/admin/downloads'), d);
+  assert.equal(asked.length, 2, 'cached');
+  at('2026-10-23T20:10:00.000Z');
+  assert.equal((await get('/admin/downloads')).fetchedAt, '2026-10-23T20:10:00.000Z');
+  at('2026-10-23T20:30:00.000Z');
+  github = new Response('down', { status: 500 });
+  assert.equal((await get('/admin/downloads')).fetchedAt, '2026-10-23T20:10:00.000Z');
+  assert.equal(asked.length, 4);
+  globalThis.fetch = real;
+
+  // 10 wrong tries from one source in an hour: that source is refused for an hour, even with the right key.
+  const X = { ip: '203.0.113.7' }, wrong = { ...X, key: 'nope' };
+  for (let i = 0; i < 9; i++) assert.equal((await call('/admin/stats', wrong)).status, 401);
+  assert.equal((await call('/admin/stats', X)).status, 200, '9 are allowed');
+  assert.equal((await call('/admin/stats', wrong)).status, 401);
+  assert.equal((await call('/admin/stats', X)).status, 429);
+  assert.equal((await call('/admin/stats', wrong)).status, 429);
+  assert.equal((await call('/admin/stats')).status, 200, 'another source goes on');
+  at('2026-10-23T21:29:59.000Z');
+  assert.equal((await call('/admin/stats', X)).status, 429);
+  at('2026-10-23T21:30:00.000Z');
+  assert.equal((await call('/admin/stats', X)).status, 200, 'an hour later');
+  for (let i = 0; i < 9; i++) assert.equal((await call('/admin/stats', wrong)).status, 401, 'and a new count');
+  assert.equal((await call('/admin/stats', X)).status, 200);
+  // 9 and, over an hour later, 9 more: never 10 in an hour.
+  const Y = { ip: '2001:db8::1' };
+  for (let i = 0; i < 9; i++) assert.equal((await call('/admin/stats', { ...Y, key: 'nope' })).status, 401);
+  at('2026-10-23T22:30:00.000Z');
+  for (let i = 0; i < 9; i++) assert.equal((await call('/admin/stats', { ...Y, key: 'nope' })).status, 401);
+  assert.equal((await call('/admin/stats', Y)).status, 200);
+  const sources = db.prepare('SELECT source FROM admin_fails').all().map((r) => r.source);
+  assert.equal(sources.length, 3);
+  assert.ok(sources.every((x) => /^[0-9a-f]{64}$/.test(x)), 'no addresses kept, only keyed hashes');
+
+  // Without an ADMIN_KEY set, nothing gets in.
+  for (const key of ['', 'undefined', KEY]) assert.equal((await call('/admin/stats', { key, ip: '198.51.100.1', to: { DB } })).status, 401);
+
+  // Every request counted on its day (UTC); stats shows the newest days first.
+  assert.deepEqual(Object.fromEntries(db.prepare('SELECT day, count FROM requests').all().map((r) => [r.day, r.count])), made);
+  const { days } = (await get('/admin/stats')).requests;
+  assert.deepEqual(days.map((r) => [r.day, r.count]), [['2026-10-23', made['2026-10-23']], ['2026-10-20', 2]]);
 });

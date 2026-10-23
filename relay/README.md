@@ -36,3 +36,16 @@ npx wrangler deploy
 ```
 
 To look at the rows: `npx wrangler d1 execute jarchi-stats --remote --command "SELECT * FROM installs ORDER BY last_seen DESC"`.
+
+## Admin API (`/admin/...`)
+
+For Jarchi's admin app. Every request needs `Authorization: Bearer <ADMIN_KEY>`; the key is a Worker secret (`npx wrangler secret put ADMIN_KEY`) and is never in this repo. After 10 wrong tries from one address in an hour, that address is refused for an hour (right key or not). The address isn't stored, only a hash of it keyed with `ADMIN_KEY` (table `admin_fails`).
+
+| | |
+|---|---|
+| `GET /admin/stats` | Installs, online now (open and seen in the last 10 minutes), active today and in the last 7 days, live now, installs per version, and the relay's requests per day for the last 30 days (UTC, against Cloudflare's free 100,000 a day). `?tz=` = the admin's time zone in minutes east of UTC (Tehran `210`) for "today"; UTC by default. |
+| `GET /admin/installs` | The installs, newest first, each `{ id, version, installed, open, online, live, kick, twitch, firstSeen, lastSeen, privacy }`. `?q=` part of a Kick or Twitch channel name, `?limit=` 1-200 (50), `?offset=`. |
+| `GET /admin/downloads` | Download counts per release and per file from GitHub's public API for `MamadPoker/Jarchi-releases` (published releases only), kept for 10 minutes. |
+| `DELETE /admin/installs/<id>` | Deletes that install's row (a data-deletion request). A Jarchi still running with that id adds it again with its next ping. |
+
+The relay counts its own requests per day in the table `requests`. After adding the tables, run `schema.sql` again (it only adds what's missing).

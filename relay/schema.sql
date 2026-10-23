@@ -21,3 +21,16 @@ CREATE TABLE IF NOT EXISTS installs (
 );
 -- New installs in the last hour (the relay's cap on new ids).
 CREATE INDEX IF NOT EXISTS installs_first_seen ON installs (first_seen);
+
+-- Admin API (worker.mjs /admin): wrong keys per source, for its lockout. Not the address: a hash of it keyed with ADMIN_KEY.
+CREATE TABLE IF NOT EXISTS admin_fails (
+  source TEXT PRIMARY KEY,
+  window_start INTEGER NOT NULL,  -- start of its current hour of wrong tries (ms since 1970, UTC)
+  fails INTEGER NOT NULL,         -- wrong tries in it
+  blocked_until INTEGER NOT NULL  -- refused until then (ms), 0: not blocked
+);
+-- The relay's own requests per day (UTC), for the admin app (Cloudflare's free plan: 100,000 a day).
+CREATE TABLE IF NOT EXISTS requests (
+  day TEXT PRIMARY KEY,  -- "2026-10-23"
+  count INTEGER NOT NULL
+);

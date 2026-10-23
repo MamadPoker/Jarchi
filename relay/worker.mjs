@@ -9,7 +9,9 @@
 // Nothing of that is stored: an event goes to the sockets open right now, or nowhere.
 //   POST /ping      Jarchi's usage ping (core/stats.js, only once its Privacy Policy is accepted): one row per install
 //                   in the D1 database DB (schema.sql). No IP address or anything else about the request is kept.
-// Settings (secrets): KICK_CLIENT_ID, KICK_CLIENT_SECRET. Deploy: see README.md here.
+//   /admin/...      Jarchi's admin app: counts, the installs, downloads (see "Admin API" below). Needs ADMIN_KEY.
+// Every request is counted per day (UTC) in DB, so the admin app can show it against Cloudflare's free limit.
+// Settings (secrets): KICK_CLIENT_ID, KICK_CLIENT_SECRET, ADMIN_KEY. Deploy: see README.md here.
 const KICK_ID = 'https://id.kick.com';
 const KICK_API = 'https://api.kick.com/public/v1';
 const SCOPES = 'user:read events:subscribe';
@@ -19,9 +21,15 @@ const text = (body, status = 200) => new Response(body, { status, headers: { 'co
 const room = (env, userId) => env.ROOMS.get(env.ROOMS.idFromName(String(userId)));
 const STATE = /^(\d{2,5})\.[\w-]{16,128}$/; // "<Jarchi's port>.<random>"
 
+// ponytail: one D1 row written per request, sharing D1's free 100,000 writes a day with the pings; move the count to a
+// Durable Object if D1 writes get close.
+const COUNT = 'INSERT INTO requests (day, count) VALUES (?1, 1) ON CONFLICT (day) DO UPDATE SET count = count + 1';
+
 export default {
-  async fetch(req, env) {
+  async fetch(req, env, ctx) {
+    ctx.waitUntil(env.DB.prepare(COUNT).bind(new Date().toISOString().slice(0, 10)).run().catch(() => {}));
     const url = new URL(req.url);
+    if (url.pathname === '/admin' || url.pathname.startsWith('/admin/')) return admin(req, url, env);
     switch (url.pathname) {
       case '/': return text('Jarchi Kick relay: running.');
       case '/login': return login(url, env);
@@ -172,6 +180,127 @@ async function ping(req, env) {
     p.kick?.name ?? null, p.kick?.picture ?? null, bit(p.kick?.live), p.twitch?.name ?? null, p.twitch?.picture ?? null, bit(p.twitch?.live),
     p.privacy.version, p.privacy.acceptedAt, PING_WINDOW_MS, PING_MAX, new Date(now - NEW_WINDOW_MS).toISOString(), NEW_MAX).run();
   return meta.changes ? text('ok') : text('Too many pings', 429);
+}
+
+// ---------- Admin API ----------
+// For Jarchi's admin app. Every /admin address needs "Authorization: Bearer <ADMIN_KEY>". A source (its address, kept
+// only as a hash keyed with ADMIN_KEY) with FAIL_MAX wrong tries in FAIL_MS is refused for FAIL_MS, right key or not.
+//   GET    /admin/stats          installs, online now, active today (?tz= minutes east of UTC, Tehran 210; default UTC)
+//                                and in 7 days, live now, installs per version, the relay's requests per day (UTC)
+//   GET    /admin/installs       the installs, newest first; ?q= part of a Kick/Twitch channel name, ?limit= 1-200
+//                                (50), ?offset=
+//   GET    /admin/downloads      download counts per release and file, from GitHub (Jarchi-releases), cached RELEASES_MS
+//   DELETE /admin/installs/<id>  one install's row (a data-deletion request)
+// "Online" = open and seen in ONLINE_MS (Jarchi pings every 5 minutes); "live" = online and live on Kick or Twitch.
+const FAIL_MAX = 10, FAIL_MS = 60 * 60 * 1000;
+const ONLINE_MS = 10 * 60 * 1000, DAY_MS = 24 * 60 * 60 * 1000, RELEASES_MS = 10 * 60 * 1000;
+const FREE_REQUESTS = 100000; // Cloudflare's free plan, a day (UTC)
+const RELEASES = 'https://api.github.com/repos/MamadPoker/Jarchi-releases/releases?per_page=100';
+
+const json = (body, status = 200) => Response.json(body, { status, headers: { 'cache-control': 'no-store' } });
+const iso = (ms) => new Date(ms).toISOString();
+const sha256 = async (s) => new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s)));
+
+// Both hashed (same length) and every byte compared, so the time taken says nothing about the key.
+async function sameKey(a, b) {
+  const [x, y] = await Promise.all([sha256(a), sha256(b)]);
+  let diff = 0;
+  for (let i = 0; i < x.length; i++) diff |= x[i] ^ y[i];
+  return diff === 0;
+}
+
+// A wrong try, counted in the source's window (a new one once FAIL_MS has passed); the FAIL_MAX-th blocks it for FAIL_MS.
+// (Every right-hand side reads the row as it was.)
+const FAIL = `INSERT INTO admin_fails (source, window_start, fails, blocked_until) VALUES (?1, ?2, 1, 0)
+ON CONFLICT (source) DO UPDATE SET
+  blocked_until = CASE WHEN ?2 - window_start < ?3 AND fails + 1 >= ?4 THEN ?2 + ?3 ELSE blocked_until END,
+  window_start = CASE WHEN ?2 - window_start >= ?3 THEN ?2 ELSE window_start END,
+  fails = CASE WHEN ?2 - window_start >= ?3 THEN 1 ELSE fails + 1 END`;
+
+async function admin(req, url, env) {
+  const now = Date.now();
+  const source = [...await sha256(`${env.ADMIN_KEY}\n${req.headers.get('cf-connecting-ip') ?? ''}`)].map((b) => b.toString(16).padStart(2, '0')).join('');
+  const seen = await env.DB.prepare('SELECT blocked_until FROM admin_fails WHERE source = ?1').bind(source).first();
+  if (seen?.blocked_until > now) return text('Too many wrong keys, try again later', 429);
+  const given = /^Bearer (.+)$/.exec(req.headers.get('authorization') ?? '')?.[1];
+  if (!env.ADMIN_KEY || !given || !(await sameKey(given, env.ADMIN_KEY))) {
+    await env.DB.prepare(FAIL).bind(source, now, FAIL_MS, FAIL_MAX).run();
+    return text('Unauthorized', 401);
+  }
+  const get = req.method === 'GET';
+  switch (url.pathname) {
+    case '/admin/stats': return get ? stats(url, env, now) : text('GET only', 405);
+    case '/admin/installs': return get ? installs(url, env, now) : text('GET only', 405);
+    case '/admin/downloads': return get ? downloads() : text('GET only', 405);
+  }
+  const one = /^\/admin\/installs\/([^/]+)$/.exec(url.pathname)?.[1];
+  if (one) return req.method === 'DELETE' ? remove(env, one) : text('DELETE only', 405);
+  return text('Not found', 404);
+}
+
+const COUNTS = `SELECT COUNT(*) AS installs,
+  COUNT(*) FILTER (WHERE is_open = 1 AND last_seen > ?1) AS online,
+  COUNT(*) FILTER (WHERE last_seen >= ?2) AS activeToday,
+  COUNT(*) FILTER (WHERE last_seen > ?3) AS active7Days,
+  COUNT(*) FILTER (WHERE is_open = 1 AND last_seen > ?1 AND (kick_live = 1 OR twitch_live = 1)) AS live
+FROM installs`;
+
+async function stats(url, env, now) {
+  const tz = Number(url.searchParams.get('tz') ?? 0);
+  if (!Number.isInteger(tz) || Math.abs(tz) > 14 * 60) return text('Bad tz', 400);
+  const today = Math.floor((now + tz * 60000) / DAY_MS) * DAY_MS - tz * 60000; // midnight there
+  const [counts, versions, days] = await Promise.all([
+    env.DB.prepare(COUNTS).bind(iso(now - ONLINE_MS), iso(today), iso(now - 7 * DAY_MS)).first(),
+    env.DB.prepare('SELECT version, COUNT(*) AS installs FROM installs GROUP BY version ORDER BY installs DESC, version DESC').all(),
+    env.DB.prepare('SELECT day, count FROM requests ORDER BY day DESC LIMIT 30').all(),
+  ]);
+  return json({ ...counts, versions: versions.results, requests: { limit: FREE_REQUESTS, days: days.results } });
+}
+
+// Shaped like a ping: { id, version, installed, open, kick, twitch, privacy } plus online, live, firstSeen, lastSeen.
+const channel = (name, picture, live) => (name === null ? null : { name, picture, live: live === null ? null : live === 1 });
+const LIST = `SELECT * FROM installs WHERE ?1 = '' OR kick_name LIKE ?2 ESCAPE '\\' OR twitch_name LIKE ?2 ESCAPE '\\'`;
+
+async function installs(url, env, now) {
+  const q = (url.searchParams.get('q') ?? '').trim().slice(0, 50), like = `%${q.replace(/[\\%_]/g, '\\$&')}%`;
+  const limit = Math.min(200, Math.max(1, Number.parseInt(url.searchParams.get('limit'), 10) || 50));
+  const offset = Math.max(0, Number.parseInt(url.searchParams.get('offset'), 10) || 0);
+  const [total, rows] = await Promise.all([
+    env.DB.prepare(LIST.replace('*', 'COUNT(*) AS n')).bind(q, like).first(),
+    env.DB.prepare(`${LIST} ORDER BY first_seen DESC, id LIMIT ?3 OFFSET ?4`).bind(q, like, limit, offset).all(),
+  ]);
+  const since = iso(now - ONLINE_MS);
+  return json({ total: total.n, limit, offset, installs: rows.results.map((r) => {
+    const online = r.is_open === 1 && r.last_seen > since;
+    return {
+      id: r.id, version: r.version, installed: r.installed === 1, open: r.is_open === 1, online,
+      live: online && (r.kick_live === 1 || r.twitch_live === 1),
+      kick: channel(r.kick_name, r.kick_picture, r.kick_live), twitch: channel(r.twitch_name, r.twitch_picture, r.twitch_live),
+      firstSeen: r.first_seen, lastSeen: r.last_seen, privacy: { version: r.privacy_version, acceptedAt: r.privacy_accepted_at },
+    };
+  }) });
+}
+
+// GitHub's answer, kept in this isolate (like Kick's public key); when GitHub fails, the last one is served again.
+let releases = { at: 0, value: null };
+async function downloads() {
+  if (Date.now() - releases.at >= RELEASES_MS) {
+    const r = await fetch(RELEASES, { headers: { accept: 'application/vnd.github+json', 'user-agent': 'jarchi-relay' } }).catch(() => null);
+    const list = r?.ok ? await r.json().catch(() => null) : null;
+    if (Array.isArray(list)) {
+      releases = { at: Date.now(), value: list.map((rel) => ({
+        tag: rel.tag_name, name: rel.name, publishedAt: rel.published_at, prerelease: rel.prerelease,
+        downloads: rel.assets.reduce((n, a) => n + a.download_count, 0),
+        files: rel.assets.map((a) => ({ name: a.name, size: a.size, downloads: a.download_count })),
+      })) };
+    } else if (!releases.value) return text(`GitHub: ${r ? r.status : 'unreachable'}`, 502);
+  }
+  return json({ fetchedAt: iso(releases.at), downloads: releases.value.reduce((n, rel) => n + rel.downloads, 0), releases: releases.value });
+}
+
+async function remove(env, id) {
+  const { meta } = await env.DB.prepare('DELETE FROM installs WHERE id = ?1').bind(id).run();
+  return meta.changes ? json({ deleted: id }) : text('Not found', 404);
 }
 
 // One channel: the Jarchi sockets open for it (usually one), handed each of its events. Hibernates between them; the
