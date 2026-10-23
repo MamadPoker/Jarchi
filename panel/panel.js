@@ -891,26 +891,36 @@ function setLang(lang) {
 }
 
 // ---------- Privacy Policy ----------
-// i18n/privacy.json, in English and Persian, with its version. The tour's Hello doesn't go on before it's accepted; one
-// newer than the version accepted (settings.privacyAccepted) opens by itself as "Privacy Policy updated", to Accept.
+// i18n/privacy.json, in English and Persian, with its version. The tour's Hello doesn't go on (or close) before it's
+// accepted; one newer than the version accepted (settings.privacyAccepted) opens by itself to Accept, as "Privacy
+// Policy updated" ("Privacy Policy" for someone who never accepted one).
+const mustAccept = () => settings.privacyAccepted < privacy.version;
 const acceptPrivacy = () => api('PATCH', '/api/settings', { privacyAccepted: privacy.version }).then((s) => (settings = s), () => {});
 function showPrivacy(lang = S.lang, accept = false) {
   const d = $('#privacy'), p = privacy[lang], P = (lang === S.lang ? S : lang === 'fa' ? faStrings : EN).panel; // Hello has both
   Object.assign(d, { lang, dir: lang === 'fa' ? 'rtl' : 'ltr' });
-  $('#privacyTitle').textContent = accept ? P.privacyUpdated : p.title;
+  d.classList.toggle('accept', accept);
+  $('#privacyTitle').textContent = !accept ? p.title : settings.privacyAccepted ? P.privacyUpdated : P.privacyPolicy;
   $('#privacyText').replaceChildren(el('p', { textContent: p.intro }),
     el('ul', {}, ...p.items.map(([what, text]) => el('li', {}, el('b', { textContent: `${what}:` }), ` ${text}`))));
   $('#privacyOk').textContent = accept ? P.privacyAccept : P.updateClose;
   $('#privacyOk').onclick = () => (accept && acceptPrivacy(), d.close());
-  d.oncancel = (e) => accept && e.preventDefault(); // Accept is its only way out
   d.showModal();
 }
+// Escape doesn't close what waits for the policy to be accepted: the Accept popup, or the tour's Hello (the policy
+// opened from it still closes). On keydown, not cancel: a dialog that opened by itself, before any click, can't stop
+// its cancel event.
+addEventListener('keydown', (e) => {
+  const p = $('#privacy'), held = p.open ? p.classList.contains('accept') : $('#tour').open && TOUR[tourStep] === 'hello' && mustAccept();
+  if (e.key === 'Escape' && held) e.preventDefault();
+});
 
 // ---------- Welcome tour ----------
 // Opens by itself on the first run (then settings.welcomed is saved), and from the Guide. Hello speaks both languages
 // and picks the panel's: another one reloads the panel in it, back at Connect. Connect shows the Connections page's own
 // Kick and Twitch cards (moved in while it's shown), so their states, Twitch's code and Open buttons all work here too.
-// Sidebar isn't in the dialog: the sidebar itself, one group of pages at a time (spotTo). Escape or Skip ends it all.
+// Sidebar isn't in the dialog: the sidebar itself, one group of pages at a time (spotTo). Escape or Skip ends it all,
+// but Hello waits for the Privacy Policy.
 const TOUR = ['hello', 'connect', 'obs', 'sidebar', 'done'];
 const SIDEBAR = TOUR.indexOf('sidebar');
 // Sidebar's stops, the sidebar's own groups: [the group's name, its pages, first to last]. Main (the pages on top) and
@@ -987,9 +997,9 @@ function renderTour() {
   body.className = `tour-body tour-${step}`;
   if (step === 'hello') {
     const say = (s) => el('div', { lang: s.lang, dir: s.dir }, h2(s.panel.welcome.hello), el('p', { textContent: s.panel.welcome.about }));
-    const agreed = settings.privacyAccepted >= privacy.version;
+    const agreed = !mustAccept();
     const langs = [['en', 'English'], ['fa', 'فارسی']].map(([lang, name]) => el('button', { className: 'primary', lang, textContent: name, disabled: !agreed, onclick: async () => {
-      if (settings.privacyAccepted < privacy.version) await acceptPrivacy(); // saved before a reload into the other language
+      if (mustAccept()) await acceptPrivacy(); // saved before a reload into the other language
       if (lang === S.lang) return tourTo(1);
       try { sessionStorage.setItem('jarchi.tour', '1'); } catch {}
       setLang(lang);
@@ -1962,5 +1972,5 @@ artRun();
     sessionStorage.removeItem('jarchi.tour');
   } catch {}
   if (tour || !settings.welcomed) openTour(Number(tour));
-  else if (settings.privacyAccepted < privacy.version) showPrivacy(S.lang, true);
+  else if (mustAccept()) showPrivacy(S.lang, true);
 })();
