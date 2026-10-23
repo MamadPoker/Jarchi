@@ -1343,6 +1343,7 @@ function build() {
   wireProfile();
   wireTour();
   wireUpdate();
+  wireUninstall();
 
   $$('[data-i18n]').forEach((e) => (e.textContent = S.panel[e.dataset.i18n]));
   const [madeA, madeB] = S.panel.madeWith.split('{heart}'); // About's "Made with ♥ by MamadPoker", the heart in gold
@@ -1593,6 +1594,24 @@ function wireUpdate() {
     update = s;
     renderUpdate();
   });
+}
+
+// Settings > Uninstall Jarchi: only in the installed app (electron/main.js says whether its uninstaller is there; not
+// with `npm run app`, and a browser has no window.jarchiApp). The uninstaller is told whether to keep the data.
+function wireUninstall() {
+  const app = window.jarchiApp, d = $('#uninstallDialog');
+  if (!app) return;
+  app.installed().then((on) => ($('#uninstall').hidden = !on));
+  $('#uninstall').onclick = () => {
+    $('#uninstallKeep').checked = true;
+    $('#uninstallGo').disabled = false;
+    d.showModal();
+  };
+  $('#uninstallCancel').onclick = () => d.close();
+  $('#uninstallGo').onclick = (e) => {
+    e.currentTarget.disabled = true; // Jarchi quits now
+    app.uninstall($('#uninstallKeep').checked);
+  };
 }
 
 let draft, crop; // Edit profile: the profile being edited, the picture being cropped { img, zoom, x, y, out, url }

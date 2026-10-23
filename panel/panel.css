@@ -353,6 +353,9 @@ button.primary { border-color: transparent; background: var(--gold); color: var(
 button.primary:hover { background: var(--gold); filter: brightness(1.08); }
 button.ghost { background: transparent; }
 button.danger { border-color: var(--danger-line); background: transparent; color: var(--danger); }
+button.danger.soft { background: color-mix(in srgb, var(--danger) 10%, transparent); } /* Uninstall Jarchi */
+button.danger.soft:hover { border-color: var(--danger); background: color-mix(in srgb, var(--danger) 16%, transparent); }
+button.danger.strong, button.danger.strong:hover { border-color: transparent; background: var(--danger); color: var(--on-color); } /* its dialog's Uninstall */
 button.armed, button.armed:hover { border-color: transparent; background: var(--danger); color: var(--on-color); } /* twoClick(): click again to confirm */
 
 input[type="text"], input[type="number"], select {

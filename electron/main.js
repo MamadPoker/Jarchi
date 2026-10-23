@@ -3,6 +3,7 @@
 // the window renders like Chrome does, on the GPU Windows picks for it.
 const path = require('node:path');
 const fs = require('node:fs');
+const { spawn } = require('node:child_process');
 const { app, BrowserWindow, Tray, Menu, Notification, clipboard, dialog, ipcMain, screen, shell, utilityProcess } = require('electron');
 
 const ROOT = path.join(__dirname, '..');
@@ -153,6 +154,19 @@ function updates() {
   check();
   setInterval(check, 4 * 3600e3);
 }
+
+// Settings > Uninstall Jarchi, only in the installed app: the installer's uninstaller next to Jarchi.exe (not there
+// with `npm run app` or a build that was never installed). It's told whether to keep the data (build/installer.nsh), so
+// it doesn't ask again, and Jarchi quits so it can remove the files, without installing a downloaded update first.
+const UNINSTALLER = path.join(path.dirname(process.execPath), 'Uninstall Jarchi.exe');
+const installed = () => app.isPackaged && fs.existsSync(UNINSTALLER);
+ipcMain.handle('app:installed', installed);
+ipcMain.on('app:uninstall', (e, keep) => {
+  if (!installed()) return;
+  spawn(UNINSTALLER, [keep ? '--keep-app-data' : '--delete-app-data'], { detached: true, stdio: 'ignore' }).unref();
+  if (updater) updater.autoInstallOnAppQuit = false;
+  app.quit();
+});
 
 if (!app.requestSingleInstanceLock()) app.quit(); // one Jarchi at a time: the first one shows its window instead
 else {

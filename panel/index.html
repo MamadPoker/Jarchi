@@ -881,7 +881,11 @@
         <div class="box">
           <h2 data-i18n="resetTitle" data-help="settings.reset"></h2>
           <small data-i18n="resetHint"></small>
-          <div><button id="resetAll" class="danger" data-i18n="resetAll"></button></div>
+          <div class="row">
+            <button id="resetAll" class="danger" data-i18n="resetAll"></button>
+            <!-- Only in the installed app (wireUninstall): opens #uninstallDialog. -->
+            <button id="uninstall" class="danger soft" data-i18n="uninstallApp" hidden></button>
+          </div>
         </div>
       </section>
 
@@ -988,6 +992,17 @@
         <button id="spotBack"></button>
         <button id="spotNext" class="primary"></button>
       </div>
+    </div>
+  </dialog>
+
+  <!-- Uninstall Jarchi (Settings, wireUninstall): starts the installed uninstaller, which keeps or deletes the data as
+       ticked here, then Jarchi quits. -->
+  <dialog id="uninstallDialog" class="profile-dialog" aria-labelledby="uninstallTitle">
+    <h2 id="uninstallTitle" data-i18n="uninstallAsk"></h2>
+    <label class="row"><input type="checkbox" id="uninstallKeep" checked><span data-i18n="uninstallKeep"></span></label>
+    <div class="profile-actions">
+      <button id="uninstallCancel" class="ghost" data-i18n="twCancel"></button>
+      <button id="uninstallGo" class="danger strong" data-i18n="uninstallGo"></button>
     </div>
   </dialog>
 

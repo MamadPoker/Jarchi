@@ -67,12 +67,23 @@ LangString jarchiKeep 1065 "تنظیمات، فایل‌های آپلودشده 
 
 ; Uninstall: the user's data (%APPDATA%\Jarchi: settings, uploads, Kick / Twitch logins, the panel's own choices) is
 ; deleted only when they say so. Updates and reinstalls run this uninstaller too, but as "updated" or silent: the data
-; always stays then. The downloaded updates (electron-updater's cache) go either way.
+; always stays then. Jarchi's own Uninstall button (Settings) has asked already and passes the answer: --keep-app-data,
+; or electron-builder's --delete-app-data (it deletes the data further down). The downloaded updates
+; (electron-updater's cache) go either way.
 !macro customUnInstall
   ${ifNot} ${isUpdated}
     RMDir /r "$LOCALAPPDATA\jarchi-updater"
-    MessageBox MB_YESNO|MB_ICONQUESTION "$(jarchiKeep)" /SD IDYES IDYES jarchiKeep
-    RMDir /r "$APPDATA\${APP_FILENAME}"
-    jarchiKeep:
+    ${GetParameters} $R0
+    ClearErrors
+    ${GetOptions} $R0 "--keep-app-data" $R1
+    ${if} ${Errors}
+      ClearErrors
+      ${GetOptions} $R0 "--delete-app-data" $R1
+      ${if} ${Errors}
+        MessageBox MB_YESNO|MB_ICONQUESTION "$(jarchiKeep)" /SD IDYES IDYES jarchiKeep
+        RMDir /r "$APPDATA\${APP_FILENAME}"
+        jarchiKeep:
+      ${endIf}
+    ${endIf}
   ${endIf}
 !macroend
