@@ -756,11 +756,10 @@ main { padding: 24px 28px 64px; container-type: inline-size; } /* editor rules b
 .swatches { display: flex; gap: 6px; margin-inline-start: 8px; }
 .swatches .swatch { width: 14px; height: 14px; border-radius: 4px; }
 .swatches .swatch.current { box-shadow: 0 0 0 2px var(--card), 0 0 0 4px var(--gold); }
-/* Alert size, next to the theme row and as tall */
-.size-row { display: flex; align-items: center; align-self: stretch; gap: 12px; padding: 0 16px; border: 1px solid var(--border); border-radius: 14px; background: var(--card); }
-.size-row .group-title { margin: 0; }
-.size-row input { width: 130px; }
-.size-row b { min-width: 4ch; font-size: 14px; text-align: end; }
+/* Alert size (Style tab): the slider, and Apply to all alerts next to it */
+.size-pick { display: flex; align-items: center; gap: 10px; }
+.size-pick input { flex: 1; min-width: 0; }
+.size-pick button { flex: none; }
 .back { justify-self: start; } /* the theme page's way back to Alerts */
 
 /* ---------- Home: banner, live feed | widgets, goals, today's numbers ---------- */
@@ -1101,7 +1100,7 @@ code { padding: 1px 6px; border-radius: 6px; background: var(--card2); font: 0.9
   :where(:root[data-art]) { --card-see: color-mix(in srgb, var(--card) 88%, transparent); }
   :where(:root[data-art]) .side { background: color-mix(in srgb, var(--sidebar) 88%, transparent); backdrop-filter: blur(12px); }
   :where(:root[data-art]) .topbar { background: color-mix(in srgb, var(--topbar) 88%, transparent); }
-  :where(:root[data-art]) :is(.box, .list, .more, .theme-row, .size-row, .banner, .stats > div, .step, .faq) { background: var(--card-see); backdrop-filter: blur(12px); }
+  :where(:root[data-art]) :is(.box, .list, .more, .theme-row, .banner, .stats > div, .step, .faq) { background: var(--card-see); backdrop-filter: blur(12px); }
   :where(:root[data-art]) .theme-row:hover { background: var(--card-see); }
   :where(:root[data-art]) .banner.ready { background: linear-gradient(var(--main-soft), var(--main-soft)), var(--card-see); }
   :where(:root[data-art]) .banner { position: relative; z-index: 1; } /* the blur makes it a layer: its OBS links menu stays over the cards below */

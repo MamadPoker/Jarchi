@@ -99,7 +99,7 @@ let showGoalTab; // the Goals list's Kick | Twitch tab (wireTabs, in build())
 const pct = (v) => `${Math.round(v * 100)}%`;
 const px = (v) => `${v}px`;
 const FORMAT = {
-  volume: pct, frameOpacity: pct, frameRadius: px, fontSize: px, bgOpacity: pct, borderWidth: px, radius: px, scale: pct, alertSize: pct,
+  volume: pct, frameOpacity: pct, frameRadius: px, fontSize: px, bgOpacity: pct, borderWidth: px, radius: px, scale: pct, size: pct,
   emoteSize: px, bigEmoteSize: px, badgeSize: pct, nameSize: px, padding: px, gap: px, width: px, height: px, fadeZone: px, blur: px,
   tickerSpeed: (v) => `${v} px/s`, maxMessages: (v) => String(v), hideAfter: (v) => (Number(v) ? tpl(S.panel.seconds, { n: v }) : S.panel.never), animSpeed: (v) => `×${v}`,
 };
@@ -372,7 +372,7 @@ function preview() {
 // Theme cards: the sub alert in that theme with its own look and sound; it stays on the card (hold) until the next play.
 const THEME_TEXT = { nameColor: null, nameFont: 'theme', nameBold: true, nameShadow: true, textColor: null, textFont: 'theme', textBold: true, textShadow: true, autoSize: true };
 function playTile(frame, muted = true) {
-  const sub = { ...settings.alerts.sub, ...THEME_TEXT, theme: null, image: null, soundMode: 'theme', frame: 'theme', textPos: 'below', textAlign: 'center' };
+  const sub = { ...settings.alerts.sub, ...THEME_TEXT, size: 1, theme: null, image: null, soundMode: 'theme', frame: 'theme', textPos: 'below', textAlign: 'center' };
   post(frame, { theme: frame.dataset.theme, alerts: { sub } }, sample('sub'), muted, true);
 }
 
@@ -1050,10 +1050,6 @@ function build() {
   }));
   $('#themeRow').onclick = () => select('theme');
   $('#themeBack').onclick = () => select('alert');
-  // Alert size: every alert's size in OBS (the preview replays at the new size once the slider is let go).
-  const size = $('#alertSize');
-  size.oninput = () => showRange(size, 'alertSize');
-  size.onchange = () => send('PATCH', '/api/settings', { alertSize: Number(size.value) });
 
   // Home: feed filters, View all (History, with the feed's filter), a test alert of any type, and the OBS links menu
   // (closes on a click elsewhere or Escape). History has the same filters.
@@ -1174,6 +1170,8 @@ function build() {
     $$(`[name=${f}Mode]`).forEach((r) => (r.onchange = () => patchAlert(cur, { [f]: r.value === 'custom' ? $(`[data-f=${f}]`, editor).value : null })));
   }
   $('#resetText').onclick = () => send('POST', `/api/alerts/${cur}/reset-text`);
+  // Alert size (Style tab): this alert's size, given to every alert in one save.
+  $('#sizeAll').onclick = () => send('PATCH', '/api/settings', { alerts: Object.fromEntries(Object.keys(settings.alerts).map((t) => [t, { size: settings.alerts[cur].size }])) });
   // Font size: Auto (the biggest that fits) or Custom (the slider).
   $$('[name=alertSizeMode]').forEach((r) => (r.onchange = () => patchAlert(cur, { autoSize: r.value === 'auto' })));
   // Per-alert theme: "" = same as the main theme.
@@ -1399,8 +1397,6 @@ function render() {
     });
   }
 
-  $('#alertSize').value = settings.alertSize;
-  showRange($('#alertSize'), 'alertSize');
   $('#themeSwatch').className = `swatch sw-${settings.theme}`;
   $('#themeName').textContent = S.themes[settings.theme];
   $$('#themeSwatches .swatch').forEach((s) => s.classList.toggle('current', s.dataset.theme === settings.theme));

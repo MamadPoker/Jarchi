@@ -43,18 +43,18 @@ function applyStrings(s) {
 function applySettings(s) {
   settings = s;
   for (const a of Object.values(s.alerts)) for (const f of [a.nameFont, a.textFont]) if (fontOf(f)) document.fonts.load(`16px "${f}"`); // ready before an alert needs it
-  fit(); // Alert size may have changed
 }
 
 // The alert fills the Browser Source, whatever its size or shape: #stage is a page as big as the source, in units of an
-// 800x600 one (so borders, shadows and effects keep their proportions), scaled onto it; Alert size shrinks it toward
-// the middle. Inside, the picture gets a fixed square (an image fits in it whatever its own pixel size) and the text the
-// rest, in the biggest font size that fits there (or the alert's own size, if that fits). Runs again when the source
-// changes size, a font finishes loading, or a preview drawn while its page was hidden in the panel comes into view.
+// 800x600 one (so borders, shadows and effects keep their proportions), scaled onto it; the alert's own size (Style
+// tab) shrinks it toward the middle. Inside, the picture gets a fixed square (an image fits in it whatever its own pixel
+// size) and the text the rest, in the biggest font size that fits there (or the alert's own font size, if that fits).
+// Runs again when the source changes size, a font finishes loading, or a preview drawn while its page was hidden in the
+// panel comes into view.
 const PAD = 16; // around the alert: room for the platform badge, the shake and a frame's shadow
 function fit() {
   if (!document.documentElement.offsetWidth || !innerHeight) return; // no layout yet: a hidden preview
-  const W = innerWidth, H = innerHeight, a = Math.min(settings?.alertSize ?? 1, 1), k = Math.min(W / 800, H / 600);
+  const W = innerWidth, H = innerHeight, a = Math.min(onStage?.dataset.size ?? 1, 1), k = Math.min(W / 800, H / 600);
   const w = W / k, h = H / k;
   stage.style.cssText = `width:${w}px;height:${h}px;--f:${Math.min(w / 1920, h / 1080)};transform:translate(${(W * (1 - a)) / 2}px,${(H * (1 - a)) / 2}px) scale(${k * a})`;
   const el = onStage;
@@ -152,6 +152,7 @@ async function show(ev, { muted = false, hold = false, ms, id } = {}) {
   const kickLook = ev.type === 'kicks' && cfg.look === 'kick';
   const { el, scope, video } = kickLook ? kickAlert(cfg, ev, v, files) : themed(cfg, ev, v, files, theme, tier, grows);
   textStyle(el, cfg);
+  el.dataset.size = cfg.size ?? 1; // fit(): how much of the source it fills
   // The alert's own text size (Text tab, not Auto); amounts that grow get a bit more, like before.
   if (cfg.autoSize === false) el.dataset.fs = cfg.fontSize * (grows && !kickLook ? 1 + (tier - 1) * 0.1 : 1);
 

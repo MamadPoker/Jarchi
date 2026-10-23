@@ -443,6 +443,7 @@
     "messageBold": "Message in bold",
     "messageShadow": "Message outline / shadow",
     "alertSize": "Alert size",
+    "sizeAll": "Apply to all alerts",
     "playbackTitle": "Playback",
     "duration": "Duration (s)",
     "volume": "Volume",
@@ -643,7 +644,7 @@
       "textColor": "Color of the message: the rest of the text and the viewer's message under it. Numbers keep the theme's highlight color. **Theme** uses the theme's color, **Custom** your own.",
       "font": "The typeface of the name or of the message. Each of these has Persian and English letters. **Theme's font** keeps the theme's own.",
       "textShadow": "The theme's outline or shadow around the name's or the message's letters, which keeps them readable over a busy game. Off: plain letters.",
-      "size": "How much of the Browser Source box every alert fills. At 100% it fills the whole box; lower makes it smaller without touching OBS. To move it or make it bigger, drag and resize the box in OBS. Nothing is ever cut off.",
+      "size": "How much of the Browser Source box this alert fills. At 100% it fills the whole box; lower makes it smaller without touching OBS. **Apply to all alerts** gives every alert this size. To move it or make it bigger, drag and resize the box in OBS. Nothing is ever cut off.",
       "duration": "How many seconds the alert stays on screen. Bigger amounts add a little more.",
       "volume": "How loud this alert's sound (and video) plays.",
       "minAmount": "Smaller amounts don't play an alert; goals still count them. Example: 10 keeps single Kicks out.",
@@ -806,7 +807,7 @@
           ["Add a Browser Source", "In OBS: **Sources → + → Browser**. Give it a name, for example \"Jarchi Alerts\"."],
           ["Paste it and set the size", "Paste the link into **URL**. Width **800**, height **600**."],
           ["Turn on the sound", "Tick **Control audio via OBS**, so alert sounds go through the OBS mixer to your stream. Then click **OK**."],
-          ["Place it", "In the OBS preview, drag the box to where the alerts should show and pull its corners to make it bigger or smaller. The alert always fills the box, picture and text together, so what you see is what plays. **Alert size** on the **Alerts** page makes it smaller inside the box."],
+          ["Place it", "In the OBS preview, drag the box to where the alerts should show and pull its corners to make it bigger or smaller. The alert always fills the box, picture and text together, so what you see is what plays. **Alert size** in each alert's **Style** tab makes it smaller inside the box."],
           ["Chat and goals", "The same steps, with their own link and size. Chat: `{chatUrl}`, 420 × 600. Goals: `{goalSubsUrl}` and `{goalKicksUrl}`, 800 × 200 (Circle style: 400 × 400); a goal fills its box too."]
         ],
         "tip": "Jarchi must be running when OBS loads the source. If you started OBS first, right-click the source and choose **Refresh**. After that it reconnects by itself whenever Jarchi restarts."

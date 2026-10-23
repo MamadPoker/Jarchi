@@ -13,6 +13,7 @@ fs.mkdirSync(path.join(dataDir, 'uploads'));
 fs.writeFileSync(path.join(dataDir, 'uploads', 'sub-sound-1.wav'), 'RIFF\0\0\0\0WAVE');
 fs.writeFileSync(path.join(dataDir, 'settings.json'), JSON.stringify({
   theme: 'fun',
+  alertSize: 0.8, // before v9: one size for every alert
   alerts: { sub: { volume: 0.4, sound: { file: 'sub-sound-1.wav', name: 'old.wav' } }, raid: { font: 'Lalezar', textShadow: false } }, // raid: before v8
   goals: { subs: { title: 'Road to 50', countTwitch: true, source: 'twitch' }, followers: { source: 'both' } }, // before v6
 }));
@@ -58,7 +59,7 @@ test('migration, settings, uploads, reset, events', async () => {
   assert.equal(s.alerts.sub.soundMode, 'custom');
   assert.equal(s.alerts.sub.volume, 0.4);
   assert.equal(s.alerts.follow.soundMode, 'theme');
-  assert.equal(JSON.parse(fs.readFileSync(path.join(dataDir, 'settings.json'))).version, 8);
+  assert.equal(JSON.parse(fs.readFileSync(path.join(dataDir, 'settings.json'))).version, 9);
   // v7 -> v8: one font and one outline switch became the name's and the message's own; both keep the old choice.
   const raid = s.alerts.raid;
   assert.deepEqual([raid.nameFont, raid.textFont, raid.nameShadow, raid.textShadow, 'font' in raid], ['Lalezar', 'Lalezar', false, false, false]);
@@ -116,10 +117,10 @@ test('migration, settings, uploads, reset, events', async () => {
   assert.deepEqual(style(s.alerts.follow), [null, 'theme', true, true, null, 'theme', true, true, true, 38], 'Reset: the theme\'s look again');
   assert.equal(s.alerts.follow.textPos, 'over', 'Reset keeps the text position');
   assert.equal((await call('POST', '/api/alerts/nope/reset-text')).status, 400);
-  // Alert size (every alert): how much of the source it fills, 50% to 100%.
-  assert.equal(s.alertSize, 1);
-  assert.equal((await (await call('PATCH', '/api/settings', { alertSize: 0.5 })).json()).alertSize, 0.5);
-  assert.equal((await call('PATCH', '/api/settings', { alertSize: 1.25 })).status, 400);
+  // v8 -> v9: Alert size is each alert's own (how much of the source it fills, 50% to 100%), starting from the old one.
+  assert.deepEqual([s.alerts.sub.size, s.alerts.raid.size, s.alerts.follow.size, 'alertSize' in s], [0.8, 0.8, 0.8, false]);
+  assert.equal((await (await patch({ size: 0.5 })).json()).alerts.follow.size, 0.5);
+  assert.equal((await patch({ size: 1.25 })).status, 400);
 
   r = await upload('follow', 'image', Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64')); // a real 1 x 1 GIF
   assert.equal(r.status, 200);

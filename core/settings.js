@@ -7,20 +7,17 @@ const store = require('./store');
 const strings = require('../i18n/en.json');
 
 const FILE = path.join(DATA_DIR, 'settings.json');
-const VERSION = 8;
+const VERSION = 9;
 // 'none': no box, background or effects, just the picture and outlined text.
 const THEMES = ['neon', 'minimal', 'fun', 'retro', 'glass', 'fire', 'ice', 'galaxy', 'comic', 'simple', 'none'];
 // App-wide settings (not per alert). showBadge: platform badge on alerts; it still needs both Kick and Twitch connected.
 // alertGap: seconds between two alerts. proxy*: how Jarchi reaches Kick, Twitch and 7TV (core/net.js).
 // kickGoalSync / twitchGoalSync: goals set on the Kick / Twitch channel show that platform's numbers (core/goals.js).
 // welcomed: the panel's welcome tour was shown (it opens by itself once, on the first run).
-// alertSize: how much of the Browser Source the alerts fill (0.5-1; 1 = all of it). A saved size over 1 (from before the
-// alerts filled the source) reads as 1.
-const GLOBAL = { theme: 'neon', showBadge: true, alertGap: 0.5, alertSize: 1, proxyMode: 'system', proxyType: 'http', proxyHost: '', proxyPort: 0, kickGoalSync: true, twitchGoalSync: true, welcomed: false };
+const GLOBAL = { theme: 'neon', showBadge: true, alertGap: 0.5, proxyMode: 'system', proxyType: 'http', proxyHost: '', proxyPort: 0, kickGoalSync: true, twitchGoalSync: true, welcomed: false };
 const GLOBAL_RULES = {
   theme: (v) => THEMES.includes(v),
   showBadge: (v) => typeof v === 'boolean',
-  alertSize: (v) => typeof v === 'number' && v >= 0.5 && v <= 1,
   welcomed: (v) => typeof v === 'boolean',
   kickGoalSync: (v) => typeof v === 'boolean',
   twitchGoalSync: (v) => typeof v === 'boolean',
@@ -67,6 +64,7 @@ const DEFAULTS = Object.fromEntries(TYPES.map((t) => [t, {
   frameRadius: 16,
   textPos: 'below',
   textAlign: 'center',
+  size: 1, // how much of the Browser Source the alert fills (0.5-1; Style tab)
   // Text style (Text tab; Reset text style restores these). The viewer's name (name*) and the rest of the text (text*)
   // each have a color (null = the theme's), a font ('theme' or one of ALERT_FONTS), bold (true = the theme's weight)
   // and the theme's outline/shadow (or none). One size for the whole line: autoSize, the biggest that fits; off:
@@ -105,6 +103,7 @@ const RULES = {
   frameOpacity: num(0, 1),
   frameBorder: hex,
   frameRadius: num(0, 60),
+  size: num(0.5, 1),
   textPos: oneOf('above', 'below', 'over'),
   textAlign: oneOf('left', 'center', 'right'),
   theme: (v) => v === null || THEMES.includes(v),
@@ -340,6 +339,12 @@ if (from < 8) {
     }
     if (a?.textShadow === false) a.nameShadow ??= false;
   }
+}
+if (from < 9) {
+  // v8 -> v9: one Alert size for every alert (at the top of the Alerts page) became each alert's own (Style tab). Each
+  // starts with the old one; a size over 1 (from before the alerts filled the source) was read as 1.
+  if (saved.alertSize < 1) for (const t of TYPES) ((saved.alerts ??= {})[t] ??= {}).size ??= Math.max(saved.alertSize, 0.5);
+  delete saved.alertSize;
 }
 if (from < VERSION) {
   saved.version = VERSION;
