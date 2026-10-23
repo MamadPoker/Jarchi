@@ -800,7 +800,33 @@ main { padding: 24px 28px 64px; container-type: inline-size; } /* editor rules b
 .soon h2 { font-size: 20px; }
 .about img { width: 160px; height: auto; margin-bottom: 8px; }
 .about p { max-width: 460px; margin: 6px 0; }
-.about a { color: var(--gold); font-weight: 700; }
+/* "Made by MamadPoker": on hover (or keyboard focus) it fades into a small box whose thin gold border has a light slowly
+   running around it, and the line reads "Made with ♥ by MamadPoker". Reduce animations: the border, still. */
+@property --made-a { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
+.made-by { position: relative; display: inline-grid; margin: -6px -12px; padding: 6px 12px; border-radius: 10px; color: inherit; text-decoration: none; }
+.made-by > span { grid-area: 1 / 1; transition: opacity 0.45s; }
+.made-by b, .made-by .heart { color: var(--gold); }
+.made-plain b { text-decoration: underline; }
+.made-love, .made-by:hover .made-plain, .made-by:focus-visible .made-plain { opacity: 0; }
+.made-by:hover .made-love, .made-by:focus-visible .made-love { opacity: 1; }
+.made-by::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  padding: 1px; /* the border's width: the mask keeps only this ring of the gradient */
+  border-radius: inherit;
+  background: conic-gradient(from var(--made-a), var(--gold-line) 0 60%, var(--gold) 84%, var(--gold-line));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0;
+  transition: opacity 0.45s;
+  animation: made-spin 10s linear infinite paused;
+}
+.made-by:hover::before, .made-by:focus-visible::before { opacity: 1; animation-play-state: running; }
+@keyframes made-spin { to { --made-a: 360deg; } }
+:root[data-still] .made-by::before { animation: none; background: var(--gold); }
+@media (prefers-reduced-motion: reduce) { .made-by::before { animation: none; background: var(--gold); } }
 
 /* ---------- History: the same rows as the live feed, page buttons ---------- */
 .pager { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 6px; }
