@@ -422,6 +422,7 @@ function update(patch) {
     if (!profile || typeof profile !== 'object') throw bad();
     for (const [k, v] of Object.entries(profile)) if (!PROFILE_RULES[k] || !PROFILE_RULES[k](v)) throw bad();
   }
+  if (patch.privacyAccepted > (saved.privacyAccepted ?? 0)) saved.privacyAcceptedAt = new Date().toISOString(); // when (a newer one)
   for (const k in GLOBAL) if (k in patch) saved[k] = patch[k];
   if (profile) Object.assign((saved.profile ??= {}), profile);
   for (const [type, fields] of alerts) Object.assign(overrides(type), fields);
@@ -558,6 +559,17 @@ function resetChatStyle() {
   return get();
 }
 
+// The usage ping's (core/stats.js): this install's random id, made the first time it's asked for and kept through
+// Reset everything; when the Privacy Policy accepted was accepted (ISO, UTC), or null. Neither is in get().
+function installId() {
+  if (!saved.installId) {
+    saved.installId = crypto.randomUUID();
+    persist();
+  }
+  return saved.installId;
+}
+const privacyAcceptedAt = () => saved.privacyAcceptedAt ?? null;
+
 // No type = reset everything.
 function reset(type) {
   if (type !== undefined && !TYPES.includes(type)) throw bad();
@@ -570,7 +582,7 @@ function reset(type) {
   if (!type) {
     for (const id of GOAL_IDS) removeFile(saved.goals?.[id]?.sound);
     removeFile(saved.profile?.picture);
-    saved = { version: VERSION };
+    saved = { version: VERSION, ...(saved.installId && { installId: saved.installId }) }; // still the same install
   }
   persist();
   return get();
@@ -578,6 +590,6 @@ function reset(type) {
 
 module.exports = {
   get, update, saveUpload, removeUpload, reset, saveGoalSound, removeGoalSound, saveProfilePicture, resetGoalStyle, resetChatStyle,
-  resetAlertText, setTier, saveTierFile, removeTierFile, sniff,
+  resetAlertText, setTier, saveTierFile, removeTierFile, sniff, installId, privacyAcceptedAt,
   GOAL_IDS, GOAL_STYLES, CHAT_STYLES, CHAT_FONTS, FONTS, KICK_GIFTS,
 };

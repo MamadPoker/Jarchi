@@ -22,6 +22,7 @@ fs.writeFileSync(path.join(dataDir, 'feed.json'), JSON.stringify([{ id: 'old', t
 fs.writeFileSync(path.join(dataDir, 'today.json'), JSON.stringify({ date: new Date().toDateString(), alerts: 5, chat: 7 }));
 process.env.JARCHI_DATA_DIR = dataDir;
 process.env.JARCHI_PORT = '3999';
+process.env.KICK_RELAY_URL = 'http://127.0.0.1:9'; // nothing there: accepting the Privacy Policy below pings no real relay
 const { server, io } = require('../server');
 const { bus, setConnected, emitEvent } = require('../core/events');
 const goals = require('../core/goals');

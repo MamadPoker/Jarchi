@@ -171,15 +171,31 @@ ipcMain.on('app:uninstall', (e, keep) => {
 if (!app.requestSingleInstanceLock()) app.quit(); // one Jarchi at a time: the first one shows its window instead
 else {
   app.on('second-instance', show);
-  app.on('before-quit', () => { quitting = true; });
+  // Quitting waits for the server's last usage ping (core/stats.js; none without the Privacy Policy), 2.5 s at most.
+  let server, bye = false;
+  app.on('before-quit', (e) => {
+    quitting = true;
+    if (bye || !server) return;
+    bye = true;
+    e.preventDefault();
+    const go = () => {
+      clearTimeout(late);
+      app.quit();
+    };
+    const late = setTimeout(go, 2500);
+    server.on('message', (m) => m === 'bye' && go());
+    server.postMessage('quit');
+  });
   app.whenReady().then(() => {
     // In its own process, the server's work (chat, alerts, files, the widgets' requests) never holds up the window. It
     // says when it's listening. If it stops (e.g. `npm start` already has the port), so does the app, with the server's
     // last error lines in a message: there's no console here.
     // Its output is piped, never 'inherit': started from a shortcut, Jarchi has no stdout, and handing that missing
     // handle to the server crashes the app at once (Chromium: "Check failed: The handle is invalid"). Echoed, it shows
-    // in a terminal as before; with no console, Node drops it.
-    const server = utilityProcess.fork(path.join(ROOT, 'server/index.js'), [], { serviceName: 'Jarchi server', stdio: ['ignore', 'pipe', 'pipe'] });
+    // in a terminal as before; with no console, Node drops it. JARCHI_INSTALLED: the usage ping says installed app or not.
+    server = utilityProcess.fork(path.join(ROOT, 'server/index.js'), [], {
+      serviceName: 'Jarchi server', stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, JARCHI_INSTALLED: installed() ? '1' : '' },
+    });
     server.stdout.on('data', (d) => process.stdout.write(d));
     let errors = '';
     server.stderr.on('data', (d) => {
@@ -191,6 +207,7 @@ else {
       if (app.isPackaged) updates();
     });
     server.on('exit', (code) => {
+      server = null;
       if (quitting) return;
       dialog.showErrorBox('Jarchi', `Jarchi stopped (code ${code}).\n\n${errors}`.trim());
       app.quit();

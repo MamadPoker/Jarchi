@@ -37,6 +37,9 @@ function set(next) {
 }
 const fail = (code) => Object.assign(new Error(code), { code });
 const post = (url, body) => fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body), signal: AbortSignal.timeout(10000) });
+// ponytail: a Kick channel's slug is its account name made lowercase, _ as -, like kick.com does; if one ever doesn't
+// match, ask Kick for it (GET /public/v1/channels).
+const slug = (name) => name.toLowerCase().replace(/_/g, '-');
 function keep(fields) {
   saved = { ...saved, ...fields };
   store.save(FILE, saved);
@@ -218,8 +221,19 @@ function handle(type, d) {
   kickChat.official(type, d, { onAlert: (a) => emitEvent({ ...a, platform: 'kick' }) });
 }
 
+// Live now? The channel's livestream on Kick's website API (kickGet, as chat reads it); null when Kick doesn't say.
+async function live() {
+  if (!saved.refresh || !saved.login) return null;
+  try {
+    const { status, json } = await kickChat.kickGet(`/api/v2/channels/${encodeURIComponent(slug(saved.login))}`);
+    return status === 200 ? Boolean(json?.livestream?.is_live) : null;
+  } catch {
+    return null;
+  }
+}
+
 setInterval(() => ws?.readyState === WebSocket.OPEN && ws.send('ping'), 30000).unref();
 // Every hour: the login still works (one Kick no longer takes ends it: refresh() -> forget()), and still subscribed.
 setInterval(() => st.state === 'connected' && subscribe().catch(() => {}), 3600000).unref();
 
-module.exports = { status, login, callback, disconnect, start, handle, events: account };
+module.exports = { status, login, callback, disconnect, start, handle, live, slug, RELAY, events: account };

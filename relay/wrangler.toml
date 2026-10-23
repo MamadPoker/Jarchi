@@ -11,3 +11,9 @@ class_name = "Room"
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = ["Room"]
+
+# Usage pings (POST /ping): one row per install, see schema.sql.
+[[d1_databases]]
+binding = "DB"
+database_name = "jarchi-stats"
+database_id = "510ef77f-2683-4c97-917b-637415415be6"

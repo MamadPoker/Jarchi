@@ -13,6 +13,7 @@ const chat = require('../core/chat');
 const alertQueue = require('../core/alerts');
 const twitchAccount = require('../connectors/twitch-account');
 const kickAccount = require('../connectors/kick-account');
+const stats = require('../core/stats');
 const strings = require('../i18n/en.json');
 
 const ROOT = path.join(__dirname, '..');
@@ -48,6 +49,7 @@ app.get('/api/accent', (req, res) => execFile('reg', ['query', 'HKCU\\Software\\
 }));
 app.patch('/api/settings', (req, res) => {
   const s = settings.update(req.body);
+  if ('privacyAccepted' in req.body) stats.ping(); // the Privacy Policy accepted just now: the first usage ping
   for (const [id, fields] of Object.entries(req.body.goals ?? {})) if ('target' in fields) goals.retarget(id);
   // Widgets switch between Kick's / Twitch's numbers and their own.
   if ('kickGoalSync' in req.body || 'twitchGoalSync' in req.body) goals.refresh();
@@ -254,10 +256,8 @@ const accountLogin = { kick: kickAccount.status().login, twitch: twitchAccount.s
 function fillChannel(platform, login) {
   const key = `${platform}Channel`;
   if (!login || settings.get().chat[key]) return;
-  // ponytail: Kick's channel is the account name made a slug (lowercase, _ as -), like kick.com does; if one ever
-  // doesn't match, ask Kick for it (GET /public/v1/channels).
   try {
-    changed(settings.update({ chat: { [key]: platform === 'kick' ? login.toLowerCase().replace(/_/g, '-') : login } }));
+    changed(settings.update({ chat: { [key]: platform === 'kick' ? kickAccount.slug(login) : login } }));
   } catch {
     return; // a name the channel rules don't take: left empty
   }
@@ -292,6 +292,10 @@ server.listen(PORT, HOST, () => {
   twitchAccount.start(); // and the Twitch and Kick accounts, when they're connected
   kickAccount.start();
   media.shrinkOld().catch(console.error); // uploads from before the 512 px rule, once
+  stats.start(); // usage pings, once the Privacy Policy is accepted
 });
+// Quitting: the last usage ping, then goodbye. The desktop app asks first (electron/main.js); `npm start` gets Ctrl+C.
+process.parentPort?.on('message', (e) => e.data === 'quit' && stats.ping(false).finally(() => process.parentPort.postMessage('bye')));
+process.once('SIGINT', () => stats.ping(false).finally(() => process.exit(130)));
 
 module.exports = { app, server, io };

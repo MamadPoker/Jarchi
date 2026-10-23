@@ -6,7 +6,9 @@
 //   POST /token     Jarchi's code (with its PKCE verifier) or refresh token -> Kick's tokens, the secret added here
 //   POST /webhook   Kick's events: the signature is checked, then each goes to its channel's Room
 //   GET  /ws        Jarchi's WebSocket: the Kick token it sends says whose channel it is, and it joins that Room
-// Nothing is stored: an event goes to the sockets open right now, or nowhere.
+// Nothing of that is stored: an event goes to the sockets open right now, or nowhere.
+//   POST /ping      Jarchi's usage ping (core/stats.js, only once its Privacy Policy is accepted): one row per install
+//                   in the D1 database DB (schema.sql). No IP address or anything else about the request is kept.
 // Settings (secrets): KICK_CLIENT_ID, KICK_CLIENT_SECRET. Deploy: see README.md here.
 const KICK_ID = 'https://id.kick.com';
 const KICK_API = 'https://api.kick.com/public/v1';
@@ -27,6 +29,7 @@ export default {
       case '/token': return req.method === 'POST' ? token(req, url, env) : text('POST only', 405);
       case '/webhook': return req.method === 'POST' ? webhook(req, env) : text('POST only', 405);
       case '/ws': return socket(req, env);
+      case '/ping': return req.method === 'POST' ? ping(req, env) : text('POST only', 405);
     }
     return text('Not found', 404);
   },
@@ -106,6 +109,66 @@ async function socket(req, env) {
   const me = r.ok && (await r.json().catch(() => null))?.data?.[0]?.user_id;
   if (!me) return text('Unauthorized', 401);
   return room(env, me).fetch(req);
+}
+
+// ---------- Usage pings ----------
+// A ping is exactly { id, version, installed, open, kick, twitch, privacy: { version, acceptedAt } } (kick / twitch:
+// { name, picture, live } or null), at most PING_BYTES; anything else is refused. Each install gets PING_MAX pings in
+// PING_WINDOW_MS (Jarchi sends one every 5 minutes, plus start and quit). Times are ISO 8601 in UTC.
+const PING_BYTES = 2048, PING_MAX = 10, PING_WINDOW_MS = 10 * 60 * 1000;
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+const ISO = /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$/;
+const exactly = (o, keys) => !!o && typeof o === 'object' && !Array.isArray(o) && Object.keys(o).length === keys.length && keys.every((k) => Object.hasOwn(o, k));
+const bool = (v) => typeof v === 'boolean';
+const channelOk = (c) => c === null || (exactly(c, ['name', 'picture', 'live']) && typeof c.name === 'string' && /^[^\p{C}]{1,50}$/u.test(c.name)
+  && typeof c.picture === 'string' && (c.picture === '' || /^https:\/\/\S{1,490}$/.test(c.picture)) && (c.live === null || bool(c.live)));
+const pingOk = (p) => exactly(p, ['id', 'version', 'installed', 'open', 'kick', 'twitch', 'privacy']) && typeof p.id === 'string' && UUID.test(p.id)
+  && typeof p.version === 'string' && /^\d{1,4}\.\d{1,4}\.\d{1,4}(-[\w.]{1,20})?$/.test(p.version) && bool(p.installed) && bool(p.open)
+  && channelOk(p.kick) && channelOk(p.twitch) && exactly(p.privacy, ['version', 'acceptedAt']) && Number.isInteger(p.privacy.version)
+  && p.privacy.version >= 1 && p.privacy.version <= 1000
+  && (p.privacy.acceptedAt === null || (typeof p.privacy.acceptedAt === 'string' && ISO.test(p.privacy.acceptedAt) && !Number.isNaN(Date.parse(p.privacy.acceptedAt))));
+// New install: first_seen = last_seen = now. Known one: everything but first_seen, unless it's over its pings in this
+// window (then nothing changes: no row changed means 429).
+const UPSERT = `INSERT INTO installs (id, first_seen, last_seen, version, installed, is_open, kick_name, kick_picture, kick_live,
+  twitch_name, twitch_picture, twitch_live, privacy_version, privacy_accepted_at, window_start, window_pings)
+VALUES (?1, ?2, ?2, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?3, 1)
+ON CONFLICT (id) DO UPDATE SET last_seen = excluded.last_seen, version = excluded.version, installed = excluded.installed,
+  is_open = excluded.is_open, kick_name = excluded.kick_name, kick_picture = excluded.kick_picture, kick_live = excluded.kick_live,
+  twitch_name = excluded.twitch_name, twitch_picture = excluded.twitch_picture, twitch_live = excluded.twitch_live,
+  privacy_version = excluded.privacy_version, privacy_accepted_at = excluded.privacy_accepted_at,
+  window_start = CASE WHEN ?3 - window_start >= ?15 THEN ?3 ELSE window_start END,
+  window_pings = CASE WHEN ?3 - window_start >= ?15 THEN 1 ELSE window_pings + 1 END
+WHERE ?3 - installs.window_start >= ?15 OR installs.window_pings < ?16`;
+
+// The body as text, or null past max bytes (read no further).
+async function capped(stream, max) {
+  if (!stream) return '';
+  const reader = stream.getReader(), dec = new TextDecoder();
+  let size = 0, out = '';
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) return out + dec.decode();
+    if ((size += value.length) > max) {
+      reader.cancel().catch(() => {});
+      return null;
+    }
+    out += dec.decode(value, { stream: true });
+  }
+}
+
+async function ping(req, env) {
+  if (!/^application\/json\b/i.test(req.headers.get('content-type') ?? '')) return text('JSON only', 415);
+  if (Number(req.headers.get('content-length')) > PING_BYTES) return text('Too large', 413);
+  const body = await capped(req.body, PING_BYTES);
+  if (body === null) return text('Too large', 413);
+  let p;
+  try { p = JSON.parse(body); } catch { return text('Bad request', 400); }
+  if (!pingOk(p)) return text('Bad request', 400);
+  const now = Date.now(), bit = (v) => (v === null || v === undefined ? null : Number(v));
+  const { meta } = await env.DB.prepare(UPSERT).bind(p.id, new Date(now).toISOString(), now, p.version, bit(p.installed), bit(p.open),
+    p.kick?.name ?? null, p.kick?.picture ?? null, bit(p.kick?.live), p.twitch?.name ?? null, p.twitch?.picture ?? null, bit(p.twitch?.live),
+    p.privacy.version, p.privacy.acceptedAt, PING_WINDOW_MS, PING_MAX).run();
+  return meta.changes ? text('ok') : text('Too many pings', 429);
 }
 
 // One channel: the Jarchi sockets open for it (usually one), handed each of its events. Hibernates between them; the
