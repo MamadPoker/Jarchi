@@ -43,6 +43,16 @@ function saveBounds() {
 const own = (url) => URL.canParse(url) && new URL(url).origin === ORIGIN;
 const outside = (url) => /^https?:/i.test(url) && shell.openExternal(url);
 
+// The title bar is the panel's own (panel.css .titlebar: the logo and the name, for dragging the window); Windows keeps
+// its minimize / maximize / close buttons on it, in the bar's color, which the panel gives as its theme-color on every
+// look change. Symbols: black on a light bar, white on a dark one.
+const BAR = { height: 36, color: '#0c1817', symbolColor: '#ffffff' }; // until the panel says (Jarchi's dark sidebar)
+function tintBar(e, color) {
+  if (!color || process.platform === 'darwin') return; // macOS keeps its own traffic lights
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(color.slice(i, i + 2), 16));
+  win.setTitleBarOverlay({ color, symbolColor: 0.299 * r + 0.587 * g + 0.114 * b > 150 ? '#000000' : '#ffffff' });
+}
+
 function open() {
   const { maximized, ...bounds } = savedBounds();
   win = new BrowserWindow({
@@ -50,8 +60,11 @@ function open() {
     title: 'Jarchi',
     icon: path.join(ROOT, 'assets/brand/icons', process.platform === 'win32' ? 'jarchi.ico' : 'jarchi-256.png'), // the logo, square: every size sharp
     autoHideMenuBar: true,
+    titleBarStyle: 'hidden',
+    titleBarOverlay: BAR,
     show: false,
   });
+  win.webContents.on('did-change-theme-color', tintBar);
   win.on('page-title-updated', (e) => e.preventDefault()); // the panel names its tab; the window stays "Jarchi"
   win.once('ready-to-show', () => (maximized ? win.maximize() : win.show()));
   win.on('close', (e) => {

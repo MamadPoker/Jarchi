@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Jarchi</title>
   <link rel="icon" href="/assets/brand/icons/jarchi.ico">
+  <meta name="theme-color" content="#0c1817"><!-- the title bar's color (panel.js), for the desktop app's window buttons -->
   <link rel="stylesheet" href="panel.css">
   <!-- The look kept by panel.js (mode, color theme and System's accent, text size, background art, Reduce animations), set before the first
        paint so a light panel doesn't flash dark. System without an accent color is Jarchi. -->
@@ -20,6 +21,8 @@
   } catch {}</script>
 </head>
 <body>
+  <!-- The desktop app's title bar (no height in a browser): drag it to move the window; Windows' buttons sit on its right. -->
+  <header class="titlebar" dir="ltr" aria-hidden="true"><img src="/assets/brand/icons/jarchi-32.png" alt="">Jarchi</header>
   <!-- Background art (Appearance): faint icons and the streamer's pictures behind everything (panel.js fills it). -->
   <div id="bgArt" class="bg-art" aria-hidden="true"></div>
   <div class="app">

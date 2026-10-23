@@ -76,6 +76,11 @@ setInterval(watchAccent, 4000);
 addEventListener('focus', watchAccent);
 applyLook();
 readAccent();
+// The desktop app colors its window buttons like the title bar: its color as the page's theme-color (electron/main.js),
+// again whenever <html> changes look (mode, color theme, the accent, a theme previewed on Appearance).
+const tintTitleBar = () => ($('meta[name=theme-color]').content = getComputedStyle($('.titlebar')).backgroundColor);
+new MutationObserver(tintTitleBar).observe(document.documentElement, { attributes: true });
+tintTitleBar();
 // Persian digits (and ٪ ٫) in labels; inputs keep theirs.
 const fd = (v) => (FA ? String(v).replace(/(?<=\d)\.(?=\d)/g, '٫').replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[d]).replace(/%/g, '٪') : String(v));
 const fmt = (n) => n.toLocaleString(FA ? 'fa-IR' : undefined);
@@ -1722,7 +1727,7 @@ let art = [], artPics = [], artChannels, artMouse = null, artFrame = 0, artLast 
 // Where the items go: beside the sidebar (all the width on a narrow window, where the sidebar is a bar on top), below
 // the top bar, a little in from the edges. Nothing behind the sidebar: it would barely show through.
 function artArea() {
-  const s = $('.side').getBoundingClientRect(), beside = s.height >= innerHeight - 1;
+  const s = $('.side').getBoundingClientRect(), beside = s.bottom >= innerHeight - 1; // down to the bottom (under the app's title bar)
   const x = beside && s.left < innerWidth / 2 ? s.right : 0, w = beside ? innerWidth - s.width : innerWidth;
   area = { x: x + 24, y: 70, w: Math.max(1, w - 48), h: Math.max(1, innerHeight - 94) };
 }
