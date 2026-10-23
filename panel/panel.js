@@ -1341,7 +1341,7 @@ function build() {
   wireTour();
 
   $$('[data-i18n]').forEach((e) => (e.textContent = S.panel[e.dataset.i18n]));
-  const [madeA, madeB] = S.panel.madeWith.split('{heart}'); // About's "Made by" line on hover, the heart in gold
+  const [madeA, madeB] = S.panel.madeWith.split('{heart}'); // About's "Made with ♥ by MamadPoker", the heart in gold
   $('#madeWith').append(madeA, el('span', { className: 'heart', textContent: '♥' }), madeB, ' ', el('b', { textContent: 'MamadPoker' }));
   $$('[data-title]').forEach((e) => e.setAttribute('aria-label', (e.title = S.panel[e.dataset.title])));
   $$('[data-aria]').forEach((e) => e.setAttribute('aria-label', S.panel[e.dataset.aria]));
