@@ -1342,6 +1342,7 @@ function build() {
   twoClick($('#resetAll'), $('#resetAll'), S.panel.resetAll, S.panel.confirmResetAll, () => send('POST', '/api/reset'));
   wireProfile();
   wireTour();
+  wireUpdate();
 
   $$('[data-i18n]').forEach((e) => (e.textContent = S.panel[e.dataset.i18n]));
   const [madeA, madeB] = S.panel.madeWith.split('{heart}'); // About's "Made with ♥ by MamadPoker", the heart in gold
@@ -1549,6 +1550,49 @@ function paintChip(box, pr) {
 function renderProfile() {
   paintChip($('#profileChip'), profileOf(settings.profile));
   if ($('#profileDialog').open) renderProfileDialog();
+}
+
+// The desktop app's updates (electron/preload.js; nothing in a browser or with `npm run app`): { ready, installed }
+// from electron/main.js. ready = a downloaded update { version, notes }: the banner (until its ✕), the sidebar button
+// and About's dot. installed = the update Jarchi just came from: What's new, until "Got it".
+let update = {}, updateClosed;
+const short = (v) => v.replace(/\.0$/, ''); // 1.1.0 -> 1.1
+// The notes are build/release-notes.md as written (the release's latest.yml), or GitHub's HTML of the release without
+// it: shown as plain text either way, line by line (.notes).
+function whatsNew({ version, notes }) {
+  $('#whatsNewTitle').textContent = S.panel.whatsNewIn.replace('{version}', short(version));
+  $('#whatsNewNotes').textContent = new DOMParser().parseFromString(notes, 'text/html').body.textContent.trim();
+  $('#whatsNew').showModal();
+}
+function renderUpdate() {
+  const { ready } = update;
+  $('#updateBar').hidden = !ready || updateClosed === ready.version;
+  $('#updateSide').hidden = $('#updateDot').hidden = !ready;
+  if (ready) {
+    $('#updateText').textContent = S.panel.updateReady.replace('{version}', short(ready.version));
+    $('#updateSide b').textContent = S.panel.updateTo.replace('{version}', short(ready.version));
+  }
+  if (update.installed && !$('#whatsNew').open) whatsNew(update.installed);
+}
+function wireUpdate() {
+  const app = window.jarchiApp;
+  if (!app) return;
+  $('#updateRestart').onclick = $('#updateSide').onclick = () => app.restart();
+  $('#updateNotes').onclick = () => whatsNew(update.ready);
+  $('#updateClose').onclick = () => {
+    updateClosed = update.ready.version;
+    renderUpdate();
+  };
+  $('#whatsNewOk').onclick = () => $('#whatsNew').close();
+  $('#whatsNew').onclose = () => {
+    if (!update.installed) return;
+    update.installed = null;
+    app.seen();
+  };
+  app.onUpdate((s) => {
+    update = s;
+    renderUpdate();
+  });
 }
 
 let draft, crop; // Edit profile: the profile being edited, the picture being cropped { img, zoom, x, y, out, url }

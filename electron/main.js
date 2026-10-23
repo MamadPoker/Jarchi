@@ -3,7 +3,7 @@
 // the window renders like Chrome does, on the GPU Windows picks for it.
 const path = require('node:path');
 const fs = require('node:fs');
-const { app, BrowserWindow, Tray, Menu, clipboard, dialog, screen, shell, utilityProcess } = require('electron');
+const { app, BrowserWindow, Tray, Menu, Notification, clipboard, dialog, ipcMain, screen, shell, utilityProcess } = require('electron');
 
 const ROOT = path.join(__dirname, '..');
 // From source the data stays in ./data like `npm start`; an installed app keeps it in the user's app data folder.
@@ -63,8 +63,10 @@ function open() {
     titleBarStyle: 'hidden',
     titleBarOverlay: BAR,
     show: false,
+    webPreferences: { preload: path.join(__dirname, 'preload.js') },
   });
   win.webContents.on('did-change-theme-color', tintBar);
+  win.webContents.on('did-finish-load', sendUpdate);
   win.on('page-title-updated', (e) => e.preventDefault()); // the panel names its tab; the window stays "Jarchi"
   win.once('ready-to-show', () => (maximized ? win.maximize() : win.show()));
   win.on('close', (e) => {
@@ -97,6 +99,61 @@ function open() {
   tray.on('double-click', show);
 }
 
+// Updates, only in the installed app (`npm run app` has none): electron-updater looks for a newer release on GitHub
+// (package.json build.publish: MamadPoker/Jarchi-releases) at start and every 4 hours, and downloads it in the
+// background. It's installed only on Restart now (the panel's banner or sidebar button, or the notification shown
+// while the window is in the tray), never by itself while Jarchi runs; quitting Jarchi installs it without starting
+// it again (electron-updater's autoInstallOnAppQuit).
+// The panel gets { ready, installed } (preload.js): ready = the downloaded update { version, notes } (its release notes),
+// installed = the update this copy came from, until its "What's new" is seen. NOTES_FILE carries the notes over the
+// restart.
+const NOTES_FILE = path.join(DATA_DIR, 'update.json');
+const update = { ready: null, installed: null };
+const short = (v) => v.replace(/\.0$/, ''); // 1.1.0 -> 1.1
+let updater;
+
+function sendUpdate() {
+  win?.webContents.send('update', update);
+}
+const restart = () => updater.quitAndInstall(true, true); // silent install, then Jarchi starts again
+
+async function notify(version) {
+  const lang = await win.webContents.executeJavaScript("localStorage.getItem('jarchi.lang')").catch(() => null);
+  const S = JSON.parse(fs.readFileSync(path.join(ROOT, 'i18n', `${lang === 'fa' ? 'fa' : 'en'}.json`), 'utf8'));
+  const n = new Notification({ title: 'Jarchi', body: S.panel.updateNotice.replace('{version}', short(version)) });
+  n.on('click', restart);
+  n.show();
+}
+
+function updates() {
+  app.setAppUserModelId('com.mamadpoker.jarchi'); // package.json build.appId: the Start menu shortcut's, so Windows shows the notification
+  try {
+    const saved = JSON.parse(fs.readFileSync(NOTES_FILE, 'utf8'));
+    if (saved.version === app.getVersion()) update.installed = saved;
+  } catch {}
+  ipcMain.on('update:restart', restart);
+  ipcMain.on('update:seen', () => {
+    update.installed = null;
+    if (!update.ready) fs.rmSync(NOTES_FILE, { force: true }); // else it holds the next update's notes by now
+    sendUpdate();
+  });
+
+  ({ autoUpdater: updater } = require('electron-updater'));
+  updater.on('error', (err) => console.warn('Update:', err.message)); // offline, GitHub down: the next check tries again
+  updater.on('update-downloaded', ({ version, releaseNotes }) => {
+    if (update.ready?.version === version) return; // each 4-hourly check finds the same download again
+    update.ready = { version, notes: typeof releaseNotes === 'string' ? releaseNotes : '' };
+    try {
+      fs.writeFileSync(NOTES_FILE, JSON.stringify(update.ready));
+    } catch {}
+    sendUpdate();
+    if (!win.isVisible()) notify(version);
+  });
+  const check = () => updater.checkForUpdates().catch(() => {});
+  check();
+  setInterval(check, 4 * 3600e3);
+}
+
 if (!app.requestSingleInstanceLock()) app.quit(); // one Jarchi at a time: the first one shows its window instead
 else {
   app.on('second-instance', show);
@@ -111,7 +168,10 @@ else {
       process.stderr.write(d);
       errors = (errors + d).slice(-1500);
     });
-    server.once('message', open);
+    server.once('message', () => {
+      open();
+      if (app.isPackaged) updates();
+    });
     server.on('exit', (code) => {
       if (quitting) return;
       dialog.showErrorBox('Jarchi', `Jarchi stopped (code ${code}).\n\n${errors}`.trim());

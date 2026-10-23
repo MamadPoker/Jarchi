@@ -187,6 +187,8 @@ relay/               Jarchi's Kick relay (Cloudflare Worker): Kick's login and f
 assets/              official platform logos (platform-logos), Kick badge icons (kick-badges), Kick default profile pictures (kick-avatars), OG hats (og-hats), bundled fonts (fonts)
 widgets/<name>/      each widget is a folder, served at /widgets/<name>
 panel/               settings panel (served at /)
+electron/            the desktop app: window, tray, updates (main.js), the panel's update bridge (preload.js)
+build/               installer additions (installer.nsh) and the next release's notes (release-notes.md)
 i18n/en.json         every UI string, panel and overlay (overlays always use it)
 i18n/fa.json         the panel in Persian (same keys)
 ```
@@ -199,6 +201,17 @@ Every event, whatever its source, looks like this:
 ```
 
 Connectors only call `emitEvent()` (with an optional `key`: a repeat of the same key within 6 hours is dropped). Widgets only listen on the socket: `event`, `settings`, `goals` and (chat) `chat` / `chatClear`. The alerts overlay sends `alertsJoin` and then gets `alert` / `alertSkip` from the queue.
+
+## Windows installer and updates
+
+```sh
+npm run dist      # builds dist/Jarchi-Setup-<version>.exe on this PC
+npm run release   # builds it and publishes it as a release on github.com/MamadPoker/Jarchi-releases
+```
+
+For a release: raise `version` in `package.json`, write what changed in `build/release-notes.md` (the app shows it in "What's new" as plain text, line by line: no markdown formatting), then run `npm run release` with a GitHub token in `GH_TOKEN` (PowerShell: `$env:GH_TOKEN = "github_pat_…"; npm run release`). The token is a fine-grained one with access to Jarchi-releases only, **Contents: Read and write**. Never put it in a file in this repo.
+
+The installed app looks for a newer release at start and every 4 hours, downloads it in the background and installs it only when the streamer clicks **Restart now** (or quits Jarchi). `npm run app` never updates. The installer is per user (no admin rights), its options are in `package.json` `build` and `build/installer.nsh`. The data stays in `%APPDATA%\Jarchi`, so updates and reinstalls keep it; uninstalling asks.
 
 ## Tests
 

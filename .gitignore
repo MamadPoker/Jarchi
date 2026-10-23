@@ -4,3 +4,4 @@ data/
 *.log
 .claude/settings.local.json
 .wrangler/
+dist/

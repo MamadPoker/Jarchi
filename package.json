@@ -1,14 +1,18 @@
 {
   "name": "jarchi",
-  "version": "0.1.0",
+  "productName": "Jarchi",
+  "version": "1.0.0",
   "private": true,
   "description": "Stream alerts (and later more widgets) for OBS. Runs locally on your own PC.",
+  "author": "MamadPoker",
   "main": "electron/main.js",
   "type": "commonjs",
   "scripts": {
     "start": "node server/index.js",
     "app": "electron .",
-    "test": "node --test"
+    "test": "node --test",
+    "dist": "electron-builder --win --publish never",
+    "release": "electron-builder --win --publish always"
   },
   "engines": {
     "node": ">=20.18.1"
@@ -19,12 +23,45 @@
   },
   "homepage": "https://github.com/MamadPoker/Jarchi",
   "dependencies": {
+    "electron-updater": "^6.8.9",
     "express": "^5.2.1",
     "sharp": "^0.34.5",
     "socket.io": "^4.8.4",
     "undici": "^7.30.0"
   },
   "devDependencies": {
-    "electron": "^45.0.0"
+    "electron": "^45.0.0",
+    "electron-builder": "^26.15.3"
+  },
+  "build": {
+    "appId": "com.mamadpoker.jarchi",
+    "files": [
+      "electron/**",
+      "server/**",
+      "core/**",
+      "connectors/**",
+      "panel/**",
+      "widgets/**",
+      "assets/**",
+      "i18n/**"
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "assets/brand/icons/jarchi.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "artifactName": "Jarchi-Setup-${version}.${ext}",
+      "installerLanguages": [
+        "en_US"
+      ]
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "MamadPoker",
+      "repo": "Jarchi-releases",
+      "releaseType": "release"
+    }
   }
 }
