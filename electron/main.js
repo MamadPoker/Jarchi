@@ -162,7 +162,11 @@ else {
     // In its own process, the server's work (chat, alerts, files, the widgets' requests) never holds up the window. It
     // says when it's listening. If it stops (e.g. `npm start` already has the port), so does the app, with the server's
     // last error lines in a message: there's no console here.
-    const server = utilityProcess.fork(path.join(ROOT, 'server/index.js'), [], { serviceName: 'Jarchi server', stdio: ['ignore', 'inherit', 'pipe'] });
+    // Its output is piped, never 'inherit': started from a shortcut, Jarchi has no stdout, and handing that missing
+    // handle to the server crashes the app at once (Chromium: "Check failed: The handle is invalid"). Echoed, it shows
+    // in a terminal as before; with no console, Node drops it.
+    const server = utilityProcess.fork(path.join(ROOT, 'server/index.js'), [], { serviceName: 'Jarchi server', stdio: ['ignore', 'pipe', 'pipe'] });
+    server.stdout.on('data', (d) => process.stdout.write(d));
     let errors = '';
     server.stderr.on('data', (d) => {
       process.stderr.write(d);
