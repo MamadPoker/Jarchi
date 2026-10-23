@@ -92,7 +92,7 @@ let view = 'home', cur = 'follow', curGoal = 'subs', topic = 'start'; // the ope
 let queue = { paused: false, overlays: 0, waiting: 0, now: null }; // the alert queue (follows the socket)
 let home, open = {}, feedFilter = 'all'; // Home: { today, started, kickGoals } (/api/home, then the socket), widget pages open now (socket)
 let hist = { list: [], filter: 'all', page: 0 }; // every saved event (/api/history, then the socket): Home's live feed and History; History's filter and page
-let twitch; // the Twitch account: { state, error, code, uri, clientId, login, goals } (/api/twitch, then the socket)
+let twitch; // the Twitch account: { state, error, code, uri, login, goals } (/api/twitch, then the socket)
 let kick; // the Kick account: { state, error, uri, login } (/api/kick, then the socket)
 let privacy; // the Privacy Policy: { version, en, fa } (i18n/privacy.json)
 let showGoalTab; // the Goals list's Kick | Twitch tab (wireTabs, in build())
@@ -1273,10 +1273,9 @@ function build() {
     if (view === 'home') renderHome();
   });
 
-  // Connections: the Twitch account. The Client ID (Jarchi's own unless changed) saves when it's changed; Connect shows
-  // Twitch's code until the streamer approves it on Twitch. Home's Twitch tab shows the Twitch channel's goals.
+  // Connections: the Twitch account. Connect shows Twitch's code until the streamer approves it on Twitch. Home's Twitch
+  // tab shows the Twitch channel's goals.
   const twitchCall = (method, url, body) => api(method, url, body).then((t) => { twitch = t; render(); return t; }, (err) => toast(err.message, true));
-  $('#twClientId').onchange = (e) => twitchCall('PATCH', '/api/twitch', { clientId: e.target.value.trim() }).then((t) => t && toast(S.panel.saved));
   $('#twConnect').onclick = () => twitchCall('POST', '/api/twitch/connect');
   $('#twDisconnect').onclick = () => twitchCall('POST', '/api/twitch/disconnect');
   $('#twOpen').onclick = () => window.open(twitch.uri, '_blank', 'noopener');
@@ -1568,9 +1567,6 @@ function renderTwitch() {
   $('#twDisconnect').textContent = S.panel[t.state === 'waiting' ? 'twCancel' : 'twDisconnect'];
   $('#twWait').hidden = t.state !== 'waiting';
   $('#twCode').textContent = t.code;
-  const id = $('#twClientId');
-  if (id !== document.activeElement) id.value = t.clientId;
-  id.readOnly = on; // a login belongs to the app it was made with
   renderConnWarn();
 }
 

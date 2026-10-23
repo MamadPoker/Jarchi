@@ -10,6 +10,8 @@ const path = require('node:path');
 const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'jarchi-twitch-'));
 process.env.JARCHI_DATA_DIR = dataDir;
 const file = () => JSON.parse(fs.readFileSync(path.join(dataDir, 'twitch.json'), 'utf8'));
+// A Client ID of the streamer's own Twitch app, set by hand in data/twitch.json (the panel has nothing for it).
+fs.writeFileSync(path.join(dataDir, 'twitch.json'), JSON.stringify({ clientId: 'abc123' }));
 
 // Fake Twitch. Access token A1 is refused by the Helix API (401), so the first subscriptions refresh it; a refresh token
 // works once, like a Public app's.
@@ -62,17 +64,13 @@ const subscriptions = () => calls.filter((c) => c.path === '/helix/eventsub/subs
 const notify = (s, type, event) => s.say('notification', { subscription: { type }, event });
 
 test('Twitch account: code login, refresh, follows, goals, reconnect, disconnect', async () => {
-  // Nothing saved: off, with Jarchi's own Client ID (the panel is told '', never Jarchi's ID). Another one can be set
-  // (here: for the rest of the test).
-  assert.deepEqual([account.status().state, account.status().clientId], ['off', '']);
-  assert.throws(() => account.setClientId('not an id!'));
-  account.setClientId(' abc123 ');
-  assert.equal(file().clientId, 'abc123');
+  // Not logged in: off. The Client ID set by hand is used (below) and never told to the panel.
+  assert.equal(account.status().state, 'off');
+  assert.ok(!('clientId' in account.status()));
 
   // Connect: Twitch's code on screen, asked again while "pending", then tokens -> who this is -> the socket.
   const waiting = await account.login();
   assert.deepEqual([waiting.state, waiting.code, waiting.uri], ['waiting', 'ABCD-EFGH', 'https://www.twitch.tv/activate?public=true&device-code=ABCDEFGH']);
-  assert.throws(() => account.setClientId('other'), 'not while logging in');
   assert.equal(calls.find((c) => c.path === '/oauth2/device').body.client_id, 'abc123');
   await waitFor(() => sockets.length === 1, 'socket');
   assert.equal(sockets[0].url, 'wss://eventsub.wss.twitch.tv/ws');
@@ -129,15 +127,10 @@ test('Twitch account: code login, refresh, follows, goals, reconnect, disconnect
 
   // Disconnect: Twitch is told, the tokens go, the Client ID stays.
   const off = await account.disconnect();
-  assert.deepEqual([off.state, off.login, off.goals, off.clientId], ['off', '', [], 'abc123']);
+  assert.deepEqual([off.state, off.login, off.goals], ['off', '', []]);
   assert.deepEqual(file(), { clientId: 'abc123' });
   assert.equal(calls.at(-1).path, '/oauth2/revoke');
   assert.equal(calls.at(-1).body.token, 'A2');
   assert.ok(sockets[2].closed);
   assert.deepEqual(connectedPlatforms(), []);
-  // An empty Client ID, or Jarchi's own pasted: Jarchi's own again.
-  assert.equal(account.setClientId('').clientId, '');
-  account.setClientId('abc123');
-  assert.equal(account.setClientId('6z5ycye2mjhj10jk1jkwkelft0l7p3').clientId, '');
-  assert.deepEqual(file(), { clientId: '' });
 });

@@ -118,10 +118,9 @@ app.post('/api/chat/reset-style', (req, res) => res.json(changed(settings.resetC
 // The streamer's profile pictures for the panel's background art: { kick, twitch }, null where no channel / picture.
 app.get('/api/streamer', async (req, res) => res.json(await chat.streamer()));
 
-// The Twitch account (Connections page): its Client ID, the login with Twitch's code, Disconnect. Its status (also the
-// Twitch channel's goals) comes by socket too.
+// The Twitch account (Connections page): the login with Twitch's code, Disconnect. Its status (also the Twitch channel's
+// goals) comes by socket too.
 app.get('/api/twitch', (req, res) => res.json(twitchAccount.status()));
-app.patch('/api/twitch', (req, res) => res.json(twitchAccount.setClientId(req.body?.clientId)));
 app.post('/api/twitch/connect', async (req, res) => res.json(await twitchAccount.login()));
 app.post('/api/twitch/disconnect', async (req, res) => res.json(await twitchAccount.disconnect()));
 

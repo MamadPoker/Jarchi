@@ -16,7 +16,8 @@ const HELIX = 'https://api.twitch.tv/helix';
 const EVENTSUB = 'wss://eventsub.wss.twitch.tv/ws';
 // Follows and goals now; subs and bits are asked for already, so a later step needs no new login.
 const SCOPES = 'moderator:read:followers channel:read:goals channel:read:subscriptions bits:read';
-// Jarchi's own Twitch app (Public: its Client ID is no secret), so nobody has to make one. Connections can set another.
+// Jarchi's own Twitch app (Public: its Client ID is no secret), so nobody has to make one. Another one only by hand:
+// "clientId" in data/twitch.json, while disconnected (a login belongs to the app it was made with). Not in the panel.
 const CLIENT_ID = '6z5ycye2mjhj10jk1jkwkelft0l7p3';
 const SUBS = [['channel.follow', '2'], ['channel.goal.begin', '1'], ['channel.goal.progress', '1'], ['channel.goal.end', '1']];
 
@@ -27,10 +28,9 @@ const clientId = () => saved.clientId || CLIENT_ID;
 // error: why it's off or reconnecting (expired | denied | timeout | client | network), '' when fine.
 let st = { state: saved.refresh ? 'connecting' : 'off', error: '', code: '', uri: '' };
 const goals = new Map(); // Twitch goal id -> { id, type, description, current, target }
-// name / picture: the account's display name and picture, for the profile chip (Edit profile). clientId: the streamer's
-// own Twitch app's, '' while Jarchi's is used (the panel shows "Using Jarchi's Twitch app").
+// name / picture: the account's display name and picture, for the profile chip (Edit profile).
 const status = () => ({
-  ...st, clientId: saved.clientId || '', login: saved.refresh ? saved.login ?? '' : '', goals: [...goals.values()],
+  ...st, login: saved.refresh ? saved.login ?? '' : '', goals: [...goals.values()],
   name: saved.refresh ? saved.name || saved.login || '' : '', picture: saved.refresh ? saved.picture ?? '' : '',
 });
 function set(next) {
@@ -110,15 +110,6 @@ async function disconnect() {
   const { access } = saved, client = clientId();
   forget();
   if (access) await form(`${ID}/revoke`, { client_id: client, token: access }).catch(() => {});
-  return status();
-}
-
-// The Client ID can change only while logged out: tokens belong to the app they were made with. Empty: Jarchi's own.
-function setClientId(v) {
-  const id = String(v ?? '').trim();
-  if (!/^[a-z0-9]{0,64}$/i.test(id) || st.state !== 'off') throw Object.assign(new Error('bad_request'), { status: 400, code: 'bad_request' });
-  keep({ clientId: id === CLIENT_ID ? '' : id }); // Jarchi's own pasted: the same as empty
-  set({ error: '' });
   return status();
 }
 
@@ -278,4 +269,4 @@ async function live() {
   }
 }
 
-module.exports = { status, setClientId, login, disconnect, start, handle, live, events: account };
+module.exports = { status, login, disconnect, start, handle, live, events: account };

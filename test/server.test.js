@@ -52,10 +52,9 @@ test('migration, settings, uploads, reset, events', async () => {
   assert.ok(accent === null || /^#[0-9a-f]{6}$/.test(accent), accent);
   // Background art: no channels set, no profile pictures (and no lookups).
   assert.deepEqual(await (await call('GET', '/api/streamer')).json(), { kick: null, twitch: null });
-  // Twitch account: not connected, nothing runs, Jarchi's own Client ID; a bad Client ID is refused, a good one kept.
-  assert.deepEqual(await (await call('GET', '/api/twitch')).json(), { state: 'off', error: '', code: '', uri: '', clientId: '', login: '', goals: [], name: '', picture: '' });
-  assert.equal((await call('PATCH', '/api/twitch', { clientId: 'no spaces' })).status, 400);
-  assert.equal((await (await call('PATCH', '/api/twitch', { clientId: 'abc123' })).json()).clientId, 'abc123');
+  // Twitch account: not connected, nothing runs. Its Client ID isn't shown or set from the panel.
+  assert.deepEqual(await (await call('GET', '/api/twitch')).json(), { state: 'off', error: '', code: '', uri: '', login: '', goals: [], name: '', picture: '' });
+  assert.equal((await call('PATCH', '/api/twitch', { clientId: 'abc123' })).status, 404);
   assert.equal(s.theme, 'fun');
   assert.equal(s.alerts.sub.soundMode, 'custom');
   assert.equal(s.alerts.sub.volume, 0.4);

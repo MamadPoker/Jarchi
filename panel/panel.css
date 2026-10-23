@@ -560,7 +560,6 @@ button.link:hover, button.link:focus-visible { color: var(--gold-text); }
 .tour-agree { display: flex; align-items: center; gap: 10px; cursor: pointer; } /* the Privacy Policy, in both languages */
 .tour-agree input, .privacy-agree input { flex: none; width: 18px; height: 18px; margin: 0; accent-color: var(--gold); }
 .tour .card-head .stack { flex: 1; gap: 2px; }
-.tour .advanced { display: none; } /* the Twitch card's Client ID: only on Connections */
 .tour-links, .spot-items { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
 .tour-links li { display: flex; align-items: center; gap: 12px; padding-block: 8px; padding-inline: 14px 8px; border: 1px solid var(--border); border-radius: 12px; background: var(--card2); }
 .tour-links .stack { flex: 1; min-width: 0; gap: 0; }
@@ -779,14 +778,6 @@ main { padding: 24px 28px 64px; container-type: inline-size; } /* editor rules b
 .more[open] summary svg { transform: rotate(180deg); }
 .more-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; padding: 0 14px 14px; }
 .more-grid .box { background: var(--bg); }
-/* A card's Advanced section (Connections: the Twitch Client ID), closed at first */
-.advanced { border-top: 1px solid var(--border); padding-top: 10px; }
-.advanced summary { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 13px; font-weight: 600; cursor: pointer; list-style: none; }
-.advanced summary::-webkit-details-marker { display: none; }
-.advanced summary:hover { color: var(--text); }
-.advanced summary svg { width: 14px; height: 14px; transition: transform 0.2s; }
-.advanced[open] summary svg { transform: rotate(180deg); }
-.advanced .field { margin-top: 10px; }
 
 #toast {
   position: fixed;
