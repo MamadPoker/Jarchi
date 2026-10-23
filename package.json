@@ -57,7 +57,7 @@
     },
     "nsis": {
       "oneClick": false,
-      "artifactName": "Jarchi-Setup-${version}.${ext}",
+      "artifactName": "Jarchi-Setup.${ext}",
       "installerLanguages": [
         "en_US",
         "fa_IR"
