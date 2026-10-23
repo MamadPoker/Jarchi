@@ -569,6 +569,15 @@ function installId() {
   return saved.installId;
 }
 const privacyAcceptedAt = () => saved.privacyAcceptedAt ?? null;
+// The Support page's (core/support.js): this install's ticket token for the relay, random, made the first time it's
+// needed (make) and kept through Reset everything (its tickets stay readable); null before that. Never in get().
+function supportToken(make) {
+  if (!saved.supportToken && make) {
+    saved.supportToken = Buffer.from(crypto.getRandomValues(new Uint8Array(32))).toString('hex');
+    persist();
+  }
+  return saved.supportToken ?? null;
+}
 
 // No type = reset everything.
 function reset(type) {
@@ -582,7 +591,7 @@ function reset(type) {
   if (!type) {
     for (const id of GOAL_IDS) removeFile(saved.goals?.[id]?.sound);
     removeFile(saved.profile?.picture);
-    saved = { version: VERSION, ...(saved.installId && { installId: saved.installId }) }; // still the same install
+    saved = { version: VERSION, installId: saved.installId, supportToken: saved.supportToken }; // still the same install (none yet: left out)
   }
   persist();
   return get();
@@ -590,6 +599,6 @@ function reset(type) {
 
 module.exports = {
   get, update, saveUpload, removeUpload, reset, saveGoalSound, removeGoalSound, saveProfilePicture, resetGoalStyle, resetChatStyle,
-  resetAlertText, setTier, saveTierFile, removeTierFile, sniff, installId, privacyAcceptedAt,
+  resetAlertText, setTier, saveTierFile, removeTierFile, sniff, installId, privacyAcceptedAt, supportToken,
   GOAL_IDS, GOAL_STYLES, CHAT_STYLES, CHAT_FONTS, FONTS, KICK_GIFTS,
 };

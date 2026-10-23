@@ -9,7 +9,8 @@
 // Nothing of that is stored: an event goes to the sockets open right now, or nowhere.
 //   POST /ping      Jarchi's usage ping (core/stats.js, only once its Privacy Policy is accepted): one row per install
 //                   in the D1 database DB (schema.sql). No IP address or anything else about the request is kept.
-//   /admin/...      Jarchi's admin app: counts, the installs, downloads (see "Admin API" below). Needs ADMIN_KEY.
+//   /support/...    Jarchi's Support page: an install's tickets (see "Support tickets" below), screenshots in KV SHOTS.
+//   /admin/...      Jarchi's admin app: counts, the installs, downloads, tickets (see "Admin API" below). Needs ADMIN_KEY.
 // Every request is counted per day (UTC) in DB, so the admin app can show it against Cloudflare's free limit.
 // Settings (secrets): KICK_CLIENT_ID, KICK_CLIENT_SECRET, ADMIN_KEY. Deploy: see README.md here.
 const KICK_ID = 'https://id.kick.com';
@@ -30,6 +31,7 @@ export default {
     ctx.waitUntil(env.DB.prepare(COUNT).bind(new Date().toISOString().slice(0, 10)).run().catch(() => {}));
     const url = new URL(req.url);
     if (url.pathname === '/admin' || url.pathname.startsWith('/admin/')) return admin(req, url, env);
+    if (url.pathname.startsWith('/support/')) return support(req, url, env);
     switch (url.pathname) {
       case '/': return text('Jarchi Kick relay: running.');
       case '/login': return login(url, env);
@@ -151,29 +153,32 @@ ON CONFLICT (id) DO UPDATE SET last_seen = excluded.last_seen, version = exclude
   window_pings = CASE WHEN ?3 - window_start >= ?15 THEN 1 ELSE window_pings + 1 END
 WHERE ?3 - installs.window_start >= ?15 OR installs.window_pings < ?16`;
 
-// The body as text, or null past max bytes (read no further).
-async function capped(stream, max) {
-  if (!stream) return '';
-  const reader = stream.getReader(), dec = new TextDecoder();
-  let size = 0, out = '';
+// The body's bytes, or null past max bytes (read no further).
+async function capped(req, max) {
+  if (Number(req.headers.get('content-length')) > max) return null;
+  if (!req.body) return new Uint8Array();
+  const reader = req.body.getReader(), parts = [];
+  let size = 0;
   for (;;) {
     const { done, value } = await reader.read();
-    if (done) return out + dec.decode();
+    if (done) break;
     if ((size += value.length) > max) {
       reader.cancel().catch(() => {});
       return null;
     }
-    out += dec.decode(value, { stream: true });
+    parts.push(value);
   }
+  const out = new Uint8Array(size);
+  parts.reduce((at, p) => (out.set(p, at), at + p.length), 0);
+  return out;
 }
 
 async function ping(req, env) {
   if (!/^application\/json\b/i.test(req.headers.get('content-type') ?? '')) return text('JSON only', 415);
-  if (Number(req.headers.get('content-length')) > PING_BYTES) return text('Too large', 413);
-  const body = await capped(req.body, PING_BYTES);
+  const body = await capped(req, PING_BYTES);
   if (body === null) return text('Too large', 413);
   let p;
-  try { p = JSON.parse(body); } catch { return text('Bad request', 400); }
+  try { p = JSON.parse(new TextDecoder().decode(body)); } catch { return text('Bad request', 400); }
   if (!pingOk(p)) return text('Bad request', 400);
   const now = Date.now(), bit = (v) => (v === null || v === undefined ? null : Number(v));
   const { meta } = await env.DB.prepare(UPSERT).bind(p.id, new Date(now).toISOString(), now, p.version, bit(p.installed), bit(p.open),
@@ -191,6 +196,13 @@ async function ping(req, env) {
 //                                (50), ?offset=
 //   GET    /admin/downloads      download counts per release and file, from GitHub (Jarchi-releases), cached RELEASES_MS
 //   DELETE /admin/installs/<id>  one install's row (a data-deletion request)
+//   GET    /admin/tickets        every support ticket, last changed first (?status=, ?category=), each with unread (a
+//                                message from the install the admin hasn't opened), and unread: how many tickets have one
+//   GET    /admin/tickets/<id>   one, with its messages (opening it marks them read); its screenshots at
+//                                /admin/tickets/<id>/images/<name>
+//   POST   /admin/tickets/<id>/messages  a reply (a form, like the install's messages below)
+//   PATCH  /admin/tickets/<id>   { status: open | progress | closed }
+//   DELETE /admin/tickets/<id>   it, its messages and its screenshots
 // "Online" = open and seen in ONLINE_MS (Jarchi pings every 5 minutes); "live" = online and live on Kick or Twitch.
 const FAIL_MAX = 10, FAIL_MS = 60 * 60 * 1000;
 const ONLINE_MS = 10 * 60 * 1000, DAY_MS = 24 * 60 * 60 * 1000, RELEASES_MS = 10 * 60 * 1000;
@@ -200,6 +212,7 @@ const RELEASES = 'https://api.github.com/repos/MamadPoker/Jarchi-releases/releas
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'cache-control': 'no-store' } });
 const iso = (ms) => new Date(ms).toISOString();
 const sha256 = async (s) => new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s)));
+const hex = (bytes) => [...bytes].map((b) => b.toString(16).padStart(2, '0')).join('');
 
 // Both hashed (same length) and every byte compared, so the time taken says nothing about the key.
 async function sameKey(a, b) {
@@ -219,7 +232,7 @@ ON CONFLICT (source) DO UPDATE SET
 
 async function admin(req, url, env) {
   const now = Date.now();
-  const source = [...await sha256(`${env.ADMIN_KEY}\n${req.headers.get('cf-connecting-ip') ?? ''}`)].map((b) => b.toString(16).padStart(2, '0')).join('');
+  const source = hex(await sha256(`${env.ADMIN_KEY}\n${req.headers.get('cf-connecting-ip') ?? ''}`));
   const seen = await env.DB.prepare('SELECT blocked_until FROM admin_fails WHERE source = ?1').bind(source).first();
   if (seen?.blocked_until > now) return text('Too many wrong keys, try again later', 429);
   const given = /^Bearer (.+)$/.exec(req.headers.get('authorization') ?? '')?.[1];
@@ -227,6 +240,7 @@ async function admin(req, url, env) {
     await env.DB.prepare(FAIL).bind(source, now, FAIL_MS, FAIL_MAX).run();
     return text('Unauthorized', 401);
   }
+  if (url.pathname.startsWith('/admin/tickets')) return tickets(req, url, env, null);
   const get = req.method === 'GET';
   switch (url.pathname) {
     case '/admin/stats': return get ? stats(url, env, now) : text('GET only', 405);
@@ -301,6 +315,204 @@ async function downloads() {
 async function remove(env, id) {
   const { meta } = await env.DB.prepare('DELETE FROM installs WHERE id = ?1').bind(id).run();
   return meta.changes ? json({ deleted: id }) : text('Not found', 404);
+}
+
+// ---------- Support tickets ----------
+// Jarchi's Support page (core/support.js, once its Privacy Policy is accepted). An install says who it is with
+// "X-Jarchi-Install: <its install id>" and "Authorization: Bearer <its ticket token>" (64 hex digits, random, made by
+// that Jarchi for its first ticket and never shown). A ticket is read only with the token it was made with, and an
+// install keeps the token of its first ticket (another one makes no ticket). Only installs that have pinged make
+// tickets, so made-up ids meet the new-install cap first; a ticket keeps the Kick / Twitch channels of that last ping.
+//   GET  /support/tickets                     my tickets, last changed first, each with unread (an admin reply not opened yet)
+//   POST /support/tickets                     a new one: a form with category, subject, message and up to 3 "image"
+//   GET  /support/tickets/<id>                one, with its messages (opening it marks the admin's replies read)
+//   POST /support/tickets/<id>/messages       a message (form: message and/or images), not on a closed ticket
+//   GET  /support/tickets/<id>/images/<name>  one of its screenshots
+// At most TICKETS_MAX new tickets an install in a day and MESSAGES_MAX messages (a new ticket's too) in an hour.
+// Screenshots: up to SHOTS_MAX a message, each a PNG, JPG or WebP by its bytes (whatever its name says), at most
+// SHOT_BYTES, in KV SHOTS as "<ticket id>/<name>". Times are ISO 8601 in UTC. Errors are JSON { error }: unauthorized,
+// unknown_install, not_found, method, bad_request, too_large, bad_image, image_too_large, too_many_images, closed,
+// ticket_limit, message_limit, storage (KV refused it).
+// ponytail: KV's free plan takes 1,000 writes a day (one per screenshot) and 1 GB in all; past that its puts fail
+// ("storage") until the next day / until old tickets are deleted in the admin app.
+const CATEGORIES = ['bug', 'suggestion', 'question', 'data'], STATUSES = ['open', 'progress', 'closed'];
+const TICKETS_MAX = 5, MESSAGES_MAX = 30, HOUR_MS = 60 * 60 * 1000;
+const SUBJECT_MAX = 120, TEXT_MAX = 5000, SHOTS_MAX = 3, SHOT_BYTES = 2 * 1024 * 1024;
+const FORM_BYTES = SHOTS_MAX * SHOT_BYTES + 64 * 1024; // the screenshots, the text and the form's own lines
+const TICKET_PATH = /^\/(?:support|admin)\/tickets(?:\/([0-9A-F]{8})(?:\/(messages)|\/images\/([0-9a-f]{32}\.(?:png|jpg|webp)))?)?$/;
+const SHOT_TYPES = { png: 'image/png', jpg: 'image/jpeg', webp: 'image/webp' };
+const MAGIC = { // each type's first bytes (null: any)
+  png: [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a],
+  jpg: [0xff, 0xd8, 0xff],
+  webp: [0x52, 0x49, 0x46, 0x46, null, null, null, null, 0x57, 0x45, 0x42, 0x50],
+};
+const shotType = (b) => Object.keys(MAGIC).find((t) => b.length > MAGIC[t].length && MAGIC[t].every((x, i) => x === null || b[i] === x));
+const fail = (error, status = 400) => json({ error }, status);
+const random = (bytes) => hex(crypto.getRandomValues(new Uint8Array(bytes)));
+
+async function support(req, url, env) {
+  const install = req.headers.get('x-jarchi-install') ?? '', token = /^Bearer ([0-9a-f]{64})$/.exec(req.headers.get('authorization') ?? '')?.[1];
+  if (!UUID.test(install) || !token) return fail('unauthorized', 401);
+  return tickets(req, url, env, { install, token: hex(await sha256(token)) });
+}
+
+// Both sides' addresses. me: the asking install { install, token (its SHA-256) }, or null: the admin.
+async function tickets(req, url, env, me) {
+  const m = TICKET_PATH.exec(url.pathname), side = me ? 'user' : 'admin', method = req.method;
+  if (!m) return fail('not_found', 404);
+  const [, id, messages, shot] = m;
+  if (!id) {
+    if (method === 'GET') return me ? mine(env, me) : all(url, env);
+    return method === 'POST' && me ? create(req, env, me) : fail('method', 405);
+  }
+  const t = await env.DB.prepare(`SELECT * FROM tickets WHERE id = ?1${me ? ' AND install_id = ?2 AND token_hash = ?3' : ''}`)
+    .bind(...(me ? [id, me.install, me.token] : [id])).first();
+  if (!t) return fail('not_found', 404);
+  if (messages) return method === 'POST' ? reply(req, env, t, side) : fail('method', 405);
+  if (shot) return method === 'GET' ? image(env, id, shot) : fail('method', 405);
+  if (method === 'GET') return thread(env, id, side);
+  if (!me && method === 'PATCH') return setStatus(req, env, id);
+  if (!me && method === 'DELETE') return deleteTicket(env, id);
+  return fail('method', 405);
+}
+
+// A ticket as a side sees it (the admin also sees whose it is). A list row also has its messages' count and unread: a
+// message from the other side newer than this side last opened it.
+const UNREAD = (side) => `EXISTS (SELECT 1 FROM ticket_messages m WHERE m.ticket_id = t.id AND m.author != '${side}' AND m.created_at > COALESCE(t.${side}_read_at, ''))`;
+const TICKET_LIST = (side) => `SELECT t.*, (SELECT COUNT(*) FROM ticket_messages m WHERE m.ticket_id = t.id) AS messages, ${UNREAD(side)} AS unread FROM tickets t`;
+const ticketOf = (r, side) => ({
+  id: r.id, category: r.category, subject: r.subject, status: r.status, createdAt: r.created_at, updatedAt: r.updated_at,
+  ...(side === 'admin' && { installId: r.install_id, kick: r.kick_name, twitch: r.twitch_name }),
+  ...('unread' in r && { messages: r.messages, unread: r.unread === 1 }),
+});
+
+async function mine(env, me) {
+  const { results } = await env.DB.prepare(`${TICKET_LIST('user')} WHERE t.install_id = ?1 AND t.token_hash = ?2 ORDER BY t.updated_at DESC, t.id`)
+    .bind(me.install, me.token).all();
+  return json(results.map((r) => ticketOf(r, 'user')));
+}
+
+// ponytail: every ticket in one answer; page it (?limit, ?offset like /admin/installs) if there are ever thousands.
+async function all(url, env) {
+  const status = url.searchParams.get('status') || null, category = url.searchParams.get('category') || null;
+  if ((status && !STATUSES.includes(status)) || (category && !CATEGORIES.includes(category))) return fail('bad_request');
+  const [{ results }, unread] = await Promise.all([
+    env.DB.prepare(`${TICKET_LIST('admin')} WHERE (?1 IS NULL OR t.status = ?1) AND (?2 IS NULL OR t.category = ?2) ORDER BY t.updated_at DESC, t.id`).bind(status, category).all(),
+    env.DB.prepare(`SELECT COUNT(*) AS n FROM tickets t WHERE ${UNREAD('admin')}`).first(),
+  ]);
+  return json({ unread: unread.n, tickets: results.map((r) => ticketOf(r, 'admin')) });
+}
+
+// An install's counts for its limits. known: it has pinged; taken: its tickets have another token.
+const LIMITS = `SELECT EXISTS (SELECT 1 FROM installs WHERE id = ?1) AS known,
+  EXISTS (SELECT 1 FROM tickets WHERE install_id = ?1 AND token_hash != ?2) AS taken,
+  (SELECT COUNT(*) FROM tickets WHERE install_id = ?1 AND created_at > ?3) AS tickets,
+  (SELECT COUNT(*) FROM ticket_messages m JOIN tickets t ON t.id = m.ticket_id WHERE t.install_id = ?1 AND m.author = 'user' AND m.created_at > ?4) AS messages`;
+const limits = (env, install, token, now) => env.DB.prepare(LIMITS).bind(install, token, iso(now - DAY_MS), iso(now - HOUR_MS)).first();
+// A new ticket, with the install's channels from its last ping.
+const NEW_TICKET = `INSERT INTO tickets (id, install_id, token_hash, kick_name, twitch_name, category, subject, status, created_at, updated_at)
+SELECT ?1, id, ?3, kick_name, twitch_name, ?4, ?5, 'open', ?6, ?6 FROM installs WHERE id = ?2`;
+const NEW_MESSAGE = 'INSERT INTO ticket_messages (ticket_id, author, body, images, created_at) VALUES (?1, ?2, ?3, ?4, ?5)';
+
+async function create(req, env, me) {
+  const now = Date.now(), l = await limits(env, me.install, me.token, now);
+  if (!l.known) return fail('unknown_install', 403);
+  if (l.taken) return fail('unauthorized', 401);
+  if (l.tickets >= TICKETS_MAX) return fail('ticket_limit', 429);
+  if (l.messages >= MESSAGES_MAX) return fail('message_limit', 429);
+  const f = await form(req, ['category', 'subject', 'message']);
+  if (f instanceof Response) return f;
+  const subject = (f.subject ?? '').replace(/\s+/g, ' ');
+  if (!CATEGORIES.includes(f.category) || !subject || subject.length > SUBJECT_MAX || !f.message || f.message.length > TEXT_MAX) return fail('bad_request');
+  const id = random(4).toUpperCase();
+  const first = env.DB.prepare(NEW_TICKET).bind(id, me.install, me.token, f.category, subject, iso(now));
+  return (await save(env, id, 'user', f.message, f.shots, [first])) ?? thread(env, id, 'user');
+}
+
+async function reply(req, env, t, side) {
+  if (side === 'user') {
+    if (t.status === 'closed') return fail('closed', 409);
+    if ((await limits(env, t.install_id, t.token_hash, Date.now())).messages >= MESSAGES_MAX) return fail('message_limit', 429);
+  }
+  const f = await form(req, ['message']);
+  if (f instanceof Response) return f;
+  const body = f.message ?? '';
+  if (body.length > TEXT_MAX || (!body && !f.shots.length)) return fail('bad_request');
+  return (await save(env, t.id, side, body, f.shots)) ?? thread(env, t.id, side);
+}
+
+// A form from either side: the text fields named (each once; trimmed, line ends \n) and the screenshots ("image");
+// anything else is refused. -> { <field>: text, shots: [{ bytes, ext }] }, or the error's Response.
+async function form(req, names) {
+  const type = req.headers.get('content-type') ?? '';
+  if (!/^multipart\/form-data\s*;/i.test(type)) return fail('bad_request', 415);
+  const body = await capped(req, FORM_BYTES);
+  if (body === null) return fail('too_large', 413);
+  let data;
+  try { data = await new Response(body, { headers: { 'content-type': type } }).formData(); } catch { return fail('bad_request'); }
+  const f = { shots: [] };
+  for (const [k, v] of data) {
+    if (k === 'image' && typeof v !== 'string') {
+      const bytes = new Uint8Array(await v.arrayBuffer()), ext = shotType(bytes);
+      if (bytes.length > SHOT_BYTES) return fail('image_too_large', 413);
+      if (!ext) return fail('bad_image');
+      f.shots.push({ bytes, ext });
+    } else if (names.includes(k) && typeof v === 'string' && !(k in f)) f[k] = v.replace(/\r\n?/g, '\n').trim();
+    else return fail('bad_request');
+  }
+  return f.shots.length > SHOTS_MAX ? fail('too_many_images') : f;
+}
+
+// A message: its screenshots into KV first ("<ticket>/<random>.<ext>"), so a message never names one that isn't there,
+// then `first` (a new ticket's row) and the message together. Nothing is kept when either fails. -> null, or the
+// error's Response.
+async function save(env, id, author, body, shots, first = []) {
+  const names = shots.map((s) => `${random(16)}.${s.ext}`), at = iso(Date.now());
+  try {
+    await Promise.all(shots.map((s, i) => env.SHOTS.put(`${id}/${names[i]}`, s.bytes)));
+  } catch {
+    await dropShots(env, id, names);
+    return fail('storage', 503);
+  }
+  await env.DB.batch([...first, env.DB.prepare(NEW_MESSAGE).bind(id, author, body, JSON.stringify(names), at),
+    env.DB.prepare('UPDATE tickets SET updated_at = ?2 WHERE id = ?1').bind(id, at)]).catch(async (err) => {
+    await dropShots(env, id, names);
+    throw err;
+  });
+  return null;
+}
+const dropShots = (env, id, names) => Promise.all(names.map((n) => env.SHOTS.delete(`${id}/${n}`).catch(() => {})));
+
+// One ticket and its messages (oldest first), for one side; opening it marks the other side's messages read.
+async function thread(env, id, side) {
+  await env.DB.prepare(`UPDATE tickets SET ${side}_read_at = ?2 WHERE id = ?1`).bind(id, iso(Date.now())).run();
+  const [t, { results }] = await Promise.all([
+    env.DB.prepare('SELECT * FROM tickets WHERE id = ?1').bind(id).first(),
+    env.DB.prepare('SELECT author, body, images, created_at FROM ticket_messages WHERE ticket_id = ?1 ORDER BY id').bind(id).all(),
+  ]);
+  return json({ ...ticketOf(t, side), messages: results.map((m) => ({ author: m.author, text: m.body, images: JSON.parse(m.images), at: m.created_at })) });
+}
+
+async function image(env, id, name) {
+  const body = await env.SHOTS.get(`${id}/${name}`, 'arrayBuffer');
+  if (!body) return fail('not_found', 404);
+  return new Response(body, { headers: {
+    'content-type': SHOT_TYPES[name.split('.')[1]], 'x-content-type-options': 'nosniff', 'cache-control': 'private, max-age=31536000, immutable',
+  } });
+}
+
+async function setStatus(req, env, id) {
+  const b = await req.json().catch(() => null);
+  if (!exactly(b, ['status']) || !STATUSES.includes(b.status)) return fail('bad_request');
+  await env.DB.prepare('UPDATE tickets SET status = ?2, updated_at = ?3 WHERE id = ?1').bind(id, b.status, iso(Date.now())).run();
+  return thread(env, id, 'admin');
+}
+
+async function deleteTicket(env, id) {
+  const { results } = await env.DB.prepare('SELECT images FROM ticket_messages WHERE ticket_id = ?1').bind(id).all();
+  await dropShots(env, id, results.flatMap((m) => JSON.parse(m.images)));
+  await env.DB.batch([env.DB.prepare('DELETE FROM ticket_messages WHERE ticket_id = ?1').bind(id), env.DB.prepare('DELETE FROM tickets WHERE id = ?1').bind(id)]);
+  return json({ deleted: id });
 }
 
 // One channel: the Jarchi sockets open for it (usually one), handed each of its events. Hibernates between them; the

@@ -17,3 +17,8 @@ new_sqlite_classes = ["Room"]
 binding = "DB"
 database_name = "jarchi-stats"
 database_id = "510ef77f-2683-4c97-917b-637415415be6"
+
+# Support tickets' screenshots (worker.mjs /support): "<ticket id>/<name>" -> the image's bytes.
+[[kv_namespaces]]
+binding = "SHOTS"
+id = "d0533d1efe274a4bad17836059b56b4a"
