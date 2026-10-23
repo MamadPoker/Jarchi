@@ -291,6 +291,7 @@ server.listen(PORT, HOST, () => {
   chat.sync(); // connect to the saved Kick / Twitch channels
   twitchAccount.start(); // and the Twitch and Kick accounts, when they're connected
   kickAccount.start();
+  media.shrinkOld().catch(console.error); // uploads from before the 512 px rule, once
 });
 
 module.exports = { app, server, io };

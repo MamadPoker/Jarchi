@@ -73,9 +73,10 @@ function draw() {
 
 // The goal fills the Browser Source: drawn at its own width, its text the biggest size that fits (Auto: the goal is
 // then as tall as the source's shape allows, and no text spills out of its bar or ring), or the style's own size when
-// that fits; then scaled the same both ways to the source, times Size (50%-100%). Again when the source or numbers change.
+// that fits; then scaled the same both ways to the source, times Size (50%-100%). Again when the numbers change (below:
+// the source's size, fonts, a hidden preview showing).
 function fit() {
-  if (!cfg || root.hidden) return;
+  if (!cfg || root.hidden || !document.documentElement.offsetWidth || !innerHeight) return; // no layout yet: a hidden preview
   const room = (root.offsetWidth * innerHeight) / innerWidth;
   const fits = (fs) => {
     root.style.setProperty('--fs', `${fs}px`);
@@ -92,7 +93,11 @@ function fit() {
   }
   root.style.setProperty('--k', Math.min(innerWidth / root.offsetWidth, innerHeight / root.offsetHeight) * Math.min(cfg.scale ?? 1, 1));
 }
+// Fit again when the source (or the panel's preview) changes size, when a font has loaded (text measured in the stand-in
+// font is off), and when a preview drawn while its page was hidden in the panel comes into view.
 addEventListener('resize', fit);
+document.fonts.addEventListener('loadingdone', fit);
+new IntersectionObserver((seen) => seen.some((e) => e.isIntersecting) && fit()).observe(document.documentElement);
 
 function ring() {
   const ns = 'http://www.w3.org/2000/svg';

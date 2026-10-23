@@ -50,9 +50,10 @@ function applySettings(s) {
 // 800x600 one (so borders, shadows and effects keep their proportions), scaled onto it; Alert size shrinks it toward
 // the middle. Inside, the picture gets a fixed square (an image fits in it whatever its own pixel size) and the text the
 // rest, in the biggest font size that fits there (or the alert's own size, if that fits). Runs again when the source
-// changes size or a font finishes loading.
+// changes size, a font finishes loading, or a preview drawn while its page was hidden in the panel comes into view.
 const PAD = 16; // around the alert: room for the platform badge, the shake and a frame's shadow
 function fit() {
+  if (!document.documentElement.offsetWidth || !innerHeight) return; // no layout yet: a hidden preview
   const W = innerWidth, H = innerHeight, a = Math.min(settings?.alertSize ?? 1, 1), k = Math.min(W / 800, H / 600);
   const w = W / k, h = H / k;
   stage.style.cssText = `width:${w}px;height:${h}px;--f:${Math.min(w / 1920, h / 1080)};transform:translate(${(W * (1 - a)) / 2}px,${(H * (1 - a)) / 2}px) scale(${k * a})`;
@@ -69,6 +70,7 @@ function fit() {
 }
 addEventListener('resize', fit);
 document.fonts.addEventListener('loadingdone', fit);
+new IntersectionObserver((seen) => seen.some((e) => e.isIntersecting) && fit()).observe(document.documentElement);
 
 // The text's font size: the biggest that fits in th (height; the width is the box's max-width) with every word on one
 // line, or `own` (px) when that fits. A name too long for its line gets a smaller font of its own instead. Layout sizes

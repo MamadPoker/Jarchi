@@ -2,8 +2,11 @@
 // side are shrunk to it (animated GIF and WebP keep every frame), smaller ones stay exactly as they are.
 // A link is downloaded once (through the proxy setting, like everything else) and then treated like an upload. Giphy and
 // Tenor page links give the GIF on the page, or its MP4 when the GIF is over 10 MB.
+const fs = require('node:fs');
+const path = require('node:path');
 const sharp = require('sharp');
 const { sniff } = require('./settings');
+const { DATA_DIR, UPLOADS_DIR } = require('./config');
 
 const MAX_BYTES = 10 * 1024 * 1024;
 const SIDE = 512;
@@ -24,6 +27,27 @@ async function shrink(buf) {
   } catch {
     throw bad('bad_file');
   }
+}
+
+// Uploads kept before the 512 px rule: shrunk once, by the same rules, each under its own file name (the settings point
+// at it). Done = the marker file; a run cut short (or a file in use) goes again next start, small files stay as they are.
+const SHRUNK = path.join(DATA_DIR, 'uploads-shrunk.txt');
+async function shrinkOld() {
+  if (fs.existsSync(SHRUNK)) return;
+  let done = true;
+  for (const name of fs.readdirSync(UPLOADS_DIR)) {
+    const file = path.join(UPLOADS_DIR, name);
+    try {
+      const buf = fs.readFileSync(file);
+      const out = await shrink(buf).catch(() => buf); // a broken image stays as it is
+      if (out === buf) continue;
+      fs.writeFileSync(`${file}.tmp`, out);
+      fs.renameSync(`${file}.tmp`, file); // never a half-written file
+    } catch {
+      done = false;
+    }
+  }
+  if (done) fs.writeFileSync(SHRUNK, 'Uploads from before the 512 px rule were shrunk. Delete this file to check them again.\n');
 }
 
 // GET a link, 10 MB at most -> { buf, type, url } (url: where it ended up after redirects).
@@ -101,4 +125,4 @@ async function download(link) {
   throw err;
 }
 
-module.exports = { shrink, download, MAX_BYTES };
+module.exports = { shrink, shrinkOld, download, MAX_BYTES };

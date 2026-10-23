@@ -68,3 +68,28 @@ test('links: a file, Giphy and Tenor pages, and what fails', async () => {
   await assert.rejects(media.download('ftp://example.com/a.gif'), { code: 'bad_link' });
   await assert.rejects(media.download('not a link'), { code: 'bad_link' });
 });
+
+test('shrinkOld: uploads from before the 512 px rule shrink once, under the same names; small and broken ones stay', async () => {
+  const { DATA_DIR, UPLOADS_DIR } = require('../core/config');
+  const put = (name, buf) => fs.writeFileSync(path.join(UPLOADS_DIR, name), buf);
+  const read = (name) => fs.readFileSync(path.join(UPLOADS_DIR, name));
+  const broken = Buffer.from('GIF89a broken', 'latin1');
+  put('raid-image-1.gif', await sharp([await frame('#f00'), await frame('#00f')], { join: { animated: true } }).gif({ delay: [100, 200], loop: 0 }).toBuffer());
+  put('sub-image-2.png', await frame('#0f0', 600, 2000));
+  put('follow-image-3.gif', GIF);
+  put('kicks-image-4.gif', broken);
+  put('sub-image-5.mp4', MP4);
+  await media.shrinkOld();
+  let m = await sharp(read('raid-image-1.gif'), { animated: true }).metadata();
+  assert.deepEqual([m.format, m.width, m.pageHeight, m.pages, m.delay], ['gif', 512, 307, 2, [100, 200]], 'still animated');
+  m = await sharp(read('sub-image-2.png')).metadata();
+  assert.deepEqual([m.format, m.width, m.height], ['png', 154, 512]);
+  assert.deepEqual([read('follow-image-3.gif'), read('kicks-image-4.gif'), read('sub-image-5.mp4')], [GIF, broken, MP4]);
+  assert.ok(fs.existsSync(path.join(DATA_DIR, 'uploads-shrunk.txt')));
+  assert.deepEqual(fs.readdirSync(UPLOADS_DIR).filter((f) => f.endsWith('.tmp')), []);
+
+  const big = await frame('#f00');
+  put('sub-image-6.png', big);
+  await media.shrinkOld();
+  assert.deepEqual(read('sub-image-6.png'), big, 'only once');
+});
