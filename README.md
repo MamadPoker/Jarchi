@@ -188,7 +188,7 @@ assets/              official platform logos (platform-logos), Kick badge icons 
 widgets/<name>/      each widget is a folder, served at /widgets/<name>
 panel/               settings panel (served at /)
 electron/            the desktop app: window, tray, updates (main.js), the panel's update bridge (preload.js)
-build/               installer additions (installer.nsh) and the next release's notes (release-notes.md)
+build/               installer additions (installer.nsh), its pictures (installerSidebar.bmp, installerHeader.bmp) and the next release's notes (release-notes.md)
 i18n/en.json         every UI string, panel and overlay (overlays always use it)
 i18n/fa.json         the panel in Persian (same keys)
 ```
@@ -211,7 +211,7 @@ npm run release   # builds it and publishes it as a release on github.com/MamadP
 
 For a release: raise `version` in `package.json`, write what changed in `build/release-notes.md` (the app shows it in "What's new" as plain text, line by line: no markdown formatting), then run `npm run release` with a GitHub token in `GH_TOKEN` (PowerShell: `$env:GH_TOKEN = "github_pat_…"; npm run release`). The token is a fine-grained one with access to Jarchi-releases only, **Contents: Read and write**. Never put it in a file in this repo.
 
-The installed app looks for a newer release at start and every 4 hours, downloads it in the background and installs it only when the streamer clicks **Restart now** (or quits Jarchi). `npm run app` never updates. The installer is per user (no admin rights), its options are in `package.json` `build` and `build/installer.nsh`. The data stays in `%APPDATA%\Jarchi`, so updates and reinstalls keep it; uninstalling asks.
+The installed app looks for a newer release at start and every 4 hours, downloads it in the background and installs it only when the streamer clicks **Restart now** (or quits Jarchi). `npm run app` never updates. The installer is per user (no admin rights), in English or Persian (a list at the start, the Windows language picked), and always installs into a `Jarchi` folder inside the one chosen (E:\ -> E:\Jarchi). Its options are in `package.json` `build` and `build/installer.nsh`, its pictures in `build/installerSidebar.bmp` (164x314) and `build/installerHeader.bmp` (150x57). The data stays in `%APPDATA%\Jarchi`, so updates and reinstalls keep it; uninstalling asks.
 
 ## Tests
 
