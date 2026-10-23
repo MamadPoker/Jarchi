@@ -1006,11 +1006,20 @@
     </div>
   </dialog>
 
-  <!-- The Privacy Policy (showPrivacy), in its own language: from the tour's Hello and About (Close), or by itself when
-       it's newer than the one accepted ("Privacy Policy updated", or "Privacy Policy" before any; Accept only). -->
+  <!-- The Privacy Policy (showPrivacy), English or Persian (its switch): from the tour's Hello and About (Close), or by
+       itself when it's newer than the one accepted ("Privacy Policy updated", or "Privacy Policy" before any; ticked
+       checkbox, then Accept). -->
   <dialog id="privacy" class="profile-dialog privacy" aria-labelledby="privacyTitle">
-    <h2 id="privacyTitle"></h2>
+    <div class="privacy-head">
+      <span class="privacy-shield"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l7.5 3v5.5c0 4.6-3.2 8.3-7.5 9.5-4.3-1.2-7.5-4.9-7.5-9.5V6z"/><path d="M8.8 12.2l2.2 2.2 4.2-4.4"/></svg></span>
+      <div class="stack"><h2 id="privacyTitle"></h2><small id="privacyVersion"></small></div>
+      <div class="seg" role="radiogroup" data-aria="language">
+        <label><input type="radio" name="privacyLang" value="en"><span lang="en">English</span></label>
+        <label><input type="radio" name="privacyLang" value="fa"><span lang="fa">فارسی</span></label>
+      </div>
+    </div>
     <div id="privacyText" class="privacy-text"></div>
+    <label id="privacyAgree" class="privacy-agree"><input type="checkbox" id="privacyCheck"><span></span></label>
     <div class="profile-actions"><button id="privacyOk" class="primary"></button></div>
   </dialog>
 

@@ -498,10 +498,6 @@ body { padding-top: var(--tb); }
 .update-side small { color: inherit; font-size: 12px; opacity: 0.8; }
 .update-side:not([hidden]) + #profileChip { margin-top: 8px; }
 .update-dot { width: 7px; height: 7px; flex: none; margin-inline-start: -6px; border-radius: 50%; background: var(--gold); }
-.whats-new, .privacy { width: min(520px, calc(100vw - 32px)); }
-.privacy-text { max-height: min(60vh, 460px); overflow-y: auto; line-height: 1.6; }
-.privacy-text p, .privacy-text ul { margin: 0; }
-.privacy-text ul { display: grid; gap: 6px; margin-top: 10px; padding-inline-start: 20px; }
 /* A button that reads as a link: the tour's "Privacy Policy", About's "Privacy" */
 button.link, button.link:hover { display: inline; padding: 0; border: 0; background: none; color: inherit; font-weight: inherit; text-decoration: underline; text-underline-offset: 3px; }
 button.link:hover, button.link:focus-visible { color: var(--gold-text); }
@@ -523,6 +519,30 @@ button.link:hover, button.link:focus-visible { color: var(--gold-text); }
 .seg input:disabled + span:hover { color: var(--muted); }
 .profile-err { color: var(--danger); }
 .profile-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 6px; }
+.whats-new { width: min(520px, calc(100vw - 32px)); }
+/* The Privacy Policy: wide enough for the whole policy; only a very small window scrolls it (its points, between the
+   header and the buttons). A row per point, its icon in a tinted tile. */
+.privacy { width: min(640px, calc(100vw - 32px)); max-height: calc(100vh - 32px); }
+.privacy[open] { grid-template-rows: auto minmax(0, 1fr); gap: 16px; }
+.privacy-head { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; }
+.privacy-head .stack { flex: 1; gap: 0; min-width: 0; }
+.privacy-head h2 { font-size: 20px; }
+.privacy-head small { color: var(--muted); }
+.privacy-shield, .pt-icon { display: grid; place-items: center; flex: none; background: var(--gold-soft); color: var(--gold); }
+.privacy-shield { width: 44px; height: 44px; border: 1px solid var(--gold-line); border-radius: 12px; }
+.privacy-shield svg { width: 24px; height: 24px; }
+.privacy-text { display: grid; gap: 14px; overflow-y: auto; line-height: 1.55; }
+.privacy-text p { margin: 0; }
+.privacy-points { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; }
+.privacy-points li { display: flex; align-items: flex-start; gap: 12px; }
+.privacy-points .stack { gap: 0; }
+.privacy-points .stack span { color: var(--muted); font-size: 14px; }
+.pt-icon { width: 32px; height: 32px; border-radius: 9px; }
+.pt-icon svg { width: 17px; height: 17px; stroke-width: 2.2; }
+.pt-collect .pt-icon { background: rgb(31 163 154 / 0.14); color: #1fa39a; } /* teal: what's collected */
+.pt-never .pt-icon { background: color-mix(in srgb, var(--danger) 12%, transparent); color: var(--danger); }
+.privacy-agree { display: flex; align-items: center; gap: 10px; padding-top: 14px; border-top: 1px solid var(--border); cursor: pointer; }
+.privacy-agree[hidden] { display: none; }
 
 /* Welcome tour (first run, and the Guide's "Show welcome tour again") */
 .tour { width: min(620px, calc(100vw - 32px)); }
@@ -538,7 +558,7 @@ button.link:hover, button.link:focus-visible { color: var(--gold-text); }
 .tour-langs { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; width: 100%; margin-top: 8px; }
 .tour-langs button { justify-content: center; padding: 16px; font-size: 19px; font-weight: 800; }
 .tour-agree { display: flex; align-items: center; gap: 10px; cursor: pointer; } /* the Privacy Policy, in both languages */
-.tour-agree input { flex: none; width: 18px; height: 18px; margin: 0; accent-color: var(--gold); }
+.tour-agree input, .privacy-agree input { flex: none; width: 18px; height: 18px; margin: 0; accent-color: var(--gold); }
 .tour .card-head .stack { flex: 1; gap: 2px; }
 .tour label.field { display: none; } /* the Twitch card's Client ID: only on Connections */
 .tour-links, .spot-items { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }

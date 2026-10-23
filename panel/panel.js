@@ -82,7 +82,7 @@ const tintTitleBar = () => ($('meta[name=theme-color]').content = getComputedSty
 new MutationObserver(tintTitleBar).observe(document.documentElement, { attributes: true });
 tintTitleBar();
 // Persian digits (and ٪ ٫) in labels; inputs keep theirs.
-const fd = (v) => (FA ? String(v).replace(/(?<=\d)\.(?=\d)/g, '٫').replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[d]).replace(/%/g, '٪') : String(v));
+const fd = (v, fa = FA) => (fa ? String(v).replace(/(?<=\d)\.(?=\d)/g, '٫').replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[d]).replace(/%/g, '٪') : String(v));
 const fmt = (n) => n.toLocaleString(FA ? 'fa-IR' : undefined);
 const ltr = (s) => (FA ? `\u2066${s}\u2069` : s); // an address inside a Persian sentence keeps its order
 let S, EN, settings, samples, goalData; // S: the panel's strings, EN: English for the overlays. goalData = { state, styles, fonts } from /api/goals; state then follows the socket
@@ -893,19 +893,38 @@ function setLang(lang) {
 // ---------- Privacy Policy ----------
 // i18n/privacy.json, in English and Persian, with its version. The tour's Hello doesn't go on (or close) before it's
 // accepted; one newer than the version accepted (settings.privacyAccepted) opens by itself to Accept, as "Privacy
-// Policy updated" ("Privacy Policy" for someone who never accepted one).
+// Policy updated" ("Privacy Policy" for someone who never accepted one). The popup switches between the two languages.
 const mustAccept = () => settings.privacyAccepted < privacy.version;
 const acceptPrivacy = () => api('PATCH', '/api/settings', { privacyAccepted: privacy.version }).then((s) => (settings = s), () => {});
-function showPrivacy(lang = S.lang, accept = false) {
-  const d = $('#privacy'), p = privacy[lang], P = (lang === S.lang ? S : lang === 'fa' ? faStrings : EN).panel; // Hello has both
-  Object.assign(d, { lang, dir: lang === 'fa' ? 'rtl' : 'ltr' });
+// A language's strings: the panel's, English (always loaded) or Persian (fetched once, for an English panel).
+const stringsOf = async (lang) => (lang === S.lang ? S : lang === 'en' ? EN : (faStrings ??= await (await fetch('/i18n/fa.json')).json()));
+const POINT_ICON = { // privacy.json's icons, one per point
+  collect: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
+  never: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7l10 10M17 7L7 17"/></svg>',
+  why: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.6 10.8c.7.6 1.1 1.3 1.1 2.2h5c0-.9.4-1.6 1.1-2.2A6 6 0 0 0 12 3z"/></svg>',
+  where: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 19a5 5 0 0 1-.6-10A6.5 6.5 0 0 1 18.8 10.5 4.25 4.25 0 0 1 17.5 19z"/></svg>',
+  choice: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4.5 20.5a7.5 7.5 0 0 1 15 0"/></svg>',
+};
+async function showPrivacy(lang = S.lang, accept = false) {
+  const d = $('#privacy');
   d.classList.toggle('accept', accept);
-  $('#privacyTitle').textContent = !accept ? p.title : settings.privacyAccepted ? P.privacyUpdated : P.privacyPolicy;
-  $('#privacyText').replaceChildren(el('p', { textContent: p.intro }),
-    el('ul', {}, ...p.items.map(([what, text]) => el('li', {}, el('b', { textContent: `${what}:` }), ` ${text}`))));
-  $('#privacyOk').textContent = accept ? P.privacyAccept : P.updateClose;
+  $('#privacyAgree').hidden = !accept;
+  $('#privacyCheck').checked = false;
+  $('#privacyOk').disabled = accept; // until it's ticked
   $('#privacyOk').onclick = () => (accept && acceptPrivacy(), d.close());
+  await renderPrivacy(lang);
   d.showModal();
+}
+async function renderPrivacy(lang) {
+  const d = $('#privacy'), p = privacy[lang], P = (await stringsOf(lang)).panel, accept = d.classList.contains('accept');
+  Object.assign(d, { lang, dir: lang === 'fa' ? 'rtl' : 'ltr' });
+  $$('input[name=privacyLang]', d).forEach((r) => (r.checked = r.value === lang));
+  $('#privacyTitle').textContent = !accept ? p.title : settings.privacyAccepted ? P.privacyUpdated : P.privacyPolicy;
+  $('#privacyVersion').textContent = tpl(P.version, { version: fd(privacy.version, lang === 'fa') });
+  $('#privacyText').replaceChildren(el('p', { textContent: p.intro }), el('ul', { className: 'privacy-points' }, ...p.items.map(([what, text], i) =>
+    el('li', { className: `pt-${privacy.icons[i]}` }, svgIn('pt-icon', POINT_ICON[privacy.icons[i]]), el('span', { className: 'stack' }, el('b', { textContent: what }), el('span', { textContent: text }))))));
+  $('#privacyAgree span').textContent = tpl(P.privacyAgree, { policy: P.privacyPolicy });
+  $('#privacyOk').textContent = accept ? P.privacyAccept : P.updateClose;
 }
 // Escape doesn't close what waits for the policy to be accepted: the Accept popup, or the tour's Hello (the policy
 // opened from it still closes). On keydown, not cancel: a dialog that opened by itself, before any click, can't stop
@@ -933,7 +952,7 @@ let tourStep = 0, spot = 0, faStrings;
 
 // A step (and in Sidebar, which stop): the dialog for the others, the sidebar's spotlight for Sidebar.
 async function tourTo(n, stop = 0) {
-  if (!n) faStrings ??= FA ? S : await (await fetch('/i18n/fa.json')).json(); // Hello's Persian half
+  if (!n) faStrings = await stringsOf('fa'); // Hello's Persian half
   tourStep = n;
   const d = $('#tour');
   (n === SIDEBAR ? d : $('#spot')).close();
@@ -1385,6 +1404,8 @@ function build() {
   const [madeA, madeB] = S.panel.madeWith.split('{heart}'); // About's "Made with ♥ by MamadPoker", the heart in gold
   $('#madeWith').append(madeA, el('span', { className: 'heart', textContent: '♥' }), madeB, ' ', el('b', { textContent: 'MamadPoker' }));
   $('#aboutPrivacy').onclick = () => showPrivacy();
+  $$('input[name=privacyLang]').forEach((r) => (r.onchange = () => renderPrivacy(r.value)));
+  $('#privacyCheck').onchange = (e) => ($('#privacyOk').disabled = !e.target.checked);
   $$('[data-title]').forEach((e) => e.setAttribute('aria-label', (e.title = S.panel[e.dataset.title])));
   $$('[data-aria]').forEach((e) => e.setAttribute('aria-label', S.panel[e.dataset.aria]));
   $$('[data-help]').forEach(addHelp); // after data-i18n, which sets the labels' text

@@ -19,10 +19,13 @@ test('fa.json has every key of en.json, with the same {variables}', () => {
 });
 
 test('the Privacy Policy has a version and the same parts in English and Persian', () => {
-  const { version, en: e, fa: f } = JSON.parse(read('i18n/privacy.json'));
+  const { version, icons, en: e, fa: f } = JSON.parse(read('i18n/privacy.json'));
   assert.ok(Number.isInteger(version) && version > 0);
   for (const p of [e, f]) assert.ok(p.title && p.intro && p.items.every(([what, text]) => what && text));
   assert.equal(f.items.length, e.items.length);
+  const js = read('panel/panel.js'), drawn = js.slice(js.indexOf('const POINT_ICON'), js.indexOf('async function showPrivacy'));
+  assert.deepEqual(icons.filter((i) => !drawn.includes(`\n  ${i}: '<svg`)), [], 'every point has its icon in the panel');
+  assert.equal(icons.length, e.items.length);
 });
 
 test('every "?" in the panel has its help text', () => {

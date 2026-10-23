@@ -1,5 +1,6 @@
 {
   "version": 1,
+  "icons": ["collect", "never", "why", "where", "choice"],
   "en": {
     "title": "Jarchi Privacy Policy",
     "intro": "Jarchi runs on your own computer. To understand how Jarchi is used and to improve it, Jarchi sends a small amount of information to the Jarchi server:",
