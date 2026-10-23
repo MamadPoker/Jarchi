@@ -14,11 +14,72 @@ const WINDOW_FILE = path.join(DATA_DIR, 'window.json');
 
 let win, tray, quitting = false;
 
+// Opening from the tray and closing to it: the window slides a little from / toward the tray while it fades, by opacity
+// and position only (never its size; a maximized one only fades). Instant with Reduce animations on (the panel's, or
+// Windows' animation effects off): the panel is asked at every close, its answer kept for the next open.
+const SLIDE = 40, SLIDE_MS = 200;
+let slideNow = null, closing = false, calm = false;
+const still = () => Promise.race([
+  win.webContents.executeJavaScript("document.documentElement.hasAttribute('data-still') || matchMedia('(prefers-reduced-motion: reduce)').matches").catch(() => true),
+  new Promise((r) => setTimeout(r, 200, true)), // a page that doesn't answer: no animation
+]);
+// SLIDE px from the window's middle toward the tray icon (no icon position: down and to the right).
+function towardTray(b) {
+  const t = tray.getBounds();
+  const [dx, dy] = t.width ? [t.x + t.width / 2 - (b.x + b.width / 2), t.y + t.height / 2 - (b.y + b.height / 2)] : [1, 1];
+  const d = Math.hypot(dx, dy) || 1;
+  return [Math.round((dx / d) * SLIDE), Math.round((dy / d) * SLIDE)];
+}
+// k: 0 = by the tray, clear .. 1 = in place, solid. From `from` to `to` (eased out), then done(); either way, stopped or
+// finished, the window ends up in its place and solid again (after a close it's hidden by then).
+function slide(from, to, done = () => {}) {
+  slideNow?.(false);
+  const home = win.getBounds(), start = Date.now();
+  const [dx, dy] = win.isMaximized() || win.isFullScreen() ? [0, 0] : towardTray(home);
+  const set = (k) => {
+    win.setOpacity(k);
+    if (dx || dy) win.setBounds({ ...home, x: home.x + Math.round(dx * (1 - k)), y: home.y + Math.round(dy * (1 - k)) });
+  };
+  const timer = setInterval(() => {
+    const t = Math.min((Date.now() - start) / SLIDE_MS, 1);
+    set(from + (to - from) * (1 - (1 - t) ** 3));
+    if (t === 1) slideNow(true);
+  }, 16);
+  slideNow = (finished) => {
+    clearInterval(timer);
+    slideNow = null;
+    if (finished) done();
+    set(1);
+  };
+  set(from);
+}
+
 function show() {
   if (!win) return;
+  if (closing) slideNow?.(false); // closing right now: it stays open (an opening slide just goes on: double-click)
+  closing = false;
   if (win.isMinimized()) win.restore();
+  else if (!win.isVisible() && !calm) slide(0, 1);
   win.show();
   win.focus();
+}
+
+function hideToTray() {
+  if (closing || !win.isVisible()) return;
+  closing = true;
+  still().then((answer) => {
+    calm = answer;
+    if (!closing || quitting) return; // opened again meanwhile, or Quit closed it
+    if (calm || win.isMinimized()) {
+      closing = false;
+      win.hide();
+    } else {
+      slide(1, 0, () => {
+        closing = false;
+        win.hide();
+      });
+    }
+  });
 }
 
 // Last size and position; the position is dropped when it's on no screen any more (a monitor unplugged since).
@@ -71,7 +132,7 @@ function open() {
     saveBounds();
     if (quitting) return;
     e.preventDefault();
-    win.hide();
+    hideToTray();
   });
   win.webContents.setWindowOpenHandler(({ url }) => {
     if (own(url)) return { action: 'allow' };
@@ -100,7 +161,10 @@ function open() {
 if (!app.requestSingleInstanceLock()) app.quit(); // one Jarchi at a time: the first one shows its window instead
 else {
   app.on('second-instance', show);
-  app.on('before-quit', () => { quitting = true; });
+  app.on('before-quit', () => {
+    quitting = true;
+    slideNow?.(false); // Quit closes right away
+  });
   app.whenReady().then(() => {
     // In its own process, the server's work (chat, alerts, files, the widgets' requests) never holds up the window. It
     // says when it's listening. If it stops (e.g. `npm start` already has the port), so does the app, with the server's
