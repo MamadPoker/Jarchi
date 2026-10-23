@@ -93,6 +93,7 @@ function open() {
     { type: 'separator' },
     { label: 'Quit', click: () => app.quit() },
   ]));
+  tray.on('click', show); // right click: the menu
   tray.on('double-click', show);
 }
 
