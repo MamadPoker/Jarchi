@@ -47,21 +47,52 @@ LangString jarchiKeep 1065 "تنظیمات، فایل‌های آپلودشده 
   StrCpy $isForceCurrentInstall "1"
 !macroend
 
-; Whatever folder is picked, Jarchi goes into a "Jarchi" folder in it (E:\ -> E:\Jarchi, E:\Apps -> E:\Apps\Jarchi),
-; unless it already is one (E:\Apps\Jarchi). Runs as the files are about to be copied: in place of electron-builder's
-; own check (instFilesPre: only when "Jarchi" is nowhere in the path), which still runs after it, finding nothing to do.
+; Install folder. Whatever folder is picked, Jarchi goes into a "Jarchi" folder in it (E:\ -> E:\Jarchi, E:\Apps ->
+; E:\Apps\Jarchi), unless it already is one (E:\Apps\Jarchi), and the field shows that before Install:
+; - Browse: NSIS adds InstallDir's last part ("Jarchi") itself, unless the folder picked has that name;
+; - typed: Install adds it in the field and stays on the page to show it (Install again to go on);
+; - a reinstall starts from the last folder: shown with it from the start.
+; A drive itself can be typed (AllowRootDirInstall), so Install stays enabled for E:\, which then becomes E:\Jarchi.
+; The page is Jarchi's own, where electron-builder puts its own (package.json leaves that off): its callbacks can't reach
+; electron-builder's page, the hidden "all users / only me" page before it takes them.
+InstallDir "$LOCALAPPDATA\Programs\Jarchi"
+AllowRootDirInstall true
+
 !macro customPageAfterChangeDir
-  !undef MUI_PAGE_CUSTOMFUNCTION_PRE
-  !define MUI_PAGE_CUSTOMFUNCTION_PRE jarchiInstDir
-  Function jarchiInstDir
+  !define MUI_PAGE_CUSTOMFUNCTION_PRE jarchiDirPre
+  !define MUI_PAGE_CUSTOMFUNCTION_SHOW jarchiDirShow
+  !define MUI_PAGE_CUSTOMFUNCTION_LEAVE jarchiDirLeave
+  !insertmacro MUI_PAGE_DIRECTORY
+
+  Function jarchiDirPre ; not on updates, like electron-builder's page
+    ${IfThen} ${isUpdated} ${|} Abort ${|}
+  FunctionEnd
+  Function jarchiDirShow
+    Call jarchiDir
+    SendMessage $mui.DirectoryPage.Directory ${WM_SETTEXT} 0 "STR:$INSTDIR"
+  FunctionEnd
+  Function jarchiDirLeave ; stays only when "\Jarchi" was added (Browse's own "...\Jarchi\" just goes on)
+    Call jarchiDir
+    ${If} $0 == 1
+      SendMessage $mui.DirectoryPage.Directory ${WM_SETTEXT} 0 "STR:$INSTDIR"
+      Abort
+    ${EndIf}
+  FunctionEnd
+  ; $INSTDIR in a "Jarchi" folder: trailing backslashes off (E:\ -> E:), then "\Jarchi" unless it ends with it.
+  ; $0 = 1 when it was added.
+  Function jarchiDir
     ${Do}
       StrCpy $0 $INSTDIR 1 -1
       ${IfThen} $0 != "\" ${|} ${ExitDo} ${|}
       StrCpy $INSTDIR $INSTDIR -1
     ${Loop}
     StrCpy $0 $INSTDIR "" -7
-    ${IfThen} $0 != "\Jarchi" ${|} StrCpy $INSTDIR "$INSTDIR\Jarchi" ${|}
-    Call instFilesPre
+    ${If} $0 != "\Jarchi"
+      StrCpy $INSTDIR "$INSTDIR\Jarchi"
+      StrCpy $0 1
+    ${Else}
+      StrCpy $0 0
+    ${EndIf}
   FunctionEnd
 !macroend
 

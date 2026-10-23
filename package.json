@@ -51,7 +51,6 @@
     },
     "nsis": {
       "oneClick": false,
-      "allowToChangeInstallationDirectory": true,
       "artifactName": "Jarchi-Setup-${version}.${ext}",
       "installerLanguages": [
         "en_US",
