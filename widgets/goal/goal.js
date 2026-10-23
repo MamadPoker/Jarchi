@@ -80,7 +80,8 @@ function draw() {
 function fit() {
   if (!cfg || root.hidden || !document.documentElement.offsetWidth || !innerHeight) return; // no layout yet: a hidden preview
   // Circle: the ring is the unit and the text keeps its size to it (Auto: a fifth of the ring), smaller only where it
-  // wouldn't fit. A wide source: the ring at its full height, the text beside it no taller; else under it, at most half.
+  // wouldn't fit. A wide source: the ring at its full height, title + count beside it no taller; else under it, at most
+  // half a ring. The percentage is inside the ring either way.
   const shape = innerWidth / innerHeight, circle = cfg.style === 'circle';
   const wide = circle && shape >= WIDE && !root.classList.contains('spot-inside');
   root.classList.toggle('wide', wide);

@@ -67,15 +67,16 @@ body { font-family: "Segoe UI", system-ui, sans-serif; }
 .style-neon .label { text-shadow: 0 0 10px var(--bar); }
 
 /* Circle: no box, just the ring. The ring (200 px) is the unit: the text keeps its size to it (fit()), and it all scales
-   to the source together. Square or tall source: the percentage big inside, title + numbers under it. Wide source
-   (.wide, fit()): the ring on the left at the source's full height, title, numbers and percentage beside it. */
+   to the source together. The percentage big in the middle of the ring; two lines next to it: the title, smaller and
+   softer like a label, over the bigger count. Square or tall source: those under the ring. Wide source (.wide, fit()):
+   the ring on the left at the source's full height, the two lines beside it. */
 .goal.style-circle { width: 200px; padding: 0; border: 0; background: none; gap: 8px; } /* width: fit() */
-.style-circle > .label { font-size: 0.75em; }
-.style-circle .label .nums { font-size: 0.85em; white-space: nowrap; } /* "1,234 / 5,000" gets smaller, never splits */
+.style-circle > .label { flex-direction: column; align-items: center; font-size: 0.7em; }
+.style-circle > .label .title { font-size: 0.75em; font-weight: 600; opacity: 0.7; }
+.style-circle > .label .nums { font-size: 1.15em; white-space: nowrap; } /* "1,234 / 5,000" gets smaller, never splits */
 .goal.style-circle.wide { display: flex; align-items: center; gap: 20px; text-align: start; }
 .style-circle.wide .ring { order: -1; flex: none; }
-.style-circle.wide > .label { flex: 1; min-width: 0; flex-direction: column; align-items: flex-start; font-size: 1.2em; }
-.style-circle.wide .label .nums, .style-circle.wide .label .pct { font-size: 0.8em; }
+.style-circle.wide > .label { flex: 1; min-width: 0; align-items: flex-start; font-size: 1em; }
 .ring { position: relative; width: 200px; height: 200px; }
 .ring svg { display: block; width: 100%; height: 100%; transform: rotate(-90deg); }
 .ring circle { fill: none; stroke-width: 10; }
@@ -88,8 +89,8 @@ body { font-family: "Segoe UI", system-ui, sans-serif; }
   transition: stroke-dashoffset 0.9s cubic-bezier(0.2, 0.8, 0.2, 1), stroke 0.4s;
 }
 .full .ring-fill { stroke: var(--full); }
-.ring-pct { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 1.35em; font-weight: 800; }
-.spot-inside .ring-pct, .wide .ring-pct, .style-circle:not(.spot-inside):not(.wide) .label .pct { display: none; }
+.ring-pct { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 1.45em; font-weight: 800; }
+.spot-inside .ring-pct, .style-circle:not(.spot-inside) .label .pct { display: none; }
 
 /* Retro: pixel look, a bar of 10 blocks */
 .style-retro { --bar-h: 26px; }
