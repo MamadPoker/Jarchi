@@ -6,6 +6,8 @@ const id = location.pathname.split('/').filter(Boolean)[2];
 const root = document.getElementById('goal');
 const BLOCKS = 10; // retro bar
 const HIDDEN_SPOT = { pill: 'inside', circle: 'below' }; // where the numbers go when the title is hidden
+const RING = 200; // goal.css .ring: the Circle style's unit
+const WIDE = 1.75; // a source this many times wider than tall (16:9 too) gets the Circle's text beside the ring
 let settings, cfg, look = '', state = { current: 0, reached: false }, shown = 0, tween;
 
 const h = (tag, props, ...kids) => {
@@ -77,12 +79,18 @@ function draw() {
 // the source's size, fonts, a hidden preview showing).
 function fit() {
   if (!cfg || root.hidden || !document.documentElement.offsetWidth || !innerHeight) return; // no layout yet: a hidden preview
-  const room = (root.offsetWidth * innerHeight) / innerWidth;
+  // Circle: the ring is the unit and the text keeps its size to it (Auto: a fifth of the ring), smaller only where it
+  // wouldn't fit. A wide source: the ring at its full height, the text beside it no taller; else under it, at most half.
+  const shape = innerWidth / innerHeight, circle = cfg.style === 'circle';
+  const wide = circle && shape >= WIDE && !root.classList.contains('spot-inside');
+  root.classList.toggle('wide', wide);
+  root.style.width = circle ? `${RING * (wide ? shape : Math.max(shape, 1))}px` : '';
+  const room = !circle ? root.offsetWidth / shape : wide ? RING : RING * 1.5;
   const fits = (fs) => {
     root.style.setProperty('--fs', `${fs}px`);
     return root.offsetHeight <= room + 0.5 && [...root.querySelectorAll('.label, .ring-pct')].every((e) => e.scrollWidth <= e.clientWidth + 1 && e.scrollHeight <= e.clientHeight + 1);
   };
-  let lo = 8, hi = cfg.autoSize === false ? cfg.fontSize : 200;
+  let lo = 8, hi = cfg.autoSize === false ? cfg.fontSize : circle ? RING / 5 : 200;
   if (!fits(hi)) {
     while (hi - lo > 0.5) {
       const mid = (lo + hi) / 2;

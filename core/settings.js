@@ -125,11 +125,12 @@ const RULES = {
 const GOAL_IDS = ['subs', 'kicks', 'followers', 'twitchSubs', 'bits', 'twitchFollowers'];
 const FONTS = ['Segoe UI', 'Arial Black', 'Impact', 'Trebuchet MS', 'Georgia', 'Consolas'];
 // Each style is a complete set of look values; users then tweak any of them. Picking a style or "Reset style" restores these.
+// Circle draws no box (its bg, border and radius go unused) and its fontSize is for its 200 px ring.
 const GOAL_STYLES = {
   classic: { barColor: '#8b5cf6', barBg: '#2b2e3b', textColor: '#ffffff', fullColor: '#22c55e', bg: 'color', bgColor: '#14141c', bgOpacity: 0.85, border: false, borderColor: '#8b5cf6', borderWidth: 2, radius: 14, scale: 1, font: 'Segoe UI', fontSize: 26, titlePos: 'above', showPercent: false, showNumbers: true },
   pill: { barColor: '#ff5fa2', barBg: '#3a2333', textColor: '#ffffff', fullColor: '#22c55e', bg: 'off', bgColor: '#14141c', bgOpacity: 0.85, border: false, borderColor: '#ffffff', borderWidth: 2, radius: 60, scale: 1, font: 'Segoe UI', fontSize: 24, titlePos: 'inside', showPercent: true, showNumbers: true },
   neon: { barColor: '#00f0ff', barBg: '#0b1530', textColor: '#ffffff', fullColor: '#ff2bd6', bg: 'color', bgColor: '#0a0620', bgOpacity: 0.85, border: true, borderColor: '#00f0ff', borderWidth: 2, radius: 16, scale: 1, font: 'Segoe UI', fontSize: 26, titlePos: 'above', showPercent: true, showNumbers: true },
-  circle: { barColor: '#8b5cf6', barBg: '#2b2e3b', textColor: '#ffffff', fullColor: '#22c55e', bg: 'transparent', bgColor: '#14141c', bgOpacity: 0.85, border: true, borderColor: '#ffffff', borderWidth: 2, radius: 24, scale: 1, font: 'Segoe UI', fontSize: 24, titlePos: 'below', showPercent: true, showNumbers: true },
+  circle: { barColor: '#8b5cf6', barBg: '#2b2e3b', textColor: '#ffffff', fullColor: '#22c55e', bg: 'off', bgColor: '#14141c', bgOpacity: 0.85, border: false, borderColor: '#ffffff', borderWidth: 2, radius: 24, scale: 1, font: 'Segoe UI', fontSize: 40, titlePos: 'below', showPercent: true, showNumbers: true },
   text: { barColor: '#8b5cf6', barBg: '#2b2e3b', textColor: '#ffffff', fullColor: '#22c55e', bg: 'off', bgColor: '#14141c', bgOpacity: 0.85, border: false, borderColor: '#ffffff', borderWidth: 2, radius: 12, scale: 1, font: 'Segoe UI', fontSize: 40, titlePos: 'above', showPercent: false, showNumbers: true },
   retro: { barColor: '#ffe14d', barBg: '#2d2d5a', textColor: '#ffffff', fullColor: '#4dd2ff', bg: 'color', bgColor: '#1b1b3a', bgOpacity: 1, border: true, borderColor: '#ffffff', borderWidth: 4, radius: 0, scale: 1, font: 'Consolas', fontSize: 24, titlePos: 'above', showPercent: false, showNumbers: true },
 };

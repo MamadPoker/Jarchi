@@ -1685,6 +1685,7 @@ function renderGoal() {
 
   const show = {
     off: !g.enabled,
+    goalBox: g.style !== 'circle',
     bgColor: g.bg === 'color',
     box: g.bg !== 'off',
     borderOn: g.bg !== 'off' && g.border,
@@ -1695,6 +1696,7 @@ function renderGoal() {
     manual: !synced,
   };
   $$('[data-only]', ed).forEach((e) => (e.hidden = !show[e.dataset.only]));
+  $('.more-grid', ed).classList.toggle('three', show.goalBox); // Circle: two cards, no empty third column
   const fname = $('.file .fname', ed);
   fname.textContent = g.sound ? g.sound.name : S.panel.soundNoFile;
   fname.classList.toggle('default', !g.sound);

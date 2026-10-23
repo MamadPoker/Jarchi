@@ -1,4 +1,4 @@
-/* Goal widget: transparent page, the goal in the middle, filling it: drawn 560 px wide (Circle 320) with the text size
+/* Goal widget: transparent page, the goal in the middle, filling it: drawn 560 px wide (Circle: below) with the text size
    goal.js fit() picks (--fs), then scaled to the Browser Source. The style-* class picks the layout;
    colors and sizes come from CSS variables set in goal.js, so every option works with every style.
    Runs in OBS's built-in Chromium: stick to well-supported CSS. */
@@ -66,9 +66,17 @@ body { font-family: "Segoe UI", system-ui, sans-serif; }
 .style-neon.full .fill { box-shadow: 0 0 12px var(--full), 0 0 28px var(--full); }
 .style-neon .label { text-shadow: 0 0 10px var(--bar); }
 
-/* Ring (circle): percentage inside, title + numbers under it */
-.style-circle { width: 320px; }
-.ring { position: relative; width: 180px; height: 180px; }
+/* Circle: no box, just the ring. The ring (200 px) is the unit: the text keeps its size to it (fit()), and it all scales
+   to the source together. Square or tall source: the percentage big inside, title + numbers under it. Wide source
+   (.wide, fit()): the ring on the left at the source's full height, title, numbers and percentage beside it. */
+.goal.style-circle { width: 200px; padding: 0; border: 0; background: none; gap: 8px; } /* width: fit() */
+.style-circle > .label { font-size: 0.75em; }
+.style-circle .label .nums { font-size: 0.85em; white-space: nowrap; } /* "1,234 / 5,000" gets smaller, never splits */
+.goal.style-circle.wide { display: flex; align-items: center; gap: 20px; text-align: start; }
+.style-circle.wide .ring { order: -1; flex: none; }
+.style-circle.wide > .label { flex: 1; min-width: 0; flex-direction: column; align-items: flex-start; font-size: 1.2em; }
+.style-circle.wide .label .nums, .style-circle.wide .label .pct { font-size: 0.8em; }
+.ring { position: relative; width: 200px; height: 200px; }
 .ring svg { display: block; width: 100%; height: 100%; transform: rotate(-90deg); }
 .ring circle { fill: none; stroke-width: 10; }
 .ring-bg { stroke: var(--bar-bg); }
@@ -80,8 +88,8 @@ body { font-family: "Segoe UI", system-ui, sans-serif; }
   transition: stroke-dashoffset 0.9s cubic-bezier(0.2, 0.8, 0.2, 1), stroke 0.4s;
 }
 .full .ring-fill { stroke: var(--full); }
-.ring-pct { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 1.5em; font-weight: 800; }
-.spot-inside .ring-pct, .style-circle:not(.spot-inside) .label .pct { display: none; }
+.ring-pct { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 1.35em; font-weight: 800; }
+.spot-inside .ring-pct, .wide .ring-pct, .style-circle:not(.spot-inside):not(.wide) .label .pct { display: none; }
 
 /* Retro: pixel look, a bar of 10 blocks */
 .style-retro { --bar-h: 26px; }
