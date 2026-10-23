@@ -94,6 +94,7 @@ let home, open = {}, feedFilter = 'all'; // Home: { today, started, kickGoals } 
 let hist = { list: [], filter: 'all', page: 0 }; // every saved event (/api/history, then the socket): Home's live feed and History; History's filter and page
 let twitch; // the Twitch account: { state, error, code, uri, clientId, login, goals } (/api/twitch, then the socket)
 let kick; // the Kick account: { state, error, uri, login } (/api/kick, then the socket)
+let privacy; // the Privacy Policy: { version, en, fa } (i18n/privacy.json)
 let showGoalTab; // the Goals list's Kick | Twitch tab (wireTabs, in build())
 
 const pct = (v) => `${Math.round(v * 100)}%`;
@@ -889,6 +890,22 @@ function setLang(lang) {
   location.reload();
 }
 
+// ---------- Privacy Policy ----------
+// i18n/privacy.json, in English and Persian, with its version. The tour's Hello doesn't go on before it's accepted; one
+// newer than the version accepted (settings.privacyAccepted) opens by itself as "Privacy Policy updated", to Accept.
+const acceptPrivacy = () => api('PATCH', '/api/settings', { privacyAccepted: privacy.version }).then((s) => (settings = s), () => {});
+function showPrivacy(lang = S.lang, accept = false) {
+  const d = $('#privacy'), p = privacy[lang], P = (lang === S.lang ? S : lang === 'fa' ? faStrings : EN).panel; // Hello has both
+  Object.assign(d, { lang, dir: lang === 'fa' ? 'rtl' : 'ltr' });
+  $('#privacyTitle').textContent = accept ? P.privacyUpdated : p.title;
+  $('#privacyText').replaceChildren(el('p', { textContent: p.intro }),
+    el('ul', {}, ...p.items.map(([what, text]) => el('li', {}, el('b', { textContent: `${what}:` }), ` ${text}`))));
+  $('#privacyOk').textContent = accept ? P.privacyAccept : P.updateClose;
+  $('#privacyOk').onclick = () => (accept && acceptPrivacy(), d.close());
+  d.oncancel = (e) => accept && e.preventDefault(); // Accept is its only way out
+  d.showModal();
+}
+
 // ---------- Welcome tour ----------
 // Opens by itself on the first run (then settings.welcomed is saved), and from the Guide. Hello speaks both languages
 // and picks the panel's: another one reloads the panel in it, back at Connect. Connect shows the Connections page's own
@@ -913,7 +930,7 @@ async function tourTo(n, stop = 0) {
   if (n === SIDEBAR) return spotTo(stop);
   renderTour();
   if (!d.open) d.showModal();
-  ($('#tourNav').hidden ? $('.tour-langs button') : $('#tourNext')).focus(); // the step's way on
+  ($('#tourNav').hidden ? $('.tour-langs button:enabled, .tour-agree input') : $('#tourNext')).focus(); // the step's way on
 }
 function openTour(step = 0) {
   if (!settings.welcomed) api('PATCH', '/api/settings', { welcomed: true }).then((s) => (settings = s), () => {});
@@ -970,12 +987,21 @@ function renderTour() {
   body.className = `tour-body tour-${step}`;
   if (step === 'hello') {
     const say = (s) => el('div', { lang: s.lang, dir: s.dir }, h2(s.panel.welcome.hello), el('p', { textContent: s.panel.welcome.about }));
+    const agreed = settings.privacyAccepted >= privacy.version;
+    const langs = [['en', 'English'], ['fa', 'فارسی']].map(([lang, name]) => el('button', { className: 'primary', lang, textContent: name, disabled: !agreed, onclick: async () => {
+      if (settings.privacyAccepted < privacy.version) await acceptPrivacy(); // saved before a reload into the other language
+      if (lang === S.lang) return tourTo(1);
+      try { sessionStorage.setItem('jarchi.tour', '1'); } catch {}
+      setLang(lang);
+    } }));
+    // "I have read and accept the Privacy Policy" in both languages, each one's link opening the policy in it.
+    const agree = (s) => {
+      const [a, b] = s.panel.privacyAgree.split('{policy}');
+      return el('span', { lang: s.lang, dir: s.dir }, a, el('button', { className: 'link', textContent: s.panel.privacyPolicy, onclick: () => showPrivacy(s.lang) }), b);
+    };
+    const box = el('input', { type: 'checkbox', checked: agreed, onchange: () => langs.forEach((b) => (b.disabled = !box.checked)) });
     body.replaceChildren(el('img', { className: 'tour-logo', src: '/assets/brand/jarchi-logo-v2.png', alt: 'Jarchi' }), say(EN), say(faStrings),
-      el('div', { className: 'tour-langs' }, ...[['en', 'English'], ['fa', 'فارسی']].map(([lang, name]) => el('button', { className: 'primary', lang, textContent: name, onclick: () => {
-        if (lang === S.lang) return tourTo(1);
-        try { sessionStorage.setItem('jarchi.tour', '1'); } catch {}
-        setLang(lang);
-      } }))));
+      el('div', { className: 'tour-langs' }, ...langs), el('label', { className: 'tour-agree' }, box, el('span', { className: 'stack' }, agree(EN), agree(faStrings))));
   }
   if (step === 'connect') body.replaceChildren(h2(W.connectTitle), ...connCards(), el('p', { className: 'tip', textContent: W.profileNote }));
   if (step === 'obs') {
@@ -1348,6 +1374,7 @@ function build() {
   $$('[data-i18n]').forEach((e) => (e.textContent = S.panel[e.dataset.i18n]));
   const [madeA, madeB] = S.panel.madeWith.split('{heart}'); // About's "Made with ♥ by MamadPoker", the heart in gold
   $('#madeWith').append(madeA, el('span', { className: 'heart', textContent: '♥' }), madeB, ' ', el('b', { textContent: 'MamadPoker' }));
+  $('#aboutPrivacy').onclick = () => showPrivacy();
   $$('[data-title]').forEach((e) => e.setAttribute('aria-label', (e.title = S.panel[e.dataset.title])));
   $$('[data-aria]').forEach((e) => e.setAttribute('aria-label', S.panel[e.dataset.aria]));
   $$('[data-help]').forEach(addHelp); // after data-i18n, which sets the labels' text
@@ -1909,9 +1936,9 @@ artRun();
   EN = await (await fetch('/i18n/en.json')).json();
   S = FA ? await (await fetch('/i18n/fa.json')).json() : EN;
   try {
-    [settings, samples, goalData, { styles: chatStyles, fonts: chatFonts }, chatStatus, home, hist.list, twitch, kick] = await Promise.all([
+    [settings, samples, goalData, { styles: chatStyles, fonts: chatFonts }, chatStatus, home, hist.list, twitch, kick, privacy] = await Promise.all([
       api('GET', '/api/settings'), api('GET', '/api/samples'), api('GET', '/api/goals'), api('GET', '/api/chat/styles'), api('GET', '/api/chat/status'), api('GET', '/api/home'), api('GET', '/api/history'),
-      api('GET', '/api/twitch'), api('GET', '/api/kick'),
+      api('GET', '/api/twitch'), api('GET', '/api/kick'), fetch('/i18n/privacy.json').then((r) => r.json()),
     ]);
   } catch (err) {
     return toast(err.message, true);
@@ -1927,11 +1954,13 @@ artRun();
   if (location.hash) history.replaceState(null, '', location.pathname);
   const ok = v === 'alert' ? key in settings.alerts : v === 'goal' ? key in settings.goals : v === 'theme' || $$('.nav-item').some((b) => b.dataset.view === v);
   select(ok ? v : 'home', ok ? key : undefined);
-  // The welcome tour: the first run, or back from its language pick (at that step).
+  // The welcome tour: the first run, or back from its language pick (at that step). Else a newer Privacy Policy than
+  // the one accepted (also for those who had the tour before there was one).
   let tour;
   try {
     tour = sessionStorage.getItem('jarchi.tour');
     sessionStorage.removeItem('jarchi.tour');
   } catch {}
   if (tour || !settings.welcomed) openTour(Number(tour));
+  else if (settings.privacyAccepted < privacy.version) showPrivacy(S.lang, true);
 })();

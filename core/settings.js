@@ -14,11 +14,13 @@ const THEMES = ['neon', 'minimal', 'fun', 'retro', 'glass', 'fire', 'ice', 'gala
 // alertGap: seconds between two alerts. proxy*: how Jarchi reaches Kick, Twitch and 7TV (core/net.js).
 // kickGoalSync / twitchGoalSync: goals set on the Kick / Twitch channel show that platform's numbers (core/goals.js).
 // welcomed: the panel's welcome tour was shown (it opens by itself once, on the first run).
-const GLOBAL = { theme: 'neon', showBadge: true, alertGap: 0.5, proxyMode: 'system', proxyType: 'http', proxyHost: '', proxyPort: 0, kickGoalSync: true, twitchGoalSync: true, welcomed: false };
+// privacyAccepted: the version of the Privacy Policy (i18n/privacy.json) the user accepted, 0 = none yet.
+const GLOBAL = { theme: 'neon', showBadge: true, alertGap: 0.5, proxyMode: 'system', proxyType: 'http', proxyHost: '', proxyPort: 0, kickGoalSync: true, twitchGoalSync: true, welcomed: false, privacyAccepted: 0 };
 const GLOBAL_RULES = {
   theme: (v) => THEMES.includes(v),
   showBadge: (v) => typeof v === 'boolean',
   welcomed: (v) => typeof v === 'boolean',
+  privacyAccepted: (v) => Number.isInteger(v) && v >= 0,
   kickGoalSync: (v) => typeof v === 'boolean',
   twitchGoalSync: (v) => typeof v === 'boolean',
   alertGap: (v) => typeof v === 'number' && v >= 0 && v <= 60,

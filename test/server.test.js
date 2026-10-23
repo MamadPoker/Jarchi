@@ -66,6 +66,10 @@ test('migration, settings, uploads, reset, events', async () => {
   // v6 -> v7: an existing user doesn't get the first-run welcome tour; it takes only true / false.
   assert.equal(s.welcomed, true);
   assert.equal((await call('PATCH', '/api/settings', { welcomed: 'yes' })).status, 400);
+  // An earlier user hasn't accepted a Privacy Policy yet (the panel asks); it takes a version number.
+  assert.equal(s.privacyAccepted, 0);
+  assert.equal((await (await call('PATCH', '/api/settings', { privacyAccepted: 1 })).json()).privacyAccepted, 1);
+  assert.equal((await call('PATCH', '/api/settings', { privacyAccepted: 1.5 })).status, 400);
   // v5 -> v6: the Sub and Followers goals stay (as Kick's), without "Also count Twitch subs" and Source.
   assert.deepEqual([s.goals.subs.title, 'countTwitch' in s.goals.subs, 'source' in s.goals.subs, 'source' in s.goals.followers], ['Road to 50', false, false, false]);
   assert.equal(s.chat.style, 'classic', 'an earlier user who never picked a chat style keeps Classic (Kick default is for new users)');
@@ -184,6 +188,7 @@ test('migration, settings, uploads, reset, events', async () => {
   assert.ok(!fs.existsSync(path.join(dataDir, 'uploads', pic)));
   assert.equal(s.profile.pictureFrom, 'kick');
   assert.equal(s.welcomed, false, 'Reset everything: like a first run');
+  assert.equal(s.privacyAccepted, 0);
 
   const samples = await (await call('GET', '/api/samples')).json();
   assert.equal(samples.raid.amount, 42);

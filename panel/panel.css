@@ -498,7 +498,14 @@ body { padding-top: var(--tb); }
 .update-side small { color: inherit; font-size: 12px; opacity: 0.8; }
 .update-side:not([hidden]) + #profileChip { margin-top: 8px; }
 .update-dot { width: 7px; height: 7px; flex: none; margin-inline-start: -6px; border-radius: 50%; background: var(--gold); }
-.whats-new { width: min(520px, calc(100vw - 32px)); }
+.whats-new, .privacy { width: min(520px, calc(100vw - 32px)); }
+.privacy-text { max-height: min(60vh, 460px); overflow-y: auto; line-height: 1.6; }
+.privacy-text p, .privacy-text ul { margin: 0; }
+.privacy-text ul { display: grid; gap: 6px; margin-top: 10px; padding-inline-start: 20px; }
+/* A button that reads as a link: the tour's "Privacy Policy", About's "Privacy" */
+button.link, button.link:hover { display: inline; padding: 0; border: 0; background: none; color: inherit; font-weight: inherit; text-decoration: underline; text-underline-offset: 3px; }
+button.link:hover, button.link:focus-visible { color: var(--gold-text); }
+.about-links { display: inline-flex; align-items: center; gap: 10px; } /* the made-by box's negative margin cancels its padding */
 .notes { max-height: min(50vh, 420px); overflow-y: auto; line-height: 1.6; white-space: pre-line; }
 
 /* Edit profile */
@@ -530,6 +537,8 @@ body { padding-top: var(--tb); }
 .tour-logo { width: 140px; height: auto; margin-bottom: 4px; }
 .tour-langs { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; width: 100%; margin-top: 8px; }
 .tour-langs button { justify-content: center; padding: 16px; font-size: 19px; font-weight: 800; }
+.tour-agree { display: flex; align-items: center; gap: 10px; cursor: pointer; } /* the Privacy Policy, in both languages */
+.tour-agree input { flex: none; width: 18px; height: 18px; margin: 0; accent-color: var(--gold); }
 .tour .card-head .stack { flex: 1; gap: 2px; }
 .tour label.field { display: none; } /* the Twitch card's Client ID: only on Connections */
 .tour-links, .spot-items { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
