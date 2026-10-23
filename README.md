@@ -206,10 +206,10 @@ Connectors only call `emitEvent()` (with an optional `key`: a repeat of the same
 
 ```sh
 npm run dist      # builds dist/Jarchi-Setup-<version>.exe on this PC
-npm run release   # builds it and publishes it as a release on github.com/MamadPoker/Jarchi-releases
+npm run release   # builds it and uploads it to a DRAFT release on github.com/MamadPoker/Jarchi-releases
 ```
 
-For a release: raise `version` in `package.json`, write what changed in `build/release-notes.md` (the app shows it in "What's new" as plain text, line by line: no markdown formatting), then run `npm run release` with a GitHub token in `GH_TOKEN` (PowerShell: `$env:GH_TOKEN = "github_pat_…"; npm run release`). The token is a fine-grained one with access to Jarchi-releases only, **Contents: Read and write**. Never put it in a file in this repo.
+For a release: raise `version` in `package.json`, write what changed in `build/release-notes.md` (the app shows it in "What's new" as plain text, line by line: no markdown formatting), then run `npm run release` with a GitHub token in `GH_TOKEN` (PowerShell: `$env:GH_TOKEN = "github_pat_…"; npm run release`). The token is a fine-grained one with access to Jarchi-releases only, **Contents: Read and write**. Never put it in a file in this repo. It makes a draft release `v<version>` with the installer, its `.blockmap` and `latest.yml` (all three are needed for updates). Check it on GitHub, then **Publish release**: only then do downloads and installed apps see it, and GitHub makes the tag on Jarchi-releases' own `main`. A version that already has a published release gets no draft (electron-builder skips it): raise the version first.
 
 The installed app looks for a newer release at start and every 4 hours, downloads it in the background and installs it only when the streamer clicks **Restart now** (or quits Jarchi). `npm run app` never updates. The installer is per user (no admin rights), in English or Persian (a list at the start, the Windows language picked), and always installs into a `Jarchi` folder inside the one chosen (E:\ -> E:\Jarchi). Its options are in `package.json` `build` and `build/installer.nsh`, its pictures in `build/installerSidebar.bmp` (164x314) and `build/installerHeader.bmp` (150x57). The data stays in `%APPDATA%\Jarchi`, so updates and reinstalls keep it; uninstalling asks. The installed app also has **Uninstall Jarchi** in Settings (next to Reset everything): it starts this uninstaller with `--keep-app-data` or `--delete-app-data`, so it doesn't ask again, and quits.
 

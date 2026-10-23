@@ -43,7 +43,13 @@
       "panel/**",
       "widgets/**",
       "assets/**",
-      "i18n/**"
+      "i18n/**",
+      "!{data,relay,test,dist,build,.claude,.wrangler,.git}{,/**}",
+      "!**/.env",
+      "!**/.env.*",
+      "!**/wrangler.toml",
+      "!**/*.test.{js,mjs,cjs}",
+      "!**/*.{pem,key,pfx,p12}"
     ],
     "win": {
       "target": "nsis",
@@ -62,7 +68,7 @@
       "provider": "github",
       "owner": "MamadPoker",
       "repo": "Jarchi-releases",
-      "releaseType": "release"
+      "releaseType": "draft"
     }
   }
 }
