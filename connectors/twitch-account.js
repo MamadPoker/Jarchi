@@ -27,9 +27,10 @@ const clientId = () => saved.clientId || CLIENT_ID;
 // error: why it's off or reconnecting (expired | denied | timeout | client | network), '' when fine.
 let st = { state: saved.refresh ? 'connecting' : 'off', error: '', code: '', uri: '' };
 const goals = new Map(); // Twitch goal id -> { id, type, description, current, target }
-// name / picture: the account's display name and picture, for the profile chip (Edit profile).
+// name / picture: the account's display name and picture, for the profile chip (Edit profile). clientId: the streamer's
+// own Twitch app's, '' while Jarchi's is used (the panel shows "Using Jarchi's Twitch app").
 const status = () => ({
-  ...st, clientId: clientId(), login: saved.refresh ? saved.login ?? '' : '', goals: [...goals.values()],
+  ...st, clientId: saved.clientId || '', login: saved.refresh ? saved.login ?? '' : '', goals: [...goals.values()],
   name: saved.refresh ? saved.name || saved.login || '' : '', picture: saved.refresh ? saved.picture ?? '' : '',
 });
 function set(next) {
@@ -116,7 +117,7 @@ async function disconnect() {
 function setClientId(v) {
   const id = String(v ?? '').trim();
   if (!/^[a-z0-9]{0,64}$/i.test(id) || st.state !== 'off') throw Object.assign(new Error('bad_request'), { status: 400, code: 'bad_request' });
-  keep({ clientId: id });
+  keep({ clientId: id === CLIENT_ID ? '' : id }); // Jarchi's own pasted: the same as empty
   set({ error: '' });
   return status();
 }

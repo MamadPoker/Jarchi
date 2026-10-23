@@ -107,6 +107,14 @@ test('relay POST /ping: one row per install, UTC times, refusals, rate limit', a
   const other = { ...sent, id: '0f8b7c1e-3a2d-4c5b-9e6f-1a2b3c4d5e6f' };
   assert.equal((await post(other)).status, 200, 'each install has its own limit');
 
+  // At most 100 new installs an hour (made-up ids); known ones go on meanwhile.
+  for (let i = 2; i < 100; i++) assert.equal((await post({ ...sent, id: crypto.randomUUID() })).status, 200);
+  assert.equal((await post({ ...sent, id: crypto.randomUUID() })).status, 429);
+  assert.equal((await post(other)).status, 200);
+  t.mock.timers.tick(60 * 60e3);
+  assert.equal((await post({ ...sent, id: crypto.randomUUID() })).status, 200);
+  db.exec(`DELETE FROM installs WHERE id NOT IN ('${sent.id}', '${other.id}')`);
+
   // Refused: not JSON, too big, malformed, a field more or one missing, wrong types, GET.
   assert.equal((await post(sent, { 'content-type': 'text/plain' })).status, 415);
   assert.equal((await post('{nope')).status, 400);

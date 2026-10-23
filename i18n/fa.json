@@ -113,7 +113,9 @@
     "twOpen": "باز کردن Twitch",
     "twWaiting": "منتظر تأیید شما در Twitch…",
     "twClientId": "Client ID برنامهٔ Twitch",
-    "twClientHint": "مال خود Jarchi از قبل نوشته شده: کاری لازم نیست. برای استفاده از برنامهٔ Twitch خودتان (dev.twitch.tv/console، Client Type: Public)، Client ID آن را بچسبانید؛ برای برگشتن، خانه را خالی کنید.",
+    "twClientHint": "خالی یعنی برنامهٔ Twitch خود Jarchi: کاری لازم نیست. برای استفاده از برنامهٔ خودتان (dev.twitch.tv/console، Client Type: Public)، Client ID آن را بچسبانید؛ برای برگشتن به مال Jarchi، خانه را خالی کنید.",
+    "twClientJarchi": "استفاده از برنامهٔ Twitch خود Jarchi",
+    "advanced": "پیشرفته",
     "twStates": { "off": "وصل نیست", "waiting": "منتظر تأیید", "connecting": "در حال اتصال", "connected": "وصل به حساب {login}" },
     "twErrors": { "expired": "ورود به Twitch تمام شد. دوباره وصل کنید.", "denied": "در Twitch تأیید نشد.", "timeout": "وقت کد تمام شد. دوباره وصل کنید.", "client": "Twitch این Client ID را نپذیرفت. آن را بررسی کنید و ببینید Client Type برنامه Public باشد.", "network": "الان به Twitch دسترسی نیست." },
     "connDown": "اتصال {platforms} {time} است که قطع است: ممکن است الرت‌ها از دست بروند",
@@ -788,7 +790,7 @@
       "eventLonger": "خط‌های ویژه دو برابر روی صفحه می‌مانند: دو برابر زمان **پنهان‌شدن هر پیام بعد از**، و تا وقتی دو برابر **بیشترین تعداد پیام روی صفحه** پیام تازه‌تر بیاید. در نوار افقی دو بار رد می‌شوند."
     },
     "connections": {
-      "clientId": "برنامهٔ Twitch که Jarchi با آن وارد می‌شود. مال خود Jarchi نوشته شده و برای همه کار می‌کند. برای استفاده از برنامهٔ خودتان، یکی در dev.twitch.tv/console بسازید (**Register Your Application**، Client Type: **Public**) و **Client ID** آن را این‌جا بچسبانید. برای برگشتن به مال Jarchi، خانه را خالی کنید."
+      "clientId": "برنامهٔ Twitch که Jarchi با آن وارد می‌شود. خالی یعنی مال خود Jarchi، که برای همه کار می‌کند. برای استفاده از برنامهٔ خودتان، یکی در dev.twitch.tv/console بسازید (**Register Your Application**، Client Type: **Public**) و **Client ID** آن را این‌جا بچسبانید. برای برگشتن به مال Jarchi، خانه را خالی کنید."
     },
     "settings": {
       "showBadge": "یک نشان کوچک Kick یا Twitch روی الرت‌ها. فقط وقتی دیده می‌شود که هر دو حساب وصل باشند.",

@@ -25,7 +25,7 @@ Opening the address in a browser says `Jarchi Kick relay: running.`
 
 ## Usage pings (`POST /ping`)
 
-Once a streamer has accepted Jarchi's Privacy Policy, their Jarchi (`core/stats.js`) sends a small ping here at start, every 5 minutes and when it quits. The relay keeps one row per install in the D1 database `jarchi-stats` (table `installs`, see `schema.sql`): first and last seen, version, installed app or dev run, open, the connected Kick / Twitch channel names, pictures and whether they're live, and the Privacy Policy version accepted and when. All times are UTC (ISO 8601). No IP addresses. Anything else in a ping, a ping over 2 KB, or more than 10 pings from one install in 10 minutes is refused.
+Once a streamer has accepted Jarchi's Privacy Policy, their Jarchi (`core/stats.js`) sends a small ping here at start, every 5 minutes and when it quits. The relay keeps one row per install in the D1 database `jarchi-stats` (table `installs`, see `schema.sql`): first and last seen, version, installed app or dev run, open, the connected Kick / Twitch channel names, pictures and whether they're live, and the Privacy Policy version accepted and when. All times are UTC (ISO 8601). No IP addresses. Anything else in a ping, a ping over 2 KB, more than 10 pings from one install in 10 minutes, or a new install after 100 new ones in the last hour is refused.
 
 Set up once (already done for Jarchi's own relay; the database id goes in `wrangler.toml`):
 

@@ -62,8 +62,9 @@ const subscriptions = () => calls.filter((c) => c.path === '/helix/eventsub/subs
 const notify = (s, type, event) => s.say('notification', { subscription: { type }, event });
 
 test('Twitch account: code login, refresh, follows, goals, reconnect, disconnect', async () => {
-  // Nothing saved: off, with Jarchi's own Client ID. Another one can be set (here: for the rest of the test).
-  assert.deepEqual([account.status().state, account.status().clientId], ['off', '6z5ycye2mjhj10jk1jkwkelft0l7p3']);
+  // Nothing saved: off, with Jarchi's own Client ID (the panel is told '', never Jarchi's ID). Another one can be set
+  // (here: for the rest of the test).
+  assert.deepEqual([account.status().state, account.status().clientId], ['off', '']);
   assert.throws(() => account.setClientId('not an id!'));
   account.setClientId(' abc123 ');
   assert.equal(file().clientId, 'abc123');
@@ -134,6 +135,9 @@ test('Twitch account: code login, refresh, follows, goals, reconnect, disconnect
   assert.equal(calls.at(-1).body.token, 'A2');
   assert.ok(sockets[2].closed);
   assert.deepEqual(connectedPlatforms(), []);
-  // An empty Client ID: Jarchi's own again.
-  assert.equal(account.setClientId('').clientId, '6z5ycye2mjhj10jk1jkwkelft0l7p3');
+  // An empty Client ID, or Jarchi's own pasted: Jarchi's own again.
+  assert.equal(account.setClientId('').clientId, '');
+  account.setClientId('abc123');
+  assert.equal(account.setClientId('6z5ycye2mjhj10jk1jkwkelft0l7p3').clientId, '');
+  assert.deepEqual(file(), { clientId: '' });
 });

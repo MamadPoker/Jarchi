@@ -53,7 +53,7 @@ test('migration, settings, uploads, reset, events', async () => {
   // Background art: no channels set, no profile pictures (and no lookups).
   assert.deepEqual(await (await call('GET', '/api/streamer')).json(), { kick: null, twitch: null });
   // Twitch account: not connected, nothing runs, Jarchi's own Client ID; a bad Client ID is refused, a good one kept.
-  assert.deepEqual(await (await call('GET', '/api/twitch')).json(), { state: 'off', error: '', code: '', uri: '', clientId: '6z5ycye2mjhj10jk1jkwkelft0l7p3', login: '', goals: [], name: '', picture: '' });
+  assert.deepEqual(await (await call('GET', '/api/twitch')).json(), { state: 'off', error: '', code: '', uri: '', clientId: '', login: '', goals: [], name: '', picture: '' });
   assert.equal((await call('PATCH', '/api/twitch', { clientId: 'no spaces' })).status, 400);
   assert.equal((await (await call('PATCH', '/api/twitch', { clientId: 'abc123' })).json()).clientId, 'abc123');
   assert.equal(s.theme, 'fun');

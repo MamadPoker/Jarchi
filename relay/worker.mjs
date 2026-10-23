@@ -114,8 +114,10 @@ async function socket(req, env) {
 // ---------- Usage pings ----------
 // A ping is exactly { id, version, installed, open, kick, twitch, privacy: { version, acceptedAt } } (kick / twitch:
 // { name, picture, live } or null), at most PING_BYTES; anything else is refused. Each install gets PING_MAX pings in
-// PING_WINDOW_MS (Jarchi sends one every 5 minutes, plus start and quit). Times are ISO 8601 in UTC.
+// PING_WINDOW_MS (Jarchi sends one every 5 minutes, plus start and quit), and at most NEW_MAX installs are new in the
+// last NEW_WINDOW_MS, so made-up ids can't flood the database. Times are ISO 8601 in UTC.
 const PING_BYTES = 2048, PING_MAX = 10, PING_WINDOW_MS = 10 * 60 * 1000;
+const NEW_MAX = 100, NEW_WINDOW_MS = 60 * 60 * 1000;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const ISO = /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$/;
 const exactly = (o, keys) => !!o && typeof o === 'object' && !Array.isArray(o) && Object.keys(o).length === keys.length && keys.every((k) => Object.hasOwn(o, k));
@@ -127,11 +129,12 @@ const pingOk = (p) => exactly(p, ['id', 'version', 'installed', 'open', 'kick', 
   && channelOk(p.kick) && channelOk(p.twitch) && exactly(p.privacy, ['version', 'acceptedAt']) && Number.isInteger(p.privacy.version)
   && p.privacy.version >= 1 && p.privacy.version <= 1000
   && (p.privacy.acceptedAt === null || (typeof p.privacy.acceptedAt === 'string' && ISO.test(p.privacy.acceptedAt) && !Number.isNaN(Date.parse(p.privacy.acceptedAt))));
-// New install: first_seen = last_seen = now. Known one: everything but first_seen, unless it's over its pings in this
-// window (then nothing changes: no row changed means 429).
+// New install: first_seen = last_seen = now, unless NEW_MAX are new since ?17 already. Known one: everything but
+// first_seen, unless it's over its pings in this window. Either way nothing changes then: no row changed means 429.
 const UPSERT = `INSERT INTO installs (id, first_seen, last_seen, version, installed, is_open, kick_name, kick_picture, kick_live,
   twitch_name, twitch_picture, twitch_live, privacy_version, privacy_accepted_at, window_start, window_pings)
-VALUES (?1, ?2, ?2, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?3, 1)
+SELECT ?1, ?2, ?2, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?3, 1
+WHERE EXISTS (SELECT 1 FROM installs WHERE id = ?1) OR (SELECT COUNT(*) FROM installs WHERE first_seen > ?17) < ?18
 ON CONFLICT (id) DO UPDATE SET last_seen = excluded.last_seen, version = excluded.version, installed = excluded.installed,
   is_open = excluded.is_open, kick_name = excluded.kick_name, kick_picture = excluded.kick_picture, kick_live = excluded.kick_live,
   twitch_name = excluded.twitch_name, twitch_picture = excluded.twitch_picture, twitch_live = excluded.twitch_live,
@@ -167,7 +170,7 @@ async function ping(req, env) {
   const now = Date.now(), bit = (v) => (v === null || v === undefined ? null : Number(v));
   const { meta } = await env.DB.prepare(UPSERT).bind(p.id, new Date(now).toISOString(), now, p.version, bit(p.installed), bit(p.open),
     p.kick?.name ?? null, p.kick?.picture ?? null, bit(p.kick?.live), p.twitch?.name ?? null, p.twitch?.picture ?? null, bit(p.twitch?.live),
-    p.privacy.version, p.privacy.acceptedAt, PING_WINDOW_MS, PING_MAX).run();
+    p.privacy.version, p.privacy.acceptedAt, PING_WINDOW_MS, PING_MAX, new Date(now - NEW_WINDOW_MS).toISOString(), NEW_MAX).run();
   return meta.changes ? text('ok') : text('Too many pings', 429);
 }
 

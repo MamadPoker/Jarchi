@@ -19,3 +19,5 @@ CREATE TABLE IF NOT EXISTS installs (
   window_start INTEGER NOT NULL,  -- rate limit: start of the install's current 10-minute window (ms since 1970, UTC)
   window_pings INTEGER NOT NULL   -- and its pings in it
 );
+-- New installs in the last hour (the relay's cap on new ids).
+CREATE INDEX IF NOT EXISTS installs_first_seen ON installs (first_seen);

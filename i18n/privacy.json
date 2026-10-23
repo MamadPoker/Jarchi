@@ -5,7 +5,7 @@
     "title": "Jarchi Privacy Policy",
     "intro": "Jarchi runs on your own computer. To understand how Jarchi is used and to improve it, Jarchi sends a small amount of information to the Jarchi server:",
     "items": [
-      ["What we collect", "your Kick/Twitch channel name and profile picture, which platforms you connected, your Jarchi version, and whether Jarchi is open and you are live."],
+      ["What we collect", "your Kick/Twitch channel name and profile picture, which platforms you connected, your Jarchi version, whether Jarchi is open and you are live, a random ID for your Jarchi install, whether it's the installed app, and when you accepted this policy."],
       ["What we never collect", "chat messages, passwords, login tokens, your viewers' data, your donations, or files on your computer."],
       ["Why", "to count users, see which versions are in use, and improve Jarchi."],
       ["Where", "stored securely on Cloudflare. We never sell or share it."],
@@ -16,7 +16,7 @@
     "title": "سیاست حریم خصوصی جارچی",
     "intro": "جارچی روی کامپیوتر خود شما اجرا می‌شود. برای اینکه بدانیم جارچی چطور استفاده می‌شود و بهترش کنیم، مقدار کمی اطلاعات به سرور جارچی فرستاده می‌شود:",
     "items": [
-      ["چه چیزی جمع می‌شود", "نام و عکس کانال Kick یا Twitch، پلتفرم‌هایی که وصل کرده‌اید، نسخهٔ جارچی، و باز بودن جارچی و لایو بودن شما."],
+      ["چه چیزی جمع می‌شود", "نام و عکس کانال Kick یا Twitch، پلتفرم‌هایی که وصل کرده‌اید، نسخهٔ جارچی، باز بودن جارچی و لایو بودن شما، یک شناسهٔ تصادفی برای جارچی شما، نصبی بودن برنامه، و زمان پذیرش این سیاست."],
       ["چه چیزی هرگز جمع نمی‌شود", "پیام‌های چت، رمزها، توکن‌های ورود، اطلاعات بیننده‌ها، دونیت‌ها و فایل‌های کامپیوتر شما."],
       ["چرا", "برای شمارش کاربران، دیدن نسخه‌های در حال استفاده و بهتر کردن جارچی."],
       ["کجا", "به‌صورت امن روی کلادفلر ذخیره می‌شود. هرگز فروخته یا با کسی به اشتراک گذاشته نمی‌شود."],

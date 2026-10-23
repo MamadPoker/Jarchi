@@ -113,7 +113,9 @@
     "twOpen": "Open Twitch",
     "twWaiting": "Waiting for you to approve it on Twitch…",
     "twClientId": "Twitch Client ID",
-    "twClientHint": "Jarchi's own is filled in: nothing to do. To use your own Twitch app (dev.twitch.tv/console, Client Type: Public), paste its Client ID; empty the field to go back.",
+    "twClientHint": "Empty: Jarchi's own Twitch app, nothing to do. To use your own (dev.twitch.tv/console, Client Type: Public), paste its Client ID; empty the field to go back to Jarchi's.",
+    "twClientJarchi": "Using Jarchi's Twitch app",
+    "advanced": "Advanced",
     "twStates": { "off": "Not connected", "waiting": "Waiting for approval", "connecting": "Connecting", "connected": "Connected as {login}" },
     "twErrors": { "expired": "The Twitch login ended. Connect again.", "denied": "Not approved on Twitch.", "timeout": "The code ran out. Connect again.", "client": "Twitch didn't take this Client ID. Check it, and that the app's Client Type is Public.", "network": "Can't reach Twitch right now." },
     "connDown": "{platforms} disconnected for {time}: alerts may be missed",
@@ -788,7 +790,7 @@
       "eventLonger": "Special lines stay on screen twice as long: twice the **Hide each message after** time, and until twice **Max messages on screen** newer ones came. In a bar they go by twice."
     },
     "connections": {
-      "clientId": "The Twitch app Jarchi logs in with. Jarchi's own is filled in and works for everyone. To use your own instead, make one at dev.twitch.tv/console (**Register Your Application**, Client Type **Public**) and paste its **Client ID** here. Empty the field to go back to Jarchi's."
+      "clientId": "The Twitch app Jarchi logs in with. Empty, it's Jarchi's own, which works for everyone. To use your own instead, make one at dev.twitch.tv/console (**Register Your Application**, Client Type **Public**) and paste its **Client ID** here. Empty the field to go back to Jarchi's."
     },
     "settings": {
       "showBadge": "A small Kick or Twitch badge on alerts. It only shows when both accounts are connected.",
