@@ -1,5 +1,20 @@
 [
   {
+    "version": "1.0.1",
+    "en": [
+      "Support: send tickets with screenshots from inside Jarchi and get replies",
+      "A separate OBS link for each alert type",
+      "Automatic VPN detection for users whose Kick or Twitch is filtered",
+      "New update menu on your profile, and a What's new page in English and Persian"
+    ],
+    "fa": [
+      "پشتیبانی: ارسال تیکت با تصویر از داخل جارچی و دریافت پاسخ",
+      "لینک OBS جداگانه برای هر نوع آلرت",
+      "شناسایی خودکار VPN برای کسانی که Kick یا Twitch برایشان فیلتر است",
+      "منوی آپدیت روی پروفایل و صفحهٔ «چه خبر؟» به انگلیسی و فارسی"
+    ]
+  },
+  {
     "version": "1.0.0",
     "en": ["First public release: alerts for follows, subs, gifted subs, raids, Kicks and Bits; chat widget and goals for OBS; English and Persian panel; automatic updates."],
     "fa": ["نخستین نسخهٔ عمومی: آلرت فالو، ساب، گیفت‌ساب، رید، کیکس و بیتس؛ ویجت چت و گل برای OBS؛ پنل انگلیسی و فارسی؛ آپدیت خودکار."]
