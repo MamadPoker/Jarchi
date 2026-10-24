@@ -17,8 +17,10 @@ const failed = (status, code) => Object.assign(new Error(code), { status, code: 
 async function call(method, path, body, type) {
   if (!PATH.test(path)) throw failed(404, 'not_found');
   if (!stats.accepted()) throw failed(403, 'privacy');
-  const token = settings.supportToken(!(method === 'GET' && path === '/support/tickets'));
-  if (!token) return Response.json([]); // never a ticket: nothing to ask
+  const list = method === 'GET' && path === '/support/tickets';
+  const token = settings.supportToken(!list);
+  if (!token && list) return Response.json([]); // never a ticket (or its token can't be opened here): nothing to ask
+  if (!token) throw failed(403, 'failed'); // sealed with a key this run doesn't have: no new one over it
   const ask = () => fetch(`${RELAY}${path}`, {
     method, body, signal: AbortSignal.timeout(body ? 60000 : 15000),
     headers: { 'x-jarchi-install': settings.installId(), authorization: `Bearer ${token}`, ...(body && { 'content-type': type }) },

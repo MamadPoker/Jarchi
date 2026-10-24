@@ -4,7 +4,8 @@
 const path = require('node:path');
 const fs = require('node:fs');
 const { spawn } = require('node:child_process');
-const { app, BrowserWindow, Tray, Menu, Notification, clipboard, dialog, ipcMain, screen, shell, utilityProcess } = require('electron');
+const crypto = require('node:crypto');
+const { app, BrowserWindow, Tray, Menu, Notification, clipboard, dialog, ipcMain, safeStorage, screen, shell, utilityProcess } = require('electron');
 
 const ROOT = path.join(__dirname, '..');
 // From source the data stays in ./data like `npm start`; an installed app keeps it in the user's app data folder.
@@ -168,6 +169,37 @@ ipcMain.on('app:uninstall', (e, keep) => {
   app.quit();
 });
 
+// The installed app's key for the Kick and Twitch logins in its data folder (core/secrets.js seals them with it):
+// random, kept in KEY_FILE encrypted by Electron safeStorage (Windows DPAPI: only this Windows user on this PC can read
+// it), handed to the server process in its environment. One that can't be read any more (the folder copied to another
+// PC or Windows user) is moved aside for a new one: the logins sealed with it need connecting again, nothing else is
+// lost. No safeStorage, or a new key can't be saved: no key, the logins stay plain text as in a dev run. Windows'
+// own key moved on (shouldReEncrypt): the same key is saved again with the new one.
+const KEY_FILE = path.join(DATA_DIR, 'secrets.key');
+async function secretKey() {
+  if (!(await safeStorage.isAsyncEncryptionAvailable())) return '';
+  let key, fresh = false;
+  try {
+    const { result, shouldReEncrypt } = await safeStorage.decryptStringAsync(fs.readFileSync(KEY_FILE));
+    if (!shouldReEncrypt) return result;
+    key = result;
+  } catch (err) {
+    if (err.code !== 'ENOENT') {
+      console.warn(`secrets.key unreadable (${err.message}): moved aside, Kick and Twitch need connecting again`);
+      try { fs.renameSync(KEY_FILE, `${KEY_FILE}.broken-${Date.now()}`); } catch {}
+    }
+    key = crypto.randomBytes(32).toString('base64');
+    fresh = true;
+  }
+  try {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+    fs.writeFileSync(KEY_FILE, await safeStorage.encryptStringAsync(key));
+  } catch {
+    if (fresh) return ''; // never a key that isn't saved: the next start couldn't open what it sealed
+  }
+  return key;
+}
+
 if (!app.requestSingleInstanceLock()) app.quit(); // one Jarchi at a time: the first one shows its window instead
 else {
   app.on('second-instance', show);
@@ -186,15 +218,18 @@ else {
     server.on('message', (m) => m === 'bye' && go());
     server.postMessage('quit');
   });
-  app.whenReady().then(() => {
+  app.whenReady().then(async () => {
+    const key = app.isPackaged ? await secretKey() : '';
     // In its own process, the server's work (chat, alerts, files, the widgets' requests) never holds up the window. It
     // says when it's listening. If it stops (e.g. `npm start` already has the port), so does the app, with the server's
     // last error lines in a message: there's no console here.
     // Its output is piped, never 'inherit': started from a shortcut, Jarchi has no stdout, and handing that missing
     // handle to the server crashes the app at once (Chromium: "Check failed: The handle is invalid"). Echoed, it shows
     // in a terminal as before; with no console, Node drops it. JARCHI_INSTALLED: the usage ping says installed app or not.
+    // JARCHI_SECRET_KEY: the logins' key, in the installed app only (`npm run app` shares ./data with `npm start`).
     server = utilityProcess.fork(path.join(ROOT, 'server/index.js'), [], {
-      serviceName: 'Jarchi server', stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, JARCHI_INSTALLED: installed() ? '1' : '' },
+      serviceName: 'Jarchi server', stdio: ['ignore', 'pipe', 'pipe'],
+      env: { ...process.env, JARCHI_INSTALLED: installed() ? '1' : '', JARCHI_SECRET_KEY: key },
     });
     server.stdout.on('data', (d) => process.stdout.write(d));
     let errors = '';

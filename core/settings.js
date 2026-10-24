@@ -4,6 +4,7 @@ const path = require('node:path');
 const { DATA_DIR, UPLOADS_DIR } = require('./config');
 const { TYPES } = require('./events');
 const store = require('./store');
+const secrets = require('./secrets');
 const strings = require('../i18n/en.json');
 
 const FILE = path.join(DATA_DIR, 'settings.json');
@@ -352,6 +353,15 @@ if (from < VERSION) {
   saved.version = VERSION;
   persist();
 }
+// The Support page's ticket token (supportToken()) is sealed in the installed app (core/secrets.js), plain in a dev run.
+// saved holds it as it is on disk, so a run that can't open it (a dev run, another PC's key) still writes it back on
+// every save and never makes a new one over it: the relay takes only an install's first token.
+const PLAIN = /^[0-9a-f]{64}$/;
+const sealToken = (t) => (secrets.on ? secrets.seal('supportToken', t) : t);
+if (secrets.on && PLAIN.test(saved.supportToken)) {
+  saved.supportToken = sealToken(saved.supportToken); // one from before: sealed now
+  persist();
+}
 
 function persist() {
   store.save(FILE, saved);
@@ -570,13 +580,15 @@ function installId() {
 }
 const privacyAcceptedAt = () => saved.privacyAcceptedAt ?? null;
 // The Support page's (core/support.js): this install's ticket token for the relay, random, made the first time it's
-// needed (make) and kept through Reset everything (its tickets stay readable); null before that. Never in get().
+// needed (make) and kept through Reset everything (its tickets stay readable); null before that, and while it's sealed
+// with a key this run doesn't have. Never in get().
 function supportToken(make) {
   if (!saved.supportToken && make) {
-    saved.supportToken = Buffer.from(crypto.getRandomValues(new Uint8Array(32))).toString('hex');
+    saved.supportToken = sealToken(Buffer.from(crypto.getRandomValues(new Uint8Array(32))).toString('hex'));
     persist();
   }
-  return saved.supportToken ?? null;
+  const t = saved.supportToken;
+  return (PLAIN.test(t) ? t : t && secrets.open('supportToken', t)) ?? null;
 }
 
 // No type = reset everything.
