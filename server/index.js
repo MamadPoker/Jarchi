@@ -14,6 +14,7 @@ const alertQueue = require('../core/alerts');
 const twitchAccount = require('../connectors/twitch-account');
 const kickAccount = require('../connectors/kick-account');
 const stats = require('../core/stats');
+const vpn = require('../core/vpn');
 const strings = require('../i18n/en.json');
 
 const ROOT = path.join(__dirname, '..');
@@ -47,17 +48,21 @@ app.get('/api/accent', (req, res) => execFile('reg', ['query', 'HKCU\\Software\\
   const n = abgr && parseInt(abgr, 16);
   res.json({ accent: abgr ? `#${[n & 255, (n >>> 8) & 255, (n >>> 16) & 255].map((c) => c.toString(16).padStart(2, '0')).join('')}` : null });
 }));
+// The proxy setting changed: everything reconnects through it, and core/vpn.js starts over.
+function reconnect() {
+  chat.restart();
+  twitchAccount.start();
+  kickAccount.start();
+  vpn.fine();
+}
 app.patch('/api/settings', (req, res) => {
   const s = settings.update(req.body);
   if ('privacyAccepted' in req.body) stats.ping(); // the Privacy Policy accepted just now: the first usage ping
   for (const [id, fields] of Object.entries(req.body.goals ?? {})) if ('target' in fields) goals.retarget(id);
   // Widgets switch between Kick's / Twitch's numbers and their own.
   if ('kickGoalSync' in req.body || 'twitchGoalSync' in req.body) goals.refresh();
-  if (Object.keys(req.body).some((k) => k.startsWith('proxy'))) { // reconnect through the new proxy
-    chat.restart();
-    twitchAccount.start();
-    kickAccount.start();
-  } else if (req.body.chat) chat.sync(); // channel names may have changed
+  if (Object.keys(req.body).some((k) => k.startsWith('proxy'))) reconnect();
+  else if (req.body.chat) chat.sync(); // channel names may have changed
   res.json(changed(s));
 });
 
@@ -99,6 +104,18 @@ app.get('/api/version', (req, res) => res.json({ version: require('../package.js
 // Proxy: "Test connection" (Kick, Twitch, 7TV), and which proxy is in use right now.
 app.post('/api/net/test', async (req, res) => res.json(await chat.check()));
 app.get('/api/net/proxy', async (req, res) => res.json({ mode: settings.get().proxyMode, proxy: await net.current() }));
+// The user's VPN app (core/vpn.js; its state comes by socket, 'proxyHelp'): look for it now, Yes (-> the settings), No.
+app.post('/api/proxy/look', (req, res) => res.json(vpn.look()));
+app.post('/api/proxy/accept', (req, res) => {
+  const s = vpn.accept();
+  if (!s) return res.status(409).json({ error: 'bad_request' }); // the offer is gone (answered in another window)
+  reconnect();
+  res.json(changed(s));
+});
+app.post('/api/proxy/dismiss', (req, res) => {
+  vpn.dismiss();
+  res.json(vpn.state());
+});
 app.delete('/api/upload/:type/:kind', (req, res) => res.json(changed(settings.removeUpload(req.params.type, req.params.kind))));
 app.post('/api/reset{/:type}', (req, res) => {
   const s = settings.reset(req.params.type);
@@ -220,6 +237,7 @@ io.on('connection', (socket) => {
   socket.emit('widgets', open);
   socket.emit('twitchAccount', twitchAccount.status());
   socket.emit('kickAccount', kickAccount.status());
+  socket.emit('proxyHelp', vpn.state());
   // The alerts overlay joins to get alerts from the queue (the panel's previews don't).
   socket.once('alertsJoin', () => {
     socket.join('alerts');
@@ -247,7 +265,17 @@ bus.on('chat', (m) => {
 });
 bus.on('chatClear', (c) => io.emit('chatClear', c));
 bus.on('chatAvatar', (a) => io.emit('chatAvatar', a));
-chat.events.on('status', (st) => io.emit('chatStatus', st));
+// Kick / Twitch / the relay can't be reached: maybe the user's VPN app can help (core/vpn.js). Connected: all clear.
+// Errors that aren't the network (channel not found, Kick refusing a request) don't count.
+function health(service, up, down) {
+  if (up) vpn.fine(service);
+  else if (down) vpn.trouble(service);
+}
+chat.events.on('status', (st) => {
+  io.emit('chatStatus', st);
+  for (const p of ['kick', 'twitch']) health(p, st[p].state === 'connected', st[p].state === 'error' && st[p].detail === 'network');
+});
+vpn.events.on('state', (st) => io.emit('proxyHelp', st));
 // A Kick / Twitch account connected on the Connections page fills that platform's channel on the Chat page, only when
 // it's empty there (a name typed there always stays), so its chat, alerts and the panel's background art start at once.
 // For each new login, and at start (below) for the accounts connected before.
@@ -270,10 +298,12 @@ twitchAccount.events.on('status', (st) => {
   io.emit('twitchAccount', st);
   goals.twitchGoals(st.goals); // "Sync from Twitch"
   accountChanged('twitch', st);
+  health('twitch', st.state === 'connected', st.error === 'network');
 });
 kickAccount.events.on('status', (st) => {
   io.emit('kickAccount', st);
   accountChanged('kick', st);
+  health('relay', st.state === 'connected', st.error === 'network'); // the Kick account's live events come through the relay
 });
 
 server.on('error', (err) => {
@@ -293,8 +323,15 @@ server.listen(PORT, HOST, () => {
   media.shrinkOld().catch(console.error); // uploads from before the 512 px rule, once
   stats.start(); // usage pings, once the Privacy Policy is accepted
 });
-// Quitting: the last usage ping, then goodbye. The desktop app asks first (electron/main.js); `npm start` gets Ctrl+C.
-process.parentPort?.on('message', (e) => e.data === 'quit' && stats.ping(false).finally(() => process.parentPort.postMessage('bye')));
+// The desktop app (electron/main.js) asks: 'quit' -> the last usage ping, then goodbye (`npm start` gets Ctrl+C);
+// 'proxy' -> the proxy in use as a URL (or null), before each update check, so updates come the same way.
+process.parentPort?.on('message', async (e) => {
+  if (e.data === 'quit') stats.ping(false).finally(() => process.parentPort.postMessage('bye'));
+  if (e.data === 'proxy') {
+    const p = await net.current().catch(() => null);
+    process.parentPort.postMessage({ proxy: p && `${p.type}://${p.host}:${p.port}` });
+  }
+});
 process.once('SIGINT', () => stats.ping(false).finally(() => process.exit(130)));
 
 module.exports = { app, server, io };

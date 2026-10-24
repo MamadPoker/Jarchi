@@ -13,7 +13,7 @@ const { HOST, PORT, DATA_DIR } = require('../core/config');
 const ORIGIN = `http://${HOST}:${PORT}`;
 const WINDOW_FILE = path.join(DATA_DIR, 'window.json');
 
-let win, tray, quitting = false;
+let win, tray, server, quitting = false;
 
 function show() {
   if (!win) return;
@@ -116,6 +116,24 @@ let updater;
 function sendUpdate() {
   win?.webContents.send('update', update);
 }
+
+// Update checks and downloads go the way Jarchi's own connections do (its proxy setting, core/net.js), asked from the
+// server before each check: 'socks5://127.0.0.1:10808' or null (direct). Only electron-updater's own session gets it,
+// nothing else on the PC.
+function serverProxy() {
+  return new Promise((resolve) => {
+    if (!server) return resolve(null);
+    const done = (proxy) => {
+      clearTimeout(late);
+      server?.off('message', got);
+      resolve(proxy);
+    };
+    const got = (m) => m?.proxy !== undefined && done(m.proxy);
+    const late = setTimeout(done, 3000, null);
+    server.on('message', got);
+    server.postMessage('proxy');
+  });
+}
 const restart = () => updater.quitAndInstall(true, true); // silent install, then Jarchi starts again
 
 async function notify(version) {
@@ -140,6 +158,7 @@ function updates() {
   });
 
   ({ autoUpdater: updater } = require('electron-updater'));
+  const { getNetSession } = require('electron-updater/out/electronHttpExecutor'); // the session its requests use
   updater.on('error', (err) => console.warn('Update:', err.message)); // offline, GitHub down: the next check tries again
   updater.on('update-downloaded', ({ version, releaseNotes }) => {
     if (update.ready?.version === version) return; // each 4-hourly check finds the same download again
@@ -150,7 +169,11 @@ function updates() {
     sendUpdate();
     if (!win.isVisible()) notify(version);
   });
-  const check = () => updater.checkForUpdates().catch(() => {});
+  const check = async () => {
+    const proxy = await serverProxy();
+    await getNetSession().setProxy(proxy ? { mode: 'fixed_servers', proxyRules: proxy } : { mode: 'direct' }).catch(() => {});
+    updater.checkForUpdates().catch(() => {});
+  };
   check();
   setInterval(check, 4 * 3600e3);
 }
@@ -172,7 +195,7 @@ if (!app.requestSingleInstanceLock()) app.quit(); // one Jarchi at a time: the f
 else {
   app.on('second-instance', show);
   // Quitting waits for the server's last usage ping (core/stats.js; none without the Privacy Policy), 2.5 s at most.
-  let server, bye = false;
+  let bye = false;
   app.on('before-quit', (e) => {
     quitting = true;
     if (bye || !server) return;

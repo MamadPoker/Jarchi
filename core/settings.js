@@ -11,11 +11,15 @@ const VERSION = 9;
 // 'none': no box, background or effects, just the picture and outlined text.
 const THEMES = ['neon', 'minimal', 'fun', 'retro', 'glass', 'fire', 'ice', 'galaxy', 'comic', 'simple', 'none'];
 // App-wide settings (not per alert). showBadge: platform badge on alerts; it still needs both Kick and Twitch connected.
-// alertGap: seconds between two alerts. proxy*: how Jarchi reaches Kick, Twitch and 7TV (core/net.js).
+// alertGap: seconds between two alerts. proxy*: how Jarchi reaches Kick, Twitch, 7TV and its relay (core/net.js);
+// proxyFound: the VPN app's proxy the user said Yes to (core/vpn.js), used in auto mode. A 'system' mode saved before
+// auto replaced it reads as the default (get() keeps only valid values), so it needs no migration.
 // kickGoalSync / twitchGoalSync: goals set on the Kick / Twitch channel show that platform's numbers (core/goals.js).
 // welcomed: the panel's welcome tour was shown (it opens by itself once, on the first run).
 // privacyAccepted: the version of the Privacy Policy (i18n/privacy.json) the user accepted, 0 = none yet.
-const GLOBAL = { theme: 'neon', showBadge: true, alertGap: 0.5, proxyMode: 'system', proxyType: 'http', proxyHost: '', proxyPort: 0, kickGoalSync: true, twitchGoalSync: true, welcomed: false, privacyAccepted: 0 };
+const GLOBAL = { theme: 'neon', showBadge: true, alertGap: 0.5, proxyMode: 'auto', proxyType: 'http', proxyHost: '', proxyPort: 0, proxyFound: null, kickGoalSync: true, twitchGoalSync: true, welcomed: false, privacyAccepted: 0 };
+const PROXY_HOST = /^[a-z0-9.:[\]_-]{0,253}$/i;
+const proxyPort = (v) => Number.isInteger(v) && v >= 0 && v <= 65535;
 const GLOBAL_RULES = {
   theme: (v) => THEMES.includes(v),
   showBadge: (v) => typeof v === 'boolean',
@@ -24,10 +28,14 @@ const GLOBAL_RULES = {
   kickGoalSync: (v) => typeof v === 'boolean',
   twitchGoalSync: (v) => typeof v === 'boolean',
   alertGap: (v) => typeof v === 'number' && v >= 0 && v <= 60,
-  proxyMode: (v) => ['off', 'system', 'manual'].includes(v),
+  proxyMode: (v) => ['off', 'auto', 'manual'].includes(v),
   proxyType: (v) => ['http', 'socks5'].includes(v),
-  proxyHost: (v) => typeof v === 'string' && /^[a-z0-9.:[\]_-]{0,253}$/i.test(v),
-  proxyPort: (v) => Number.isInteger(v) && v >= 0 && v <= 65535,
+  proxyHost: (v) => typeof v === 'string' && PROXY_HOST.test(v),
+  proxyPort,
+  // { app: its name or null (the Windows proxy), type, host, port } | null
+  proxyFound: (v) => v === null || (typeof v === 'object' && Object.keys(v).sort().join() === 'app,host,port,type'
+    && (v.app === null || (typeof v.app === 'string' && v.app.length <= 40)) && ['http', 'socks5'].includes(v.type)
+    && typeof v.host === 'string' && v.host && PROXY_HOST.test(v.host) && proxyPort(v.port) && v.port > 0),
 };
 // Follow is small and quick, raid is the big one. minAmount only where an amount makes sense.
 // Media by amount (tiersOn + tiers): fixed, ready-made tiers. Saved as tiers: { [amount]: { on, image, sound } };

@@ -282,8 +282,8 @@ function renderConnWarn() {
     else if (now - (downSince[id] ??= now) > DOWN_MS) long.push({ platform, page, since: downSince[id] });
   }
   const w = $('#connWarn');
-  w.hidden = !long.length;
-  if (!long.length) return;
+  w.hidden = !long.length || help.state === 'broken'; // the proxy's own warning says why
+  if (w.hidden) return;
   const s = Math.floor((now - Math.min(...long.map((c) => c.since))) / 1000);
   w.dataset.page = long[0].page;
   w.title = S.panel.connDownHint;
@@ -408,7 +408,7 @@ function select(v, key) {
   if (v === 'chat' && !$('#chatPreview').getAttribute('src')) $('#chatPreview').src = '/widgets/chat?preview';
   if (v === 'home') loadHome(); // today's numbers may have started again at midnight
   if (v === 'events') loadHistory();
-  if (v === 'settings') showProxyNow();
+  if (v === 'connections') showProxyNow();
   if (v === 'about') api('GET', '/api/version').then(({ version }) => ($('#aboutVersion').textContent = S.panel.version.replace('{version}', version)), () => {});
   if (v === 'guide') {
     if (S.guide.topics[key]) topic = key;
@@ -750,11 +750,15 @@ function testTier(amount) {
   api('POST', `/api/test/${cur}`, { platform: $('#testAs').value, amount }).then(() => toast(S.panel.testSent), (err) => toast(err.message, true));
 }
 
-// ---------- Settings: proxy ----------
+// ---------- Connections: proxy ----------
+// netState = the card's status dot: the last Test (off: not tested yet, connecting: testing, connected: all reached,
+// error). help = core/vpn.js's state (the popup, the top bar's warning); 'broken' turns the dot red too.
+let netState = 'off', help = { state: 'idle' };
 const proxyLabel = (p) => ltr(`${p.host}:${p.port} (${p.type === 'socks5' ? 'SOCKS5' : 'HTTP'})`);
-function showProxyNow() {
+const proxyName = (p) => p.app ?? tpl(S.panel.proxyAt, { proxy: proxyLabel(p) }); // the VPN app, or its address
+function showProxyNow() { // Auto: what it uses right now
   api('GET', '/api/net/proxy').then(({ proxy }) => {
-    $('#proxyNow').textContent = proxy ? tpl(S.net.systemNow, { proxy: proxyLabel(proxy) }) : S.net.systemNone;
+    $('#proxyNow').textContent = !proxy ? S.net.autoNone : tpl(proxy.app ? S.net.autoUsing : S.net.autoWindows, { app: proxy.app, proxy: proxyLabel(proxy) });
   }, () => {});
 }
 function renderNet({ proxy, results }) {
@@ -766,6 +770,92 @@ function renderNet({ proxy, results }) {
     lines.set(tpl(S.net[key] ?? S.net.network, { name: S.net.names[id], proxy: p }), code === 'ok');
   }
   $('#netResults').replaceChildren(...[...lines].map(([text, ok]) => el('li', { className: ok ? 'ok' : 'bad', textContent: text })));
+  netState = Object.values(results).every((c) => c === 'ok') ? 'connected' : 'error';
+  renderProxy();
+}
+async function testNet() {
+  const btn = $('#netTest');
+  btn.disabled = true;
+  netState = 'connecting';
+  renderProxy();
+  $('#netUsing').textContent = S.panel.netTesting;
+  $('#netResults').replaceChildren();
+  try {
+    renderNet(await api('POST', '/api/net/test'));
+  } catch (err) {
+    $('#netUsing').textContent = '';
+    netState = 'off';
+    renderProxy();
+    toast(err.message, true);
+  }
+  btn.disabled = false;
+}
+function renderProxy() {
+  const box = $('#proxyNow').closest('.box');
+  const keep = (inp, v) => { if (inp !== document.activeElement) inp.value = v; }; // never under the cursor
+  keep($('#proxyHost'), settings.proxyHost);
+  keep($('#proxyPort'), settings.proxyPort || '');
+  $$('[name=proxyMode]').forEach((r) => (r.checked = r.value === settings.proxyMode));
+  $$('[name=proxyType]').forEach((r) => (r.checked = r.value === settings.proxyType));
+  const show = { proxyAuto: settings.proxyMode === 'auto', proxyManual: settings.proxyMode === 'manual' };
+  $$('[data-only]', box).forEach((e) => (e.hidden = !show[e.dataset.only]));
+  const dot = help.state === 'broken' ? 'error' : netState;
+  $('#proxyState').className = `status st-${dot}`;
+  $('#proxyState').textContent = { off: S.panel.proxyUntested, connecting: S.panel.netTesting, connected: S.panel.proxyWorks, error: S.panel.proxyFails }[dot];
+}
+
+// core/vpn.js's state: the popup (offer: Yes / No; none: how to type the port in Manual; looking) and the top bar's
+// warning (broken: a click looks again).
+const lookForVpn = () => api('POST', '/api/proxy/look').then((h) => { help = h; renderProxyHelp(); }, (err) => toast(err.message, true));
+function renderProxyHelp() {
+  const d = $('#proxyHelp'), h = help, P = S.panel, w = $('#proxyWarn');
+  w.hidden = h.state !== 'broken';
+  if (h.state === 'broken') {
+    $('span', w).textContent = tpl(P.proxyBroken, { app: proxyName(h.proxy) });
+    w.title = P.proxyBrokenHint;
+  }
+  renderConnWarn(); // hidden while this one shows
+  renderProxy();
+  if (!['offer', 'none', 'looking'].includes(h.state)) return d.open && d.close();
+  const service = h.service && P.proxyServices[h.service];
+  $('#proxyHelpTitle').textContent = h.state === 'looking' ? P.proxyLookingTitle
+    : service ? tpl(P.proxyCantReach, { service }) : h.state === 'offer' ? P.proxyFoundTitle : P.proxyNoneTitle;
+  $('#proxyHelpText').textContent = { offer: h.found && tpl(P.proxyFoundAsk, { app: proxyName(h.found) }), none: P.proxyNoneText, looking: P.proxyLookingText }[h.state];
+  $('#proxyHelpSteps').replaceChildren(...(h.state === 'none' ? P.proxySteps.map((s) => el('li', { textContent: s })) : []));
+  $('#proxyHelpNote').hidden = h.state !== 'offer';
+  $('#proxyNo').textContent = h.state === 'offer' ? P.proxyNo : P.updateClose;
+  $('#proxyAgain').hidden = h.state !== 'none';
+  $('#proxyYes').hidden = h.state === 'looking';
+  $('#proxyYes').textContent = h.state === 'offer' ? P.proxyYes : P.proxyOpenSettings;
+  if (!d.open) d.showModal();
+}
+function wireProxy() {
+  const patch = (fields) => send('PATCH', '/api/settings', fields).then(() => {
+    showProxyNow();
+    testNet(); // the dot follows the new setting
+  });
+  $$('[name=proxyMode]').forEach((r) => (r.onchange = () => patch({ proxyMode: r.value })));
+  $$('[name=proxyType]').forEach((r) => (r.onchange = () => patch({ proxyType: r.value })));
+  $('#proxyHost').onchange = (e) => patch({ proxyHost: e.target.value.trim() });
+  $('#proxyPort').onchange = (e) => patch({ proxyPort: Math.round(Number(e.target.value)) || 0 });
+  $('#netTest').onclick = testNet;
+  $('#proxyLook').onclick = $('#proxyWarn').onclick = $('#proxyAgain').onclick = lookForVpn;
+  const d = $('#proxyHelp');
+  d.onclose = () => ['offer', 'none'].includes(help.state) && api('POST', '/api/proxy/dismiss').catch(() => {}); // No, Close, Escape
+  $('#proxyNo').onclick = () => d.close();
+  $('#proxyYes').onclick = () => {
+    if (help.state !== 'offer') { // nothing found: to the setting, to type it in
+      d.close();
+      select('connections');
+      return $('#proxyNow').closest('.box').scrollIntoView({ block: 'center' });
+    }
+    api('POST', '/api/proxy/accept').then((s) => { // the server closes the popup ('proxyHelp' idle)
+      settings = s;
+      render();
+      showProxyNow();
+      testNet();
+    }, () => {}); // already answered in another window
+  };
 }
 
 // A .file row's Upload, Paste a link and Remove. A link: Jarchi downloads the file once and keeps it like an upload
@@ -1007,7 +1097,7 @@ function placeSpot() {
 
 function renderTour() {
   const W = S.panel.welcome, step = TOUR[tourStep], body = $('#tourBody'), h2 = (text) => el('h2', { textContent: text });
-  $('main .connections').append(...connCards()); // home again (Connect takes them back)
+  $('main .connections').prepend(...connCards()); // home again, above the proxy (Connect takes them back)
   $('#tourDots').replaceChildren(...TOUR.map((s) => el('i', { className: s === step ? 'on' : '' })));
   $('#tourDots').ariaLabel = tpl(W.stepOf, { n: fd(tourStep + 1), total: fd(TOUR.length) });
   $('#tourNav').hidden = step === 'hello'; // its language buttons go on
@@ -1059,7 +1149,7 @@ function wireTour() {
   $('#tourSkip').onclick = () => d.close();
   $('#tourBack').onclick = () => tourTo(tourStep - 1, SPOTS.length - 1); // from Done: Sidebar's last stop
   $('#tourNext').onclick = () => (tourStep < TOUR.length - 1 ? tourTo(tourStep + 1) : d.close());
-  d.onclose = () => $('main .connections').append(...connCards());
+  d.onclose = () => $('main .connections').prepend(...connCards());
   $('#spotSkip').onclick = () => s.close();
   $('#spotBack').onclick = () => (spot ? spotTo(spot - 1) : tourTo(SIDEBAR - 1));
   $('#spotNext').onclick = () => (spot < SPOTS.length - 1 ? spotTo(spot + 1) : tourTo(SIDEBAR + 1));
@@ -1272,6 +1362,10 @@ function build() {
     renderStatus();
     if (view === 'home') renderHome();
   });
+  socket.on('proxyHelp', (h) => {
+    help = h;
+    renderProxyHelp();
+  });
 
   // Connections: the Twitch account. Connect shows Twitch's code until the streamer approves it on Twitch. Home's Twitch
   // tab shows the Twitch channel's goals.
@@ -1372,27 +1466,7 @@ function build() {
   for (const [id, name] of Object.entries(S.platforms)) $('#testAs').append(new Option(name, id));
   const patchGlobal = (fields) => send('PATCH', '/api/settings', fields);
   $('#alertGap').onchange = (e) => patchGlobal({ alertGap: Number(e.target.value) });
-  $$('[name=proxyMode]').forEach((r) => (r.onchange = () => patchGlobal({ proxyMode: r.value }).then(() => {
-    showProxyNow();
-    $('#netResults').replaceChildren();
-    $('#netUsing').textContent = '';
-  })));
-  $$('[name=proxyType]').forEach((r) => (r.onchange = () => patchGlobal({ proxyType: r.value })));
-  $('#proxyHost').onchange = (e) => patchGlobal({ proxyHost: e.target.value.trim() });
-  $('#proxyPort').onchange = (e) => patchGlobal({ proxyPort: Math.round(Number(e.target.value)) || 0 });
-  $('#netTest').onclick = async () => {
-    const btn = $('#netTest');
-    btn.disabled = true;
-    $('#netUsing').textContent = S.panel.netTesting;
-    $('#netResults').replaceChildren();
-    try {
-      renderNet(await api('POST', '/api/net/test'));
-    } catch (err) {
-      $('#netUsing').textContent = '';
-      toast(err.message, true);
-    }
-    btn.disabled = false;
-  };
+  wireProxy();
   twoClick($('#resetAll'), $('#resetAll'), S.panel.resetAll, S.panel.confirmResetAll, () => send('POST', '/api/reset'));
   wireProfile();
   wireTour();
@@ -1477,6 +1551,7 @@ function render() {
 
   renderTwitch();
   renderKick();
+  renderProxy();
   renderProfile();
   artFaces();
   $('#showBadge').checked = settings.showBadge;
@@ -1489,15 +1564,7 @@ function render() {
 }
 
 function renderSettings() {
-  const ed = $('main [data-view=settings]');
-  const keep = (inp, v) => { if (inp !== document.activeElement) inp.value = v; }; // never under the cursor
-  keep($('#alertGap'), settings.alertGap);
-  keep($('#proxyHost'), settings.proxyHost);
-  keep($('#proxyPort'), settings.proxyPort || '');
-  $$('[name=proxyMode]').forEach((r) => (r.checked = r.value === settings.proxyMode));
-  $$('[name=proxyType]').forEach((r) => (r.checked = r.value === settings.proxyType));
-  const show = { proxySystem: settings.proxyMode === 'system', proxyManual: settings.proxyMode === 'manual' };
-  $$('[data-only]', ed).forEach((e) => (e.hidden = !show[e.dataset.only]));
+  if ($('#alertGap') !== document.activeElement) $('#alertGap').value = settings.alertGap; // never under the cursor
 }
 
 function renderChat() {

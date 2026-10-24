@@ -1,9 +1,12 @@
-// Every outgoing connection (Kick, Twitch, 7TV, and the emote / badge / avatar images widgets load through /remote)
-// goes through tunnel() here, so the proxy setting covers all of them:
+// Every outgoing connection of the server (Kick, Twitch, 7TV, Jarchi's relay, and the emote / badge / avatar images
+// widgets load through /remote) goes through tunnel() here, so the proxy setting covers all of them, and nothing else on
+// the PC (Jarchi never changes the system's proxy):
 //   off     direct
-//   system  the Windows proxy (Settings > Network > Proxy, what VPN apps set), read from the registry
+//   auto    the VPN app's proxy found on this PC that the user said Yes to (core/vpn.js), else the Windows proxy
+//           (Settings > Network > Proxy, what VPN apps set), read from the registry; neither: direct
 //   manual  an HTTP or SOCKS5 proxy at host:port
 // fetch() and WebSocket use it through the global undici dispatcher set below; Kick's HTTP/2 lookups call secure().
+// The desktop app's update checks ask the server for it too (electron/main.js).
 const net = require('node:net');
 const tls = require('node:tls');
 const { execFile } = require('node:child_process');
@@ -46,11 +49,11 @@ function windowsProxy() {
   });
 }
 
-// The proxy to use now: { type: 'http' | 'socks5', host, port } or null (direct).
+// The proxy to use now: { type: 'http' | 'socks5', host, port, app? } or null (direct). app: the VPN app's name (auto).
 async function current() {
   const s = settings.get();
   if (s.proxyMode === 'manual') return s.proxyHost && s.proxyPort ? { type: s.proxyType, host: s.proxyHost, port: s.proxyPort } : null;
-  return s.proxyMode === 'system' ? windowsProxy() : null;
+  return s.proxyMode === 'auto' ? s.proxyFound ?? windowsProxy() : null;
 }
 
 const fail = (code, message) => Object.assign(new Error(message ?? code), { code });
@@ -108,11 +111,11 @@ async function socks5(sock, host, port) {
   if (r[1] !== 0) throw fail(r[1] === 4 ? 'ENOTFOUND' : 'proxy_refused', `SOCKS5 error ${r[1]}`);
 }
 
-// A TCP socket to host:port, through the proxy when there is one (never for this PC itself).
-// Proxy errors are tagged 'proxy_down' / 'proxy_refused'.
+// A TCP socket to host:port, through the proxy when there is one (never for this PC itself). via: this proxy (or null:
+// direct) instead of the setting's, to try one out. Proxy errors are tagged 'proxy_down' / 'proxy_refused'.
 const LOCAL = /^(localhost|127(\.\d+){3}|::1)$/i;
-async function tunnel(host, port) {
-  const p = LOCAL.test(host) ? null : await current();
+async function tunnel(host, port, via) {
+  const p = LOCAL.test(host) ? null : via === undefined ? await current() : via;
   if (!p) return connect(host, port);
   const sock = await connect(p.host, p.port).catch((err) => { throw fail('proxy_down', `can't reach the proxy at ${p.host}:${p.port} (${err.code ?? err.message})`); });
   try {
@@ -125,8 +128,8 @@ async function tunnel(host, port) {
 }
 
 // A TLS socket to host:port (through the proxy), offering the given ALPN protocols ('h2' for Kick's API).
-async function secure(host, port, alpn) {
-  const raw = await tunnel(host, port);
+async function secure(host, port, alpn, via) {
+  const raw = await tunnel(host, port, via);
   return new Promise((resolve, reject) => {
     const s = tls.connect({ socket: raw, servername: host, ALPNProtocols: alpn });
     const failed = (err) => { raw.destroy(); reject(err); };
@@ -145,8 +148,8 @@ setGlobalDispatcher(new Agent({
   },
 }));
 
-// Can we reach host:443 (TCP + TLS, through the proxy)? Throws like secure().
-const reach = (host) => secure(host, 443, ['http/1.1']).then((s) => s.destroy());
+// Can we reach host:443 (TCP + TLS, through the proxy, or via that one)? Throws like secure().
+const reach = (host, via) => secure(host, 443, ['http/1.1'], via).then((s) => s.destroy());
 
 // Give up on a WebSocket that went quiet, so whatever reconnects in its onclose does. On a dead connection (nothing
 // comes back at all) close() never fires onclose (Node's WebSocket: still "closing" after 40 s), so it's fired here a
@@ -175,4 +178,4 @@ function why(err) {
   return 'network'; // reset, refused, TLS failure: usually a filtered network
 }
 
-module.exports = { tunnel, secure, reach, hangUp, why, fail, current, windowsProxy, parseWindows };
+module.exports = { tunnel, secure, reach, hangUp, why, fail, current, windowsProxy, parseWindows, LOCAL };

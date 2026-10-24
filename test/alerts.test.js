@@ -119,12 +119,13 @@ test("media by amount: fixed tiers (Kick's gift amounts), on/off and files; old 
   assert.ok(s.alerts.bits.tiers.every((t) => !t.on && !t.image) && !fs.existsSync(file(kept)));
 });
 
-test('proxy: HTTP CONNECT and SOCKS5 tunnels, Windows proxy strings, plain-word errors, /remote only for the platforms', async () => {
+test('proxy: HTTP CONNECT and SOCKS5 tunnels, auto, finding a VPN app, Windows proxy strings, plain-word errors, /remote only for the platforms', async () => {
   const echo = tcp.createServer((s) => s.pipe(s)).listen(0, '127.0.0.1');
   const used = { http: 0, socks5: 0 };
   // Fake proxies: every host name means this PC (names like echo.test only exist here).
   const httpProxy = tcp.createServer((c) => c.once('data', (d) => {
     const port = /^CONNECT \S+:(\d+) /.exec(d.toString())?.[1];
+    if (!port) return c.end('HTTP/1.1 400 Bad Request\r\n\r\n'); // e.g. a SOCKS5 hello
     used.http++;
     const up = tcp.connect(Number(port), '127.0.0.1', () => {
       c.write('HTTP/1.1 200 Connection established\r\n\r\n');
@@ -143,8 +144,8 @@ test('proxy: HTTP CONNECT and SOCKS5 tunnels, Windows proxy strings, plain-word 
     });
   })).listen(0, '127.0.0.1');
   await Promise.all([echo, httpProxy, socksProxy].map((s) => new Promise((r) => s.listening ? r() : s.once('listening', r))));
-  const roundTrip = async () => {
-    const sock = await net.tunnel('echo.test', echo.address().port);
+  const roundTrip = async (via) => {
+    const sock = await net.tunnel('echo.test', echo.address().port, via);
     sock.resume();
     const back = new Promise((r) => sock.once('data', (d) => r(d.toString())));
     sock.write('hello');
@@ -176,10 +177,46 @@ test('proxy: HTTP CONNECT and SOCKS5 tunnels, Windows proxy strings, plain-word 
   await call('PATCH', '/api/settings', { proxyPort: deadPort });
   await assert.rejects(roundTrip(), (err) => net.why(err) === 'proxy_down');
 
-  for (const bad of [{ proxyMode: 'vpn' }, { proxyType: 'socks4' }, { proxyPort: 70000 }, { proxyHost: 'a b' }, { alertGap: -1 }]) {
+  // Auto: the VPN app's proxy the user said Yes to.
+  const found = { app: 'v2rayN', type: 'socks5', host: '127.0.0.1', port: socksProxy.address().port };
+  assert.deepEqual((await (await call('PATCH', '/api/settings', { proxyMode: 'auto', proxyFound: found })).json()).proxyFound, found);
+  assert.equal(await roundTrip(), 'hello');
+  assert.equal(used.socks5, 3, 'auto went through the found proxy');
+
+  const proxyFound = (o) => ({ proxyFound: { ...found, ...o } });
+  for (const bad of [{ proxyMode: 'vpn' }, { proxyMode: 'system' }, { proxyType: 'socks4' }, { proxyPort: 70000 }, { proxyHost: 'a b' }, { alertGap: -1 },
+    proxyFound({ type: 'socks4' }), proxyFound({ port: 0 }), proxyFound({ host: '' }), proxyFound({ app: 'x'.repeat(41) }), proxyFound({ extra: 1 })]) {
     assert.equal((await call('PATCH', '/api/settings', bad)).status, 400, JSON.stringify(bad));
   }
-  await call('PATCH', '/api/settings', { proxyMode: 'off', proxyHost: '', proxyPort: 0 });
+  await call('PATCH', '/api/settings', { proxyMode: 'off', proxyHost: '', proxyPort: 0, proxyFound: null });
+
+  // Finding the user's VPN app (core/vpn.js): what netstat + tasklist say listens here, the Windows proxy first, then
+  // known VPN programs on any port (a core is named after the app running it), then the usual ports.
+  const vpn = require('../core/vpn');
+  const netstat = [
+    '  TCP    0.0.0.0:135            0.0.0.0:0              LISTENING       4',
+    '  TCP    127.0.0.1:10808        0.0.0.0:0              LISTENING       40',
+    '  TCP    127.0.0.1:20171        0.0.0.0:0              ABHÖREN         41', // Windows in another language
+    '  TCP    127.0.0.1:52000        127.0.0.1:10808        ESTABLISHED     40',
+    '  TCP    192.168.1.5:7890       0.0.0.0:0              LISTENING       41',
+  ].join('\r\n');
+  const tasks = '"System","4","Services","0","8 K"\r\n"v2rayN.exe","39","Console","1","90 K"\r\n"xray.exe","40","Console","1","30 K"\r\n"NetMod.exe","41","Console","1","50 K"';
+  const list = vpn.candidates(netstat, tasks, { type: 'http', host: '127.0.0.1', port: 10809 });
+  assert.deepEqual(list.slice(0, 3), [
+    { app: 'v2rayN', host: '127.0.0.1', port: 10809, types: ['http', 'socks5'] },
+    { app: 'v2rayN', host: '127.0.0.1', port: 10808, types: ['socks5', 'http'] },
+    { app: 'NetMod', host: '127.0.0.1', port: 20171, types: ['socks5', 'http'] },
+  ]);
+  assert.ok(!list.some((c) => c.port === 135) && list.find((c) => c.port === 7890).app === 'Clash', 'not a VPN program; only this PC');
+  assert.equal(vpn.candidates('  TCP    127.0.0.1:30000   0.0.0.0:0   LISTENING   7', '"sing-box.exe","7","Console","1","1 K"', null)[0].app, 'sing-box', 'a core alone');
+  assert.ok(!vpn.candidates('', '', { type: 'http', host: '10.0.0.1', port: 8080 }).some((c) => c.port === 8080), 'a proxy elsewhere is no VPN app here');
+  // The first candidate (in order) that really gets through wins; a port that speaks only HTTP fails SOCKS5 and works.
+  const httpPort = httpProxy.address().port;
+  assert.deepEqual(await vpn.firstWorking([
+    { app: 'Gone', host: '127.0.0.1', port: deadPort, types: ['socks5', 'http'] },
+    { app: 'HTTP only', host: '127.0.0.1', port: httpPort, types: ['socks5', 'http'] },
+    { app: 'Also works', host: '127.0.0.1', port: socksProxy.address().port, types: ['socks5', 'http'] },
+  ], (p) => roundTrip(p).then((v) => assert.equal(v, 'hello'))), { app: 'HTTP only', type: 'http', host: '127.0.0.1', port: httpPort });
   for (const s of [echo, httpProxy, socksProxy, web]) s.close();
 
   assert.deepEqual(net.parseWindows(true, '127.0.0.1:10809'), { type: 'http', host: '127.0.0.1', port: 10809 });
