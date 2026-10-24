@@ -17,3 +17,8 @@ new_sqlite_classes = ["Room"]
 binding = "DB"
 database_name = "jarchi-stats"
 database_id = "510ef77f-2683-4c97-917b-637415415be6"
+
+# No Workers Logs: Cloudflare keeps no record of these requests or their details (Kick tokens and login codes pass
+# through here, see worker.mjs). Live `wrangler tail` still shows requests while it runs.
+[observability]
+enabled = false

@@ -3,6 +3,8 @@
 // socket joins.
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 
 test('Kick relay: redirects, tokens, signed webhooks, sockets, rooms', async () => {
   const { default: worker, Room } = await import('../relay/worker.mjs');
@@ -48,6 +50,7 @@ test('Kick relay: redirects, tokens, signed webhooks, sockets, rooms', async () 
   // /token: the code (with the relay's redirect address) or a refresh token, plus the app's id and secret.
   r = await go('/token', { method: 'POST', body: JSON.stringify({ code: 'C', code_verifier: 'V' }) });
   assert.deepEqual(await r.json(), { access_token: 'A', refresh_token: 'R', expires_in: 7200 });
+  assert.equal(r.headers.get('cache-control'), 'no-store', 'tokens: never cached on the way');
   assert.deepEqual(Object.fromEntries(calls.at(-1).init.body), { grant_type: 'authorization_code', code: 'C', code_verifier: 'V', redirect_uri: 'https://relay.test/callback', client_id: 'cid', client_secret: 'shh' });
   await go('/token', { method: 'POST', body: JSON.stringify({ refresh_token: 'R' }) });
   assert.deepEqual(Object.fromEntries(calls.at(-1).init.body), { grant_type: 'refresh_token', refresh_token: 'R', client_id: 'cid', client_secret: 'shh' });
@@ -74,6 +77,7 @@ test('Kick relay: redirects, tokens, signed webhooks, sockets, rooms', async () 
   const ws = (auth) => go('/ws', { headers: { upgrade: 'websocket', ...(auth && { authorization: auth }) } });
   assert.equal((await ws('Bearer good')).status, 200);
   assert.equal(rooms.at(-1).id, 'id:42');
+  assert.deepEqual([rooms.at(-1).req.headers.get('upgrade'), rooms.at(-1).req.headers.get('authorization')], ['websocket', null], "the Room never gets the token");
   assert.equal((await ws('Bearer bad')).status, 401);
   assert.equal((await ws()).status, 401);
   assert.equal((await go('/ws')).status, 426);
@@ -86,4 +90,11 @@ test('Kick relay: redirects, tokens, signed webhooks, sockets, rooms', async () 
   assert.deepEqual([auto.a, auto.b], ['ping', 'pong']);
   await room.fetch(new Request('https://room/event', { method: 'POST', body: '{"type":"channel.followed"}' }));
   assert.deepEqual(got, ['{"type":"channel.followed"}']);
+});
+
+test('Kick relay: tokens only pass through (no logging, no Room storage)', () => {
+  const read = (f) => fs.readFileSync(path.join(__dirname, '../relay', f), 'utf8');
+  assert.doesNotMatch(read('worker.mjs'), /console\./);
+  assert.doesNotMatch(read('worker.mjs'), /\.storage\b/);
+  assert.match(read('wrangler.toml'), /\[observability\]\r?\nenabled = false/);
 });

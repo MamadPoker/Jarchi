@@ -38,4 +38,4 @@ Outgoing connections must go through `core/net.js` (the proxy setting): `fetch()
 
 Alerts and goals both listen to these events, so a connector feeds everything at once. When an account connects or disconnects, report it with `setConnected('kick', true)` (also from `core/events.js`). Widgets use this list, for example to show the Kick/Twitch badge only when both are connected.
 
-Tokens and credentials go in `.env` or the data directory (both gitignored), never in this repo.
+Tokens and credentials go in `.env` or the data directory (both gitignored), never in this repo. A login's tokens go through `store.load(file, ['access', 'refresh'])` / `store.save(file, data, [...])`, which seals them in the installed app (`core/secrets.js`). Every server log line and `events.log` line is redacted (known tokens, `Bearer …`, fields like `access_token`), but never log a token on purpose.

@@ -1,6 +1,6 @@
 # Jarchi's Kick relay
 
-A Cloudflare Worker (free plan) for **Connect Kick** in every Jarchi. Kick's login needs the Kick app's secret, and Kick sends follows only as webhooks to one public address; this holds both, so nobody's Jarchi needs a public address or a Kick app of its own. See `worker.mjs` for what each address does. Kick's events aren't stored: a follow goes to the Jarchi connected for that channel right now, or nowhere. The one thing it keeps is the usage pings (below).
+A Cloudflare Worker (free plan) for **Connect Kick** in every Jarchi. Kick's login needs the Kick app's secret, and Kick sends follows only as webhooks to one public address; this holds both, so nobody's Jarchi needs a public address or a Kick app of its own. See `worker.mjs` for what each address does. Kick's events aren't stored: a follow goes to the Jarchi connected for that channel right now, or nowhere. Kick tokens and login codes only pass through: never stored (no Room storage, D1 or KV), never logged (no `console` in the worker, Workers Logs off in `wrangler.toml`), never cached (`no-store`), and the Rooms never see one. The one thing it keeps is the usage pings (below).
 
 ## Deploy (once)
 

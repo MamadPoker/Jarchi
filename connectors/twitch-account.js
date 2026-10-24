@@ -11,6 +11,7 @@ const { emitEvent, setConnected, logIncoming } = require('../core/events');
 const net = require('../core/net');
 
 const FILE = path.join(DATA_DIR, 'twitch.json');
+const SECRET = ['access', 'refresh']; // sealed in the file (core/secrets.js)
 const ID = 'https://id.twitch.tv/oauth2';
 const HELIX = 'https://api.twitch.tv/helix';
 const EVENTSUB = 'wss://eventsub.wss.twitch.tv/ws';
@@ -22,7 +23,7 @@ const CLIENT_ID = '6z5ycye2mjhj10jk1jkwkelft0l7p3';
 const SUBS = [['channel.follow', '2'], ['channel.goal.begin', '1'], ['channel.goal.progress', '1'], ['channel.goal.end', '1']];
 
 const account = new EventEmitter(); // 'status'
-let saved = store.load(FILE); // { clientId (own app, else none), access, refresh, expires, userId, login }
+let saved = store.load(FILE, SECRET); // { clientId (own app, else none), access, refresh, expires, userId, login }
 const clientId = () => saved.clientId || CLIENT_ID;
 // state: off | waiting (Twitch's code is on screen) | connecting | connected.
 // error: why it's off or reconnecting (expired | denied | timeout | client | network), '' when fine.
@@ -41,7 +42,7 @@ const fail = (code) => Object.assign(new Error(code), { code });
 const form = (url, fields) => fetch(url, { method: 'POST', body: new URLSearchParams(fields), signal: AbortSignal.timeout(10000) });
 function keep(fields) {
   saved = { ...saved, ...fields };
-  store.save(FILE, saved);
+  store.save(FILE, saved, SECRET);
 }
 const keepTokens = (j) => keep({ access: j.access_token, refresh: j.refresh_token, expires: Date.now() + j.expires_in * 1000 });
 
@@ -99,7 +100,7 @@ async function login() {
 function forget(error = '') {
   stop();
   saved = { clientId: saved.clientId };
-  store.save(FILE, saved);
+  store.save(FILE, saved, SECRET);
   goals.clear();
   setConnected('twitch', false);
   set({ state: 'off', error });

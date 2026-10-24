@@ -15,6 +15,7 @@ const net = require('../core/net');
 const kickChat = require('./kick-chat');
 
 const FILE = path.join(DATA_DIR, 'kick.json');
+const SECRET = ['access', 'refresh']; // sealed in the file (core/secrets.js)
 // Jarchi's own relay; KICK_RELAY_URL in .env sets another (your own deploy of relay/).
 const JARCHI_RELAY = 'https://jarchi-kick.thejarchi.workers.dev';
 const RELAY = (process.env.KICK_RELAY_URL || JARCHI_RELAY).replace(/\/+$/, '');
@@ -25,7 +26,7 @@ const LOGIN_MS = 10 * 60 * 1000; // the Kick login page waits this long for the 
 const QUIET_MS = 90 * 1000; // we ping every 30 s; no pong for this long means the socket is dead
 
 const account = new EventEmitter(); // 'status'
-let saved = store.load(FILE); // { access, refresh, expires, userId, login }
+let saved = store.load(FILE, SECRET); // { access, refresh, expires, userId, login }
 // state: off | waiting (Kick's login page is open) | connecting | connected.
 // error: why it's off or reconnecting (expired | denied | timeout | network | relay), '' when fine.
 let st = { state: saved.refresh && RELAY ? 'connecting' : 'off', error: '', uri: '' };
@@ -42,7 +43,7 @@ const post = (url, body) => fetch(url, { method: 'POST', headers: { 'content-typ
 const slug = (name) => name.toLowerCase().replace(/_/g, '-');
 function keep(fields) {
   saved = { ...saved, ...fields };
-  store.save(FILE, saved);
+  store.save(FILE, saved, SECRET);
 }
 const keepTokens = (j) => keep({ access: j.access_token, refresh: j.refresh_token, expires: Date.now() + (Number(j.expires_in) || 3600) * 1000 });
 
@@ -98,7 +99,7 @@ function forget(error = '') {
   stop();
   pending = null;
   saved = {};
-  store.save(FILE, saved);
+  store.save(FILE, saved, SECRET);
   setConnected('kick', false);
   set({ state: 'off', error });
 }
