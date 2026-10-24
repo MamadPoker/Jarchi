@@ -6,7 +6,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { DatabaseSync } = require('node:sqlite');
+const { d1 } = require('./relay-env');
 
 const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'jarchi-stats-'));
 process.env.JARCHI_DATA_DIR = dataDir;
@@ -30,21 +30,6 @@ const stats = require('../core/stats');
 const pings = () => calls.filter((c) => c.at === 'relay.test/ping');
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 
-// D1 stand-in: SQLite with the real schema; D1's ?NNN parameters made plain ? for node:sqlite.
-function d1() {
-  const db = new DatabaseSync(':memory:');
-  db.exec(fs.readFileSync(path.join(__dirname, '..', 'relay', 'schema.sql'), 'utf8'));
-  const statement = (sql, args = []) => {
-    const run = (how) => db.prepare(sql.replace(/\?\d+/g, '?'))[how](...[...sql.matchAll(/\?(\d+)/g)].map((m) => args[m[1] - 1]));
-    return {
-      bind: (...a) => statement(sql, a),
-      run: async () => ({ meta: { changes: run('run').changes } }),
-      first: async () => run('get') ?? null,
-      all: async () => ({ results: run('all') }),
-    };
-  };
-  return { db, DB: { prepare: (sql) => statement(sql) } };
-}
 const ctx = { waitUntil() {} };
 
 let sent; // the ping Jarchi sent, for the relay test below

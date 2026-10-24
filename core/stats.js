@@ -50,4 +50,4 @@ function start() {
   setInterval(ping, EVERY_MS).unref();
 }
 
-module.exports = { start, ping };
+module.exports = { start, ping, accepted };

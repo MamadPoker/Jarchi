@@ -294,7 +294,7 @@ function renderConnWarn() {
 }
 
 async function api(method, url, body, headers = {}) {
-  const isFile = body instanceof Blob;
+  const isFile = body instanceof Blob || body instanceof FormData;
   let res;
   try {
     res = await fetch(url, {
@@ -408,6 +408,7 @@ function select(v, key) {
   if (v === 'chat' && !$('#chatPreview').getAttribute('src')) $('#chatPreview').src = '/widgets/chat?preview';
   if (v === 'home') loadHome(); // today's numbers may have started again at midnight
   if (v === 'events') loadHistory();
+  if (v === 'support') loadTickets();
   if (v === 'settings') showProxyNow();
   if (v === 'about') api('GET', '/api/version').then(({ version }) => ($('#aboutVersion').textContent = S.panel.version.replace('{version}', version)), () => {});
   if (v === 'guide') {
@@ -934,6 +935,194 @@ addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && held) e.preventDefault();
 });
 
+// ---------- Support ----------
+// My tickets on Jarchi's relay (/api/support, core/support.js), once the Privacy Policy is accepted: the list (again
+// every 5 minutes and when the page opens; an admin reply not opened yet puts a dot on Support in the sidebar), the New
+// ticket form, or one ticket as a chat with its reply box (none while it's closed). Screenshots are made small here
+// before they go (shrinkShot).
+const support = { tickets: [], error: '', mode: 'list', open: null }; // mode: list | new | ticket; open: the ticket shown, with its messages
+let formShots, replyShots; // the screenshots picked for a new ticket / a reply (wireShots)
+const SHOTS = 3, SHOT_PX = 1920, SHOT_BYTES = 2 * 1024 * 1024, SHOT_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
+const shotUrl = (id, name) => `/api/support/tickets/${id}/images/${name}`;
+const statusPill = (s) => el('span', { className: `pill tk-${s}`, textContent: S.panel.ticketStatus[s] });
+
+function loadTickets() {
+  if (mustAccept()) return renderSupport();
+  api('GET', '/api/support/tickets').then((list) => {
+    support.tickets = list;
+    support.error = '';
+    // A reply to the ticket open on the page right now: shown at once.
+    if (view === 'support' && support.mode === 'ticket' && list.some((t) => t.unread && t.id === support.open.id)) openTicket(support.open.id);
+  }, (err) => (support.error = err.message)).finally(renderSupport);
+}
+
+function renderSupport() {
+  const ok = !mustAccept();
+  $('#supportPrivacy').hidden = ok;
+  for (const [sel, mode] of [['#ticketsBox', 'list'], ['#ticketForm', 'new'], ['#ticketView', 'ticket']]) $(sel).hidden = !ok || support.mode !== mode;
+  $('#ticketList').replaceChildren(...support.tickets.map((t) => el('li', {}, el('button', { className: 'ticket-row', onclick: () => openTicket(t.id) },
+    el('span', { className: 'stack' }, el('b', { textContent: t.subject, dir: 'auto' }), el('small', { textContent: `${S.panel.ticketCats[t.category]} · ${dateTime(Date.parse(t.updatedAt))}` })),
+    t.unread ? el('span', { className: 'pill unread', textContent: S.panel.ticketUnread }) : '', statusPill(t.status)))));
+  $('#ticketsEmpty').hidden = support.tickets.length > 0 || !!support.error;
+  $('#ticketsError').hidden = !support.error;
+  $('#ticketsError span').textContent = support.error;
+  $('#supportDot').hidden = !ok || !support.tickets.some((t) => t.unread);
+}
+
+function showSupport(mode) {
+  support.mode = mode;
+  renderSupport();
+  if (mode === 'ticket') renderThread();
+  if (mode === 'new') $('#ticketForm').subject.focus();
+}
+
+async function openTicket(id) {
+  if (support.open?.id !== id) { // another ticket: not the last one's half-written reply
+    $('#replyForm').reset();
+    replyShots.clear();
+  }
+  try {
+    support.open = await api('GET', `/api/support/tickets/${id}`); // read now (the relay marks it)
+  } catch (err) {
+    return toast(err.message, true);
+  }
+  const t = support.tickets.find((x) => x.id === id);
+  if (t) t.unread = false;
+  showSupport('ticket');
+}
+
+// The open ticket: mine on one side, the admin's on the other, oldest first, scrolled to the newest.
+function renderThread() {
+  const t = support.open, box = $('#ticketThread'), closed = t.status === 'closed';
+  $('#ticketSubject').textContent = t.subject;
+  $('#ticketMeta').textContent = [S.panel.ticketCats[t.category], ltr(`#${t.id}`), dateTime(Date.parse(t.createdAt))].join(' · ');
+  Object.assign($('#ticketStatus'), { className: `pill tk-${t.status}`, textContent: S.panel.ticketStatus[t.status] });
+  box.replaceChildren(...t.messages.map((m) => el('li', { className: `msg ${m.author === 'user' ? 'me' : 'them'}` },
+    el('small', { className: 'who', textContent: m.author === 'user' ? S.panel.ticketYou : S.panel.ticketAdmin }),
+    m.text ? el('p', { textContent: m.text, dir: 'auto' }) : '',
+    m.images.length ? el('span', { className: 'msg-shots' }, ...m.images.map((n) => el('a', { href: shotUrl(t.id, n), target: '_blank', rel: 'noopener' },
+      el('img', { src: shotUrl(t.id, n), alt: S.panel.ticketShot })))) : '',
+    el('small', { className: 'when', textContent: dateTime(Date.parse(m.at)) }))));
+  box.scrollTop = box.scrollHeight;
+  $$('#replyForm textarea, #replyForm button').forEach((e) => (e.disabled = closed));
+  $('#replyClosed').hidden = !closed;
+}
+
+// A screenshot as the relay takes it (a PNG, JPG or WebP of at most SHOT_BYTES): one over SHOT_PX on a side, over
+// SHOT_BYTES or of another image type is drawn again at most SHOT_PX on a side, as WebP (a lower quality if still too big).
+async function shrinkShot(file) {
+  const img = await createImageBitmap(file); // not an image: throws
+  const k = Math.min(1, SHOT_PX / Math.max(img.width, img.height));
+  if (k === 1 && file.size <= SHOT_BYTES && SHOT_TYPES.includes(file.type)) return file;
+  const c = el('canvas', { width: Math.round(img.width * k), height: Math.round(img.height * k) });
+  c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+  for (const q of [0.9, 0.75, 0.6]) {
+    const blob = await new Promise((done) => c.toBlob(done, 'image/webp', q));
+    if (blob?.size <= SHOT_BYTES) return blob;
+  }
+  throw Object.assign(new Error('too big'), { big: true });
+}
+
+// A message's screenshots (the New ticket form's, a reply's) in `box`: up to SHOTS, each with its preview and a remove
+// button; also pasted ones (Ctrl+V in `field`). -> { list: [{ blob, url }], clear() }
+function wireShots(box, field) {
+  const list = [];
+  const input = el('input', { type: 'file', accept: SHOT_TYPES.join(','), multiple: true, hidden: true });
+  const add = el('button', { type: 'button', className: 'shot-add', textContent: S.panel.ticketAddShot, onclick: () => input.click() });
+  const draw = () => box.replaceChildren(...list.map((s, i) => {
+    const x = el('button', { type: 'button', className: 'shot-x', title: S.panel.ticketRemoveShot, onclick: () => {
+      URL.revokeObjectURL(s.url);
+      list.splice(i, 1);
+      draw();
+    } });
+    x.innerHTML = POINT_ICON.never; // ✕
+    x.setAttribute('aria-label', S.panel.ticketRemoveShot);
+    return el('span', { className: 'shot' }, el('img', { src: s.url, alt: '' }), x);
+  }), ...(list.length < SHOTS ? [add] : []), input);
+  const take = async (files) => {
+    for (const f of files) {
+      if (list.length >= SHOTS) {
+        toast(S.errors.support_too_many_images, true);
+        break;
+      }
+      try {
+        const blob = await shrinkShot(f);
+        list.push({ blob, url: URL.createObjectURL(blob) });
+      } catch (err) {
+        toast(S.errors[err.big ? 'support_image_too_large' : 'support_bad_image'], true);
+      }
+    }
+    draw();
+  };
+  input.onchange = () => {
+    take([...input.files]);
+    input.value = '';
+  };
+  field.addEventListener('paste', (e) => {
+    const files = [...e.clipboardData.files].filter((f) => f.type.startsWith('image/'));
+    if (!files.length) return;
+    e.preventDefault();
+    take(files);
+  });
+  draw();
+  return { list, clear: () => (list.splice(0).forEach((s) => URL.revokeObjectURL(s.url)), draw()) };
+}
+
+// A form (a new ticket, a reply) and its screenshots -> the ticket as it is now, or nothing (the error toasted).
+async function sendForm(url, form, shots) {
+  const data = new FormData(form), btn = $('button[type=submit]', form);
+  shots.list.forEach((s, i) => data.append('image', s.blob, `screenshot-${i + 1}`));
+  btn.disabled = true;
+  btn.textContent = S.panel.ticketSending;
+  try {
+    return await api('POST', url, data);
+  } catch (err) {
+    toast(err.message, true);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = S.panel.ticketSend;
+  }
+}
+
+function wireSupport() {
+  const form = $('#ticketForm'), reply = $('#replyForm');
+  $('#ticketCats').append(...Object.entries(S.panel.ticketCats).map(([v, name], i) => el('label', {},
+    el('input', { type: 'radio', name: 'category', value: v, defaultChecked: !i }), el('span', { textContent: name }))));
+  const catHint = () => ($('#ticketCatHint').textContent = S.panel.ticketCatHints[form.category.value]);
+  $('#ticketCats').onchange = catHint;
+  catHint();
+  formShots = wireShots($('#ticketShots'), form.message);
+  replyShots = wireShots($('#replyShots'), reply.message);
+  $('#ticketNew').onclick = () => showSupport('new');
+  $$('.ticket-back').forEach((b) => (b.onclick = () => showSupport('list'))); // a half-written ticket stays for later
+  $('#ticketsRetry').onclick = loadTickets;
+  $('#supportPrivacyOpen').onclick = () => showPrivacy(S.lang, true);
+  form.onsubmit = async (e) => {
+    e.preventDefault();
+    const t = await sendForm('/api/support/tickets', form, formShots);
+    if (!t) return;
+    form.reset();
+    formShots.clear();
+    catHint();
+    support.open = t;
+    showSupport('ticket');
+    loadTickets();
+  };
+  reply.onsubmit = async (e) => {
+    e.preventDefault();
+    if (!reply.message.value.trim() && !replyShots.list.length) return reply.message.focus();
+    const t = await sendForm(`/api/support/tickets/${support.open.id}/messages`, reply, replyShots);
+    if (!t) return;
+    reply.reset();
+    replyShots.clear();
+    support.open = t;
+    renderThread();
+    loadTickets();
+  };
+  loadTickets();
+  setInterval(loadTickets, 5 * 60 * 1000);
+}
+
 // ---------- Welcome tour ----------
 // Opens by itself on the first run (then settings.welcomed is saved), and from the Guide. Hello speaks both languages
 // and picks the panel's: another one reloads the panel in it, back at Connect. Connect shows the Connections page's own
@@ -1398,6 +1587,7 @@ function build() {
   wireTour();
   wireUpdate();
   wireUninstall();
+  wireSupport();
 
   $$('[data-i18n]').forEach((e) => (e.textContent = S.panel[e.dataset.i18n]));
   const [madeA, madeB] = S.panel.madeWith.split('{heart}'); // About's "Made with ♥ by MamadPoker", the heart in gold
@@ -1486,6 +1676,7 @@ function render() {
   if (view === 'chat') renderChat();
   if (view === 'home') renderHome();
   if (view === 'events') renderHistory();
+  renderSupport(); // also the sidebar's dot
 }
 
 function renderSettings() {

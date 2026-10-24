@@ -14,6 +14,7 @@ const alertQueue = require('../core/alerts');
 const twitchAccount = require('../connectors/twitch-account');
 const kickAccount = require('../connectors/kick-account');
 const stats = require('../core/stats');
+const support = require('../core/support');
 const strings = require('../i18n/en.json');
 
 const ROOT = path.join(__dirname, '..');
@@ -132,6 +133,17 @@ app.post('/api/kick/disconnect', async (req, res) => res.json(await kickAccount.
 app.get('/api/kick/callback', async (req, res) => {
   await kickAccount.callback(req.query);
   res.redirect('/#connections');
+});
+
+// Support (the Support page): /api/support/... is the relay's /support/... for this install (core/support.js). A
+// screenshot comes back only as a PNG, JPG or WebP (by its bytes).
+const SHOT_TYPES = { png: 'image/png', jpg: 'image/jpeg', webp: 'image/webp' };
+app.use('/api/support', raw, async (req, res) => {
+  const r = await support.call(req.method, `/support${req.path}`, Buffer.isBuffer(req.body) && req.body.length ? req.body : undefined, req.get('content-type'));
+  if (!req.path.includes('/images/')) return res.json(await r.json());
+  const body = Buffer.from(await r.arrayBuffer()), type = SHOT_TYPES[settings.sniff(body)];
+  if (!type) return res.status(502).json({ error: 'support_failed' });
+  res.set({ 'content-type': type, 'x-content-type-options': 'nosniff', 'cache-control': 'private, max-age=86400' }).send(body);
 });
 
 // Goals: counts (current / reached) live in core/goals; their look and target are regular settings.

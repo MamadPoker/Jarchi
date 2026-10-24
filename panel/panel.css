@@ -358,7 +358,7 @@ button.danger.soft:hover { border-color: var(--danger); background: color-mix(in
 button.danger.strong, button.danger.strong:hover { border-color: transparent; background: var(--danger); color: var(--on-color); } /* its dialog's Uninstall */
 button.armed, button.armed:hover { border-color: transparent; background: var(--danger); color: var(--on-color); } /* twoClick(): click again to confirm */
 
-input[type="text"], input[type="number"], select {
+input[type="text"], input[type="number"], select, textarea {
   width: 100%;
   padding: 8px 12px;
   border: 1px solid var(--border);
@@ -906,6 +906,39 @@ main { padding: 24px 28px 64px; container-type: inline-size; } /* editor rules b
 .pager button { min-width: 34px; justify-content: center; padding: 4px 10px; border-radius: 99px; font-size: 13px; }
 .pager button[aria-current="page"] { border-color: transparent; background: var(--main-fill); color: var(--on-main); }
 .pager span { color: var(--muted); }
+
+/* ---------- Support: my tickets, the New ticket form, one ticket as a chat (mine on the end side, the admin's on the
+   start side) with its reply box ---------- */
+.support .card-head .stack { flex: 1; min-width: 0; gap: 2px; }
+.ticket-list { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; }
+.ticket-row { display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 12px; border-color: transparent; background: none; text-align: start; }
+.ticket-row:hover { border-color: transparent; }
+.ticket-row .stack { flex: 1; min-width: 0; gap: 0; }
+.ticket-row b { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.ticket-row small { font-weight: 500; }
+.pill.tk-open { border-color: var(--gold-line); color: var(--gold-text); }
+.pill.tk-progress { border-color: var(--warn-line); color: var(--warn); }
+.pill.unread { border-color: transparent; background: var(--gold); color: var(--on-gold); }
+.ticket-error { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 0; color: var(--danger); font-size: 13px; }
+textarea { resize: vertical; line-height: 1.5; }
+.shots { display: flex; flex-wrap: wrap; gap: 8px; }
+.shot { position: relative; width: 88px; height: 66px; overflow: hidden; border: 1px solid var(--border); border-radius: 10px; background: var(--checker-a); }
+.shot img { width: 100%; height: 100%; object-fit: cover; }
+.shot-x, .shot-x:hover { position: absolute; top: 4px; inset-inline-end: 4px; width: 22px; height: 22px; justify-content: center; padding: 0; border-color: transparent; border-radius: 50%; background: rgb(0 0 0 / 0.65); color: #fff; }
+.shot-x svg { width: 12px; height: 12px; }
+.shot-add { height: 66px; border-style: dashed; color: var(--muted); font-size: 13px; }
+.thread { display: grid; gap: 10px; max-height: min(60vh, 560px); margin: 0; padding: 2px; overflow-y: auto; list-style: none; }
+.msg { display: grid; justify-self: start; gap: 4px; max-width: 82%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 14px; border-end-start-radius: 4px; background: var(--card2); }
+.msg.me { justify-self: end; border-color: transparent; border-radius: 14px; border-end-end-radius: 4px; background: var(--main-soft); }
+.msg .who { color: var(--gold-text); font-weight: 700; }
+.msg.me .who { color: var(--muted); }
+.msg p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.msg .when { justify-self: end; font-size: 11px; }
+.msg-shots { display: flex; flex-wrap: wrap; gap: 6px; }
+.msg-shots img { display: block; height: 120px; max-width: 100%; object-fit: cover; border-radius: 8px; } /* a fixed height: the thread stays scrolled to the newest while they load */
+.reply { display: grid; gap: 10px; padding-top: 14px; border-top: 1px solid var(--border); }
+.reply-actions { display: flex; align-items: center; justify-content: flex-end; gap: 10px; }
+#replyClosed { margin-inline-end: auto; }
 
 .stack { display: grid; gap: 4px; }
 .theme-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }

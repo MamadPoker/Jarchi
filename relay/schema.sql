@@ -34,3 +34,30 @@ CREATE TABLE IF NOT EXISTS requests (
   day TEXT PRIMARY KEY,  -- "2026-10-23"
   count INTEGER NOT NULL
 );
+
+-- Support tickets (worker.mjs /support and /admin/tickets): an install's tickets with Jarchi's admin, each a thread of
+-- messages. Screenshots are in KV (SHOTS) as "<ticket id>/<name>", their names listed in the message.
+CREATE TABLE IF NOT EXISTS tickets (
+  id TEXT PRIMARY KEY,         -- 8 hex digits, random ("3F9A1C2B")
+  install_id TEXT NOT NULL,    -- the install that made it (installs.id)
+  token_hash TEXT NOT NULL,    -- SHA-256 of that install's ticket token: only it can read the ticket
+  kick_name TEXT,              -- the install's Kick / Twitch channels when it was made (from its last ping), NULL: none
+  twitch_name TEXT,
+  category TEXT NOT NULL,      -- bug | suggestion | question | data
+  subject TEXT NOT NULL,
+  status TEXT NOT NULL,        -- open | progress | closed
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,    -- its last message or status change
+  user_read_at TEXT,           -- when the install / the admin last opened it (NULL: never): newer messages from the
+  admin_read_at TEXT           -- other side are unread
+);
+CREATE INDEX IF NOT EXISTS tickets_install ON tickets (install_id, created_at);
+CREATE TABLE IF NOT EXISTS ticket_messages (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  ticket_id TEXT NOT NULL REFERENCES tickets (id) ON DELETE CASCADE,
+  author TEXT NOT NULL,        -- user | admin
+  body TEXT NOT NULL,
+  images TEXT NOT NULL,        -- JSON list of its screenshots' names ("<32 hex>.png"), up to 3
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS ticket_messages_ticket ON ticket_messages (ticket_id, created_at);
