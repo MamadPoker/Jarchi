@@ -1,3 +1,4 @@
+require('../core/secrets').guardConsole(); // before anything else: every log line from here on has its tokens blanked out
 const path = require('node:path');
 const http = require('node:http');
 const { execFile } = require('node:child_process');

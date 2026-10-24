@@ -6,7 +6,9 @@
 //   POST /token     Jarchi's code (with its PKCE verifier) or refresh token -> Kick's tokens, the secret added here
 //   POST /webhook   Kick's events: the signature is checked, then each goes to its channel's Room
 //   GET  /ws        Jarchi's WebSocket: the Kick token it sends says whose channel it is, and it joins that Room
-// Nothing of that is stored: an event goes to the sockets open right now, or nowhere.
+// Nothing of that is stored: an event goes to the sockets open right now, or nowhere. Kick tokens (and codes) only pass
+// through: never stored (no Room storage, no D1, no KV), never logged (nothing here writes to the console; Workers
+// Logs are off in wrangler.toml), never cached (no-store), and a Room never sees one.
 //   POST /ping      Jarchi's usage ping (core/stats.js, only once its Privacy Policy is accepted): one row per install
 //                   in the D1 database DB (schema.sql). No IP address or anything else about the request is kept.
 //   /support/...    Jarchi's Support page: an install's tickets (see "Support tickets" below), screenshots in KV SHOTS.
@@ -71,7 +73,7 @@ async function token(req, url, env) {
     headers: { 'content-type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({ ...grant, client_id: env.KICK_CLIENT_ID, client_secret: env.KICK_CLIENT_SECRET }),
   });
-  return new Response(r.body, { status: r.status, headers: { 'content-type': 'application/json' } });
+  return new Response(r.body, { status: r.status, headers: { 'content-type': 'application/json', 'cache-control': 'no-store' } });
 }
 
 // Kick's public key (it can change: fetched again when a signature doesn't match, at most once a minute).
@@ -118,7 +120,9 @@ async function socket(req, env) {
   const r = await fetch(`${KICK_API}/users`, { headers: { authorization: req.headers.get('authorization') ?? '' } });
   const me = r.ok && (await r.json().catch(() => null))?.data?.[0]?.user_id;
   if (!me) return text('Unauthorized', 401);
-  return room(env, me).fetch(req);
+  const headers = new Headers(req.headers);
+  headers.delete('authorization'); // the Room needs only the upgrade, not the token
+  return room(env, me).fetch(new Request(req, { headers }));
 }
 
 // ---------- Usage pings ----------
