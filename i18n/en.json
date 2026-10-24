@@ -59,6 +59,8 @@
   "panel": {
     "title": "Jarchi",
     "copyObs": "Copy OBS link",
+    "copyAllAlerts": "Copy link: all alerts",
+    "copyAlertLink": "Copy link: {alert}",
     "menu": "Menu",
     "navHome": "Home",
     "navGoals": "Goals",
@@ -853,7 +855,7 @@
         "title": "Add Jarchi to OBS",
         "intro": "Every part of Jarchi is a web page that OBS shows as a Browser Source. The alerts, the chat and each goal have their own link.",
         "steps": [
-          ["Copy the link", "On the **Alerts** page, click **Copy OBS link**. The alerts link is `{alertsUrl}`."],
+          ["Copy the link", "On the **Alerts** page, click **Copy link: all alerts**. The alerts link is `{alertsUrl}`. An alert's own **Copy link** (next to **Test in OBS**) plays only that alert; while it's open in OBS, the main link skips it."],
           ["Add a Browser Source", "In OBS: **Sources → + → Browser**. Give it a name, for example \"Jarchi Alerts\"."],
           ["Paste it and set the size", "Paste the link into **URL**. Width **800**, height **600**."],
           ["Turn on the sound", "Tick **Control audio via OBS**, so alert sounds go through the OBS mixer to your stream. Then click **OK**."],

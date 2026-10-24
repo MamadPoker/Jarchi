@@ -497,7 +497,34 @@ test('alert queue: one at a time to every overlay, survives refreshes and OBS cl
   assert.equal(plays.at(-1), 'big', 'still in the 3s gap');
   tick(0.2);
   assert.equal(plays.at(-1), 'next');
+  tick(4.6 + 3); // done: the queue is idle for the next test
   queue.leave();
+});
+
+test("alert links: a type's own link plays only that type, the main link skips it while it's open; each link has its own queue", (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
+  queue.clear();
+  const plays = [];
+  const onPlay = (a, lane) => plays.push(`${lane}:${a.ev.user}`);
+  queue.events.on('play', onPlay);
+  const fire = (user, type) => emitEvent({ platform: 'test', type, user, test: true });
+  const tick = (s) => { for (let i = 0; i < Math.round(s * 10); i++) t.mock.timers.tick(100); };
+  const gap = require('../core/settings').get().alertGap; // follow: 4 s on screen, sub: 6 s, + 0.6 s exit each
+
+  queue.join(() => {}); // the main link
+  queue.join(() => {}, 'sub'); // the Sub link
+  fire('A', 'follow'); fire('B', 'sub'); fire('C', 'sub');
+  assert.deepEqual([plays, queue.state().overlays], [['all:A', 'sub:B'], 2], 'side by side, each on its own link');
+  tick(4.6 + gap + 0.1);
+  assert.deepEqual([plays.length, queue.state().list.map((a) => a.user)], [2, ['C']], 'the main link is free but skips subs: C waits for the Sub link');
+  queue.leave('sub'); // the Sub link closes: the main link plays subs again, the waiting one too
+  assert.deepEqual(plays.slice(2), ['all:C']);
+  fire('D', 'sub');
+  tick(6.6 + gap + 0.1);
+  assert.deepEqual(plays.slice(2), ['all:C', 'all:D']);
+  tick(6.6 + gap + 0.1);
+  queue.leave();
+  queue.events.off('play', onPlay);
 });
 
 test("History: every saved event (any can replay), Home: today's real alerts and chat, widget pages open right now", async () => {

@@ -110,7 +110,8 @@ if (params.has('preview')) {
   const socket = io({ transports: ['websocket', 'polling'], tryAllTransports: true });
   socket.on('strings', applyStrings);
   socket.on('settings', applySettings);
-  socket.on('connect', () => socket.emit('alertsJoin')); // again after every reconnect
+  // Again after every reconnect. The type in the link (/widgets/alerts/sub): only that type's alerts; none: the main link.
+  socket.on('connect', () => socket.emit('alertsJoin', location.pathname.split('/')[3]));
   addEventListener('pagehide', () => socket.disconnect()); // leaving: tell the queue now, not after a ping timeout
   // { id, ev, left, late }: late = this overlay (re)connected while it was already on; no sound again then.
   socket.on('alert', (a) => {

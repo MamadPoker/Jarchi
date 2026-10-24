@@ -200,6 +200,11 @@ app.get('/widgets/goal/:id{/}', (req, res, next) => {
   if (!settings.GOAL_IDS.includes(req.params.id)) return next();
   res.sendFile(path.join(ROOT, 'widgets', 'goal', 'index.html'));
 });
+// One alerts page, an OBS URL per alert type too: /widgets/alerts/sub plays only subs.
+app.get('/widgets/alerts/:type{/}', (req, res, next) => {
+  if (!TYPES.includes(req.params.type)) return next();
+  res.sendFile(path.join(ROOT, 'widgets', 'alerts', 'index.html'));
+});
 app.use('/widgets', express.static(path.join(ROOT, 'widgets'))); // every widgets/<name>/ folder is its own OBS URL
 app.use('/i18n', express.static(path.join(ROOT, 'i18n')));
 app.use('/assets', express.static(path.join(ROOT, 'assets'))); // official platform logos
@@ -233,12 +238,14 @@ io.on('connection', (socket) => {
   socket.emit('widgets', open);
   socket.emit('twitchAccount', twitchAccount.status());
   socket.emit('kickAccount', kickAccount.status());
-  // The alerts overlay joins to get alerts from the queue (the panel's previews don't).
-  socket.once('alertsJoin', () => {
-    socket.join('alerts');
-    alertQueue.join((now) => socket.emit('alert', now));
-    socket.once('disconnect', alertQueue.leave);
-    opened(socket, 'alerts');
+  // The alerts overlay joins to get alerts from the queue (the panel's previews don't): the main link, or one type's own
+  // (its lane in core/alerts). The Home page counts the main link.
+  socket.once('alertsJoin', (only) => {
+    const lane = TYPES.includes(only) ? only : 'all';
+    socket.join(['alerts', `alerts:${lane}`]);
+    alertQueue.join((now) => socket.emit('alert', now), lane);
+    socket.once('disconnect', () => alertQueue.leave(lane));
+    if (lane === 'all') opened(socket, 'alerts');
     socket.on('alertShown', (r) => alertQueue.shown(r, socket.conn.transport.name)); // alert timing line
   });
   socket.once('widgetJoin', (w) => w !== 'alerts' && WIDGETS.includes(w) && opened(socket, w)); // chat, a goal
@@ -246,7 +253,7 @@ io.on('connection', (socket) => {
   // "Show chat timing": a chat widget says when it drew a live message; core/chat prints how long each step took.
   socket.on('chatShown', (r) => chat.timing(r, socket.conn.transport.name));
 });
-alertQueue.events.on('play', (a) => io.to('alerts').emit('alert', a));
+alertQueue.events.on('play', (a, lane) => io.to(`alerts:${lane}`).emit('alert', a));
 alertQueue.events.on('skip', (id) => io.to('alerts').emit('alertSkip', id));
 alertQueue.events.on('state', (st) => io.emit('alertQueue', st));
 // Every count change goes to widgets and the panel; the second argument names a goal that just hit its target.

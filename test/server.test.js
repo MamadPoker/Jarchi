@@ -263,6 +263,11 @@ test('goals: count from events, latch when reached, saved, styles', async () => 
   assert.equal((await fetch(`${base}/widgets/goal/kicks/`)).status, 200);
   assert.equal((await fetch(`${base}/widgets/goal/twitchSubs`)).status, 200);
   assert.equal((await fetch(`${base}/widgets/goal/nope`)).status, 404);
+  // And one alerts page per alert type, next to the main one.
+  assert.equal((await fetch(`${base}/widgets/alerts/sub`)).status, 200);
+  assert.equal((await fetch(`${base}/widgets/alerts/gift_sub/`)).status, 200);
+  assert.equal((await fetch(`${base}/widgets/alerts/alerts.js`)).status, 200);
+  assert.equal((await fetch(`${base}/widgets/alerts/nope`)).status, 404);
 });
 
 test("Home: each event goes into feed.json at once, today's numbers into today.json within 2 s", async () => {
