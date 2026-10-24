@@ -1196,11 +1196,12 @@ function build() {
   }
   $$('.preview').forEach((p) => fit.observe(p));
 
-  // Alerts page: OBS link.
+  // Alerts page: the main OBS link (every alert), and the selected alert's own (only that one; core/alerts.js).
   const obsUrl = `${location.origin}/widgets/alerts`;
   $('#obsUrl').value = obsUrl;
-  $('#copy').title = S.panel.copyObsHint;
+  $('#copy').title = $('#copyType').title = S.panel.copyObsHint;
   $('#copy').onclick = () => copyLink(obsUrl);
+  $('#copyType').onclick = () => copyLink(`${obsUrl}/${cur}`);
 
   // Alert editor: every [data-f] input saves its field for the selected alert by itself, one save (and one "Saved") per
   // change: a slider when it's let go, typed text a moment after the last key (for the alert it was typed in) or when
@@ -1521,6 +1522,7 @@ function renderAlert() {
   editor.dataset.key = cur; // the type's colour
   $('.title path', editor).setAttribute('d', TYPE_ICON[cur]);
   $('.name', editor).textContent = S.types[cur];
+  $('#copyType span').textContent = tpl(S.panel.copyAlertLink, { alert: S.types[cur] });
   fill(editor, cfg);
   for (const f of ['nameColor', 'textColor']) $$(`[name=${f}Mode]`).forEach((r) => (r.checked = (r.value === 'custom') === (cfg[f] !== null)));
   $$('[name=alertSizeMode]').forEach((r) => (r.checked = (r.value === 'auto') === cfg.autoSize));

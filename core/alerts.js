@@ -1,9 +1,12 @@
-// Alert queue. The server decides what plays and when, and sends it to every open alerts overlay at once:
-// - every overlay shows the same alert at the same time, in the same order, each alert once;
+// Alert queue. The server decides what plays and when, and sends it to every open alerts overlay of its link at once:
+// - every overlay of a link shows the same alert at the same time, in the same order, each alert once;
 // - a refreshed overlay gets the alert that's playing now with the time it has left, so nothing replays;
 // - while no overlay is open (OBS closed) alerts wait; an alert that ends with no overlay open goes back to the front.
 // The panel can skip the current alert, clear or remove waiting ones, pause / resume, and replay one of the last played
 // or of the saved events (the Home page's live feed, the History page).
+// Each OBS link plays its own alerts one at a time, next to the others: the main link ('all') and one per alert type
+// (/widgets/alerts/<type>, only that type). While a type's own link is open the main link skips that type; once it's
+// closed, the main link plays it again (also what was waiting for it). Who plays an alert is decided when it starts.
 const path = require('node:path');
 const { EventEmitter } = require('node:events');
 const { randomUUID } = require('node:crypto');
@@ -25,9 +28,11 @@ const history = []; // the last played, newest first: { id, ev }
 const FEED_FILE = path.join(DATA_DIR, 'feed.json');
 const savedFeed = store.load(FEED_FILE);
 const feed = (Array.isArray(savedFeed) ? savedFeed : []).filter((e) => TYPES.includes(e?.type) && PLATFORMS.includes(e.platform)).slice(0, FEED);
-let playing = null; // { id, ev, ms, started }
-let busy = false; // an alert is playing, or it's the gap after one
-let paused = false, overlays = 0, goneAt = 0, timer;
+// A lane per link. playing: { id, ev, ms, started }; busy: an alert is playing, or it's the gap after one.
+const lanes = Object.fromEntries(['all', ...TYPES].map((l) => [l, { playing: null, busy: false, overlays: 0, goneAt: 0, timer: null }]));
+const laneOf = (ev) => (lanes[ev.type].overlays ? ev.type : 'all');
+const showing = () => Object.values(lanes).find((l) => l.playing); // the one the panel shows (and skips): the main link's first
+let paused = false;
 
 // How long an alert stays on screen (ms), before its exit animation.
 function onScreenMs(ev) {
@@ -39,15 +44,18 @@ function onScreenMs(ev) {
 // What the panel shows: the alert on now (with its length and time left, for the progress bar), the waiting ones
 // in order, and the last played.
 const brief = ({ id, ev }) => ({ id, type: ev.type, user: ev.user, amount: ev.amount, months: ev.months, platform: ev.platform });
-const current = () => playing && { id: playing.id, ev: playing.ev, left: playing.ms - (Date.now() - playing.started) };
-const state = () => ({
-  paused,
-  overlays,
-  waiting: queue.length,
-  list: queue.map(brief),
-  history: history.map(brief),
-  now: playing && { ...brief(playing), ms: playing.ms, left: Math.max(0, current().left) },
-});
+const current = ({ playing: p }) => p && { id: p.id, ev: p.ev, left: p.ms - (Date.now() - p.started) };
+const state = () => {
+  const on = showing();
+  return {
+    paused,
+    overlays: Object.values(lanes).reduce((n, l) => n + l.overlays, 0),
+    waiting: queue.length,
+    list: queue.map(brief),
+    history: history.map(brief),
+    now: on && { ...brief(on.playing), ms: on.playing.ms, left: Math.max(0, current(on).left) },
+  };
+};
 const changed = () => alerts.emit('state', state());
 const played = ({ id, ev }) => {
   history.unshift({ id, ev });
@@ -65,51 +73,56 @@ bus.on('event', (ev) => {
   next();
 });
 
+// Every free lane with an open overlay starts its first waiting alert. 'play' names the lane: only its overlays show it.
 function next() {
-  if (!busy && !paused && overlays && queue.length) {
-    busy = true;
-    playing = { ...queue.shift(), started: Date.now() };
-    playing.ms = onScreenMs(playing.ev);
-    alerts.emit('play', current());
-    timer = setTimeout(ended, playing.ms + OUT_MS);
+  for (const [name, lane] of Object.entries(lanes)) {
+    const i = lane.busy || paused || !lane.overlays ? -1 : queue.findIndex((it) => laneOf(it.ev) === name);
+    if (i < 0) continue;
+    lane.busy = true;
+    lane.playing = { ...queue.splice(i, 1)[0], started: Date.now() };
+    lane.playing.ms = onScreenMs(lane.playing.ev);
+    alerts.emit('play', current(lane), name);
+    lane.timer = setTimeout(() => ended(lane), lane.playing.ms + OUT_MS);
   }
   changed();
 }
 
-function ended() {
-  const { id, ev } = playing;
-  if (!overlays && Date.now() - goneAt > GRACE_MS) queue.unshift({ id, ev }); // OBS was closed: play it again when it's back
-  else played(playing);
-  playing = null;
-  rest(0);
+function ended(lane) {
+  const { id, ev } = lane.playing;
+  if (!lane.overlays && Date.now() - lane.goneAt > GRACE_MS) queue.unshift({ id, ev }); // OBS was closed: play it again when it's back
+  else played(lane.playing);
+  lane.playing = null;
+  rest(lane, 0);
 }
 
 // The gap between alerts, then the next one.
-function rest(extraMs) {
+function rest(lane, extraMs) {
   changed();
-  timer = setTimeout(() => { busy = false; next(); }, extraMs + settings.get().alertGap * 1000);
+  lane.timer = setTimeout(() => { lane.busy = false; next(); }, extraMs + settings.get().alertGap * 1000);
 }
 
-// An alerts overlay connected: send it what's playing now (if enough is left to be worth showing), then go on.
-function join(send) {
-  const now = current();
-  overlays++;
+// An alerts overlay connected (to its link's lane): send it what's playing there now (if enough is left to be worth
+// showing), then go on.
+function join(send, name = 'all') {
+  const lane = lanes[name], now = current(lane);
+  lane.overlays++;
   if (now?.left > 1000) send({ ...now, late: true });
   next();
 }
-function leave() {
-  overlays--;
-  if (!overlays) goneAt = Date.now();
-  changed();
+function leave(name = 'all') {
+  const lane = lanes[name];
+  if (!--lane.overlays) lane.goneAt = Date.now();
+  next(); // a type's own link closed: the main link takes its alerts again
 }
 
 function skip() {
-  if (playing) {
-    clearTimeout(timer);
-    alerts.emit('skip', playing.id);
-    played(playing);
-    playing = null;
-    rest(OUT_MS); // let the exit animation finish
+  const lane = showing();
+  if (lane) {
+    clearTimeout(lane.timer);
+    alerts.emit('skip', lane.playing.id);
+    played(lane.playing);
+    lane.playing = null;
+    rest(lane, OUT_MS); // let the exit animation finish
   }
   return state();
 }
@@ -143,8 +156,8 @@ function pause(on) {
 // sub waits a moment for a gift that may name the viewer); queue = waiting for the alert before it and the gap, an open
 // overlay or a resume; overlay = from here to the overlay starting it. r: { id, shown, where } from the overlay.
 function shown(r, transport) {
-  const at = Number(r?.shown);
-  if (!playing || playing.id !== r?.id || playing.id !== playing.ev.id || !Number.isFinite(at)) return null;
+  const at = Number(r?.shown), playing = Object.values(lanes).find((l) => l.playing?.id === r?.id)?.playing;
+  if (!playing || playing.id !== playing.ev.id || !Number.isFinite(at)) return null;
   const { ev, started } = playing;
   const line = `${ev.type} ${ev.user.replace(/\p{Cc}/gu, ' ')}  received ${clock(ev.received)}  check ${step(ev.received, ev.time)}  queue ${step(ev.time, started)}  `
     + `overlay ${step(started, at)}  total ${step(ev.received, at)}  ${['OBS', 'browser'].includes(r.where) ? r.where : '?'}/${transport}`;
