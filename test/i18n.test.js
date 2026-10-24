@@ -43,6 +43,40 @@ test("What's new: every version in English and Persian, newest first; this versi
   assert.deepEqual(parse(text(mine)), { en: mine.en, fa: mine.fa }); // what an installed app reads back from the update
 });
 
+test('npm run release makes the one draft itself, before electron-builder (which would make one per file)', () => {
+  const { spawnSync } = require('node:child_process');
+  const os = require('node:os');
+  const { version } = JSON.parse(read('package.json'));
+  const tag = `v${version}`;
+  // GitHub stand-in: the GET answers RELEASES, every call is printed.
+  const fake = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'jarchi-notes-')), 'fetch.js');
+  fs.writeFileSync(fake, `globalThis.fetch = async (url, init = {}) => {
+    console.log(JSON.stringify({ url, method: init.method ?? 'GET', body: init.body && JSON.parse(init.body) }));
+    return { ok: true, json: async () => (init.method ? {} : JSON.parse(process.env.RELEASES)), text: async () => '' };
+  };`);
+  const run = (releases) => {
+    const r = spawnSync(process.execPath, ['-r', fake, path.join(__dirname, '../build/notes.js'), '--github'],
+      { env: { ...process.env, GH_TOKEN: 'test', RELEASES: JSON.stringify(releases) }, encoding: 'utf8' });
+    return { status: r.status, calls: r.stdout.trim().split('\n').filter(Boolean).map((l) => JSON.parse(l)), err: r.stderr };
+  };
+  const notes = text(JSON.parse(read('i18n/changelog.json')).find((c) => c.version === version));
+  const release = { tag_name: tag, name: `Jarchi ${tag}`, body: notes, draft: true };
+  const api = 'https://api.github.com/repos/MamadPoker/Jarchi-releases/releases';
+
+  let r = run([{ id: 1, tag_name: 'v0.0.1', draft: false }]);
+  assert.equal(r.status, 0, r.err);
+  assert.deepEqual(r.calls.slice(1), [{ url: api, method: 'POST', body: release }]);
+  r = run([{ id: 7, tag_name: tag, draft: true, body: 'old' }]);
+  assert.deepEqual(r.calls.slice(1), [{ url: `${api}/7`, method: 'PATCH', body: release }]); // tag_name kept
+  r = run([{ id: 7, tag_name: tag, draft: false }]);
+  assert.equal(r.status, 1);
+  assert.match(r.err, /already published/);
+  r = run([{ id: 7, tag_name: tag, draft: true }, { id: 8, tag_name: tag, draft: true }]);
+  assert.equal(r.status, 1);
+  assert.match(r.err, /2 draft releases/);
+  assert.equal(r.calls.length, 1); // nothing changed on GitHub
+});
+
 test('every "?" in the panel has its help text', () => {
   const html = [...read('panel/index.html').matchAll(/data-help="([\w.]+)"/g)].map((m) => m[1]);
   const js = read('panel/panel.js');
