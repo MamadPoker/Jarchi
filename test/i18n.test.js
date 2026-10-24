@@ -2,6 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const { text, parse } = require('../core/changelog');
 
 const read = (f) => fs.readFileSync(path.join(__dirname, '..', f), 'utf8');
 const en = JSON.parse(read('i18n/en.json'));
@@ -26,6 +27,20 @@ test('the Privacy Policy has a version and the same parts in English and Persian
   const js = read('panel/panel.js'), drawn = js.slice(js.indexOf('const POINT_ICON'), js.indexOf('async function showPrivacy'));
   assert.deepEqual(icons.filter((i) => !drawn.includes(`\n  ${i}: '<svg`)), [], 'every point has its icon in the panel');
   assert.equal(icons.length, e.items.length);
+});
+
+test("What's new: every version in English and Persian, newest first; this version's notes make the release text", () => {
+  const log = JSON.parse(read('i18n/changelog.json'));
+  const order = (v) => v.split('.').map((n) => n.padStart(6, '0')).join('.'); // 1.10.0 after 1.9.0
+  log.slice(1).forEach((c, i) => assert.ok(order(log[i].version) > order(c.version), `${log[i].version} before ${c.version}`));
+  for (const c of log) {
+    assert.match(c.version, /^\d+\.\d+\.\d+$/);
+    assert.ok(c.en.length && c.en.length === c.fa.length, `${c.version}: the same changes in both languages`);
+    assert.ok([...c.en, ...c.fa].every((s) => s.trim() && !s.includes('\n')), `${c.version}: one line each`);
+  }
+  const mine = log.find((c) => c.version === JSON.parse(read('package.json')).version);
+  assert.ok(mine, "package.json's version has its notes (npm run release needs them)");
+  assert.deepEqual(parse(text(mine)), { en: mine.en, fa: mine.fa }); // what an installed app reads back from the update
 });
 
 test('every "?" in the panel has its help text', () => {

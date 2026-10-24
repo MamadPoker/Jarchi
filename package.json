@@ -11,8 +11,8 @@
     "start": "node server/index.js",
     "app": "electron .",
     "test": "node --test",
-    "dist": "electron-builder --win --publish never",
-    "release": "electron-builder --win --publish always"
+    "dist": "node build/notes.js && electron-builder --win --publish never",
+    "release": "node build/notes.js --github && electron-builder --win --publish always"
   },
   "engines": {
     "node": ">=20.18.1"
@@ -69,6 +69,9 @@
       "owner": "MamadPoker",
       "repo": "Jarchi-releases",
       "releaseType": "draft"
+    },
+    "releaseInfo": {
+      "releaseNotesFile": "build/release-notes.md"
     }
   }
 }

@@ -410,14 +410,15 @@ function select(v, key) {
   if (v === 'events') loadHistory();
   if (v === 'settings') showProxyNow();
   if (v === 'about') api('GET', '/api/version').then(({ version }) => ($('#aboutVersion').textContent = S.panel.version.replace('{version}', version)), () => {});
+  if (v === 'news') renderNews(S.lang);
   if (v === 'guide') {
     if (S.guide.topics[key]) topic = key;
     renderGuide();
   }
   $$('main .view').forEach((s) => (s.hidden = !s.dataset.view.split(' ').includes(v)));
-  const page = v === 'theme' ? 'alert' : v; // the theme page is part of Alerts
+  const page = v === 'theme' ? 'alert' : v; // the theme page is part of Alerts; What's new has no sidebar item
   $$('.nav-item').forEach((b) => b.setAttribute('aria-current', b.dataset.view === page ? 'page' : 'false'));
-  $('#pageTitle').textContent = $(`.nav-item[data-view="${page}"] [data-i18n]`).textContent;
+  $('#pageTitle').textContent = v === 'news' ? S.panel.updateNotes : $(`.nav-item[data-view="${page}"] [data-i18n]`).textContent;
   render();
   preview();
   if (v === 'theme') $$('.theme-tile iframe').forEach((f) => playTile(f));
@@ -462,8 +463,8 @@ function wireBg(box, name, key) {
   });
 }
 
-// A button that opens a small menu under it (the Home page's OBS links, the Chat page's other tests). A pick, a click
-// anywhere else or Escape closes it.
+// A button that opens a small menu under it (the Home page's OBS links, the Chat page's other tests; the profile chip's
+// opens above it). A pick, a click anywhere else or Escape closes it.
 function wireMenu(btn, pop) {
   const show = (on) => {
     pop.hidden = !on;
@@ -1404,6 +1405,7 @@ function build() {
   $('#madeWith').append(madeA, el('span', { className: 'heart', textContent: '♥' }), madeB, ' ', el('b', { textContent: 'MamadPoker' }));
   $('#aboutPrivacy').onclick = () => showPrivacy();
   $$('input[name=privacyLang]').forEach((r) => (r.onchange = () => renderPrivacy(r.value)));
+  $$('input[name=newsLang]').forEach((r) => (r.onchange = () => renderNews(r.value)));
   $('#privacyCheck').onchange = (e) => ($('#privacyOk').disabled = !e.target.checked);
   $$('[data-title]').forEach((e) => e.setAttribute('aria-label', (e.title = S.panel[e.dataset.title])));
   $$('[data-aria]').forEach((e) => e.setAttribute('aria-label', S.panel[e.dataset.aria]));
@@ -1608,46 +1610,62 @@ function renderProfile() {
 }
 
 // The desktop app's updates (electron/preload.js; nothing in a browser or with `npm run app`): { ready, installed }
-// from electron/main.js. ready = a downloaded update { version, notes }: the banner (until its ✕), the sidebar button
-// and About's dot. installed = the update Jarchi just came from: What's new, until "Got it".
-let update = {}, updateClosed;
-const short = (v) => v.replace(/\.0$/, ''); // 1.1.0 -> 1.1
-// The notes are build/release-notes.md as written (the release's latest.yml), or GitHub's HTML of the release without
-// it: shown as plain text either way, line by line (.notes).
-function whatsNew({ version, notes }) {
-  $('#whatsNewTitle').textContent = S.panel.whatsNewIn.replace('{version}', short(version));
-  $('#whatsNewNotes').textContent = new DOMParser().parseFromString(notes, 'text/html').body.textContent.trim();
-  $('#whatsNew').showModal();
-}
+// from electron/main.js. ready = a downloaded update { version, notes }: the banner (until its ✕ or Restart now, once
+// per version: remembered under jarchi.updateClosed), the profile chip's gold dot and its menu's Restart. installed =
+// the update Jarchi just came from: What's new opens by itself, once.
+let update = {};
+const closeUpdateBar = () => remember.set('jarchi.updateClosed', update.ready.version);
 function renderUpdate() {
   const { ready } = update;
-  $('#updateBar').hidden = !ready || updateClosed === ready.version;
-  $('#updateSide').hidden = $('#updateDot').hidden = !ready;
+  $('#updateBar').hidden = !ready || remember.get('jarchi.updateClosed') === ready.version;
+  $('#updateDot').hidden = $('#menuUpdate').hidden = !ready;
   if (ready) {
-    $('#updateText').textContent = S.panel.updateReady.replace('{version}', short(ready.version));
-    $('#updateSide b').textContent = S.panel.updateTo.replace('{version}', short(ready.version));
+    $('#updateText').textContent = tpl(S.panel.updateReady, { version: ready.version });
+    $('#menuUpdate span').textContent = tpl(S.panel.updateTo, { version: ready.version });
   }
-  if (update.installed && !$('#whatsNew').open) whatsNew(update.installed);
+  if (view === 'news') renderNews();
 }
 function wireUpdate() {
   const app = window.jarchiApp;
+  api('GET', '/api/version').then(({ version }) => ($('#menuVersion').textContent = tpl(S.panel.appVersion, { version })), () => {});
+  $('#updateNotes').onclick = $('#menuNews').onclick = () => select('news');
   if (!app) return;
-  $('#updateRestart').onclick = $('#updateSide').onclick = () => app.restart();
-  $('#updateNotes').onclick = () => whatsNew(update.ready);
+  $('#updateRestart').onclick = $('#menuUpdate').onclick = () => {
+    closeUpdateBar();
+    app.restart();
+  };
   $('#updateClose').onclick = () => {
-    updateClosed = update.ready.version;
+    closeUpdateBar();
     renderUpdate();
   };
-  $('#whatsNewOk').onclick = () => $('#whatsNew').close();
-  $('#whatsNew').onclose = () => {
-    if (!update.installed) return;
-    update.installed = null;
-    app.seen();
-  };
-  app.onUpdate((s) => {
+}
+// From the startup, once its first page is open (that would replace What's new).
+function followUpdates() {
+  const app = window.jarchiApp;
+  app?.onUpdate((s) => {
     update = s;
+    if (s.installed) {
+      select('news');
+      app.seen();
+    }
     renderUpdate();
   });
+}
+
+// ---------- What's new ----------
+// Its own page: every version's changes, newest first, from i18n/changelog.json (this copy's), under a downloaded
+// update's own (its release notes) until Restart installs it. In the panel's language first; the switch shows the
+// other, Persian right to left.
+let changelog, newsLang;
+async function renderNews(lang = newsLang) {
+  newsLang = lang;
+  const P = (await stringsOf(lang)).panel, { ready } = update, box = $('#newsList');
+  const list = ready && !changelog.some((c) => c.version === ready.version) ? [{ ...ready.notes, version: ready.version, ready: true }, ...changelog] : changelog;
+  $$('input[name=newsLang]').forEach((r) => (r.checked = r.value === lang));
+  Object.assign(box, { lang, dir: lang === 'fa' ? 'rtl' : 'ltr' });
+  box.replaceChildren(...list.map((c) => el('article', { className: 'box news-item' },
+    el('div', { className: 'row' }, el('h2', { textContent: `v${c.version}` }), c.ready ? el('span', { className: 'pill news-ready', textContent: P.updateInstall }) : ''),
+    el('ul', {}, ...c[lang].map((s) => el('li', { textContent: s }))))));
 }
 
 // Settings > Uninstall Jarchi: only in the installed app (electron/main.js says whether its uninstaller is there; not
@@ -1707,7 +1725,8 @@ function wireProfile() {
   const d = $('#profileDialog'), canvas = $('#cropCanvas'), err = $('#profileErr');
   $$('.avatar img').forEach((img) => (img.onerror = () => (img.hidden = true)));
   $('#profileName').placeholder = S.panel.profileDefault;
-  $('#profileChip').onclick = () => {
+  wireMenu($('#profileChip'), $('#profileMenu')); // its other items: wireUpdate
+  $('#menuProfile').onclick = () => {
     draft = { ...settings.profile };
     crop = null;
     $('#profileName').value = draft.name;
@@ -1963,9 +1982,9 @@ artRun();
   EN = await (await fetch('/i18n/en.json')).json();
   S = FA ? await (await fetch('/i18n/fa.json')).json() : EN;
   try {
-    [settings, samples, goalData, { styles: chatStyles, fonts: chatFonts }, chatStatus, home, hist.list, twitch, kick, privacy] = await Promise.all([
+    [settings, samples, goalData, { styles: chatStyles, fonts: chatFonts }, chatStatus, home, hist.list, twitch, kick, privacy, changelog] = await Promise.all([
       api('GET', '/api/settings'), api('GET', '/api/samples'), api('GET', '/api/goals'), api('GET', '/api/chat/styles'), api('GET', '/api/chat/status'), api('GET', '/api/home'), api('GET', '/api/history'),
-      api('GET', '/api/twitch'), api('GET', '/api/kick'), fetch('/i18n/privacy.json').then((r) => r.json()),
+      api('GET', '/api/twitch'), api('GET', '/api/kick'), fetch('/i18n/privacy.json').then((r) => r.json()), fetch('/i18n/changelog.json').then((r) => r.json()),
     ]);
   } catch (err) {
     return toast(err.message, true);
@@ -1979,8 +1998,9 @@ artRun();
   } catch {}
   const [v, key] = back ?? [location.hash.slice(1)]; // or a page in the address (/#connections: back from Kick's login)
   if (location.hash) history.replaceState(null, '', location.pathname);
-  const ok = v === 'alert' ? key in settings.alerts : v === 'goal' ? key in settings.goals : v === 'theme' || $$('.nav-item').some((b) => b.dataset.view === v);
+  const ok = v === 'alert' ? key in settings.alerts : v === 'goal' ? key in settings.goals : v === 'theme' || v === 'news' || $$('.nav-item').some((b) => b.dataset.view === v);
   select(ok ? v : 'home', ok ? key : undefined);
+  followUpdates(); // after that first page: What's new by itself after an update
   // The welcome tour: the first run, or back from its language pick (at that step). Else a newer Privacy Policy than
   // the one accepted (also for those who had the tour before there was one).
   let tour;

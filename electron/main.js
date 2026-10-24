@@ -10,6 +10,7 @@ const ROOT = path.join(__dirname, '..');
 // From source the data stays in ./data like `npm start`; an installed app keeps it in the user's app data folder.
 if (app.isPackaged) process.env.JARCHI_DATA_DIR ||= path.join(app.getPath('userData'), 'data');
 const { HOST, PORT, DATA_DIR } = require('../core/config');
+const { parse } = require('../core/changelog');
 const ORIGIN = `http://${HOST}:${PORT}`;
 const WINDOW_FILE = path.join(DATA_DIR, 'window.json');
 
@@ -102,15 +103,14 @@ function open() {
 
 // Updates, only in the installed app (`npm run app` has none): electron-updater looks for a newer release on GitHub
 // (package.json build.publish: MamadPoker/Jarchi-releases) at start and every 4 hours, and downloads it in the
-// background. It's installed only on Restart now (the panel's banner or sidebar button, or the notification shown
-// while the window is in the tray), never by itself while Jarchi runs; quitting Jarchi installs it without starting
-// it again (electron-updater's autoInstallOnAppQuit).
-// The panel gets { ready, installed } (preload.js): ready = the downloaded update { version, notes } (its release notes),
-// installed = the update this copy came from, until its "What's new" is seen. NOTES_FILE carries the notes over the
-// restart.
+// background. It's installed only on Restart (the panel's banner or profile menu, or the notification shown while the
+// window is in the tray), never by itself while Jarchi runs; quitting Jarchi installs it without starting it again
+// (electron-updater's autoInstallOnAppQuit).
+// The panel gets { ready, installed } (preload.js): ready = the downloaded update { version, notes: { en, fa } } (its
+// release notes, core/changelog.js), installed = the update this copy came from, until the panel has opened What's new.
+// NOTES_FILE carries it over the restart.
 const NOTES_FILE = path.join(DATA_DIR, 'update.json');
 const update = { ready: null, installed: null };
-const short = (v) => v.replace(/\.0$/, ''); // 1.1.0 -> 1.1
 let updater;
 
 function sendUpdate() {
@@ -121,7 +121,7 @@ const restart = () => updater.quitAndInstall(true, true); // silent install, the
 async function notify(version) {
   const lang = await win.webContents.executeJavaScript("localStorage.getItem('jarchi.lang')").catch(() => null);
   const S = JSON.parse(fs.readFileSync(path.join(ROOT, 'i18n', `${lang === 'fa' ? 'fa' : 'en'}.json`), 'utf8'));
-  const n = new Notification({ title: 'Jarchi', body: S.panel.updateNotice.replace('{version}', short(version)) });
+  const n = new Notification({ title: 'Jarchi', body: S.panel.updateNotice.replace('{version}', version) });
   n.on('click', restart);
   n.show();
 }
@@ -143,7 +143,7 @@ function updates() {
   updater.on('error', (err) => console.warn('Update:', err.message)); // offline, GitHub down: the next check tries again
   updater.on('update-downloaded', ({ version, releaseNotes }) => {
     if (update.ready?.version === version) return; // each 4-hourly check finds the same download again
-    update.ready = { version, notes: typeof releaseNotes === 'string' ? releaseNotes : '' };
+    update.ready = { version, notes: parse(typeof releaseNotes === 'string' ? releaseNotes : '') };
     try {
       fs.writeFileSync(NOTES_FILE, JSON.stringify(update.ready));
     } catch {}
