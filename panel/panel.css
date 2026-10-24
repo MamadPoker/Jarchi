@@ -1024,8 +1024,11 @@ textarea { resize: vertical; line-height: 1.5; }
 .chips .fname { max-width: 260px; font-size: 13px; }
 .chips .add { padding: 4px 10px; font-size: 13px; }
 
-/* ---------- Settings: queue gap, proxy ---------- */
+/* ---------- Settings: queue gap; Connections: proxy ---------- */
 input.num { width: 110px; }
+.proxy-steps { display: grid; gap: 8px; margin: 0; padding-inline-start: 22px; line-height: 1.5; }
+.proxy-steps:empty, #proxyHelpText:empty { display: none; }
+#proxyHelpText { margin: 0; }
 .proxy-manual { display: grid; grid-template-columns: auto minmax(0, 1fr) 130px; gap: 12px; align-items: end; }
 .net-results { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; font-size: 14px; }
 .net-results:empty { display: none; }

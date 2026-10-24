@@ -30,7 +30,7 @@ Jarchi must be running before OBS loads the source. If you started OBS first, ri
 
 ## The panel
 
-- **Sidebar**: **Jarchi** at the top, then one item per page: **Home**, **Alerts**, **Chat**, **Goals**; under **Live**: **Alert queue** (with the number of waiting alerts), **Event log**; under **Setup**: **Connections**, **Appearance**, **Settings** (badge switch, test platform, gap between alerts, connection / proxy, reset everything), **Guide**. Under **Bot**: **Chat bot**; under **Donations**: **Crypto** (crypto donations: viewers will donate in USDT, Bitcoin and more straight to the streamer's own wallet, with their name and message on the alert). Both open a "Coming soon" page for now.
+- **Sidebar**: **Jarchi** at the top, then one item per page: **Home**, **Alerts**, **Chat**, **Goals**; under **Live**: **Alert queue** (with the number of waiting alerts), **Event log**; under **Setup**: **Connections** (Kick and Twitch accounts, proxy), **Appearance**, **Settings** (badge switch, test platform, gap between alerts, reset everything), **Guide**. Under **Bot**: **Chat bot**; under **Donations**: **Crypto** (crypto donations: viewers will donate in USDT, Bitcoin and more straight to the streamer's own wallet, with their name and message on the alert). Both open a "Coming soon" page for now.
 - **Top bar**: the page's title; a warning when a Kick or Twitch connection has been down for over 30 seconds (a click opens where it's set up); **Kick** and **Twitch** with a green dot when their chat connection is up (a click opens Connections); the **Dark / Light** switch; the **فا | EN** language switch.
 - **Home**: a banner that says **You're ready to stream** when Kick and Twitch are connected and every widget that's switched on is open in OBS, or lists what's missing, each with **Fix** (opens the right page); **Send test alert** (a random type) and **OBS links** (copy any widget's link). **Live feed**: the last 20 events, newest first (platform, name, what they did, how long ago; test ones say so), filters All / Subs / Kicks / Raids / Follows, **Replay** on each. **Widgets**: the widgets that are switched on (Alerts, Chat and each goal whose switch is on), green while a page of it is open in OBS, with a copy button; **Manage** opens the Goals page. **Goals**: both goals with their bar (they move by themselves). Then alerts today, chat messages today (real ones, not tests; from midnight) and Jarchi's uptime. The feed and today's numbers are kept across restarts in `data/feed.json` and `data/today.json`.
 - **Alerts**: the main **Theme** on top (opens a page with a live card per theme; click one to use it, **← Alerts** goes back), **Alert size** (50%–100% of the Browser Source box) and **Copy OBS link**; the alert list, each with an on/off switch; next to it the selected alert: live preview with Play, its own theme (or the main one), then image/GIF/video, sound and text, **Different media by amount** (Kicks, gifted subs, bits); **More options** opens frame, colors, font size, text position, text alignment (left/center/right), duration, volume, minimum amount and video sound.
@@ -109,15 +109,17 @@ Alerts play one after another from Jarchi itself, not from the OBS page:
 - Several alerts overlays (e.g. two scenes) each play every alert once, in the same order, at the same time.
 - **Settings → Gap between alerts** (seconds). The panel's **Alert queue** page shows the queue and has **Pause / Resume**, **Skip**, **Clear queue**, × per waiting alert and **Replay** for the last 10.
 
-## Connection (proxy)
+## Proxy
 
-For VPN users and filtered networks: **Settings → Connection (proxy)**.
+For VPN users and filtered networks: **Connections → Proxy**. Jarchi only ever uses the user's own VPN app, never a public proxy.
 
-- **Use Windows system proxy** (default): whatever Windows (or your VPN app) has set under Settings → Network → Proxy. No proxy set = direct.
+- **Auto** (default): the VPN app found on this PC that the user said Yes to, else whatever Windows (or the VPN app) has set under Settings → Network → Proxy. Neither = direct. **Look for VPN apps** looks again.
 - **Manual**: an HTTP or SOCKS5 proxy at an address and port (e.g. the local port of v2rayN or Clash).
-- **Off**: always direct.
+- **Off**: always direct, and Jarchi never looks for a VPN app.
 
-Everything Jarchi reaches online goes through it: Kick, Twitch, 7TV, and the emotes, badges and profile pictures in chat (OBS loads those through Jarchi). **Test connection** checks Kick, Twitch and 7TV and says in plain words what works and what doesn't. Not supported: proxy login (username/password) and Windows PAC scripts.
+When Kick, Twitch or Jarchi's relay can't be reached (core/vpn.js), Jarchi looks for a VPN app's local proxy: what known VPN programs (v2rayN, NekoRay/NekoBox, Hiddify, NetMod, Clash / Clash Verge, Outline, Psiphon, Shadowsocks…) listen on at 127.0.0.1 (netstat + tasklist), the Windows proxy when it's on this PC, and their usual ports. Each is tested by really reaching Kick through it (only a TLS hello: no logins or tokens). A working one is offered in a popup ("Couldn't connect to Kick. v2rayN was found on this PC. Connect Jarchi through it?"); nothing found = short steps for typing the port in Manual. A proxy that stops working later shows a warning in the top bar; a click looks again.
+
+Only Jarchi's own connections go through it: Kick, Twitch, 7TV, the relay, the emotes, badges and profile pictures in chat (OBS loads those through Jarchi), and the desktop app's update checks. The system's proxy is never changed. **Test connection** checks Kick, Twitch and 7TV and says in plain words what works and what doesn't; the dot next to **Proxy** shows the result. Not supported: proxy login (username/password) and Windows PAC scripts.
 
 ## Goals
 
@@ -178,6 +180,7 @@ core/settings.js     defaults, user changes, uploads (alerts, tiers and goal loo
 core/media.js        uploaded and linked files: 10 MB limit, images shrunk to 512 px, Giphy / Tenor pages
 core/alerts.js       the alert queue: what plays when, for every overlay
 core/net.js          proxy: every outgoing connection goes through it
+core/vpn.js          finds the user's VPN app's local proxy when Kick / Twitch / the relay can't be reached
 core/goals.js        goal counters, fed by the event bus; Kick's own goals with Sync from Kick
 core/store.js        JSON files in the data folder
 core/secrets.js      the Kick and Twitch tokens sealed at rest (installed app), and blanked out of every log line

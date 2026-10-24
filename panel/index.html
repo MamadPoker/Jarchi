@@ -62,6 +62,9 @@
       <!-- A Kick / Twitch connection down for over 30 s (renderConnWarn): its alerts may be missed. A click opens where
            it's set up. -->
       <button id="connWarn" class="conn-warn" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2 20h20zM12 10v4M12 17v.5"/></svg><span></span></button>
+      <!-- The proxy in use stopped working (core/vpn.js 'broken', renderProxyHelp): a click looks for the VPN app again.
+           Shown instead of #connWarn. -->
+      <button id="proxyWarn" class="conn-warn" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2 20h20zM12 10v4M12 17v.5"/></svg><span></span></button>
       <!-- Kick / Twitch: green dot when the chat connection is up (renderStatus). -->
       <div class="plats">
         <button class="plat" data-p="kick"><img src="/assets/platform-logos/kick.svg" alt=""><i></i></button>
@@ -252,7 +255,7 @@
       </section>
 
       <!-- ===== Connections: the streamer's own Kick account (follows; renderKick()) and Twitch account (follows, Twitch
-           goals; renderTwitch()) ===== -->
+           goals; renderTwitch()), and the proxy (renderProxy()) ===== -->
       <section class="view narrow connections" data-view="connections" hidden>
         <div class="box">
           <div class="card-head">
@@ -283,6 +286,43 @@
             <button id="twOpen" class="primary" data-i18n="twOpen"></button>
             <small data-i18n="twWaiting"></small>
           </div>
+        </div>
+        <!-- Proxy (renderProxy): how Jarchi's own connections go out. Auto = the VPN app found on this PC that the user
+             said Yes to (core/vpn.js), else the Windows proxy; Manual = one typed in. The dot = the last Test. -->
+        <div class="box">
+          <div class="card-head">
+            <span class="card-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4.5 6v5.5c0 4.6 3.2 8.3 7.5 9.5 4.3-1.2 7.5-4.9 7.5-9.5V6z"/></svg></span>
+            <div class="stack"><h2 data-i18n="proxyTitle" data-help="settings.proxyMode"></h2><span class="status" id="proxyState"></span></div>
+          </div>
+          <small data-i18n="proxyHint"></small>
+          <div class="seg">
+            <label><input type="radio" name="proxyMode" value="off"><span data-i18n="proxyOff"></span></label>
+            <label><input type="radio" name="proxyMode" value="auto"><span data-i18n="proxyAuto"></span></label>
+            <label><input type="radio" name="proxyMode" value="manual"><span data-i18n="proxyManual"></span></label>
+          </div>
+          <div class="row between" data-only="proxyAuto">
+            <small id="proxyNow"></small>
+            <button id="proxyLook" data-i18n="proxyLook"></button>
+          </div>
+          <div class="proxy-manual" data-only="proxyManual">
+            <div class="field">
+              <span data-i18n="proxyType" data-help="settings.proxyType"></span>
+              <div class="seg">
+                <label><input type="radio" name="proxyType" value="http"><span>HTTP</span></label>
+                <label><input type="radio" name="proxyType" value="socks5"><span>SOCKS5</span></label>
+              </div>
+            </div>
+            <label class="field"><span data-i18n="proxyHost" data-help="settings.proxyHost"></span><input type="text" id="proxyHost" maxlength="253" placeholder="127.0.0.1"></label>
+            <label class="field"><span data-i18n="proxyPort" data-help="settings.proxyPort"></span><input type="number" id="proxyPort" min="1" max="65535" step="1" placeholder="10808"></label>
+          </div>
+          <div class="row">
+            <button id="netTest">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5a10 10 0 0 1 14 0M8.5 16a5 5 0 0 1 7 0M12 19.5h.01M2 9a14 14 0 0 1 20 0"/></svg>
+              <span data-i18n="netTest"></span>
+            </button>
+            <small id="netUsing"></small>
+          </div>
+          <ul id="netResults" class="net-results"></ul>
         </div>
       </section>
 
@@ -899,35 +939,6 @@
           <small data-i18n="queueHint"></small>
         </div>
         <div class="box">
-          <h2 data-i18n="proxyTitle" data-help="settings.proxyMode"></h2>
-          <small data-i18n="proxyHint"></small>
-          <div class="seg">
-            <label><input type="radio" name="proxyMode" value="off"><span data-i18n="proxyOff"></span></label>
-            <label><input type="radio" name="proxyMode" value="system"><span data-i18n="proxySystem"></span></label>
-            <label><input type="radio" name="proxyMode" value="manual"><span data-i18n="proxyManual"></span></label>
-          </div>
-          <small id="proxyNow" data-only="proxySystem"></small>
-          <div class="proxy-manual" data-only="proxyManual">
-            <div class="field">
-              <span data-i18n="proxyType" data-help="settings.proxyType"></span>
-              <div class="seg">
-                <label><input type="radio" name="proxyType" value="http"><span>HTTP</span></label>
-                <label><input type="radio" name="proxyType" value="socks5"><span>SOCKS5</span></label>
-              </div>
-            </div>
-            <label class="field"><span data-i18n="proxyHost" data-help="settings.proxyHost"></span><input type="text" id="proxyHost" maxlength="253" placeholder="127.0.0.1"></label>
-            <label class="field"><span data-i18n="proxyPort" data-help="settings.proxyPort"></span><input type="number" id="proxyPort" min="1" max="65535" step="1" placeholder="10808"></label>
-          </div>
-          <div class="row">
-            <button id="netTest">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5a10 10 0 0 1 14 0M8.5 16a5 5 0 0 1 7 0M12 19.5h.01M2 9a14 14 0 0 1 20 0"/></svg>
-              <span data-i18n="netTest"></span>
-            </button>
-            <small id="netUsing"></small>
-          </div>
-          <ul id="netResults" class="net-results"></ul>
-        </div>
-        <div class="box">
           <h2 data-i18n="obsTitle" data-help="settings.obsUrl"></h2>
           <small data-i18n="copyObsHint"></small>
           <input id="obsUrl" type="text" readonly data-aria="obsTitle">
@@ -1057,6 +1068,21 @@
     <div class="profile-actions">
       <button id="uninstallCancel" class="ghost" data-i18n="twCancel"></button>
       <button id="uninstallGo" class="danger strong" data-i18n="uninstallGo"></button>
+    </div>
+  </dialog>
+
+  <!-- Can't reach Kick / Twitch / Jarchi's server, or the user looked (core/vpn.js, renderProxyHelp): a VPN app's proxy
+       found on this PC (No / Yes), nothing found (how to type the port in Manual; Close / Look again / Open proxy
+       settings), or still looking. -->
+  <dialog id="proxyHelp" class="profile-dialog" aria-labelledby="proxyHelpTitle">
+    <h2 id="proxyHelpTitle"></h2>
+    <p id="proxyHelpText"></p>
+    <ol id="proxyHelpSteps" class="proxy-steps"></ol>
+    <small id="proxyHelpNote" data-i18n="proxyOnlyJarchi"></small>
+    <div class="profile-actions">
+      <button id="proxyNo" class="ghost"></button>
+      <button id="proxyAgain" data-i18n="proxyLookAgain"></button>
+      <button id="proxyYes" class="primary"></button>
     </div>
   </dialog>
 
