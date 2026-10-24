@@ -186,15 +186,17 @@ core/store.js        JSON files in the data folder
 core/secrets.js      the Kick and Twitch tokens sealed at rest (installed app), and blanked out of every log line
 core/chat.js         runs the chat connectors, adds 7TV emotes, test messages
 core/seventv.js      7TV emote sets (cached)
+core/changelog.js    a version's notes as the release text, and back (What's new)
 connectors/          Kick and Twitch chat readers (+ Twitch badge images), the Kick and Twitch accounts
 relay/               Jarchi's Kick relay (Cloudflare Worker): Kick's login and follow webhooks for every Jarchi
 assets/              official platform logos (platform-logos), Kick badge icons (kick-badges), Kick default profile pictures (kick-avatars), OG hats (og-hats), bundled fonts (fonts)
 widgets/<name>/      each widget is a folder, served at /widgets/<name>
 panel/               settings panel (served at /)
 electron/            the desktop app: window, tray, updates (main.js), the panel's update bridge (preload.js)
-build/               installer additions (installer.nsh), its pictures (installerSidebar.bmp, installerHeader.bmp) and the next release's notes (release-notes.md)
+build/               installer additions (installer.nsh), its pictures (installerSidebar.bmp, installerHeader.bmp) and notes.js, which makes the release's text (release-notes.md, not in git) from i18n/changelog.json
 i18n/en.json         every UI string, panel and overlay (overlays always use it)
 i18n/fa.json         the panel in Persian (same keys)
+i18n/changelog.json  What's new: each version's changes in English and Persian, newest first
 ```
 
 Every event, whatever its source, looks like this:
@@ -213,7 +215,7 @@ npm run dist      # builds dist/Jarchi-Setup.exe on this PC
 npm run release   # builds it and uploads it to a DRAFT release on github.com/MamadPoker/Jarchi-releases
 ```
 
-For a release: raise `version` in `package.json`, write what changed in `build/release-notes.md` (the app shows it in "What's new" as plain text, line by line: no markdown formatting), then run `npm run release` with a GitHub token in `GH_TOKEN` (PowerShell: `$env:GH_TOKEN = "github_pat_…"; npm run release`). The token is a fine-grained one with access to Jarchi-releases only, **Contents: Read and write**. Never put it in a file in this repo. It makes a draft release `v<version>` with the installer, its `.blockmap` and `latest.yml` (all three are needed for updates). The installer's name has no version (`Jarchi-Setup.exe`), so https://github.com/MamadPoker/Jarchi-releases/releases/latest/download/Jarchi-Setup.exe always gets the newest one; updates still find each version's files by its tag. Check it on GitHub, then **Publish release**: only then do downloads and installed apps see it, and GitHub makes the tag on Jarchi-releases' own `main`. A version that already has a published release gets no draft (electron-builder skips it): raise the version first.
+For a release: raise `version` in `package.json`, add that version's changes on top of `i18n/changelog.json` (`en` and `fa`: the same changes in both, one plain line each), then run `npm run release` with a GitHub token in `GH_TOKEN` (PowerShell: `$env:GH_TOKEN = "github_pat_…"; npm run release`). The token is a fine-grained one with access to Jarchi-releases only, **Contents: Read and write**. Never put it in a file in this repo. It makes a draft release `v<version>` whose text is those changes (English, then Persian right to left; `build/notes.js` writes it, and puts it on that version's draft too when one is already there), with the installer, its `.blockmap` and `latest.yml` (all three are needed for updates). The installer's name has no version (`Jarchi-Setup.exe`), so https://github.com/MamadPoker/Jarchi-releases/releases/latest/download/Jarchi-Setup.exe always gets the newest one; updates still find each version's files by its tag. Check it on GitHub, then **Publish release**: only then do downloads and installed apps see it, and GitHub makes the tag on Jarchi-releases' own `main`. A version that already has a published release gets no draft (electron-builder skips it): raise the version first.
 
 The installed app looks for a newer release at start and every 4 hours, downloads it in the background and installs it only when the streamer clicks **Restart now** (or quits Jarchi). `npm run app` never updates. The installer is per user (no admin rights), in English or Persian (a list at the start, the Windows language picked), and always installs into a `Jarchi` folder inside the one chosen (E:\ -> E:\Jarchi). Its options are in `package.json` `build` and `build/installer.nsh`, its pictures in `build/installerSidebar.bmp` (164x314) and `build/installerHeader.bmp` (150x57). The data stays in `%APPDATA%\Jarchi`, so updates and reinstalls keep it; uninstalling asks. The Kick and Twitch logins in it (`data\kick.json`, `data\twitch.json`: their access and refresh tokens) are encrypted with a key in `data\secrets.key`, which Windows itself encrypts for this Windows user (Electron safeStorage, DPAPI); older plain ones are encrypted at the first start, nobody is logged out. Copied to another PC or Windows user, they can't be read: connect again there. Dev runs (`npm start`, `npm run app`) keep `./data` in plain text, as before. The installed app also has **Uninstall Jarchi** in Settings (next to Reset everything): it starts this uninstaller with `--keep-app-data` or `--delete-app-data`, so it doesn't ask again, and quits.
 

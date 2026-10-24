@@ -5,3 +5,4 @@ data/
 .claude/settings.local.json
 .wrangler/
 dist/
+build/release-notes.md
