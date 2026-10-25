@@ -5,6 +5,7 @@
   "private": true,
   "description": "Stream alerts (and later more widgets) for OBS. Runs locally on your own PC.",
   "author": "MamadPoker",
+  "license": "MIT",
   "main": "electron/main.js",
   "type": "commonjs",
   "scripts": {
