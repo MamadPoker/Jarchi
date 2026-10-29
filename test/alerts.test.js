@@ -210,6 +210,19 @@ test('proxy: HTTP CONNECT and SOCKS5 tunnels, auto, finding a VPN app, Windows p
   assert.ok(!list.some((c) => c.port === 135) && list.find((c) => c.port === 7890).app === 'Clash', 'not a VPN program; only this PC');
   assert.equal(vpn.candidates('  TCP    127.0.0.1:30000   0.0.0.0:0   LISTENING   7', '"sing-box.exe","7","Console","1","1 K"', null)[0].app, 'sing-box', 'a core alone');
   assert.ok(!vpn.candidates('', '', { type: 'http', host: '10.0.0.1', port: 8080 }).some((c) => c.port === 8080), 'a proxy elsewhere is no VPN app here');
+  // Windscribe's Proxy Gateway: on this PC's LAN address (or all of them), any port.
+  const ws = vpn.candidates(['  TCP    192.168.2.22:10473     0.0.0.0:0   LISTENING   50', '  TCP    0.0.0.0:9150   0.0.0.0:0   LISTENING   51',
+    '  TCP    192.168.2.22:139   0.0.0.0:0   LISTENING   4'].join('\r\n'), '"System","4","Services","0","8 K"\r\n"Windscribe.exe","50","Console","1","90 K"\r\n"WindscribeService.exe","51","Services","0","9 K"', null);
+  assert.deepEqual(ws.slice(0, 2), [
+    { app: 'Windscribe', host: '192.168.2.22', port: 10473, types: ['socks5', 'http'] },
+    { app: 'Windscribe', host: '127.0.0.1', port: 9150, types: ['socks5', 'http'] },
+  ]);
+  assert.ok(!ws.some((c) => c.port === 139), 'only Windscribe on other addresses');
+  // System-wide VPN apps (no proxy to offer: the Split Tunneling hint), by their programs' names.
+  assert.equal(vpn.systemVpn('"System","4","Services","0","8 K"\r\n"ProtonVPNService.exe","60","Services","0","20 K"'), 'Proton VPN');
+  assert.equal(vpn.systemVpn('"Cloudflare WARP.exe","61","Console","1","20 K"'), 'Cloudflare WARP');
+  assert.equal(vpn.systemVpn('"nordvpn-service.exe","62","Services","0","20 K"'), 'NordVPN');
+  assert.equal(vpn.systemVpn(tasks), null, 'v2rayN and NetMod are proxy apps, not system-wide');
   // The first candidate (in order) that really gets through wins; a port that speaks only HTTP fails SOCKS5 and works.
   const httpPort = httpProxy.address().port;
   assert.deepEqual(await vpn.firstWorking([

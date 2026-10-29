@@ -4,8 +4,9 @@
 // through it?"); Yes saves it as the auto proxy (core/net.js), which carries only Jarchi's own connections.
 // A test sends nothing but a TLS hello for kick.com: no logins or tokens ever go to a candidate. Afterwards they go only
 // to Kick, Twitch and the relay, inside TLS, as before.
-// The panel follows state(): idle | looking (the user asked) | offer { service, found } | none { service } (nothing
-// found) | broken { service, proxy } (the proxy in use stopped working: a small warning, Look again).
+// The panel follows state(): idle | looking (the user asked) | offer { service, found } | none { service, system }
+// (nothing found; system: a system-wide VPN app that's running, so it's likely leaving Jarchi out: Split Tunneling) |
+// broken { service, proxy } (the proxy in use stopped working: a small warning, Look again).
 const { execFile } = require('node:child_process');
 const { EventEmitter } = require('node:events');
 const net = require('./net');
@@ -33,8 +34,22 @@ const PORTS = {
 };
 const types = (first) => (first === 'http' ? ['http', 'socks5'] : ['socks5', 'http']);
 const appOf = (exe) => APPS.find(([re]) => re.test(exe))?.[1];
+// System-wide VPN apps (they route the whole PC, no local proxy) by their programs' names.
+const SYSTEM = [
+  [/^windscribe/i, 'Windscribe'], [/^expressvpn/i, 'ExpressVPN'], [/^nordvpn/i, 'NordVPN'], [/^protonvpn/i, 'Proton VPN'],
+  [/^surfshark/i, 'Surfshark'], [/^(cloudflare warp|warp-svc)/i, 'Cloudflare WARP'], [/^mullvad/i, 'Mullvad VPN'],
+  [/^cyberghost/i, 'CyberGhost'], [/^hotspot ?shield/i, 'Hotspot Shield'], [/^pia-(client|service)/i, 'Private Internet Access'],
+];
+// tasklist output -> the first of them running, or null.
+function systemVpn(tasks) {
+  const running = [...tasks.matchAll(/^"([^"]+)"/gm)].map((m) => m[1]);
+  return SYSTEM.find(([re]) => running.some((exe) => re.test(exe)))?.[1] ?? null;
+}
 // netstat -ano -p TCP: a listening socket on this PC has no remote end ("0.0.0.0:0"); the state word is translated.
 const LISTEN = /^\s*TCP\s+(?:127\.0\.0\.1|0\.0\.0\.0):(\d+)\s+0\.0\.0\.0:0\s+.*?(\d+)\s*$/gim;
+// The same on any IPv4 address of this PC: Windscribe's Proxy Gateway (its Preferences → Connection) listens on the
+// PC's LAN address, on a port it picks.
+const LISTEN_ANY = /^\s*TCP\s+(\d+\.\d+\.\d+\.\d+):(\d+)\s+0\.0\.0\.0:0\s+.*?(\d+)\s*$/gim;
 
 // netstat + tasklist output and the Windows proxy -> what to try, best first: [{ app, host, port, types }].
 // app: the VPN app's name, or null for a Windows proxy no known program serves.
@@ -47,9 +62,12 @@ function candidates(netstat, tasks, sys) {
     return (a === CORE ? gui : a) ?? PORTS[port]?.[0] ?? (a === CORE ? e.replace(/\.exe$/i, '') : null);
   };
   const out = new Map();
-  const add = (port, host, first) => out.has(port) || out.set(port, { app: name(port), host, port, types: types(first) });
+  const add = (port, host, first, app = name(port)) => out.has(port) || out.set(port, { app, host, port, types: types(first) });
   if (sys && net.LOCAL.test(sys.host)) add(sys.port, sys.host, sys.type); // what the VPN app itself set for Windows
   for (const [port, e] of owner) if (appOf(e)) add(port, '127.0.0.1', 'socks5');
+  for (const [, ip, port, pid] of netstat.matchAll(LISTEN_ANY)) {
+    if (/^windscribe/i.test(exe.get(pid) ?? '')) add(Number(port), ip === '0.0.0.0' ? '127.0.0.1' : ip, 'socks5', 'Windscribe');
+  }
   for (const [port, [, first]] of Object.entries(PORTS)) add(Number(port), '127.0.0.1', first);
   return [...out.values()];
 }
@@ -69,12 +87,13 @@ async function firstWorking(list, through) {
 
 const run = (cmd, args) => new Promise((resolve) => execFile(cmd, args, { windowsHide: true, timeout: 5000 }, (err, out) => resolve(err ? '' : out)));
 let lastLook = null; // the last look's result: true found one, false none, null no look since Jarchi started
-// Without netstat / tasklist (not Windows) only the usual ports are tried.
+// -> { found: the first working proxy or null, system: a system-wide VPN app running (systemVpn) or null }. Without
+// netstat / tasklist (not Windows) only the usual ports are tried.
 async function find() {
   const [netstat, tasks, sys] = await Promise.all([run('netstat', ['-ano', '-p', 'TCP']), run('tasklist', ['/fo', 'csv', '/nh']), net.windowsProxy()]);
   const found = await firstWorking(candidates(netstat, tasks, sys), (p) => net.reach(TARGET, p));
   lastLook = !!found;
-  return found;
+  return { found, system: systemVpn(tasks) };
 }
 // The usage ping's (core/stats.js): did the last look find a proxy; with none since Jarchi started, true if one was
 // said Yes to before (only a look finds one), else null.
@@ -91,20 +110,21 @@ function set(next) {
 
 // A connection failed (server/index.js: Kick / Twitch / relay status). Reachable after all: not the network, nothing to
 // do. Else, with a proxy in use: it stopped working (warning). Without one: look, and offer what works (or, once per
-// run, say nothing was found).
-async function trouble(service) {
-  if (settings.get().proxyMode === 'off' || busy || st.state !== 'idle' || !HOSTS[service] || Date.now() - (lastAuto[service] ?? 0) < AUTO_MS) return;
+// run, say nothing was found, and which system-wide VPN app is running). test (Settings' dev-only "Test as if Kick
+// were blocked"): as if it can't be reached, every time, even with the proxy Off, offering again what was declined.
+async function trouble(service, test = false) {
+  if ((!test && settings.get().proxyMode === 'off') || busy || st.state !== 'idle' || !HOSTS[service] || (!test && Date.now() - (lastAuto[service] ?? 0) < AUTO_MS)) return;
   lastAuto[service] = Date.now();
   busy = true;
   try {
-    if (await net.reach(HOSTS[service]).then(() => true, () => false)) return;
+    if (!test && await net.reach(HOSTS[service]).then(() => true, () => false)) return;
     const proxy = await net.current();
     if (proxy) return set({ state: 'broken', service, proxy });
-    const found = await find();
-    if (found && !declined.has(key(found))) set({ state: 'offer', service, found });
-    else if (!found && !toldNone) {
+    const { found, system } = await find();
+    if (found && (test || !declined.has(key(found)))) set({ state: 'offer', service, found });
+    else if (!found && (test || !toldNone)) {
       toldNone = true;
-      set({ state: 'none', service });
+      set({ state: 'none', service, system });
     }
   } finally {
     busy = false;
@@ -117,9 +137,9 @@ function look() {
   busy = true;
   const service = st.service ?? null;
   set({ state: 'looking', service });
-  find().catch(() => null).then((found) => {
+  find().catch(() => ({ found: null, system: null })).then(({ found, system }) => {
     busy = false;
-    set(found ? { state: 'offer', service, found } : { state: 'none', service });
+    set(found ? { state: 'offer', service, found } : { state: 'none', service, system: service && system }); // the hint only after a failure
   });
   return st;
 }
@@ -146,4 +166,4 @@ function fine(service) {
   if ((!service || st.service === service) && ['broken', 'offer', 'none'].includes(st.state)) set({ state: 'idle' });
 }
 
-module.exports = { events, state: () => st, trouble, look, accept, dismiss, fine, looked, candidates, firstWorking };
+module.exports = { events, state: () => st, trouble, look, accept, dismiss, fine, looked, candidates, firstWorking, systemVpn };

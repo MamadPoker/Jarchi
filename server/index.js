@@ -20,6 +20,9 @@ const vpn = require('../core/vpn');
 const strings = require('../i18n/en.json');
 
 const ROOT = path.join(__dirname, '..');
+// A dev run (npm start, npm run app): never the installed app (electron/main.js says JARCHI_INSTALLED) or a packaged
+// build (its code is in app.asar). Only then Settings shows its dev tools.
+const DEV = process.env.JARCHI_INSTALLED !== '1' && !__dirname.includes('app.asar');
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
@@ -101,7 +104,7 @@ app.post('/api/alerts/:type/reset-text', (req, res) => res.json(changed(settings
 const STARTED = Date.now();
 app.get('/api/home', (req, res) => res.json({ today: today(), started: STARTED, kickGoals: goals.kickList() }));
 app.get('/api/history', (req, res) => res.json(alertQueue.feed()));
-app.get('/api/version', (req, res) => res.json({ version: require('../package.json').version })); // About
+app.get('/api/version', (req, res) => res.json({ version: require('../package.json').version, dev: DEV })); // About; dev: Settings' dev tools
 
 // Proxy: "Test connection" (Kick, Twitch, 7TV), and which proxy is in use right now.
 app.post('/api/net/test', async (req, res) => res.json(await chat.check()));
@@ -117,6 +120,12 @@ app.post('/api/proxy/accept', (req, res) => {
 app.post('/api/proxy/dismiss', (req, res) => {
   vpn.dismiss();
   res.json(vpn.state());
+});
+// Dev runs only: "Test as if Kick were blocked" (Settings) runs the help above as if Kick couldn't be reached; what it
+// finds comes by socket ('proxyHelp') as usual.
+if (DEV) app.post('/api/dev/kick-blocked', (req, res) => {
+  vpn.trouble('kick', true);
+  res.json({ ok: true });
 });
 app.delete('/api/upload/:type/:kind', (req, res) => res.json(changed(settings.removeUpload(req.params.type, req.params.kind))));
 app.post('/api/reset{/:type}', (req, res) => {

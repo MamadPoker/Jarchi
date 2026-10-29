@@ -986,6 +986,11 @@
             <button id="uninstall" class="danger soft" data-i18n="uninstallApp" hidden></button>
           </div>
         </div>
+        <!-- Dev runs only (wireDev: /api/version's dev), never in the installed app. -->
+        <div id="devBox" class="box" hidden>
+          <h2 data-i18n="devTitle"></h2>
+          <div class="row"><button id="devKickBlocked" data-i18n="devKickBlocked"></button></div>
+        </div>
       </section>
 
       <!-- ===== Guide: its own topic list; the text is in i18n guide.topics (renderGuide) ===== -->

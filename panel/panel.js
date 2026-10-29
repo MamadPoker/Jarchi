@@ -823,8 +823,8 @@ function renderProxy() {
   $('#proxyState').textContent = { off: S.panel.proxyUntested, connecting: S.panel.netTesting, connected: S.panel.proxyWorks, error: S.panel.proxyFails }[dot];
 }
 
-// core/vpn.js's state: the popup (offer: Yes / No; none: how to type the port in Manual; looking) and the top bar's
-// warning (broken: a click looks again).
+// core/vpn.js's state: the popup (offer: Yes / No; none: how to type the port in Manual, or, with a system-wide VPN
+// app running, that it may be leaving Jarchi out; looking) and the top bar's warning (broken: a click looks again).
 const lookForVpn = () => api('POST', '/api/proxy/look').then((h) => { help = h; renderProxyHelp(); }, (err) => toast(err.message, true));
 function renderProxyHelp() {
   const d = $('#proxyHelp'), h = help, P = S.panel, w = $('#proxyWarn');
@@ -839,12 +839,13 @@ function renderProxyHelp() {
   const service = h.service && P.proxyServices[h.service];
   $('#proxyHelpTitle').textContent = h.state === 'looking' ? P.proxyLookingTitle
     : service ? tpl(P.proxyCantReach, { service }) : h.state === 'offer' ? P.proxyFoundTitle : P.proxyNoneTitle;
-  $('#proxyHelpText').textContent = { offer: h.found && tpl(P.proxyFoundAsk, { app: proxyName(h.found) }), none: P.proxyNoneText, looking: P.proxyLookingText }[h.state];
-  $('#proxyHelpSteps').replaceChildren(...(h.state === 'none' ? P.proxySteps.map((s) => el('li', { textContent: s })) : []));
+  const split = h.state === 'none' && h.system; // Split Tunneling: the VPN app's own settings, not Jarchi's proxy
+  $('#proxyHelpText').textContent = { offer: h.found && tpl(P.proxyFoundAsk, { app: proxyName(h.found) }), none: split ? P.proxySplitTunnel : P.proxyNoneText, looking: P.proxyLookingText }[h.state];
+  $('#proxyHelpSteps').replaceChildren(...(h.state === 'none' && !split ? P.proxySteps.map((s) => el('li', { textContent: s })) : []));
   $('#proxyHelpNote').hidden = h.state !== 'offer';
   $('#proxyNo').textContent = h.state === 'offer' ? P.proxyNo : P.updateClose;
   $('#proxyAgain').hidden = h.state !== 'none';
-  $('#proxyYes').hidden = h.state === 'looking';
+  $('#proxyYes').hidden = h.state === 'looking' || split;
   $('#proxyYes').textContent = h.state === 'offer' ? P.proxyYes : P.proxyOpenSettings;
   if (!d.open) d.showModal();
 }
@@ -1704,6 +1705,7 @@ function build() {
   wireTour();
   wireUpdate();
   wireUninstall();
+  wireDev();
   wireSupport();
 
   $$('[data-i18n]').forEach((e) => (e.textContent = S.panel[e.dataset.i18n]));
@@ -1985,6 +1987,13 @@ function wireUninstall() {
     e.currentTarget.disabled = true; // Jarchi quits now
     app.uninstall($('#uninstallKeep').checked);
   };
+}
+
+// Settings > Developer: only in dev runs (/api/version's dev; the server has no such route otherwise). "Test as if Kick
+// were blocked": the VPN help (core/vpn.js) runs as if Kick couldn't be reached; its popup comes by socket as usual.
+function wireDev() {
+  api('GET', '/api/version').then(({ dev }) => ($('#devBox').hidden = !dev), () => {});
+  $('#devKickBlocked').onclick = () => api('POST', '/api/dev/kick-blocked').catch((err) => toast(err.message, true));
 }
 
 let draft, crop; // Edit profile: the profile being edited, the picture being cropped { img, zoom, x, y, out, url }

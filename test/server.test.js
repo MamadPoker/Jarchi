@@ -172,7 +172,7 @@ test('migration, settings, uploads, reset, events', async () => {
   assert.equal((await fetch(`${base}/uploads/${pic}`)).status, 200);
   s = await (await call('PATCH', '/api/settings', { profile: { nameFrom: 'custom', name: 'Mamad' } })).json();
   assert.deepStrictEqual([s.profile.nameFrom, s.profile.name, s.profile.pictureFrom, s.profile.picture.file], ['custom', 'Mamad', 'upload', pic]);
-  assert.equal((await (await call('GET', '/api/version')).json()).version, require('../package.json').version); // About
+  assert.deepEqual(await (await call('GET', '/api/version')).json(), { version: require('../package.json').version, dev: true }); // About; a dev run (not installed, no app.asar)
 
   s = await (await call('POST', '/api/reset/follow')).json();
   assert.equal(s.alerts.follow.image, null);
