@@ -1602,16 +1602,13 @@ function build() {
     fitPreview();
   });
 
-  // Connections: the Twitch account. Connect shows Twitch's code until the streamer approves it on Twitch. Home's Twitch
-  // tab shows the Twitch channel's goals.
+  // Connections: the Twitch account. Connect opens Twitch's page in a new tab at once, like Kick's (its link has the code
+  // in it: nothing to type; Open again, if the browser blocked it), until the streamer approves Jarchi there. Home's
+  // Twitch tab shows the Twitch channel's goals.
   const twitchCall = (method, url, body) => api(method, url, body).then((t) => { twitch = t; render(); return t; }, (err) => toast(err.message, true));
-  $('#twConnect').onclick = () => twitchCall('POST', '/api/twitch/connect');
+  $('#twConnect').onclick = () => twitchCall('POST', '/api/twitch/connect').then((t) => t?.uri && window.open(t.uri, '_blank', 'noopener'));
   $('#twDisconnect').onclick = () => twitchCall('POST', '/api/twitch/disconnect');
   $('#twOpen').onclick = () => window.open(twitch.uri, '_blank', 'noopener');
-  $('#twShowCode').onclick = () => {
-    shownCode = twitch.code;
-    renderTwitch();
-  };
   $('#twitchGoalsConnect').onclick = $('#twitchSyncConnect').onclick = () => select('connections');
   $('#twitchSync').onchange = (e) => send('PATCH', '/api/settings', { twitchGoalSync: e.target.checked });
   showGoalTab = wireTabs($('#goalList'), 'jarchi.goalTab');
@@ -1867,9 +1864,7 @@ function renderAlert() {
   });
 }
 
-// The Connections page's Twitch card. Its code shows as dots until Show code (shownCode: the code revealed; a new
-// login's code starts hidden again).
-let shownCode = '';
+// The Connections page's Twitch card.
 function renderTwitch() {
   const t = twitch, on = t.state !== 'off';
   const line = $('#twState');
@@ -1879,9 +1874,6 @@ function renderTwitch() {
   $('#twDisconnect').hidden = !on;
   $('#twDisconnect').textContent = S.panel[t.state === 'waiting' ? 'twCancel' : 'twDisconnect'];
   $('#twWait').hidden = t.state !== 'waiting';
-  const shown = !!t.code && t.code === shownCode;
-  $('#twCode').textContent = shown ? t.code : '••••••••';
-  $('#twShowCode').hidden = shown;
   renderConnWarn();
 }
 

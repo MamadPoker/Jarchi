@@ -313,14 +313,11 @@
             <button id="twDisconnect" class="danger"></button>
           </div>
           <small data-i18n="twWhat"></small>
-          <!-- While Twitch waits for the streamer to approve: Twitch's code (hidden until Show code: Open Twitch has it
-               already; shown for approving on another device) and where to type it. -->
+          <!-- While Twitch waits for the streamer to approve: Connect opened Twitch's page (its link has the code in it);
+               Open again, if the browser blocked it or it was closed. -->
           <div id="twWait" class="tw-wait" hidden>
-            <span data-i18n="twEnterCode"></span>
-            <b id="twCode" class="tw-code" dir="ltr"></b>
-            <button id="twShowCode" class="link" data-i18n="twShowCode"></button>
-            <button id="twOpen" class="primary" data-i18n="twOpen"></button>
-            <small data-i18n="twWaiting"></small>
+            <span data-i18n="twWaiting"></span>
+            <small><button id="twOpen" class="link" data-i18n="twOpenAgain"></button></small>
           </div>
         </div>
         <!-- Proxy (renderProxy): how Jarchi's own connections go out. Auto = the VPN app found on this PC that the user

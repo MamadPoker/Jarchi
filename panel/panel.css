@@ -1169,7 +1169,6 @@ code { padding: 1px 6px; border-radius: 6px; background: var(--card2); font: 0.9
 /* ---------- Connections: the Twitch account ---------- */
 .connections .card-head .stack { flex: 1; gap: 2px; }
 .tw-wait { display: grid; justify-items: center; gap: 10px; padding: 18px; border: 1px dashed var(--gold-line); border-radius: 12px; background: var(--card2); text-align: center; }
-.tw-code { font-family: Consolas, "Courier New", monospace; font-size: 30px; letter-spacing: 0.18em; user-select: all; }
 .modes { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 10px; }
 .modes.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .modes.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
