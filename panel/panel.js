@@ -601,9 +601,9 @@ const pressFilter = (box, f) => $$('button', box).forEach((b) => b.setAttribute(
 function issues() {
   const out = ['kick', 'twitch'].filter((p) => chatStatus[p].state !== 'connected')
     .map((p) => [tpl(S.panel.issuePlatform, { platform: S.platforms[p] }), ['chat']]); // the channel names are on the Chat page for now
-  if (!open.alerts) out.push([S.panel.issueAlerts, ['alert']]);
-  if (settings.chat.enabled && !open.chat) out.push([S.panel.issueChat, ['chat']]);
-  for (const [id, g] of Object.entries(settings.goals)) if (g.enabled && !open[id]) out.push([tpl(S.panel.issueGoal, { goal: goalName(id) }), ['goal', id]]);
+  if (!open.alerts) out.push([S.panel.issueAlerts, ['alert'], 'obs']);
+  if (settings.chat.enabled && !open.chat) out.push([S.panel.issueChat, ['chat'], 'obs']);
+  for (const [id, g] of Object.entries(settings.goals)) if (g.enabled && !open[id]) out.push([tpl(S.panel.issueGoal, { goal: goalName(id) }), ['goal', id], 'obs']);
   return out;
 }
 
@@ -663,6 +663,7 @@ function renderHome() {
   $('#banner').classList.toggle('ready', !missing.length);
   $('#bannerTitle').textContent = S.panel[missing.length ? 'notReadyTitle' : 'readyTitle'];
   $('#bannerHint').hidden = missing.length > 0;
+  $('#obsOrderHint').hidden = !missing.some((m) => m[2]); // a widget isn't open in OBS
   $('#issues').replaceChildren(...missing.map(([text, page]) => el('li', {}, el('span', { textContent: text }),
     el('button', { textContent: S.panel.fix, onclick: () => select(...page) }))));
 

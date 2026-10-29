@@ -170,6 +170,7 @@
     "issueAlerts": "Alerts not open in OBS",
     "issueChat": "Chat widget not open in OBS",
     "issueGoal": "{goal} not open in OBS",
+    "obsOrderHint": "Open Jarchi before OBS — or select the widget in OBS and press Refresh.",
     "feedTitle": "Live feed",
     "feedFilters": { "all": "All", "subs": "Subs", "kicks": "Kicks", "raids": "Raids", "follows": "Follows" },
     "feedEmpty": "No events yet",

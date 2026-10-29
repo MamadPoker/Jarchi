@@ -170,6 +170,7 @@
     "issueAlerts": "الرت‌ها در OBS باز نیست",
     "issueChat": "ویجت چت در OBS باز نیست",
     "issueGoal": "{goal} در OBS باز نیست",
+    "obsOrderHint": "اول Jarchi را باز کنید، بعد OBS — یا ویجت را در OBS انتخاب کنید و Refresh را بزنید.",
     "feedTitle": "رویدادهای زنده",
     "feedFilters": { "all": "همه", "subs": "ساب‌ها", "kicks": "کیکس", "raids": "ریدها", "follows": "فالوها" },
     "feedEmpty": "هنوز رویدادی ثبت نشده",
