@@ -92,7 +92,11 @@ async function login() {
     else set({ state: 'off', error: /client/i.test(j.message) ? 'client' : 'denied' }); // denied, or not a Public app
   };
   timer = setTimeout(poll, d.interval * 1000);
-  set({ state: 'waiting', error: '', code: d.user_code, uri: /^https:\/\/(www\.)?twitch\.tv\//.test(d.verification_uri) ? d.verification_uri : 'https://www.twitch.tv/activate' });
+  // Open Twitch: Twitch's page with the code already in it (its verification_uri, activate?public=true&device-code=...),
+  // so nothing is typed. Anything but twitch.tv: its activate page; either way with the code, if it isn't there.
+  const uri = new URL(/^https:\/\/(www\.)?twitch\.tv\//.test(d.verification_uri) ? d.verification_uri : 'https://www.twitch.tv/activate?public=true');
+  if (!uri.searchParams.get('device-code')) uri.searchParams.set('device-code', d.user_code);
+  set({ state: 'waiting', error: '', code: d.user_code, uri: uri.href });
   return status();
 }
 

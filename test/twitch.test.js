@@ -16,7 +16,7 @@ fs.writeFileSync(path.join(dataDir, 'twitch.json'), JSON.stringify({ clientId: '
 // Fake Twitch. Access token A1 is refused by the Helix API (401), so the first subscriptions refresh it; a refresh token
 // works once, like a Public app's.
 const calls = [];
-let pending = 1, issued = 0;
+let pending = 1, issued = 0, verifyAt = 'https://www.twitch.tv/activate?public=true&device-code=ABCDEFGH'; // what /oauth2/device says
 globalThis.fetch = async (url, init = {}) => {
   const u = new URL(url);
   const body = init.body instanceof URLSearchParams ? Object.fromEntries(init.body) : init.body ? JSON.parse(init.body) : null;
@@ -25,7 +25,7 @@ globalThis.fetch = async (url, init = {}) => {
   const json = (status, j) => new Response(JSON.stringify(j), { status });
   if (u.pathname.startsWith('/helix/') && auth === 'Bearer A1') return json(401, { message: 'Invalid OAuth token' });
   switch (u.pathname) {
-    case '/oauth2/device': return json(200, { device_code: 'DEV', user_code: 'ABCD-EFGH', verification_uri: 'https://www.twitch.tv/activate?public=true&device-code=ABCDEFGH', expires_in: 1800, interval: 0.01 });
+    case '/oauth2/device': return json(200, { device_code: 'DEV', user_code: 'ABCD-EFGH', verification_uri: verifyAt, expires_in: 1800, interval: 0.01 });
     case '/oauth2/token':
       if (body.grant_type.endsWith('device_code') && pending-- > 0) return json(400, { status: 400, message: 'authorization_pending' });
       if (body.grant_type === 'refresh_token' && body.refresh_token !== `R${issued}`) return json(400, { status: 400, message: 'Invalid refresh token' });
@@ -133,4 +133,10 @@ test('Twitch account: code login, refresh, follows, goals, reconnect, disconnect
   assert.equal(calls.at(-1).body.token, 'A2');
   assert.ok(sockets[2].closed);
   assert.deepEqual(connectedPlatforms(), []);
+
+  // A link that isn't twitch.tv: Twitch's activate page, with the code in it all the same. Cancel (Disconnect).
+  verifyAt = 'https://evil.example/activate';
+  pending = Infinity;
+  assert.equal((await account.login()).uri, 'https://www.twitch.tv/activate?public=true&device-code=ABCD-EFGH');
+  assert.equal((await account.disconnect()).state, 'off');
 });

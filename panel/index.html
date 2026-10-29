@@ -313,10 +313,12 @@
             <button id="twDisconnect" class="danger"></button>
           </div>
           <small data-i18n="twWhat"></small>
-          <!-- While Twitch waits for the streamer to approve: Twitch's code and where to type it. -->
+          <!-- While Twitch waits for the streamer to approve: Twitch's code (hidden until Show code: Open Twitch has it
+               already; shown for approving on another device) and where to type it. -->
           <div id="twWait" class="tw-wait" hidden>
             <span data-i18n="twEnterCode"></span>
             <b id="twCode" class="tw-code" dir="ltr"></b>
+            <button id="twShowCode" class="link" data-i18n="twShowCode"></button>
             <button id="twOpen" class="primary" data-i18n="twOpen"></button>
             <small data-i18n="twWaiting"></small>
           </div>

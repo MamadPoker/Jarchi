@@ -1608,6 +1608,10 @@ function build() {
   $('#twConnect').onclick = () => twitchCall('POST', '/api/twitch/connect');
   $('#twDisconnect').onclick = () => twitchCall('POST', '/api/twitch/disconnect');
   $('#twOpen').onclick = () => window.open(twitch.uri, '_blank', 'noopener');
+  $('#twShowCode').onclick = () => {
+    shownCode = twitch.code;
+    renderTwitch();
+  };
   $('#twitchGoalsConnect').onclick = $('#twitchSyncConnect').onclick = () => select('connections');
   $('#twitchSync').onchange = (e) => send('PATCH', '/api/settings', { twitchGoalSync: e.target.checked });
   showGoalTab = wireTabs($('#goalList'), 'jarchi.goalTab');
@@ -1863,7 +1867,9 @@ function renderAlert() {
   });
 }
 
-// The Connections page's Twitch card.
+// The Connections page's Twitch card. Its code shows as dots until Show code (shownCode: the code revealed; a new
+// login's code starts hidden again).
+let shownCode = '';
 function renderTwitch() {
   const t = twitch, on = t.state !== 'off';
   const line = $('#twState');
@@ -1873,7 +1879,9 @@ function renderTwitch() {
   $('#twDisconnect').hidden = !on;
   $('#twDisconnect').textContent = S.panel[t.state === 'waiting' ? 'twCancel' : 'twDisconnect'];
   $('#twWait').hidden = t.state !== 'waiting';
-  $('#twCode').textContent = t.code;
+  const shown = !!t.code && t.code === shownCode;
+  $('#twCode').textContent = shown ? t.code : '••••••••';
+  $('#twShowCode').hidden = shown;
   renderConnWarn();
 }
 

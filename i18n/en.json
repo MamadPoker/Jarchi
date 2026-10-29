@@ -144,6 +144,7 @@
     "twWhat": "Connect your Twitch account for follow alerts and your Twitch goals. Chat, subs, gifted subs, bits and raids work without it.",
     "twEnterCode": "Go to twitch.tv/activate (on any device) and enter this code:",
     "twOpen": "Open Twitch",
+    "twShowCode": "Show code",
     "twWaiting": "Waiting for you to approve it on Twitch…",
     "twStates": { "off": "Not connected", "waiting": "Waiting for approval", "connecting": "Connecting", "connected": "Connected as {login}" },
     "twErrors": { "expired": "The Twitch login ended. Connect again.", "denied": "Not approved on Twitch.", "timeout": "The code ran out. Connect again.", "client": "Twitch didn't take this Client ID. Check it, and that the app's Client Type is Public.", "network": "Can't reach Twitch right now." },
