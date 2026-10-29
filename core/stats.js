@@ -1,12 +1,13 @@
 // Usage stats, only after the current Privacy Policy (i18n/privacy.json) was accepted: a small ping to Jarchi's relay
 // (relay/worker.mjs POST /ping) at start, every 5 minutes, when the policy is accepted and when Jarchi quits. It holds
 // only: this install's random id, the connected Kick / Twitch channels (name, picture, live now), Jarchi's version,
-// installed app or a dev run, open (false: the quit ping), and the policy version accepted and when. Nothing at all
-// before it's accepted. A relay that can't be reached changes nothing: the next ping just tries again.
-// diag, only once a policy that names it (DIAG_SINCE on) is accepted: codes, never error texts, addresses or links.
-// kick / twitch: never (Connect never pressed) | ok | failed, with kickReason / twitchReason when failed (else null):
-// network (couldn't reach it, timed out), denied (the streamer said no or cancelled) or other; proxy: the proxy mode
-// (off | auto | manual); vpn: whether the VPN app finder (core/vpn.js) found a proxy, null when it hasn't looked.
+// installed app or a dev run, open (false: the quit ping), the policy version accepted and when, and diag (connection
+// diagnostics, below; Jarchi 1.0.1 sent none). Nothing at all before it's accepted. A relay that can't be reached
+// changes nothing: the next ping just tries again.
+// diag: codes, never error texts, addresses or links. kick / twitch: never (Connect never pressed) | ok | failed, with
+// kickReason / twitchReason when failed (else null): network (couldn't reach it, timed out), denied (the streamer said
+// no or cancelled) or other; proxy: the proxy mode (off | auto | manual); vpn: whether the VPN app finder
+// (core/vpn.js) found a proxy, null when it hasn't looked.
 const settings = require('./settings');
 const vpn = require('./vpn');
 const kickAccount = require('../connectors/kick-account');
@@ -15,7 +16,6 @@ const privacy = require('../i18n/privacy.json');
 const { version } = require('../package.json');
 
 const EVERY_MS = 5 * 60 * 1000;
-const DIAG_SINCE = 2; // the Privacy Policy version (i18n/privacy.json) that names connection status and error types
 const INSTALLED = process.env.JARCHI_INSTALLED === '1'; // electron/main.js says so in the installed app
 const ACCOUNTS = { kick: kickAccount, twitch: twitchAccount };
 const lastLive = { kick: null, twitch: null }; // the quit ping doesn't wait for Kick and Twitch: what they said last
@@ -62,8 +62,7 @@ async function payload(open) {
   const [kick, twitch] = await Promise.all([channel('kick', open), channel('twitch', open)]);
   return {
     id: settings.installId(), version, installed: INSTALLED, open, kick, twitch,
-    privacy: { version: settings.get().privacyAccepted, acceptedAt: settings.privacyAcceptedAt() },
-    ...(settings.get().privacyAccepted >= DIAG_SINCE && { diag: diag() }),
+    privacy: { version: settings.get().privacyAccepted, acceptedAt: settings.privacyAcceptedAt() }, diag: diag(),
   };
 }
 

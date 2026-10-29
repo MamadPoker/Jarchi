@@ -1,6 +1,6 @@
 // Usage stats: Jarchi's ping (core/stats.js) with fake Kick, Twitch and relay (no network), and the relay's POST /ping
 // (relay/worker.mjs) on a real SQLite with schema.sql standing in for D1. Nothing before the Privacy Policy is
-// accepted; only the listed fields (connection diagnostics only with policy version 2); a relay that's down changes nothing;
+// accepted; only the listed fields (connection diagnostics as codes); a relay that's down changes nothing;
 // the relay's rows, refusals and rate limit.
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -33,7 +33,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{1
 
 const ctx = { waitUntil() {} };
 
-let sent, sentDiag; // the pings Jarchi sent (without and with diag), for the relay test below
+let sent, sentDiag; // pings Jarchi sent (the first, and one with failures in diag), for the relay test below
 test('usage ping: only after the Privacy Policy, only its fields, silent when the relay is down', async () => {
   await stats.ping();
   assert.equal(calls.length, 0, 'nothing at all before it is accepted, not even Kick or Twitch asked');
@@ -44,7 +44,7 @@ test('usage ping: only after the Privacy Policy, only its fields, silent when th
   await stats.ping();
   assert.equal(pings().length, 1);
   sent = JSON.parse(pings()[0].body);
-  assert.deepEqual(Object.keys(sent), ['id', 'version', 'installed', 'open', 'kick', 'twitch', 'privacy']);
+  assert.deepEqual(Object.keys(sent), ['id', 'version', 'installed', 'open', 'kick', 'twitch', 'privacy', 'diag']);
   assert.match(sent.id, UUID);
   assert.deepEqual([sent.version, sent.installed, sent.open], [require('../package.json').version, false, true]);
   assert.deepEqual(sent.kick, { name: 'Mamad_Poker', picture: 'https://files.kick.com/images/user/42/p.webp', live: false });
@@ -66,11 +66,9 @@ test('usage ping: only after the Privacy Policy, only its fields, silent when th
   await stats.ping();
   globalThis.fetch = ok;
 
-  // Connection diagnostics: only once a policy that names them (version 2) is accepted, codes only.
+  // Connection diagnostics (policy version 1 names them), codes only.
   const last = async () => (await stats.ping(), JSON.parse(pings().at(-1).body));
-  assert.ok(!('diag' in bye), 'none with version 1');
-  settings.update({ privacyAccepted: 2 });
-  assert.deepEqual((await last()).diag, { kick: 'never', kickReason: null, twitch: 'never', twitchReason: null, proxy: 'auto', vpn: null });
+  assert.deepEqual(sent.diag, { kick: 'never', kickReason: null, twitch: 'never', twitchReason: null, proxy: 'auto', vpn: null });
   const kickSays = (state, error = '') => require('../connectors/kick-account').events.emit('status', { state, error, uri: 'https://relay.test/login?state=x' });
   const twitchSays = (state, error = '') => require('../connectors/twitch-account').events.emit('status', { state, error, code: 'ABCD' });
   kickSays('waiting');
@@ -118,7 +116,7 @@ test('relay POST /ping: one row per install, UTC times, refusals, rate limit', a
     id: sent.id, first_seen: '2026-10-23T09:00:00.000Z', last_seen: '2026-10-23T09:00:00.000Z', version: sent.version, installed: 0, is_open: 1,
     kick_name: 'Mamad_Poker', kick_picture: sent.kick.picture, kick_live: 0, twitch_name: 'mamadpoker', twitch_picture: sent.twitch.picture, twitch_live: 1,
     privacy_version: 1, privacy_accepted_at: sent.privacy.acceptedAt, window_start: Date.parse('2026-10-23T09:00:00.000Z'), window_pings: 1,
-    kick_connect: null, kick_reason: null, twitch_connect: null, twitch_reason: null, proxy_mode: null, vpn_found: null,
+    kick_connect: 'never', kick_reason: null, twitch_connect: 'never', twitch_reason: null, proxy_mode: 'auto', vpn_found: null,
   });
 
   // 5 minutes later, quitting, Kick no longer connected: first_seen stays.
@@ -127,12 +125,14 @@ test('relay POST /ping: one row per install, UTC times, refusals, rate limit', a
   r = row(sent.id);
   assert.deepEqual([r.first_seen, r.last_seen, r.is_open, r.kick_name, r.kick_live], ['2026-10-23T09:00:00.000Z', '2026-10-23T09:05:00.000Z', 0, null, null]);
 
-  // With diag: its codes kept; a ping without it again: NULL.
+  // diag's codes kept; a ping from Jarchi 1.0.1 (no diag at all) still taken, its columns NULL.
   assert.equal((await post(sentDiag)).status, 200);
   const diagOf = () => { const x = row(sent.id); return [x.kick_connect, x.kick_reason, x.twitch_connect, x.twitch_reason, x.proxy_mode, x.vpn_found]; };
   assert.deepEqual(diagOf(), ['ok', null, 'failed', 'network', 'auto', 1]);
-  assert.equal((await post(sent)).status, 200);
-  assert.deepEqual(diagOf(), [null, null, null, null, null, null]);
+  const legacy = { ...sent, version: '1.0.1' };
+  delete legacy.diag;
+  assert.equal((await post(legacy)).status, 200, 'a 1.0.1 ping is taken');
+  assert.deepEqual([row(sent.id).version, ...diagOf()], ['1.0.1', null, null, null, null, null, null]);
 
   // Rate limit: 10 in 10 minutes per install, then refused until the window is over.
   for (let i = 4; i < 10; i++) assert.equal((await post(sent)).status, 200);

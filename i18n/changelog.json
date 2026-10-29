@@ -1,5 +1,10 @@
 [
   {
+    "version": "1.0.2",
+    "en": ["The Privacy Policy now also mentions connection diagnostics: whether connecting Kick/Twitch worked or the type of error, your proxy setting and whether the VPN finder found a proxy"],
+    "fa": ["سیاست حریم خصوصی حالا عیب‌یابی اتصال را هم ذکر می‌کند: اینکه اتصال Kick یا Twitch موفق بوده یا نوع خطا، تنظیم پراکسی شما و اینکه جست‌وجوی VPN پراکسی پیدا کرده یا نه"]
+  },
+  {
     "version": "1.0.1",
     "en": [
       "Support: send tickets with screenshots from inside Jarchi and get replies",

@@ -127,7 +127,7 @@ async function socket(req, env) {
 
 // ---------- Usage pings ----------
 // A ping is exactly { id, version, installed, open, kick, twitch, privacy: { version, acceptedAt } } (kick / twitch:
-// { name, picture, live } or null), plus, from newer Jarchis whose streamer accepted a Privacy Policy that names it,
+// { name, picture, live } or null), plus, from Jarchi 1.0.2 on (1.0.1 sends none: still taken),
 // diag: { kick, kickReason, twitch, twitchReason, proxy, vpn } (kick / twitch: never | ok | failed, the reason network |
 // denied | other when failed, else null; proxy: off | auto | manual; vpn: true / false / null), at most PING_BYTES;
 // anything else is refused. Each install gets PING_MAX pings in
