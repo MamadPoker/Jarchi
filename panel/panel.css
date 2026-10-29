@@ -583,6 +583,7 @@ button.link:hover, button.link:focus-visible { color: var(--gold-text); }
 .nav-item[aria-current="page"] { background: var(--main-soft); color: var(--text); }
 .nav-item svg { width: 18px; height: 18px; }
 .nav-item .q-count { margin-inline-start: auto; background: var(--gold); color: var(--on-gold); }
+.nav-item kbd { margin-inline-start: auto; padding: 1px 5px; border: 1px solid var(--border); border-radius: 5px; color: var(--label); font: inherit; font-size: 11px; font-weight: 600; line-height: 1.4; opacity: .75; } /* Support's Ctrl+T */
 [dir="rtl"] .flip { transform: scaleX(-1); } /* list bullets, and the Persian question mark, on the other side */
 
 .page { min-width: 0; }

@@ -1373,6 +1373,14 @@ function build() {
 
   // Sidebar: the pages.
   $$('.nav-item').forEach((b) => (b.onclick = () => select(b.dataset.view)));
+  // Ctrl+T opens Support from any page (by the key's place, so a Persian keyboard works too); not while typing in a
+  // field or with a popup open.
+  addEventListener('keydown', (e) => {
+    if (!e.ctrlKey || e.shiftKey || e.altKey || e.metaKey || e.code !== 'KeyT') return;
+    if (e.target.closest?.('input, textarea, select, [contenteditable]') || $('dialog[open]')) return;
+    e.preventDefault();
+    select('support');
+  });
 
   // Alerts and Goals pages: their list (a goal goes in its platform's group). An alert's row also gets a swatch that
   // render() shows when it has its own theme, and the logo of its platform when it's from one platform only.
