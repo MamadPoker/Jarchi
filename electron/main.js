@@ -46,11 +46,10 @@ function saveBounds() {
 const own = (url) => URL.canParse(url) && new URL(url).origin === ORIGIN;
 const outside = (url) => /^https?:/i.test(url) && shell.openExternal(url);
 
-// The title bar is the panel's own top bar (panel.css .topbar, 60px with its line at the bottom: dragged by its empty
-// parts); Windows keeps its minimize / maximize / close buttons at its right end, 59px tall so the line stays under them,
-// in the color of what's under them, which the panel gives as its theme-color on every look change. Symbols: black on a
-// light bar, white on a dark one.
-const BAR = { height: 59, color: '#0c1817', symbolColor: '#ffffff' }; // until the panel says (Jarchi's dark top bar)
+// The title bar is the panel's own (panel.css .titlebar: the logo and the name, for dragging the window); Windows keeps
+// its minimize / maximize / close buttons on it, in the bar's color, which the panel gives as its theme-color on every
+// look change. Symbols: black on a light bar, white on a dark one.
+const BAR = { height: 36, color: '#0c1817', symbolColor: '#ffffff' }; // until the panel says (Jarchi's dark sidebar)
 function tintBar(e, color) {
   if (!color || process.platform === 'darwin') return; // macOS keeps its own traffic lights
   const [r, g, b] = [1, 3, 5].map((i) => parseInt(color.slice(i, i + 2), 16));
