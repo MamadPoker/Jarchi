@@ -428,40 +428,22 @@ input[type="color"]::-webkit-color-swatch { border: 0; border-radius: 7px; }
 .fname { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .fname.default { color: var(--muted); font-style: italic; }
 
-/* ---------- The desktop app's title bar (electron/main.js titleBarOverlay): the logo and the name, dragged to move the
-   window; Windows draws its own buttons on the right, in this bar's color (panel.js gives it as the theme-color). In a
-   browser the titlebar-area values don't exist: --tb is 0 and there's no bar. ---------- */
-:root { --tb: env(titlebar-area-height, 0px); }
-body { padding-top: var(--tb); }
-.titlebar {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: 100;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  height: var(--tb);
-  overflow: hidden;
-  padding-left: calc(env(titlebar-area-x, 0px) + 12px); /* macOS: after its traffic lights */
-  background: var(--sidebar);
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 700;
-  user-select: none;
-  -webkit-app-region: drag;
-}
-.titlebar img { width: 16px; height: 16px; }
+/* ---------- The desktop app's window buttons (electron/main.js titleBarOverlay): Windows draws them at the window's top
+   right, over the top bar, in the color of what's under them (panel.js gives it as the theme-color). --wcw is their
+   width, --wch their height; in a browser both are 0. The top bar is the window's title bar: dragged by its empty parts.
+   Nothing may sit under the buttons: the top bar ends before them; the sidebar, when it's under them (Persian, a narrow
+   window), starts below them. ---------- */
+:root { --wch: env(titlebar-area-height, 0px); --wcw: calc(100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw)); }
+dialog { -webkit-app-region: no-drag; } /* the tour over the top bar stays clickable */
 
 /* ---------- App shell: sidebar (brand + pages) | top bar over the page ---------- */
-.app { display: grid; grid-template-columns: calc(232px * var(--zoom, 1)) minmax(0, 1fr); min-height: calc(100vh - var(--tb)); } /* --zoom: Text size */
+.app { display: grid; grid-template-columns: calc(232px * var(--zoom, 1)) minmax(0, 1fr); min-height: 100vh; } /* --zoom: Text size */
 .side {
   position: sticky;
-  top: var(--tb);
+  top: 0;
   display: flex;
   flex-direction: column;
-  height: calc(100vh - var(--tb));
+  height: 100vh;
   overflow-y: auto;
   padding: 14px 12px;
   border-inline-end: 1px solid var(--border);
@@ -588,16 +570,22 @@ button.link:hover, button.link:focus-visible { color: var(--gold-text); }
 .page { min-width: 0; }
 .topbar {
   position: sticky;
-  top: var(--tb);
+  top: 0;
   z-index: 20;
   display: flex;
   align-items: center;
   gap: 12px;
-  height: 60px;
+  height: calc(60px / var(--zoom, 1)); /* always 60px, as tall as the window buttons (with its line under them) */
   padding: 0 28px;
   border-bottom: 1px solid var(--border);
   background: var(--topbar);
   backdrop-filter: blur(10px);
+  -webkit-app-region: drag;
+}
+.topbar button { -webkit-app-region: no-drag; }
+@media (min-width: 861px) {
+  [dir="ltr"] .topbar { padding-right: calc(28px + var(--wcw) / var(--zoom, 1)); }
+  [dir="rtl"] .side { padding-top: calc(14px + var(--wch)); }
 }
 .page-title { margin-inline-end: auto; font-size: 19px; }
 .conn-warn { gap: 7px; padding: 6px 12px; border-color: var(--warn-line); border-radius: 99px; background: var(--warn-soft); color: var(--warn); font-size: 13px; }
@@ -627,7 +615,7 @@ button.link:hover, button.link:focus-visible { color: var(--gold-text); }
 .group-title { margin: 4px 12px 8px; font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
 .view.split { max-width: 1340px; }
 .split-body { display: grid; grid-template-columns: 264px minmax(0, 1fr); gap: 18px; align-items: start; }
-.list { position: sticky; top: calc(84px + var(--tb)); padding: 12px 8px; border: 1px solid var(--border); border-radius: 14px; background: var(--card); }
+.list { position: sticky; top: 84px; padding: 12px 8px; border: 1px solid var(--border); border-radius: 14px; background: var(--card); }
 .nav-list { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; }
 .nav-row { display: flex; align-items: center; gap: 8px; padding-inline-end: 10px; border-radius: 10px; }
 .nav-row:hover { background: var(--hover); }
@@ -1009,7 +997,7 @@ textarea { resize: vertical; line-height: 1.5; }
 .split-btn > button:first-child { border-start-end-radius: 0; border-end-end-radius: 0; }
 .split-btn > .icon-btn { margin-inline-start: -1px; border-start-start-radius: 0; border-end-start-radius: 0; }
 .chat-body { display: grid; grid-template-columns: minmax(320px, 0.85fr) minmax(0, 1.15fr); gap: 18px; align-items: start; }
-.chat-left { position: sticky; top: calc(84px + var(--tb)); display: grid; gap: 18px; }
+.chat-left { position: sticky; top: 84px; display: grid; gap: 18px; }
 .chat-right { display: grid; gap: 18px; min-width: 0; container-type: inline-size; } /* its tabs follow its own width */
 .chat-page[data-layout="horizontal"] .chat-body { grid-template-columns: minmax(0, 1fr); } /* a bar: the preview spans the page */
 .chat-page[data-layout="horizontal"] .chat-left { position: static; }
@@ -1229,7 +1217,7 @@ code { padding: 1px 6px; border-radius: 6px; background: var(--card2); font: 0.9
 
 /* ---------- Guide: topic list + the topic (intro, numbered step cards, tip, questions) ---------- */
 .guide { display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 24px; align-items: start; }
-.guide-topics { position: sticky; top: calc(84px + var(--tb)); display: grid; gap: 2px; }
+.guide-topics { position: sticky; top: 84px; display: grid; gap: 2px; }
 .guide-topics button { padding: 9px 12px; border: 0; background: none; color: var(--muted); text-align: start; }
 .guide-topics button:hover { background: var(--card2); color: var(--text); }
 .guide-topics button[aria-current="true"] { background: var(--main-soft); color: var(--text); box-shadow: inset 3px 0 0 var(--main); }
@@ -1270,9 +1258,9 @@ code { padding: 1px 6px; border-radius: 6px; background: var(--card2); font: 0.9
   .look-grid { grid-template-columns: 1fr; }
 }
 @media (max-width: 860px) {
-  /* The sidebar on top: brand and pages in rows. */
+  /* The sidebar on top: brand and pages in rows, below the window buttons; the top bar, at the top once scrolled, ends before them. */
   .app, .split-body { grid-template-columns: 1fr; }
-  .side { position: static; flex-direction: row; flex-wrap: wrap; align-items: center; height: auto; overflow: visible; border-inline-end: 0; border-bottom: 1px solid var(--border); } /* visible: the profile menu hangs below it */
+  .side { position: static; flex-direction: row; flex-wrap: wrap; align-items: center; height: auto; padding-top: calc(14px + var(--wch)); overflow: visible; border-inline-end: 0; border-bottom: 1px solid var(--border); } /* visible: the profile menu hangs below it */
   .brand { width: 52px; margin: 4px 10px; }
   .nav { display: flex; flex-wrap: wrap; }
   .nav .group-title, .nav-sep { display: none; }
@@ -1283,7 +1271,7 @@ code { padding: 1px 6px; border-radius: 6px; background: var(--card2); font: 0.9
   .list { position: static; }
   .basics, .cols, .pane { grid-template-columns: 1fr; }
   main { padding: 18px 16px 48px; }
-  .topbar { flex-wrap: wrap; height: auto; min-height: 60px; padding: 8px 16px; }
+  .topbar { flex-wrap: wrap; height: auto; min-height: 60px; padding: 8px calc(16px + var(--wcw) / var(--zoom, 1)) 8px 16px; }
   .theme-grid { grid-template-columns: 1fr 1fr; }
   .stage-ctrl { position: static; justify-content: flex-end; }
   .fx-hint { position: static; max-width: none; }

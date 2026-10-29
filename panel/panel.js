@@ -76,10 +76,21 @@ setInterval(watchAccent, 4000);
 addEventListener('focus', watchAccent);
 applyLook();
 readAccent();
-// The desktop app colors its window buttons like the title bar: its color as the page's theme-color (electron/main.js),
-// again whenever <html> changes look (mode, color theme, the accent, a theme previewed on Appearance).
-const tintTitleBar = () => ($('meta[name=theme-color]').content = getComputedStyle($('.titlebar')).backgroundColor);
+// The desktop app colors its window buttons like what's under them (panel.css --wcw): the top bar, or the sidebar in
+// Persian and on a narrow window. Its see-through color, laid on the page's, as the page's theme-color
+// (electron/main.js), again whenever <html> changes look (mode, color theme, the accent, a theme previewed on
+// Appearance, the language) or the window gets narrow or wide.
+const narrow = matchMedia('(max-width: 860px)');
+const tintTitleBar = () => {
+  const c = Object.assign(document.createElement('canvas'), { width: 1, height: 1 }).getContext('2d');
+  for (const el of [document.body, $(document.documentElement.dir === 'rtl' || narrow.matches ? '.side' : '.topbar')]) {
+    c.fillStyle = getComputedStyle(el).backgroundColor;
+    c.fillRect(0, 0, 1, 1);
+  }
+  $('meta[name=theme-color]').content = `rgb(${c.getImageData(0, 0, 1, 1).data.slice(0, 3)})`;
+};
 new MutationObserver(tintTitleBar).observe(document.documentElement, { attributes: true });
+narrow.onchange = tintTitleBar;
 tintTitleBar();
 // Persian digits (and ٪ ٫) in labels; inputs keep theirs.
 const fd = (v, fa = FA) => (fa ? String(v).replace(/(?<=\d)\.(?=\d)/g, '٫').replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[d]).replace(/%/g, '٪') : String(v));
