@@ -787,16 +787,17 @@ main { padding: 24px 28px 64px; container-type: inline-size; } /* editor rules b
   left: 50%;
   z-index: 40;
   padding: 10px 16px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--gold); /* Jarchi's gold and a soft glow of it: "Saved" catches the eye */
   border-radius: 10px;
   background: var(--card2);
+  box-shadow: 0 0 14px var(--gold-line);
   opacity: 0;
   pointer-events: none;
   transform: translate(-50%, 16px);
   transition: 0.2s;
 }
 #toast.show { opacity: 1; transform: translate(-50%, 0); }
-#toast.error { border-color: var(--danger); color: var(--danger-text); }
+#toast.error { border-color: var(--danger); color: var(--danger-text); box-shadow: none; }
 
 /* ---------- Theme: row on top of the Alerts page (+ OBS link) and a page with a card per theme ---------- */
 .page-head { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
