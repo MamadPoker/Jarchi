@@ -799,7 +799,8 @@ main { padding: 24px 28px 64px; container-type: inline-size; } /* editor rules b
 #toast.show { opacity: 1; transform: translate(-50%, 0); }
 #toast.error { border-color: var(--danger); color: var(--danger-text); box-shadow: none; }
 /* Over the gold border, a short bright streak runs round it, one loop every 3 s (like .made-by's light), only while it's
-   shown. Not on errors; Reduce animations (the panel's or Windows'): just the gold border. */
+   shown. Not on errors; Background art off (the panel's effects) or Reduce animations (the panel's or Windows'): just
+   the gold border and its glow. */
 @property --toast-a { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
 #toast::before {
   content: "";
@@ -817,7 +818,7 @@ main { padding: 24px 28px 64px; container-type: inline-size; } /* editor rules b
 #toast.show::before { animation-play-state: running; }
 #toast.error::before { display: none; }
 @keyframes toast-streak { to { --toast-a: 360deg; } }
-:root[data-still] #toast::before { display: none; }
+:root:not([data-art]) #toast::before, :root[data-still] #toast::before { display: none; }
 @media (prefers-reduced-motion: reduce) { #toast::before { display: none; } }
 
 /* ---------- Theme: row on top of the Alerts page (+ OBS link) and a page with a card per theme ---------- */
