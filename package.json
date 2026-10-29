@@ -1,7 +1,7 @@
 {
   "name": "jarchi",
   "productName": "Jarchi",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "private": true,
   "description": "Stream alerts (and later more widgets) for OBS. Runs locally on your own PC.",
   "author": "MamadPoker",
@@ -68,7 +68,7 @@
     "publish": {
       "provider": "github",
       "owner": "MamadPoker",
-      "repo": "Jarchi-releases",
+      "repo": "Jarchi",
       "releaseType": "draft"
     },
     "releaseInfo": {

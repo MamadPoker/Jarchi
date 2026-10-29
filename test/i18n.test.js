@@ -61,7 +61,8 @@ test('npm run release makes the one draft itself, before electron-builder (which
   };
   const notes = text(JSON.parse(read('i18n/changelog.json')).find((c) => c.version === version));
   const release = { tag_name: tag, name: `Jarchi ${tag}`, body: notes, draft: true };
-  const api = 'https://api.github.com/repos/MamadPoker/Jarchi-releases/releases';
+  const { owner, repo } = JSON.parse(read('package.json')).build.publish; // where releases go
+  const api = `https://api.github.com/repos/${owner}/${repo}/releases`;
 
   let r = run([{ id: 1, tag_name: 'v0.0.1', draft: false }]);
   assert.equal(r.status, 0, r.err);

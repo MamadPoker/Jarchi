@@ -103,7 +103,8 @@ function open() {
 }
 
 // Updates, only in the installed app (`npm run app` has none): electron-updater looks for a newer release on GitHub
-// (package.json build.publish: MamadPoker/Jarchi-releases) at start and every 4 hours, and downloads it in the
+// (package.json build.publish, built into the app's app-update.yml: MamadPoker/Jarchi from v1.0.2; v1.0.1 and before
+// look on MamadPoker/Jarchi-releases, which has v1.0.2 too) at start and every 4 hours, and downloads it in the
 // background. It's installed only on Restart (the panel's banner or profile menu, or the notification shown while the
 // window is in the tray), never by itself while Jarchi runs; quitting Jarchi installs it without starting it again
 // (electron-updater's autoInstallOnAppQuit).
