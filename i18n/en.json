@@ -117,6 +117,8 @@
     "ticketSending": "Sending…",
     "ticketStatus": { "open": "Open", "progress": "In progress", "closed": "Closed" },
     "ticketUnread": "New reply",
+    "ticketHide": "Remove from my list",
+    "ticketHideConfirm": "Remove this ticket from your list?",
     "ticketYou": "You",
     "ticketAdmin": "Jarchi Support",
     "ticketReplyHint": "Write a reply…",
@@ -682,6 +684,7 @@
     "support_too_many_images": "Up to 3 screenshots a message.",
     "support_too_large": "That's too much to send at once.",
     "support_closed": "This ticket is closed. Open a new ticket instead.",
+    "support_not_closed": "Only closed tickets can be removed from your list.",
     "support_ticket_limit": "You've opened 5 tickets today. Please wait until tomorrow, or write in one you already have.",
     "support_message_limit": "That's a lot of messages in an hour. Please wait a little.",
     "support_storage": "The Jarchi server has no room for screenshots right now. Send it without screenshots, or try again tomorrow."

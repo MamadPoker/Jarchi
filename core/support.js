@@ -9,7 +9,7 @@ const { RELAY } = require('../connectors/kick-account');
 // The relay's addresses Jarchi uses (nothing else gets this install's token).
 const PATH = /^\/support\/tickets(?:\/[0-9A-F]{8}(?:\/messages|\/images\/[0-9a-f]{32}\.(?:png|jpg|webp))?)?$/;
 // The relay's errors the panel has words for (i18n errors.support_<code>); any other is support_failed.
-const ERRORS = ['not_found', 'bad_image', 'image_too_large', 'too_many_images', 'too_large', 'closed', 'ticket_limit', 'message_limit', 'storage'];
+const ERRORS = ['not_found', 'bad_image', 'image_too_large', 'too_many_images', 'too_large', 'closed', 'not_closed', 'ticket_limit', 'message_limit', 'storage'];
 const failed = (status, code) => Object.assign(new Error(code), { status, code: `support_${code}` });
 
 // One call to the relay -> its answer (a Response, ok). Throws { status, code } for the panel: support_privacy,

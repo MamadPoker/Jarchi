@@ -1052,6 +1052,7 @@ let formShots, replyShots; // the screenshots picked for a new ticket / a reply 
 const SHOTS = 3, SHOT_PX = 1920, SHOT_BYTES = 2 * 1024 * 1024, SHOT_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
 const shotUrl = (id, name) => `/api/support/tickets/${id}/images/${name}`;
 const statusPill = (s) => el('span', { className: `pill tk-${s}`, textContent: S.panel.ticketStatus[s] });
+const TRASH = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>';
 
 function loadTickets() {
   if (mustAccept()) return renderSupport();
@@ -1069,11 +1070,22 @@ function renderSupport() {
   for (const [sel, mode] of [['#ticketsBox', 'list'], ['#ticketForm', 'new'], ['#ticketView', 'ticket']]) $(sel).hidden = !ok || support.mode !== mode;
   $('#ticketList').replaceChildren(...support.tickets.map((t) => el('li', {}, el('button', { className: 'ticket-row', onclick: () => openTicket(t.id) },
     el('span', { className: 'stack' }, el('b', { textContent: t.subject, dir: 'auto' }), el('small', { textContent: `${S.panel.ticketCats[t.category]} · ${dateTime(Date.parse(t.updatedAt))}` })),
-    t.unread ? el('span', { className: 'pill unread', textContent: S.panel.ticketUnread }) : '', statusPill(t.status)))));
+    t.unread ? el('span', { className: 'pill unread', textContent: S.panel.ticketUnread }) : '', statusPill(t.status)), t.status === 'closed' ? hideButton(t.id) : '')));
   $('#ticketsEmpty').hidden = support.tickets.length > 0 || !!support.error;
   $('#ticketsError').hidden = !support.error;
   $('#ticketsError span').textContent = support.error;
   $('#supportDot').hidden = !ok || !support.tickets.some((t) => t.unread);
+}
+
+// A closed ticket's trash button: a second click (twoClick) takes it off my list. Only off the list: the relay keeps it
+// for the admin.
+function hideButton(id) {
+  const label = el('span'), b = el('button', { type: 'button', className: 'ghost ticket-hide', title: S.panel.ticketHide, innerHTML: TRASH }, label);
+  twoClick(b, label, '', S.panel.ticketHideConfirm, () => api('PATCH', `/api/support/tickets/${id}`, { hidden: true }).then(() => {
+    support.tickets = support.tickets.filter((t) => t.id !== id);
+    renderSupport();
+  }, (err) => toast(err.message, true)));
+  return b;
 }
 
 function showSupport(mode) {

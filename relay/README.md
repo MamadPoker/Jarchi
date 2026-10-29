@@ -63,9 +63,12 @@ The Support page in Jarchi (`core/support.js`, only once the Privacy Policy is a
 | `POST /support/tickets` | A new ticket: a `multipart/form-data` form with `category` (`bug`, `suggestion`, `question`, `data`), `subject` (up to 120 characters), `message` (up to 5,000) and up to 3 `image` files. |
 | `GET /support/tickets/<id>` | One ticket with its messages; opening it marks the admin's replies read. Screenshots: `GET /support/tickets/<id>/images/<name>`. |
 | `POST /support/tickets/<id>/messages` | A message (`message` and/or `image` files). Refused (`closed`) once the ticket is closed. |
+| `PATCH /support/tickets/<id>` | `{ "hidden": true }`: takes a closed ticket off my list (`not_closed` otherwise). Nothing is deleted: the admin still sees it (`hiddenByUser`, `hiddenByUserAt`), and reopening it puts it back on the list. |
 
 Screenshots: PNG, JPG or WebP by their bytes (not their names), up to 2 MB each (Jarchi makes big ones smaller first), kept in the KV namespace `jarchi-support-shots` (binding `SHOTS`) as `<ticket id>/<name>`. Limits: 5 new tickets per install a day, 30 messages from an install an hour. Errors are JSON `{ "error": "..." }` (see `worker.mjs`). Tickets and messages are in the D1 tables `tickets` and `ticket_messages` (see `schema.sql`); times are UTC. Cloudflare's free KV takes 1,000 writes a day (one per screenshot) and 1 GB in all.
 
 Set up once (already done for Jarchi's own relay; the id goes in `wrangler.toml`): `npx wrangler kv namespace create jarchi-support-shots`, then run `schema.sql` again and deploy.
 
 The relay counts its own requests per day in the table `requests`. After adding the tables, run `schema.sql` again (it only adds what's missing).
+
+`schema.sql` doesn't add columns to a table that's already there. The `tickets.hidden_by_user_at` column (2026-10-29), once, before deploying the worker that uses it: `npx wrangler d1 execute jarchi-stats --remote --command "ALTER TABLE tickets ADD COLUMN hidden_by_user_at TEXT"`.

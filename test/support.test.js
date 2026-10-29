@@ -95,7 +95,7 @@ test('relay /support and /admin/tickets: tokens, forms, screenshots, unread, sta
   assert.equal((await call('/admin/tickets', { headers: { 'cf-connecting-ip': '10.0.0.2' } })).status, 401);
   let list = await ok(await admin('/tickets'));
   assert.deepEqual(list, { unread: 1, tickets: [{ id, category: 'bug', subject: 'Alerts stop', status: 'open', createdAt: at, updatedAt: at,
-    installId: install, kick: 'Mamad_Poker', twitch: null, messages: 1, unread: true }] });
+    installId: install, kick: 'Mamad_Poker', twitch: null, hiddenByUser: false, hiddenByUserAt: null, messages: 1, unread: true }] });
   assert.equal((await ok(await admin('/tickets?category=bug&status=open'))).tickets.length, 1);
   assert.deepEqual(await ok(await admin('/tickets?status=closed')), { unread: 1, tickets: [] }, 'unread counts every ticket');
   for (const q of ['status=nope', 'category=Bug']) await refused(await admin(`/tickets?${q}`), 400, 'bad_request');
@@ -126,17 +126,32 @@ test('relay /support and /admin/tickets: tokens, forms, screenshots, unread, sta
   // Status: the admin's only; a closed ticket takes no more messages from the install.
   assert.equal((await ok(await admin(`/tickets/${id}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: '{"status":"progress"}' }))).status, 'progress');
   for (const body of ['{"status":"done"}', '{"status":"closed","x":1}', 'nope']) await refused(await admin(`/tickets/${id}`, { method: 'PATCH', body }), 400, 'bad_request');
-  await refused(await call(`/support/tickets/${id}`, { method: 'PATCH', body: '{"status":"closed"}' }), 405, 'method');
+  await refused(await call(`/support/tickets/${id}`, { method: 'PATCH', body: '{"status":"closed"}' }), 400, 'bad_request');
+  await refused(await call(`/support/tickets/${id}`, { method: 'PATCH', body: '{"hidden":true}' }), 409, 'not_closed');
   t.mock.timers.tick(60e3);
   assert.equal((await ok(await admin(`/tickets/${id}`, { method: 'PATCH', body: '{"status":"closed"}' }))).status, 'closed');
   assert.deepEqual((await ok(await call('/support/tickets'))).map((x) => [x.status, x.updatedAt]), [['closed', '2026-10-23T10:03:00.000Z']]);
   await refused(await call(`/support/tickets/${id}/messages`, { method: 'POST', body: form({ message: 'Still broken' }) }), 409, 'closed');
   assert.equal((await ok(await admin(`/tickets/${id}/messages`, { method: 'POST', body: form({ message: 'Reopen if needed.' }) }))).messages.length, 4, 'the admin still can');
 
+  // Off the install's list once closed: nothing deleted, the admin still sees it; reopened, it's back on the list.
+  for (const body of ['{"hidden":false}', '{"hidden":true,"x":1}', 'nope']) await refused(await call(`/support/tickets/${id}`, { method: 'PATCH', body }), 400, 'bad_request');
+  for (const headers of [other, stranger]) await refused(await call(`/support/tickets/${id}`, { method: 'PATCH', headers, body: '{"hidden":true}' }), 404, 'not_found');
+  assert.deepEqual(await ok(await call(`/support/tickets/${id}`, { method: 'PATCH', body: '{"hidden":true}' })), { hidden: id });
+  assert.deepEqual(await ok(await call('/support/tickets')), []);
+  const hidden = (await ok(await admin('/tickets'))).tickets[0];
+  assert.deepEqual([hidden.id, hidden.status, hidden.hiddenByUser, hidden.hiddenByUserAt], [id, 'closed', true, '2026-10-23T10:03:00.000Z']);
+  assert.deepEqual([(await ok(await admin(`/tickets/${id}`))).messages.length, shots.size], [4, 3], 'messages and screenshots kept');
+  t.mock.timers.tick(60e3);
+  assert.equal((await ok(await call(`/support/tickets/${id}`, { method: 'PATCH', body: '{"hidden":true}' }))).hidden, id, 'again: ok');
+  assert.equal((await ok(await admin('/tickets'))).tickets[0].hiddenByUserAt, '2026-10-23T10:03:00.000Z', 'the first time kept');
+  assert.equal((await ok(await admin(`/tickets/${id}`, { method: 'PATCH', body: '{"status":"open"}' }))).hiddenByUser, false);
+  assert.deepEqual((await ok(await call('/support/tickets'))).map((x) => [x.id, x.status]), [[id, 'open']]);
+
   // Limits: 5 new tickets an install a day, 30 messages (new tickets' too) an hour.
   for (let i = 0; i < 4; i++) await ok(await post({ ...bug, category: 'question' }));
   await refused(await post(bug), 429, 'ticket_limit');
-  t.mock.timers.tick(24 * 3600e3 - 3 * 60e3 - 1); // just before 10:00 the next day, when the first ticket is a day old
+  t.mock.timers.tick(24 * 3600e3 - 4 * 60e3 - 1); // just before 10:00 the next day, when the first ticket is a day old
   await refused(await post(bug), 429, 'ticket_limit');
   t.mock.timers.tick(1);
   const open = await ok(await post({ ...bug, category: 'suggestion' }));
@@ -219,6 +234,7 @@ test('panel /api/support through Jarchi: Privacy Policy first, the token never s
   const shot = await call('GET', `/support/tickets/${id}/images/${name}`);
   assert.deepEqual([shot.status, shot.type, shot.body], [200, 'image/png', png]);
   assert.equal((await call('POST', `/support/tickets/${id}/messages`, form({ message: 'Thanks' }))).body.messages.length, 2);
+  assert.deepEqual((await call('PATCH', `/support/tickets/${id}`, '{"hidden":true}')).body, { error: 'support_not_closed' });
 
   // The relay's errors in the panel's words; addresses that aren't the relay's tickets never go there.
   await call('PATCH', '/settings', '{"privacyAccepted":1}'); // (no change)
@@ -241,4 +257,9 @@ test('panel /api/support through Jarchi: Privacy Policy first, the token never s
   assert.equal(settings.supportToken(), token);
   await call('PATCH', '/settings', '{"privacyAccepted":1}');
   assert.deepEqual((await call('GET', '/support/tickets')).body.map((x) => x.id), [id]);
+
+  // A closed ticket off the list (the panel's trash button).
+  assert.deepEqual((await call('PATCH', `/support/tickets/${id}`, '{"hidden":true}')).body, { hidden: id });
+  assert.deepEqual((await call('GET', '/support/tickets')).body, []);
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM tickets').get().n, 1, 'still on the relay');
 });

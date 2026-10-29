@@ -49,7 +49,10 @@ CREATE TABLE IF NOT EXISTS tickets (
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL,    -- its last message or status change
   user_read_at TEXT,           -- when the install / the admin last opened it (NULL: never): newer messages from the
-  admin_read_at TEXT           -- other side are unread
+  admin_read_at TEXT,          -- other side are unread
+  hidden_by_user_at TEXT       -- when the install took it off its list (closed tickets only), NULL: on it. Nothing deleted:
+                               -- the admin still sees it. Added 2026-10-29; a database made before needs, once:
+                               -- ALTER TABLE tickets ADD COLUMN hidden_by_user_at TEXT
 );
 CREATE INDEX IF NOT EXISTS tickets_install ON tickets (install_id, created_at);
 CREATE TABLE IF NOT EXISTS ticket_messages (

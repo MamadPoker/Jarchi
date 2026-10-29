@@ -331,12 +331,14 @@ async function remove(env, id) {
 //   POST /support/tickets                     a new one: a form with category, subject, message and up to 3 "image"
 //   GET  /support/tickets/<id>                one, with its messages (opening it marks the admin's replies read)
 //   POST /support/tickets/<id>/messages       a message (form: message and/or images), not on a closed ticket
+//   PATCH /support/tickets/<id>               { hidden: true }: off my list, a closed ticket only (nothing deleted: the
+//                                             admin still sees it; reopening it puts it back on the list)
 //   GET  /support/tickets/<id>/images/<name>  one of its screenshots
 // At most TICKETS_MAX new tickets an install in a day and MESSAGES_MAX messages (a new ticket's too) in an hour.
 // Screenshots: up to SHOTS_MAX a message, each a PNG, JPG or WebP by its bytes (whatever its name says), at most
 // SHOT_BYTES, in KV SHOTS as "<ticket id>/<name>". Times are ISO 8601 in UTC. Errors are JSON { error }: unauthorized,
 // unknown_install, not_found, method, bad_request, too_large, bad_image, image_too_large, too_many_images, closed,
-// ticket_limit, message_limit, storage (KV refused it).
+// not_closed, ticket_limit, message_limit, storage (KV refused it).
 // ponytail: KV's free plan takes 1,000 writes a day (one per screenshot) and 1 GB in all; past that its puts fail
 // ("storage") until the next day / until old tickets are deleted in the admin app.
 const CATEGORIES = ['bug', 'suggestion', 'question', 'data'], STATUSES = ['open', 'progress', 'closed'];
@@ -375,7 +377,7 @@ async function tickets(req, url, env, me) {
   if (messages) return method === 'POST' ? reply(req, env, t, side) : fail('method', 405);
   if (shot) return method === 'GET' ? image(env, id, shot) : fail('method', 405);
   if (method === 'GET') return thread(env, id, side);
-  if (!me && method === 'PATCH') return setStatus(req, env, id);
+  if (method === 'PATCH') return me ? hide(req, env, t) : setStatus(req, env, id);
   if (!me && method === 'DELETE') return deleteTicket(env, id);
   return fail('method', 405);
 }
@@ -386,12 +388,12 @@ const UNREAD = (side) => `EXISTS (SELECT 1 FROM ticket_messages m WHERE m.ticket
 const TICKET_LIST = (side) => `SELECT t.*, (SELECT COUNT(*) FROM ticket_messages m WHERE m.ticket_id = t.id) AS messages, ${UNREAD(side)} AS unread FROM tickets t`;
 const ticketOf = (r, side) => ({
   id: r.id, category: r.category, subject: r.subject, status: r.status, createdAt: r.created_at, updatedAt: r.updated_at,
-  ...(side === 'admin' && { installId: r.install_id, kick: r.kick_name, twitch: r.twitch_name }),
+  ...(side === 'admin' && { installId: r.install_id, kick: r.kick_name, twitch: r.twitch_name, hiddenByUser: !!r.hidden_by_user_at, hiddenByUserAt: r.hidden_by_user_at }),
   ...('unread' in r && { messages: r.messages, unread: r.unread === 1 }),
 });
 
 async function mine(env, me) {
-  const { results } = await env.DB.prepare(`${TICKET_LIST('user')} WHERE t.install_id = ?1 AND t.token_hash = ?2 ORDER BY t.updated_at DESC, t.id`)
+  const { results } = await env.DB.prepare(`${TICKET_LIST('user')} WHERE t.install_id = ?1 AND t.token_hash = ?2 AND t.hidden_by_user_at IS NULL ORDER BY t.updated_at DESC, t.id`)
     .bind(me.install, me.token).all();
   return json(results.map((r) => ticketOf(r, 'user')));
 }
@@ -508,8 +510,19 @@ async function image(env, id, name) {
 async function setStatus(req, env, id) {
   const b = await req.json().catch(() => null);
   if (!exactly(b, ['status']) || !STATUSES.includes(b.status)) return fail('bad_request');
-  await env.DB.prepare('UPDATE tickets SET status = ?2, updated_at = ?3 WHERE id = ?1').bind(id, b.status, iso(Date.now())).run();
+  // Hidden only while closed: reopened, it's back on the install's list.
+  await env.DB.prepare("UPDATE tickets SET status = ?2, updated_at = ?3, hidden_by_user_at = CASE WHEN ?2 = 'closed' THEN hidden_by_user_at END WHERE id = ?1")
+    .bind(id, b.status, iso(Date.now())).run();
   return thread(env, id, 'admin');
+}
+
+// The install takes a closed ticket off its list (first time kept). Nothing is deleted: the admin still sees it.
+async function hide(req, env, t) {
+  const b = await req.json().catch(() => null);
+  if (!exactly(b, ['hidden']) || b.hidden !== true) return fail('bad_request');
+  if (t.status !== 'closed') return fail('not_closed', 409);
+  await env.DB.prepare('UPDATE tickets SET hidden_by_user_at = COALESCE(hidden_by_user_at, ?2) WHERE id = ?1').bind(t.id, iso(Date.now())).run();
+  return json({ hidden: t.id });
 }
 
 async function deleteTicket(env, id) {

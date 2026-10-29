@@ -941,7 +941,10 @@ main { padding: 24px 28px 64px; container-type: inline-size; } /* editor rules b
    start side) with its reply box ---------- */
 .support .card-head .stack { flex: 1; min-width: 0; gap: 2px; }
 .ticket-list { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; }
-.ticket-row { display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 12px; border-color: transparent; background: none; text-align: start; }
+.ticket-list li { display: flex; align-items: center; gap: 4px; }
+.ticket-row { display: flex; align-items: center; gap: 10px; width: 100%; min-width: 0; padding: 10px 12px; border-color: transparent; background: none; text-align: start; }
+.ticket-hide { flex: none; padding: 7px; border-color: transparent; color: var(--muted); } /* a closed ticket's trash: off my list */
+.ticket-hide span:empty { display: none; }
 .ticket-row:hover { border-color: transparent; }
 .ticket-row .stack { flex: 1; min-width: 0; gap: 0; }
 .ticket-row b { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
