@@ -127,7 +127,10 @@ async function socket(req, env) {
 
 // ---------- Usage pings ----------
 // A ping is exactly { id, version, installed, open, kick, twitch, privacy: { version, acceptedAt } } (kick / twitch:
-// { name, picture, live } or null), at most PING_BYTES; anything else is refused. Each install gets PING_MAX pings in
+// { name, picture, live } or null), plus, from newer Jarchis whose streamer accepted a Privacy Policy that names it,
+// diag: { kick, kickReason, twitch, twitchReason, proxy, vpn } (kick / twitch: never | ok | failed, the reason network |
+// denied | other when failed, else null; proxy: off | auto | manual; vpn: true / false / null), at most PING_BYTES;
+// anything else is refused. Each install gets PING_MAX pings in
 // PING_WINDOW_MS (Jarchi sends one every 5 minutes, plus start and quit), and at most NEW_MAX installs are new in the
 // last NEW_WINDOW_MS, so made-up ids can't flood the database. Times are ISO 8601 in UTC.
 const PING_BYTES = 2048, PING_MAX = 10, PING_WINDOW_MS = 10 * 60 * 1000;
@@ -138,21 +141,29 @@ const exactly = (o, keys) => !!o && typeof o === 'object' && !Array.isArray(o) &
 const bool = (v) => typeof v === 'boolean';
 const channelOk = (c) => c === null || (exactly(c, ['name', 'picture', 'live']) && typeof c.name === 'string' && /^[^\p{C}]{1,50}$/u.test(c.name)
   && typeof c.picture === 'string' && (c.picture === '' || /^https:\/\/\S{1,490}$/.test(c.picture)) && (c.live === null || bool(c.live)));
-const pingOk = (p) => exactly(p, ['id', 'version', 'installed', 'open', 'kick', 'twitch', 'privacy']) && typeof p.id === 'string' && UUID.test(p.id)
+const PING_KEYS = ['id', 'version', 'installed', 'open', 'kick', 'twitch', 'privacy'];
+const connectOk = (s, why) => ['never', 'ok', 'failed'].includes(s) && (s === 'failed' ? ['network', 'denied', 'other'].includes(why) : why === null);
+const diagOk = (d) => exactly(d, ['kick', 'kickReason', 'twitch', 'twitchReason', 'proxy', 'vpn']) && connectOk(d.kick, d.kickReason)
+  && connectOk(d.twitch, d.twitchReason) && ['off', 'auto', 'manual'].includes(d.proxy) && (d.vpn === null || bool(d.vpn));
+const pingOk = (p) => (exactly(p, PING_KEYS) || (exactly(p, [...PING_KEYS, 'diag']) && diagOk(p.diag))) && typeof p.id === 'string' && UUID.test(p.id)
   && typeof p.version === 'string' && /^\d{1,4}\.\d{1,4}\.\d{1,4}(-[\w.]{1,20})?$/.test(p.version) && bool(p.installed) && bool(p.open)
   && channelOk(p.kick) && channelOk(p.twitch) && exactly(p.privacy, ['version', 'acceptedAt']) && Number.isInteger(p.privacy.version)
   && p.privacy.version >= 1 && p.privacy.version <= 1000
   && (p.privacy.acceptedAt === null || (typeof p.privacy.acceptedAt === 'string' && ISO.test(p.privacy.acceptedAt) && !Number.isNaN(Date.parse(p.privacy.acceptedAt))));
 // New install: first_seen = last_seen = now, unless NEW_MAX are new since ?17 already. Known one: everything but
 // first_seen, unless it's over its pings in this window. Either way nothing changes then: no row changed means 429.
+// A ping without diag leaves its columns NULL.
 const UPSERT = `INSERT INTO installs (id, first_seen, last_seen, version, installed, is_open, kick_name, kick_picture, kick_live,
-  twitch_name, twitch_picture, twitch_live, privacy_version, privacy_accepted_at, window_start, window_pings)
-SELECT ?1, ?2, ?2, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?3, 1
+  twitch_name, twitch_picture, twitch_live, privacy_version, privacy_accepted_at, window_start, window_pings,
+  kick_connect, kick_reason, twitch_connect, twitch_reason, proxy_mode, vpn_found)
+SELECT ?1, ?2, ?2, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?3, 1, ?19, ?20, ?21, ?22, ?23, ?24
 WHERE EXISTS (SELECT 1 FROM installs WHERE id = ?1) OR (SELECT COUNT(*) FROM installs WHERE first_seen > ?17) < ?18
 ON CONFLICT (id) DO UPDATE SET last_seen = excluded.last_seen, version = excluded.version, installed = excluded.installed,
   is_open = excluded.is_open, kick_name = excluded.kick_name, kick_picture = excluded.kick_picture, kick_live = excluded.kick_live,
   twitch_name = excluded.twitch_name, twitch_picture = excluded.twitch_picture, twitch_live = excluded.twitch_live,
   privacy_version = excluded.privacy_version, privacy_accepted_at = excluded.privacy_accepted_at,
+  kick_connect = excluded.kick_connect, kick_reason = excluded.kick_reason, twitch_connect = excluded.twitch_connect,
+  twitch_reason = excluded.twitch_reason, proxy_mode = excluded.proxy_mode, vpn_found = excluded.vpn_found,
   window_start = CASE WHEN ?3 - window_start >= ?15 THEN ?3 ELSE window_start END,
   window_pings = CASE WHEN ?3 - window_start >= ?15 THEN 1 ELSE window_pings + 1 END
 WHERE ?3 - installs.window_start >= ?15 OR installs.window_pings < ?16`;
@@ -184,10 +195,11 @@ async function ping(req, env) {
   let p;
   try { p = JSON.parse(new TextDecoder().decode(body)); } catch { return text('Bad request', 400); }
   if (!pingOk(p)) return text('Bad request', 400);
-  const now = Date.now(), bit = (v) => (v === null || v === undefined ? null : Number(v));
+  const now = Date.now(), bit = (v) => (v === null || v === undefined ? null : Number(v)), d = p.diag;
   const { meta } = await env.DB.prepare(UPSERT).bind(p.id, new Date(now).toISOString(), now, p.version, bit(p.installed), bit(p.open),
     p.kick?.name ?? null, p.kick?.picture ?? null, bit(p.kick?.live), p.twitch?.name ?? null, p.twitch?.picture ?? null, bit(p.twitch?.live),
-    p.privacy.version, p.privacy.acceptedAt, PING_WINDOW_MS, PING_MAX, new Date(now - NEW_WINDOW_MS).toISOString(), NEW_MAX).run();
+    p.privacy.version, p.privacy.acceptedAt, PING_WINDOW_MS, PING_MAX, new Date(now - NEW_WINDOW_MS).toISOString(), NEW_MAX,
+    d?.kick ?? null, d?.kickReason ?? null, d?.twitch ?? null, d?.twitchReason ?? null, d?.proxy ?? null, bit(d?.vpn)).run();
   return meta.changes ? text('ok') : text('Too many pings', 429);
 }
 
@@ -275,8 +287,11 @@ async function stats(url, env, now) {
   return json({ ...counts, versions: versions.results, requests: { limit: FREE_REQUESTS, days: days.results } });
 }
 
-// Shaped like a ping: { id, version, installed, open, kick, twitch, privacy } plus online, live, firstSeen, lastSeen.
+// Shaped like a ping: { id, version, installed, open, kick, twitch, privacy, diag } (diag null: its last ping had none)
+// plus online, live, firstSeen, lastSeen.
 const channel = (name, picture, live) => (name === null ? null : { name, picture, live: live === null ? null : live === 1 });
+const diag = (r) => (r.kick_connect === null ? null : { kick: r.kick_connect, kickReason: r.kick_reason, twitch: r.twitch_connect,
+  twitchReason: r.twitch_reason, proxy: r.proxy_mode, vpn: r.vpn_found === null ? null : r.vpn_found === 1 });
 const LIST = `SELECT * FROM installs WHERE ?1 = '' OR kick_name LIKE ?2 ESCAPE '\\' OR twitch_name LIKE ?2 ESCAPE '\\'`;
 
 async function installs(url, env, now) {
@@ -294,7 +309,7 @@ async function installs(url, env, now) {
       id: r.id, version: r.version, installed: r.installed === 1, open: r.is_open === 1, online,
       live: online && (r.kick_live === 1 || r.twitch_live === 1),
       kick: channel(r.kick_name, r.kick_picture, r.kick_live), twitch: channel(r.twitch_name, r.twitch_picture, r.twitch_live),
-      firstSeen: r.first_seen, lastSeen: r.last_seen, privacy: { version: r.privacy_version, acceptedAt: r.privacy_accepted_at },
+      firstSeen: r.first_seen, lastSeen: r.last_seen, privacy: { version: r.privacy_version, acceptedAt: r.privacy_accepted_at }, diag: diag(r),
     };
   }) });
 }

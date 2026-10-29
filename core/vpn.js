@@ -68,11 +68,17 @@ async function firstWorking(list, through) {
 }
 
 const run = (cmd, args) => new Promise((resolve) => execFile(cmd, args, { windowsHide: true, timeout: 5000 }, (err, out) => resolve(err ? '' : out)));
+let lastLook = null; // the last look's result: true found one, false none, null no look since Jarchi started
 // Without netstat / tasklist (not Windows) only the usual ports are tried.
 async function find() {
   const [netstat, tasks, sys] = await Promise.all([run('netstat', ['-ano', '-p', 'TCP']), run('tasklist', ['/fo', 'csv', '/nh']), net.windowsProxy()]);
-  return firstWorking(candidates(netstat, tasks, sys), (p) => net.reach(TARGET, p));
+  const found = await firstWorking(candidates(netstat, tasks, sys), (p) => net.reach(TARGET, p));
+  lastLook = !!found;
+  return found;
 }
+// The usage ping's (core/stats.js): did the last look find a proxy; with none since Jarchi started, true if one was
+// said Yes to before (only a look finds one), else null.
+const looked = () => lastLook ?? (settings.get().proxyFound ? true : null);
 
 let st = { state: 'idle' }, busy = false, toldNone = false;
 const lastAuto = {}; // service -> when its failure was last checked
@@ -140,4 +146,4 @@ function fine(service) {
   if ((!service || st.service === service) && ['broken', 'offer', 'none'].includes(st.state)) set({ state: 'idle' });
 }
 
-module.exports = { events, state: () => st, trouble, look, accept, dismiss, fine, candidates, firstWorking };
+module.exports = { events, state: () => st, trouble, look, accept, dismiss, fine, looked, candidates, firstWorking };

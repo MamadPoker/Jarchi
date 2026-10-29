@@ -1,6 +1,7 @@
 // Usage stats: Jarchi's ping (core/stats.js) with fake Kick, Twitch and relay (no network), and the relay's POST /ping
 // (relay/worker.mjs) on a real SQLite with schema.sql standing in for D1. Nothing before the Privacy Policy is
-// accepted; only the listed fields; a relay that's down changes nothing; the relay's rows, refusals and rate limit.
+// accepted; only the listed fields (connection diagnostics only with policy version 2); a relay that's down changes nothing;
+// the relay's rows, refusals and rate limit.
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -32,7 +33,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{1
 
 const ctx = { waitUntil() {} };
 
-let sent; // the ping Jarchi sent, for the relay test below
+let sent, sentDiag; // the pings Jarchi sent (without and with diag), for the relay test below
 test('usage ping: only after the Privacy Policy, only its fields, silent when the relay is down', async () => {
   await stats.ping();
   assert.equal(calls.length, 0, 'nothing at all before it is accepted, not even Kick or Twitch asked');
@@ -65,9 +66,40 @@ test('usage ping: only after the Privacy Policy, only its fields, silent when th
   await stats.ping();
   globalThis.fetch = ok;
 
-  // Reset everything: the same install, but no pings until the policy is accepted again.
+  // Connection diagnostics: only once a policy that names them (version 2) is accepted, codes only.
+  const last = async () => (await stats.ping(), JSON.parse(pings().at(-1).body));
+  assert.ok(!('diag' in bye), 'none with version 1');
+  settings.update({ privacyAccepted: 2 });
+  assert.deepEqual((await last()).diag, { kick: 'never', kickReason: null, twitch: 'never', twitchReason: null, proxy: 'auto', vpn: null });
+  const kickSays = (state, error = '') => require('../connectors/kick-account').events.emit('status', { state, error, uri: 'https://relay.test/login?state=x' });
+  const twitchSays = (state, error = '') => require('../connectors/twitch-account').events.emit('status', { state, error, code: 'ABCD' });
+  kickSays('waiting');
+  assert.equal(settings.connectState('kick'), 'other', 'Connect pressed: tried, no outcome yet');
+  kickSays('off');
+  assert.equal(settings.connectState('kick'), 'denied', 'cancelled while waiting');
+  twitchSays('off', 'network');
+  settings.update({ proxyMode: 'manual' });
+  assert.deepEqual((await last()).diag, { kick: 'failed', kickReason: 'denied', twitch: 'failed', twitchReason: 'network', proxy: 'manual', vpn: null });
+  kickSays('connecting');
+  assert.equal(settings.connectState('kick'), 'denied', 'connecting says nothing yet');
+  kickSays('connected');
+  for (const [error, why] of [['timeout', 'network'], ['client', 'other'], ['expired', 'other'], ['denied', 'denied']]) {
+    twitchSays('off', error);
+    assert.equal(settings.connectState('twitch'), why, error);
+  }
+  twitchSays('connecting', 'network');
+  settings.update({ proxyMode: 'auto', proxyFound: { app: 'v2rayN', type: 'socks5', host: '127.0.0.1', port: 10808 } });
+  const withDiag = await last();
+  assert.deepEqual(withDiag.diag, { kick: 'ok', kickReason: null, twitch: 'failed', twitchReason: 'network', proxy: 'auto', vpn: true });
+  assert.doesNotMatch(JSON.stringify(withDiag.diag), /relay\.test|ABCD|127\.0\.0\.1|v2rayN/, 'no links, codes, addresses or app names');
+  sentDiag = withDiag;
+  kickSays('off');
+  assert.equal(settings.connectState('kick'), 'ok', 'Disconnect keeps what Connect came to');
+
+  // Reset everything: the same install and what Connect came to, but no pings until the policy is accepted again.
   settings.reset();
   assert.equal(settings.installId(), sent.id);
+  assert.deepEqual([settings.connectState('kick'), settings.connectState('twitch')], ['ok', 'network']);
   const m = calls.length;
   await stats.ping();
   assert.equal(calls.length, m);
@@ -86,6 +118,7 @@ test('relay POST /ping: one row per install, UTC times, refusals, rate limit', a
     id: sent.id, first_seen: '2026-10-23T09:00:00.000Z', last_seen: '2026-10-23T09:00:00.000Z', version: sent.version, installed: 0, is_open: 1,
     kick_name: 'Mamad_Poker', kick_picture: sent.kick.picture, kick_live: 0, twitch_name: 'mamadpoker', twitch_picture: sent.twitch.picture, twitch_live: 1,
     privacy_version: 1, privacy_accepted_at: sent.privacy.acceptedAt, window_start: Date.parse('2026-10-23T09:00:00.000Z'), window_pings: 1,
+    kick_connect: null, kick_reason: null, twitch_connect: null, twitch_reason: null, proxy_mode: null, vpn_found: null,
   });
 
   // 5 minutes later, quitting, Kick no longer connected: first_seen stays.
@@ -94,8 +127,15 @@ test('relay POST /ping: one row per install, UTC times, refusals, rate limit', a
   r = row(sent.id);
   assert.deepEqual([r.first_seen, r.last_seen, r.is_open, r.kick_name, r.kick_live], ['2026-10-23T09:00:00.000Z', '2026-10-23T09:05:00.000Z', 0, null, null]);
 
+  // With diag: its codes kept; a ping without it again: NULL.
+  assert.equal((await post(sentDiag)).status, 200);
+  const diagOf = () => { const x = row(sent.id); return [x.kick_connect, x.kick_reason, x.twitch_connect, x.twitch_reason, x.proxy_mode, x.vpn_found]; };
+  assert.deepEqual(diagOf(), ['ok', null, 'failed', 'network', 'auto', 1]);
+  assert.equal((await post(sent)).status, 200);
+  assert.deepEqual(diagOf(), [null, null, null, null, null, null]);
+
   // Rate limit: 10 in 10 minutes per install, then refused until the window is over.
-  for (let i = 2; i < 10; i++) assert.equal((await post(sent)).status, 200);
+  for (let i = 4; i < 10; i++) assert.equal((await post(sent)).status, 200);
   assert.equal((await post(sent)).status, 429);
   assert.equal(row(sent.id).last_seen, '2026-10-23T09:05:00.000Z', 'a refused ping changes nothing');
   t.mock.timers.tick(5 * 60e3);
@@ -118,7 +158,10 @@ test('relay POST /ping: one row per install, UTC times, refusals, rate limit', a
   for (const bad of [{ ...sent, ip: '1.2.3.4' }, { ...sent, id: 'not-a-uuid' }, { ...sent, open: 'yes' }, { ...sent, version: '<b>1</b>' },
     { ...sent, kick: { ...sent.kick, chat: 'hi' } }, { ...sent, twitch: { ...sent.twitch, picture: 'javascript:alert(1)' } },
     { ...sent, privacy: { version: 1 } }, { ...sent, privacy: { ...sent.privacy, acceptedAt: 'yesterday' } }, [sent], null,
-    Object.fromEntries(Object.entries(sent).filter(([k]) => k !== 'twitch'))]) {
+    Object.fromEntries(Object.entries(sent).filter(([k]) => k !== 'twitch')),
+    ...[{ kick: 'broken' }, { kickReason: 'network' }, { twitchReason: 'timeout' }, { twitchReason: null }, { proxy: 'system' }, { vpn: 'yes' },
+      { error: 'ECONNREFUSED' }].map((d) => ({ ...sentDiag, diag: { ...sentDiag.diag, ...d } })),
+    { ...sentDiag, diag: null }, { ...sentDiag, diag: { ...sentDiag.diag, vpn: undefined } }]) {
     assert.equal((await post(bad)).status, 400, JSON.stringify(bad)?.slice(0, 80));
   }
   assert.equal((await worker.fetch(new Request('https://relay.test/ping'), { DB }, ctx)).status, 405);
@@ -148,6 +191,7 @@ test('relay /admin: key, lockout, stats, installs, downloads, delete, requests p
   const ping = async (p) => assert.equal((await call('/ping', { method: 'POST', body: JSON.stringify(p) })).status, 200);
   const id = { A: crypto.randomUUID(), B: crypto.randomUUID(), C: crypto.randomUUID(), D: crypto.randomUUID() };
   const base = { version: '1.0.0', installed: true, open: true, kick: null, twitch: null, privacy: { version: 1, acceptedAt: null } };
+  const C_DIAG = { kick: 'ok', kickReason: null, twitch: 'failed', twitchReason: 'denied', proxy: 'off', vpn: false };
   const A = { ...base, id: id.A, version: '0.9.0', kick: { name: 'Mamad_Poker', picture: '', live: false } };
   await ping(A);
   await ping({ ...A, open: false });
@@ -155,7 +199,7 @@ test('relay /admin: key, lockout, stats, installs, downloads, delete, requests p
   await ping({ ...base, id: id.B, twitch: { name: 'mamadpoker', picture: 'https://p.test/b.png', live: true } });
   at('2026-10-23T19:55:00.000Z');
   await ping({ ...base, id: id.C, kick: { name: 'MamadXPoker', picture: '', live: true }, twitch: { name: 'cTwitch', picture: '', live: false },
-    privacy: { version: 1, acceptedAt: '2026-10-20T20:00:00.000Z' } });
+    privacy: { version: 2, acceptedAt: '2026-10-20T20:00:00.000Z' }, diag: C_DIAG });
   at('2026-10-23T19:56:00.000Z');
   await ping({ ...base, id: id.D, installed: false });
   at('2026-10-23T20:00:00.000Z');
@@ -180,8 +224,10 @@ test('relay /admin: key, lockout, stats, installs, downloads, delete, requests p
   assert.deepEqual(list.installs[1], {
     id: id.C, version: '1.0.0', installed: true, open: true, online: true, live: true,
     kick: { name: 'MamadXPoker', picture: '', live: true }, twitch: { name: 'cTwitch', picture: '', live: false },
-    firstSeen: '2026-10-23T19:55:00.000Z', lastSeen: '2026-10-23T19:55:00.000Z', privacy: { version: 1, acceptedAt: '2026-10-20T20:00:00.000Z' },
+    firstSeen: '2026-10-23T19:55:00.000Z', lastSeen: '2026-10-23T19:55:00.000Z', privacy: { version: 2, acceptedAt: '2026-10-20T20:00:00.000Z' },
+    diag: C_DIAG,
   });
+  assert.equal(list.installs[2].diag, null, 'no diag in its last ping');
   assert.deepEqual(list.installs[2].twitch, { name: 'mamadpoker', picture: 'https://p.test/b.png', live: true });
   assert.deepEqual([list.installs[2].online, list.installs[2].live], [false, false], 'silent for 2 hours: not online, so not live');
   assert.deepEqual([list.installs[3].open, list.installs[3].firstSeen, list.installs[3].kick.live, list.installs[3].twitch], [false, '2026-10-20T20:00:00.000Z', false, null]);

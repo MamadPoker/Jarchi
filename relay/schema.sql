@@ -17,7 +17,15 @@ CREATE TABLE IF NOT EXISTS installs (
   privacy_version INTEGER NOT NULL,  -- the Privacy Policy version accepted
   privacy_accepted_at TEXT,          -- when it was accepted (NULL: not known)
   window_start INTEGER NOT NULL,  -- rate limit: start of the install's current 10-minute window (ms since 1970, UTC)
-  window_pings INTEGER NOT NULL   -- and its pings in it
+  window_pings INTEGER NOT NULL,  -- and its pings in it
+  -- Connection diagnostics (the ping's diag), all NULL when its last ping had none. Added 2026-10-29; a database made
+  -- before needs, once: ALTER TABLE installs ADD COLUMN for each of the six (see README.md)
+  kick_connect TEXT,              -- never | ok | failed
+  kick_reason TEXT,               -- network | denied | other when failed, else NULL
+  twitch_connect TEXT,
+  twitch_reason TEXT,
+  proxy_mode TEXT,                -- off | auto | manual
+  vpn_found INTEGER               -- the VPN app finder found a proxy: 1 / 0, NULL: it hasn't looked
 );
 -- New installs in the last hour (the relay's cap on new ids).
 CREATE INDEX IF NOT EXISTS installs_first_seen ON installs (first_seen);

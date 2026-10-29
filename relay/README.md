@@ -25,7 +25,7 @@ Opening the address in a browser says `Jarchi Kick relay: running.`
 
 ## Usage pings (`POST /ping`)
 
-Once a streamer has accepted Jarchi's Privacy Policy, their Jarchi (`core/stats.js`) sends a small ping here at start, every 5 minutes and when it quits. The relay keeps one row per install in the D1 database `jarchi-stats` (table `installs`, see `schema.sql`): first and last seen, version, installed app or dev run, open, the connected Kick / Twitch channel names, pictures and whether they're live, and the Privacy Policy version accepted and when. All times are UTC (ISO 8601). No IP addresses. Anything else in a ping, a ping over 2 KB, more than 10 pings from one install in 10 minutes, or a new install after 100 new ones in the last hour is refused.
+Once a streamer has accepted Jarchi's Privacy Policy, their Jarchi (`core/stats.js`) sends a small ping here at start, every 5 minutes and when it quits. The relay keeps one row per install in the D1 database `jarchi-stats` (table `installs`, see `schema.sql`): first and last seen, version, installed app or dev run, open, the connected Kick / Twitch channel names, pictures and whether they're live, and the Privacy Policy version accepted and when. Newer Jarchis add connection diagnostics (`diag`) once a Privacy Policy that names them is accepted: per platform `never` / `ok` / `failed` with a reason code (`network`, `denied`, `other`), the proxy mode (`off`, `auto`, `manual`) and whether the VPN app finder found a proxy. Codes only: no error texts, addresses or links. All times are UTC (ISO 8601). No IP addresses. Anything else in a ping, a ping over 2 KB, more than 10 pings from one install in 10 minutes, or a new install after 100 new ones in the last hour is refused.
 
 Set up once (already done for Jarchi's own relay; the database id goes in `wrangler.toml`):
 
@@ -44,7 +44,7 @@ For Jarchi's admin app (also its support tickets). Every request needs `Authoriz
 | | |
 |---|---|
 | `GET /admin/stats` | Installs, online now (open and seen in the last 10 minutes), active today and in the last 7 days, live now, installs per version, and the relay's requests per day for the last 30 days (UTC, against Cloudflare's free 100,000 a day). `?tz=` = the admin's time zone in minutes east of UTC (Tehran `210`) for "today"; UTC by default. |
-| `GET /admin/installs` | The installs, newest first, each `{ id, version, installed, open, online, live, kick, twitch, firstSeen, lastSeen, privacy }`. `?q=` part of a Kick or Twitch channel name, `?limit=` 1-200 (50), `?offset=`. |
+| `GET /admin/installs` | The installs, newest first, each `{ id, version, installed, open, online, live, kick, twitch, firstSeen, lastSeen, privacy, diag }` (`diag` null: its last ping had none). `?q=` part of a Kick or Twitch channel name, `?limit=` 1-200 (50), `?offset=`. |
 | `GET /admin/downloads` | Download counts per release and per file from GitHub's public API for `MamadPoker/Jarchi-releases` (published releases only), kept for 10 minutes. |
 | `DELETE /admin/installs/<id>` | Deletes that install's row (a data-deletion request). A Jarchi still running with that id adds it again with its next ping. Its support tickets stay (delete them below). |
 | `GET /admin/tickets` | Every support ticket, last changed first, each with whose it is (`installId`, `kick`, `twitch`), its message count and `unread` (a message from the streamer not opened yet), plus `unread`: how many tickets have one. `?status=open|progress|closed`, `?category=bug|suggestion|question|data`. |
@@ -72,3 +72,5 @@ Set up once (already done for Jarchi's own relay; the id goes in `wrangler.toml`
 The relay counts its own requests per day in the table `requests`. After adding the tables, run `schema.sql` again (it only adds what's missing).
 
 `schema.sql` doesn't add columns to a table that's already there. The `tickets.hidden_by_user_at` column (2026-10-29), once, before deploying the worker that uses it: `npx wrangler d1 execute jarchi-stats --remote --command "ALTER TABLE tickets ADD COLUMN hidden_by_user_at TEXT"`.
+
+The `installs` diagnostics columns (2026-10-29), once, before deploying the worker that uses them (and that worker before a Jarchi that sends `diag`: an older worker refuses its pings): `npx wrangler d1 execute jarchi-stats --remote --command "ALTER TABLE installs ADD COLUMN kick_connect TEXT; ALTER TABLE installs ADD COLUMN kick_reason TEXT; ALTER TABLE installs ADD COLUMN twitch_connect TEXT; ALTER TABLE installs ADD COLUMN twitch_reason TEXT; ALTER TABLE installs ADD COLUMN proxy_mode TEXT; ALTER TABLE installs ADD COLUMN vpn_found INTEGER"`.

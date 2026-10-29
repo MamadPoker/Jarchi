@@ -612,6 +612,17 @@ function setObsSize(v) {
   return true;
 }
 
+// The usage ping's connection diagnostics (core/stats.js): per platform, what its last Connect came to: 'ok', or why
+// it failed ('network' | 'denied' | 'other'); 'never' until Connect is pressed. Not a setting: not in get(), kept
+// through Reset everything.
+const CONNECTS = ['never', 'ok', 'network', 'denied', 'other'];
+const connectState = (p) => (CONNECTS.includes(saved.connect?.[p]) ? saved.connect[p] : 'never');
+function setConnectState(p, v) {
+  if (!CONNECTS.includes(v) || connectState(p) === v) return;
+  saved.connect = { ...saved.connect, [p]: v };
+  persist();
+}
+
 // No type = reset everything.
 function reset(type) {
   if (type !== undefined && !TYPES.includes(type)) throw bad();
@@ -624,7 +635,7 @@ function reset(type) {
   if (!type) {
     for (const id of GOAL_IDS) removeFile(saved.goals?.[id]?.sound);
     removeFile(saved.profile?.picture);
-    saved = { version: VERSION, installId: saved.installId, supportToken: saved.supportToken, obsSize: saved.obsSize }; // still the same install and OBS (none yet: left out)
+    saved = { version: VERSION, installId: saved.installId, supportToken: saved.supportToken, obsSize: saved.obsSize, connect: saved.connect }; // still the same install and OBS (none yet: left out)
   }
   persist();
   return get();
@@ -633,5 +644,6 @@ function reset(type) {
 module.exports = {
   get, update, saveUpload, removeUpload, reset, saveGoalSound, removeGoalSound, saveProfilePicture, resetGoalStyle, resetChatStyle,
   resetAlertText, setTier, saveTierFile, removeTierFile, sniff, installId, privacyAcceptedAt, supportToken, obsSize, setObsSize,
+  connectState, setConnectState,
   GOAL_IDS, GOAL_STYLES, CHAT_STYLES, CHAT_FONTS, FONTS, KICK_GIFTS,
 };
