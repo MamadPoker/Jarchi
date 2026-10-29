@@ -513,6 +513,8 @@
     "uninstallApp": "Uninstall Jarchi",
     "devTitle": "Developer (dev runs only)",
     "devKickBlocked": "Test as if Kick were blocked",
+    "devUpdateText": "Jarchi v{version} is out. You're running from source — update with: git pull, then npm install, then restart.",
+    "devUpdateDownload": "Download the installer instead",
     "uninstallAsk": "Uninstall Jarchi from this PC?",
     "uninstallKeep": "Keep my settings and files",
     "uninstallGo": "Uninstall",

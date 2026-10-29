@@ -17,6 +17,7 @@ const kickAccount = require('../connectors/kick-account');
 const stats = require('../core/stats');
 const support = require('../core/support');
 const vpn = require('../core/vpn');
+const release = require('../core/release');
 const strings = require('../i18n/en.json');
 
 const ROOT = path.join(__dirname, '..');
@@ -267,6 +268,7 @@ io.on('connection', (socket) => {
   socket.emit('kickAccount', kickAccount.status());
   socket.emit('proxyHelp', vpn.state());
   socket.emit('obsSize', settings.obsSize()); // the panel's alert preview
+  if (DEV && release.latest()) socket.emit('devUpdate', release.latest()); // a newer Jarchi than this source copy (core/release.js)
   // The alerts overlay joins to get alerts from the queue (the panel's previews don't): the main link, or one type's own
   // (its lane in core/alerts). The Home page counts the main link.
   socket.once('alertsJoin', (only) => {
@@ -309,6 +311,7 @@ chat.events.on('status', (st) => {
   for (const p of ['kick', 'twitch']) health(p, st[p].state === 'connected', st[p].state === 'error' && st[p].detail === 'network');
 });
 vpn.events.on('state', (st) => io.emit('proxyHelp', st));
+release.events.on('found', (r) => io.emit('devUpdate', r));
 // A Kick / Twitch account connected on the Connections page fills that platform's channel on the Chat page, only when
 // it's empty there (a name typed there always stays), so its chat, alerts and the panel's background art start at once.
 // For each new login, and at start (below) for the accounts connected before.
@@ -355,6 +358,7 @@ server.listen(PORT, HOST, () => {
   kickAccount.start();
   media.shrinkOld().catch(console.error); // uploads from before the 512 px rule, once
   stats.start(); // usage pings, once the Privacy Policy is accepted
+  if (DEV) release.start(); // a dev run doesn't update itself: it hears of new versions (core/release.js)
 });
 // The desktop app (electron/main.js) asks: 'quit' -> the last usage ping, then goodbye (`npm start` gets Ctrl+C);
 // 'proxy' -> the proxy in use as a URL (or null), before each update check, so updates come the same way.

@@ -98,6 +98,13 @@
       <button id="updateNotes" class="ghost" data-i18n="updateNotes"></button>
       <button id="updateClose" class="ghost" data-title="updateClose"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
     </div>
+    <!-- Dev runs only (core/release.js, renderDevUpdate): a newer Jarchi is out, and a copy from source updates with git.
+         Its ✕ closes it until Jarchi starts again. -->
+    <div id="devUpdateBar" class="dev-update-bar" role="status" hidden>
+      <span id="devUpdateText"></span>
+      <button id="devUpdateDownload" class="link" data-i18n="devUpdateDownload"></button>
+      <button id="devUpdateClose" class="ghost" data-title="updateClose"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </div>
 
     <main>
       <!-- ===== Home: ready to stream?, the last events, widgets open in OBS, goals, today's numbers (renderHome) ===== -->

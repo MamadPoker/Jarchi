@@ -513,6 +513,8 @@
     "uninstallApp": "حذف Jarchi",
     "devTitle": "توسعه‌دهنده (فقط اجرای توسعه)",
     "devKickBlocked": "آزمایش: انگار Kick مسدود است",
+    "devUpdateText": "جارچی v{version} منتشر شد. شما جارچی را از سورس اجرا می‌کنید — برای به‌روزرسانی: git pull، بعد npm install، بعد دوباره اجرا کنید.",
+    "devUpdateDownload": "یا نصب‌کنندهٔ جارچی را دانلود کنید",
     "uninstallAsk": "Jarchi از این کامپیوتر حذف شود؟",
     "uninstallKeep": "تنظیمات و فایل‌هایم نگه داشته شوند",
     "uninstallGo": "حذف",

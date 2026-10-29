@@ -499,6 +499,10 @@ body { padding-top: var(--tb); }
 .update-bar button:hover { border-color: var(--on-gold); background: rgb(0 0 0 / 0.08); }
 #updateRestart, #updateRestart:hover { border-color: transparent; background: var(--on-gold); color: var(--gold); }
 #updateClose { padding: 5px; border-color: transparent; }
+/* A dev run's "a newer Jarchi is out" (renderDevUpdate): calm, in the card's colors. */
+.dev-update-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; padding: 7px 12px; padding-inline-start: 28px; border-bottom: 1px solid var(--border); background: var(--card2); color: var(--muted); font-size: 13px; }
+#devUpdateText { margin-inline-end: auto; }
+#devUpdateClose { padding: 4px; border-color: transparent; background: transparent; }
 .update-dot { width: 7px; height: 7px; flex: none; margin-inline-start: -6px; border-radius: 50%; background: var(--gold); } /* Support's unread dot in the sidebar */
 .profile-chip .update-dot { position: absolute; top: 7px; inset-inline-start: 33px; width: 9px; height: 9px; margin: 0; box-shadow: 0 0 0 2px var(--card); }
 /* A button that reads as a link: the tour's "Privacy Policy", About's "Privacy" */
@@ -1278,7 +1282,7 @@ code { padding: 1px 6px; border-radius: 6px; background: var(--card2); font: 0.9
   .side .nav { margin-bottom: 0; }
   .profile-menu { margin: 0; margin-inline-start: auto; }
   .profile-menu .menu-pop { top: calc(100% + 6px); bottom: auto; inset-inline-start: auto; min-width: 210px; }
-  .update-bar { padding-inline-start: 16px; }
+  .update-bar, .dev-update-bar { padding-inline-start: 16px; }
   .list { position: static; }
   .basics, .cols, .pane { grid-template-columns: 1fr; }
   main { padding: 18px 16px 48px; }

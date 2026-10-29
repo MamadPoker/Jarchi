@@ -1597,6 +1597,10 @@ function build() {
     help = h;
     renderProxyHelp();
   });
+  socket.on('devUpdate', (u) => {
+    devUpdate = u;
+    renderDevUpdate();
+  });
   socket.on('obsSize', (s) => {
     sourceSize = s;
     fitPreview();
@@ -1709,6 +1713,7 @@ function build() {
   wireUpdate();
   wireUninstall();
   wireDev();
+  wireDevUpdate();
   wireSupport();
 
   $$('[data-i18n]').forEach((e) => (e.textContent = S.panel[e.dataset.i18n]));
@@ -1944,6 +1949,25 @@ function wireUpdate() {
     renderUpdate();
   };
 }
+// A dev run (npm start, npm run app) doesn't update itself: core/release.js says when a newer Jarchi is out
+// ({ version, url }, by socket). Its ✕ closes it for this session only (sessionStorage): every start shows it again
+// until the copy is updated. The installed app never gets one.
+let devUpdate = null;
+const DEV_CLOSED = 'jarchi.devUpdateClosed';
+function renderDevUpdate() {
+  let closed = null;
+  try { closed = sessionStorage.getItem(DEV_CLOSED); } catch {}
+  $('#devUpdateBar').hidden = !devUpdate || closed === devUpdate.version;
+  if (devUpdate) $('#devUpdateText').textContent = tpl(S.panel.devUpdateText, { version: devUpdate.version });
+}
+function wireDevUpdate() {
+  $('#devUpdateDownload').onclick = () => window.open(devUpdate.url, '_blank', 'noopener');
+  $('#devUpdateClose').onclick = () => {
+    try { sessionStorage.setItem(DEV_CLOSED, devUpdate.version); } catch {}
+    renderDevUpdate();
+  };
+}
+
 // From the startup, once its first page is open (that would replace What's new).
 function followUpdates() {
   const app = window.jarchiApp;
