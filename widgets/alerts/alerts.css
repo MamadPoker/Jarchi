@@ -63,8 +63,10 @@ body { font-family: "Segoe UI", system-ui, sans-serif; }
 .align-left.pos-over .inner { justify-items: start; }
 .align-right.pos-over .inner { justify-items: end; }
 
-/* The picture's fixed square: the user's image, GIF or video fits in it (whole, never stretched), whatever its size. */
+/* The picture's fixed square: the user's image, GIF or video fits in it (whole, never stretched), whatever its size.
+   A wide one gets a wide area of the same height (--mw, fit()); rings, glow and particles stay centered, sized by the square. */
 .media { position: relative; flex: none; display: grid; place-items: center; width: var(--m); height: var(--m); animation: var(--idle); }
+.media.custom { width: var(--mw, var(--m)); }
 .media.custom img, .media.custom video { display: block; width: 100%; height: 100%; object-fit: contain; }
 .media.gem img { display: block; width: calc(200px * var(--s)); height: calc(200px * var(--s)); object-fit: contain; } /* Twitch's bits gem: the emblem's size */
 

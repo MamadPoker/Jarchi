@@ -48,7 +48,9 @@ function applySettings(s) {
 // The alert fills the Browser Source, whatever its size or shape: #stage is a page as big as the source, in units of an
 // 800x600 one (so borders, shadows and effects keep their proportions), scaled onto it; the alert's own size (Style
 // tab) shrinks it toward the middle. Inside, the picture gets a fixed square (an image fits in it whatever its own pixel
-// size) and the text the rest, in the biggest font size that fits there (or the alert's own font size, if that fits).
+// size; an uploaded file wider than 1.2:1 gets the square's height and the width its shape needs, up to the whole width,
+// while the effects stay on the square) and the text the rest, in the biggest font size that fits there (or the alert's
+// own font size, if that fits).
 // Runs again when the source changes size, a font finishes loading, or a preview drawn while its page was hidden in the
 // panel comes into view.
 const PAD = 16; // around the alert: room for the platform badge, the shake and a frame's shadow
@@ -63,6 +65,7 @@ function fit() {
   const pic = !el.classList.contains('no-media'), gap = pic ? ih * 0.04 : 0;
   const m = !pic ? 0 : Math.min(iw, over ? ih : ih * 0.58); // the picture's square; text on top of it gets a band across its middle
   el.style.setProperty('--m', `${m}px`);
+  el.style.setProperty('--mw', `${Math.min(iw, m * (el.dataset.r > 1.2 ? el.dataset.r : 1))}px`); // an uploaded file's area: wider when it's wide
   el.style.setProperty('--gap', `${gap}px`);
   el.style.setProperty('--tw', `${iw}px`);
   if (el.dataset.s) el.style.setProperty('--s', (el.dataset.s * m) / 330); // a theme's emblem: a raid's fills most of the square
@@ -156,6 +159,12 @@ async function show(ev, { muted = false, hold = false, ms, id } = {}) {
   el.dataset.size = cfg.size ?? 1; // fit(): how much of the source it fills
   // The alert's own text size (Text tab, not Auto); amounts that grow get a bit more, like before.
   if (cfg.autoSize === false) el.dataset.fs = cfg.fontSize * (grows && !kickLook ? 1 + (tier - 1) * 0.1 : 1);
+  // An uploaded file's shape, known before it's on the page (so no jump): fit() gives a wide one a wide area.
+  const file = el.querySelector('.media.custom > img, .media.custom > video');
+  if (file) {
+    el.dataset.r = await shape(file);
+    if (my !== gen) return; // the next alert came meanwhile
+  }
 
   stage.append(scope);
   onStage = el;
@@ -256,6 +265,21 @@ function mediaEl(image, label) {
   const src = '/uploads/' + encodeURIComponent(image.file);
   return h('div', { className: 'media custom' },
     isVideo(image.file) ? h('video', { muted: true, loop: true, playsInline: true, src }) : h('img', { src, alt: '' }));
+}
+
+// An image's or video's width / height, as soon as it's known (it loads before it's on the page); 1 (square) for a
+// broken file or one that takes over a second to tell.
+function shape(file) {
+  const r = () => {
+    const w = file.videoWidth || file.naturalWidth, h = file.videoHeight || file.naturalHeight;
+    return w && h ? w / h : 0;
+  };
+  return new Promise((done) => {
+    if (r()) return done(r());
+    file.addEventListener(file.tagName === 'VIDEO' ? 'loadedmetadata' : 'load', () => done(r() || 1));
+    file.addEventListener('error', () => done(1));
+    setTimeout(() => done(1), 1000);
+  });
 }
 
 // Template -> DOM, one span per word so themes can animate words in; variables get .hl. Text only, never innerHTML.
