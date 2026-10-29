@@ -256,6 +256,7 @@ io.on('connection', (socket) => {
   socket.emit('twitchAccount', twitchAccount.status());
   socket.emit('kickAccount', kickAccount.status());
   socket.emit('proxyHelp', vpn.state());
+  socket.emit('obsSize', settings.obsSize()); // the panel's alert preview
   // The alerts overlay joins to get alerts from the queue (the panel's previews don't): the main link, or one type's own
   // (its lane in core/alerts). The Home page counts the main link.
   socket.once('alertsJoin', (only) => {
@@ -265,6 +266,8 @@ io.on('connection', (socket) => {
     socket.once('disconnect', () => alertQueue.leave(lane));
     if (lane === 'all') opened(socket, 'alerts');
     socket.on('alertShown', (r) => alertQueue.shown(r, socket.conn.transport.name)); // alert timing line
+    // In OBS: its Browser Source's size (on connect, and when it changes). A new one goes to the panel's preview.
+    socket.on('obsSize', (s) => settings.setObsSize(s) && io.emit('obsSize', settings.obsSize()));
   });
   socket.once('widgetJoin', (w) => w !== 'alerts' && WIDGETS.includes(w) && opened(socket, w)); // chat, a goal
 

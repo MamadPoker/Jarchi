@@ -599,6 +599,19 @@ function supportToken(make) {
   return (PLAIN.test(t) ? t : t && secrets.open('supportToken', t)) ?? null;
 }
 
+// The alerts overlay's size in OBS (its Browser Source's width x height), the last one it told (server/index.js): the
+// panel's alert preview is that size, so it lays out the same. OBS's default 800 x 600 until then. Not a setting: not
+// in get(), kept through Reset everything.
+const okSize = (v) => !!v && [v.w, v.h].every((n) => Number.isInteger(n) && n >= 16 && n <= 16384);
+const obsSize = () => (okSize(saved.obsSize) ? { w: saved.obsSize.w, h: saved.obsSize.h } : { w: 800, h: 600 });
+// -> true for a new size (saved; the panel needs telling), false for the same one or one that isn't a size.
+function setObsSize(v) {
+  if (!okSize(v) || (v.w === obsSize().w && v.h === obsSize().h)) return false;
+  saved.obsSize = { w: v.w, h: v.h };
+  persist();
+  return true;
+}
+
 // No type = reset everything.
 function reset(type) {
   if (type !== undefined && !TYPES.includes(type)) throw bad();
@@ -611,7 +624,7 @@ function reset(type) {
   if (!type) {
     for (const id of GOAL_IDS) removeFile(saved.goals?.[id]?.sound);
     removeFile(saved.profile?.picture);
-    saved = { version: VERSION, installId: saved.installId, supportToken: saved.supportToken }; // still the same install (none yet: left out)
+    saved = { version: VERSION, installId: saved.installId, supportToken: saved.supportToken, obsSize: saved.obsSize }; // still the same install and OBS (none yet: left out)
   }
   persist();
   return get();
@@ -619,6 +632,6 @@ function reset(type) {
 
 module.exports = {
   get, update, saveUpload, removeUpload, reset, saveGoalSound, removeGoalSound, saveProfilePicture, resetGoalStyle, resetChatStyle,
-  resetAlertText, setTier, saveTierFile, removeTierFile, sniff, installId, privacyAcceptedAt, supportToken,
+  resetAlertText, setTier, saveTierFile, removeTierFile, sniff, installId, privacyAcceptedAt, supportToken, obsSize, setObsSize,
   GOAL_IDS, GOAL_STYLES, CHAT_STYLES, CHAT_FONTS, FONTS, KICK_GIFTS,
 };

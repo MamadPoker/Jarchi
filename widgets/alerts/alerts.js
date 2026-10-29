@@ -114,7 +114,13 @@ if (params.has('preview')) {
   socket.on('strings', applyStrings);
   socket.on('settings', applySettings);
   // Again after every reconnect. The type in the link (/widgets/alerts/sub): only that type's alerts; none: the main link.
-  socket.on('connect', () => socket.emit('alertsJoin', location.pathname.split('/')[3]));
+  // In OBS also the Browser Source's size, and again when it changes: the panel's preview is that size.
+  const size = () => window.obsstudio && socket.emit('obsSize', { w: innerWidth, h: innerHeight });
+  socket.on('connect', () => {
+    socket.emit('alertsJoin', location.pathname.split('/')[3]);
+    size();
+  });
+  addEventListener('resize', size);
   addEventListener('pagehide', () => socket.disconnect()); // leaving: tell the queue now, not after a ping timeout
   // { id, ev, left, late }: late = this overlay (re)connected while it was already on; no sound again then.
   socket.on('alert', (a) => {

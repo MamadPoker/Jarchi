@@ -26,6 +26,7 @@ process.env.KICK_RELAY_URL = 'http://127.0.0.1:9'; // nothing there: accepting t
 const { server, io } = require('../server');
 const { bus, setConnected, emitEvent } = require('../core/events');
 const goals = require('../core/goals');
+const settings = require('../core/settings');
 
 test.after(() => io.close());
 
@@ -182,7 +183,15 @@ test('migration, settings, uploads, reset, events', async () => {
   assert.equal(s.theme, 'galaxy', 'per-type reset keeps the theme');
   assert.ok(!fs.existsSync(path.join(dataDir, 'uploads', file)));
 
+  // The alerts overlay's size in OBS (the panel preview's): 800x600 until it tells; only a real, new size is saved.
+  assert.deepEqual(settings.obsSize(), { w: 800, h: 600 });
+  for (const bad of [null, 5, { w: 0, h: 600 }, { w: 1.5, h: 600 }, { w: '1920', h: 1080 }, { w: 1e6, h: 1080 }]) assert.equal(settings.setObsSize(bad), false);
+  assert.equal(settings.setObsSize({ w: 1920, h: 1080 }), true);
+  assert.equal(settings.setObsSize({ w: 1920, h: 1080 }), false, 'the same size again: nothing to save or tell');
+
   s = await (await call('POST', '/api/reset')).json();
+  assert.deepEqual(JSON.parse(fs.readFileSync(path.join(dataDir, 'settings.json'))).obsSize, { w: 1920, h: 1080 }, 'Reset everything keeps the OBS size, on disk for the next start');
+  assert.equal(s.obsSize, undefined, 'not a setting');
   assert.equal(s.theme, 'neon');
   assert.ok(!fs.existsSync(path.join(dataDir, 'uploads', 'sub-sound-1.wav')));
   assert.ok(!fs.existsSync(path.join(dataDir, 'uploads', pic)));

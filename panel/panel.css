@@ -735,9 +735,10 @@ main { padding: 24px 28px 64px; container-type: inline-size; } /* editor rules b
 
 /* ---------- Alert editor: the preview with its bar (background, Replay), then the settings in four tabs ---------- */
 .alert-stage { gap: 0; }
-/* The alert as in an 800 x 600 Browser Source (the recommended size); it fills whatever size the source has. */
-.stage.alert-stage .preview { width: min(100%, 400px); aspect-ratio: 4 / 3; }
-.alert-stage .preview iframe { width: 800px; height: 600px; }
+/* The alert as in its OBS Browser Source: the iframe that size, the box that shape (--ar), the iframe scaled into the
+   middle of it with a margin (panel.js fitPreview()). 300 px tall, as wide as the shape needs (4:3: 400 px). */
+.stage.alert-stage .preview { width: min(100%, calc(300px * var(--ar, 4 / 3))); aspect-ratio: var(--ar, 4 / 3); }
+.alert-stage .preview iframe { top: 50%; left: 50%; width: 800px; height: 600px; transform: scale(var(--k, 0.25)) translate(-50%, -50%); }
 /* Text style: the name's and the message's settings side by side */
 .style-cols { align-items: start; }
 .style-cols .stack { gap: 12px; }

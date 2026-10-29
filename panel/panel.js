@@ -387,10 +387,26 @@ function drawThumbs() {
   }
 }
 
-// Scale each iframe (the alert editor's 800x600, the theme cards' 1920x1080, goals' 1000x400) down to its box.
+// Scale each iframe (the alert editor's: fitPreview(); the theme cards' 1920x1080, goals' 1000x400) down to its box.
 const fit = new ResizeObserver((entries) => {
-  for (const e of entries) e.target.style.setProperty('--k', e.contentRect.width / e.target.querySelector('iframe').offsetWidth);
+  for (const e of entries) {
+    if (e.target.id === 'previewBox') fitPreview();
+    else e.target.style.setProperty('--k', e.contentRect.width / e.target.querySelector('iframe').offsetWidth);
+  }
 });
+
+// The alert editor's preview is the alerts overlay as in its OBS Browser Source: the iframe that size (the overlay
+// tells the server; 800x600 until it's been in OBS), the box that shape, the iframe scaled into it with a margin all
+// round, so the alert never touches the box's edges.
+let sourceSize = { w: 800, h: 600 };
+const PREVIEW_MARGIN = 12;
+function fitPreview() {
+  const box = $('#previewBox'), f = $('#preview'), { w, h } = sourceSize;
+  f.style.width = `${w}px`;
+  f.style.height = `${h}px`;
+  box.style.setProperty('--ar', w / h);
+  if (box.clientWidth) box.style.setProperty('--k', Math.min((box.clientWidth - 2 * PREVIEW_MARGIN) / w, (box.clientHeight - 2 * PREVIEW_MARGIN) / h));
+}
 
 // Open a page (and in Alerts / Goals / Guide, an item of it: without `key`, the one selected before).
 function select(v, key) {
@@ -1556,6 +1572,10 @@ function build() {
   socket.on('proxyHelp', (h) => {
     help = h;
     renderProxyHelp();
+  });
+  socket.on('obsSize', (s) => {
+    sourceSize = s;
+    fitPreview();
   });
 
   // Connections: the Twitch account. Connect shows Twitch's code until the streamer approves it on Twitch. Home's Twitch
