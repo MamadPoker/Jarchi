@@ -145,7 +145,7 @@
     "twWaiting": "در مرورگرتان Jarchi را تأیید کنید…",
     "twOpenAgain": "باز کردن دوباره",
     "twStates": { "off": "وصل نیست", "waiting": "منتظر تأیید", "connecting": "در حال اتصال", "connected": "وصل به حساب {login}" },
-    "twErrors": { "expired": "ورود به Twitch تمام شد. دوباره وصل کنید.", "denied": "در Twitch تأیید نشد.", "timeout": "وقت کد تمام شد. دوباره وصل کنید.", "client": "Twitch این Client ID را نپذیرفت. آن را بررسی کنید و ببینید Client Type برنامه Public باشد.", "network": "الان به Twitch دسترسی نیست." },
+    "twErrors": { "expired": "ورود به Twitch تمام شد. دوباره وصل کنید.", "denied": "در Twitch تأیید نشد.", "timeout": "وقت ورود تمام شد. دوباره وصل کنید.", "client": "Twitch این Client ID را نپذیرفت. آن را بررسی کنید و ببینید Client Type برنامه Public باشد.", "network": "الان به Twitch دسترسی نیست." },
     "connDown": "اتصال {platforms} {time} است که قطع است: ممکن است الرت‌ها از دست بروند",
     "connDownHint": "Jarchi خودش دوباره وصل می‌شود. برای دیدن اتصال کلیک کنید.",
     "kcConnect": "اتصال Kick",
