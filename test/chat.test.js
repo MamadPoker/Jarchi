@@ -431,3 +431,24 @@ test('a connected account fills its empty chat channel, never a name typed there
     Object.assign(twitch, { connect: realTwitch });
   }
 });
+
+// Connections > Test connection (core/chat.js check()): each host on its own, through the proxy setting only (net.reach's
+// second argument is a proxy to try: map()'s index there made the second host of each service "a proxy that's down").
+test('Test connection: every host tried with the proxy setting; Off: straight, nothing about a proxy', async () => {
+  const net = require('../core/net'), chat = require('../core/chat'), kickChat = require('../connectors/kick-chat'), settings = require('../core/settings');
+  const real = { reach: net.reach, kickGet: kickChat.kickGet, fetch: globalThis.fetch }, asked = [];
+  net.reach = async (...args) => void asked.push(args);
+  kickChat.kickGet = async () => ({ status: 200, json: {} });
+  globalThis.fetch = async () => new Response('{}');
+  settings.update({ proxyMode: 'off' });
+  try {
+    assert.deepStrictEqual(await chat.check(), { mode: 'off', proxy: null, results: { kick: 'ok', twitch: 'ok', sevenTv: 'ok' } });
+    assert.deepStrictEqual(asked.map((a) => a.length), [1, 1, 1, 1, 1], 'a host each, never a proxy');
+    assert.ok(asked.some(([h]) => h === 'files.kick.com') && asked.some(([h]) => h === 'static-cdn.jtvnw.net'));
+  } finally {
+    Object.assign(net, { reach: real.reach });
+    kickChat.kickGet = real.kickGet;
+    globalThis.fetch = real.fetch;
+    settings.update({ proxyMode: 'auto' });
+  }
+});

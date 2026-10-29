@@ -6,7 +6,8 @@
 // to Kick, Twitch and the relay, inside TLS, as before.
 // The panel follows state(): idle | looking (the user asked) | offer { service, found } | none { service, system }
 // (nothing found; system: a system-wide VPN app that's running, so it's likely leaving Jarchi out: Split Tunneling) |
-// broken { service, proxy } (the proxy in use stopped working: a small warning, Look again).
+// broken { service, proxy } (the proxy in use stopped working: a small warning, Look again). offer and none carry
+// test: true when they come from the dev test (trouble).
 const { execFile } = require('node:child_process');
 const { EventEmitter } = require('node:events');
 const net = require('./net');
@@ -88,11 +89,11 @@ async function firstWorking(list, through) {
 const run = (cmd, args) => new Promise((resolve) => execFile(cmd, args, { windowsHide: true, timeout: 5000 }, (err, out) => resolve(err ? '' : out)));
 let lastLook = null; // the last look's result: true found one, false none, null no look since Jarchi started
 // -> { found: the first working proxy or null, system: a system-wide VPN app running (systemVpn) or null }. Without
-// netstat / tasklist (not Windows) only the usual ports are tried.
-async function find() {
+// netstat / tasklist (not Windows) only the usual ports are tried. test: not kept for the usage ping (looked()).
+async function find(test = false) {
   const [netstat, tasks, sys] = await Promise.all([run('netstat', ['-ano', '-p', 'TCP']), run('tasklist', ['/fo', 'csv', '/nh']), net.windowsProxy()]);
   const found = await firstWorking(candidates(netstat, tasks, sys), (p) => net.reach(TARGET, p));
-  lastLook = !!found;
+  if (!test) lastLook = !!found;
   return { found, system: systemVpn(tasks) };
 }
 // The usage ping's (core/stats.js): did the last look find a proxy; with none since Jarchi started, true if one was
@@ -111,18 +112,25 @@ function set(next) {
 // A connection failed (server/index.js: Kick / Twitch / relay status). Reachable after all: not the network, nothing to
 // do. Else, with a proxy in use: it stopped working (warning). Without one: look, and offer what works (or, once per
 // run, say nothing was found, and which system-wide VPN app is running). test (Settings' dev-only "Test as if Kick
-// were blocked"): as if it can't be reached, every time, even with the proxy Off, offering again what was declined.
+// were blocked"): as if it can't be reached, even with the proxy Off, straight to the look and its popup (offer or
+// none, marked test), every time. It leaves nothing behind: no wait before the next real check, the once-per-run
+// "nothing found" still to come, no look for the usage ping, a No to its offer not remembered (dismiss). Its popup's
+// Yes is a real Yes.
 async function trouble(service, test = false) {
   if ((!test && settings.get().proxyMode === 'off') || busy || st.state !== 'idle' || !HOSTS[service] || (!test && Date.now() - (lastAuto[service] ?? 0) < AUTO_MS)) return;
-  lastAuto[service] = Date.now();
+  if (!test) lastAuto[service] = Date.now();
   busy = true;
   try {
-    if (!test && await net.reach(HOSTS[service]).then(() => true, () => false)) return;
+    if (test) {
+      const { found, system } = await find(true);
+      return set(found ? { state: 'offer', service, found, test } : { state: 'none', service, system, test });
+    }
+    if (await net.reach(HOSTS[service]).then(() => true, () => false)) return;
     const proxy = await net.current();
     if (proxy) return set({ state: 'broken', service, proxy });
     const { found, system } = await find();
-    if (found && (test || !declined.has(key(found)))) set({ state: 'offer', service, found });
-    else if (!found && (test || !toldNone)) {
+    if (found && !declined.has(key(found))) set({ state: 'offer', service, found });
+    else if (!found && !toldNone) {
       toldNone = true;
       set({ state: 'none', service, system });
     }
@@ -155,7 +163,7 @@ function accept() {
 
 // No / Close.
 function dismiss() {
-  if (st.state === 'offer') declined.add(key(st.found));
+  if (st.state === 'offer' && !st.test) declined.add(key(st.found));
   if (st.state !== 'looking') set({ state: 'idle' });
 }
 

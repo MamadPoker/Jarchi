@@ -68,9 +68,10 @@ const CHECKS = {
     const { status } = await kick.kickGet(`/api/v2/channels/${encodeURIComponent(settings.get().chat.kickChannel || 'kick')}`);
     if (status === 403) throw net.fail('blocked');
     if (status !== 200 && status !== 404) throw net.fail('network');
-    await Promise.all([new URL(kick.PUSHER).hostname, 'files.kick.com'].map(net.reach));
+    await Promise.all([new URL(kick.PUSHER).hostname, 'files.kick.com'].map((host) => net.reach(host)));
   },
-  twitch: () => Promise.all(['irc-ws.chat.twitch.tv', 'static-cdn.jtvnw.net'].map(net.reach)),
+  // (host) => ...: reach's second argument is a proxy to try, so never map()'s index
+  twitch: () => Promise.all(['irc-ws.chat.twitch.tv', 'static-cdn.jtvnw.net'].map((host) => net.reach(host))),
   sevenTv: async () => {
     const res = await fetch('https://7tv.io/v3/emote-sets/global', { signal: AbortSignal.timeout(10000) });
     await res.arrayBuffer();

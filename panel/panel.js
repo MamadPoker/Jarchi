@@ -785,7 +785,8 @@ function renderNet({ proxy, results }) {
   $('#netUsing').textContent = p ? tpl(S.net.using, { proxy: p }) : S.net.direct;
   const lines = new Map(); // text -> ok; a dead proxy is one line, not one per service
   for (const [id, code] of Object.entries(results)) {
-    const key = code !== 'ok' && p && (code === 'timeout' || code === 'network') ? 'viaProxy' : code;
+    // a proxy's own message only with a proxy to name (its {proxy}); without one, as any other unreachable service
+    const key = p ? (code === 'timeout' || code === 'network' ? 'viaProxy' : code) : code.startsWith('proxy_') ? 'network' : code;
     lines.set(tpl(S.net[key] ?? S.net.network, { name: S.net.names[id], proxy: p }), code === 'ok');
   }
   $('#netResults').replaceChildren(...[...lines].map(([text, ok]) => el('li', { className: ok ? 'ok' : 'bad', textContent: text })));
@@ -819,6 +820,7 @@ function renderProxy() {
   const show = { proxyAuto: settings.proxyMode === 'auto', proxyManual: settings.proxyMode === 'manual' };
   $$('[data-only]', box).forEach((e) => (e.hidden = !show[e.dataset.only]));
   const dot = help.state === 'broken' ? 'error' : netState;
+  $('#proxyState').hidden = settings.proxyMode === 'off'; // no proxy to say "Working" or "Not working" about
   $('#proxyState').className = `status st-${dot}`;
   $('#proxyState').textContent = { off: S.panel.proxyUntested, connecting: S.panel.netTesting, connected: S.panel.proxyWorks, error: S.panel.proxyFails }[dot];
 }
