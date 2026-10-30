@@ -168,10 +168,19 @@ test('relay /support and /admin/tickets: tokens, forms, screenshots, unread, sta
   await refused(await call(`/support/tickets/${open.id}/messages`, { method: 'POST', body: form({ message: 'pic' }, [png]), to: full }), 503, 'storage');
   assert.equal(db.prepare('SELECT COUNT(*) AS n FROM ticket_messages').get().n, before);
 
-  // Delete: the ticket, its messages and its screenshots.
+  // Delete: the ticket, its messages and its screenshots; nothing without the key, nothing of another ticket.
+  for (const key of [{}, { authorization: 'Bearer nope' }]) {
+    assert.equal((await call(`/admin/tickets/${id}`, { method: 'DELETE', headers: { ...key, 'cf-connecting-ip': '10.0.0.3' } })).status, 401);
+  }
+  assert.equal((await ok(await admin(`/tickets/${id}`))).id, id, 'still there');
+  await ok(await admin(`/tickets/${open.id}/messages`, { method: 'POST', body: form({ message: 'pic' }, [png]) }));
+  const others = () => [db.prepare('SELECT COUNT(*) AS n FROM tickets').get().n, db.prepare('SELECT COUNT(*) AS n FROM ticket_messages WHERE ticket_id != ?').get(id).n, [...shots.keys()].filter((k) => !k.startsWith(id))];
+  const kept = others();
   assert.deepEqual(await ok(await admin(`/tickets/${id}`, { method: 'DELETE' })), { deleted: id });
   assert.deepEqual([...shots.keys()].filter((k) => k.startsWith(id)), []);
   assert.equal(db.prepare('SELECT COUNT(*) AS n FROM ticket_messages WHERE ticket_id = ?').get(id).n, 0);
+  assert.deepEqual(others(), [kept[0] - 1, kept[1], kept[2]], "the other tickets' rows and screenshots kept");
+  assert.equal(kept[2].length, 1);
   await refused(await call(`/support/tickets/${id}`), 404, 'not_found');
   await refused(await admin(`/tickets/${id}`, { method: 'DELETE' }), 404, 'not_found');
   await refused(await admin('/tickets', { method: 'POST', body: form(bug) }), 405, 'method');
