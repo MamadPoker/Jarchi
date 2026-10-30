@@ -206,11 +206,12 @@ async function ping(req, env) {
 // ---------- Admin API ----------
 // For Jarchi's admin app. Every /admin address needs "Authorization: Bearer <ADMIN_KEY>". A source (its address, kept
 // only as a hash keyed with ADMIN_KEY) with FAIL_MAX wrong tries in FAIL_MS is refused for FAIL_MS, right key or not.
-//   GET    /admin/stats          installs, online now, active today (?tz= minutes east of UTC, Tehran 210; default UTC)
-//                                and in 7 days, live now, installs per version, the relay's requests per day (UTC)
+//   GET    /admin/stats          installs (all, installed app, dev runs, installed app new in 7 days), online now, active
+//                                today (?tz= minutes east of UTC, Tehran 210; default UTC) and in 7 days, live now,
+//                                installs per version, the relay's requests per day (UTC)
 //   GET    /admin/installs       the installs, newest first; ?q= part of a Kick/Twitch channel name, ?limit= 1-200
 //                                (50), ?offset=
-//   GET    /admin/downloads      download counts per release and file, from GitHub (Jarchi-releases), cached RELEASES_MS
+//   GET    /admin/downloads      download counts per release and file, from GitHub (REPOS), cached RELEASES_MS
 //   DELETE /admin/installs/<id>  one install's row (a data-deletion request)
 //   GET    /admin/tickets        every support ticket, last changed first (?status=, ?category=), each with unread (a
 //                                message from the install the admin hasn't opened), and unread: how many tickets have one
@@ -223,7 +224,9 @@ async function ping(req, env) {
 const FAIL_MAX = 10, FAIL_MS = 60 * 60 * 1000;
 const ONLINE_MS = 10 * 60 * 1000, DAY_MS = 24 * 60 * 60 * 1000, RELEASES_MS = 10 * 60 * 1000;
 const FREE_REQUESTS = 100000; // Cloudflare's free plan, a day (UTC)
-const RELEASES = 'https://api.github.com/repos/MamadPoker/Jarchi-releases/releases?per_page=100';
+const REPOS = ['MamadPoker/Jarchi', 'MamadPoker/Jarchi-releases']; // v1.0.2 on; v1.0.2 and before
+// Only the installer is a download: latest.yml and the .blockmap are fetched by Jarchi's own update check.
+const INSTALLER = 'Jarchi-Setup.exe';
 
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'cache-control': 'no-store' } });
 const iso = (ms) => new Date(ms).toISOString();
@@ -269,6 +272,9 @@ async function admin(req, url, env) {
 }
 
 const COUNTS = `SELECT COUNT(*) AS installs,
+  COUNT(*) FILTER (WHERE installed = 1) AS installsInstalled,
+  COUNT(*) FILTER (WHERE installed = 0) AS installsDev,
+  COUNT(*) FILTER (WHERE installed = 1 AND first_seen > ?3) AS installsNew7Days,
   COUNT(*) FILTER (WHERE is_open = 1 AND last_seen > ?1) AS online,
   COUNT(*) FILTER (WHERE last_seen >= ?2) AS activeToday,
   COUNT(*) FILTER (WHERE last_seen > ?3) AS active7Days,
@@ -314,19 +320,29 @@ async function installs(url, env, now) {
   }) });
 }
 
-// GitHub's answer, kept in this isolate (like Kick's public key); when GitHub fails, the last one is served again.
+// One repo's releases; downloads: the installer's.
+async function github(repo) {
+  const r = await fetch(`https://api.github.com/repos/${repo}/releases?per_page=100`,
+    { headers: { accept: 'application/vnd.github+json', 'user-agent': 'jarchi-relay' } }).catch(() => null);
+  const list = r?.ok ? await r.json().catch(() => null) : null;
+  if (!Array.isArray(list)) throw new Error(`GitHub (${repo}): ${r ? r.status : 'unreachable'}`);
+  return list.map((rel) => ({
+    repo, tag: rel.tag_name, name: rel.name, publishedAt: rel.published_at, prerelease: rel.prerelease,
+    downloads: rel.assets.filter((a) => a.name === INSTALLER).reduce((n, a) => n + a.download_count, 0),
+    files: rel.assets.map((a) => ({ name: a.name, size: a.size, downloads: a.download_count })),
+  }));
+}
+
+// Every repo's answer, kept in this isolate (like Kick's public key); when one fails, the last full one is served again
+// (never a part: its sum would be short).
 let releases = { at: 0, value: null };
 async function downloads() {
   if (Date.now() - releases.at >= RELEASES_MS) {
-    const r = await fetch(RELEASES, { headers: { accept: 'application/vnd.github+json', 'user-agent': 'jarchi-relay' } }).catch(() => null);
-    const list = r?.ok ? await r.json().catch(() => null) : null;
-    if (Array.isArray(list)) {
-      releases = { at: Date.now(), value: list.map((rel) => ({
-        tag: rel.tag_name, name: rel.name, publishedAt: rel.published_at, prerelease: rel.prerelease,
-        downloads: rel.assets.reduce((n, a) => n + a.download_count, 0),
-        files: rel.assets.map((a) => ({ name: a.name, size: a.size, downloads: a.download_count })),
-      })) };
-    } else if (!releases.value) return text(`GitHub: ${r ? r.status : 'unreachable'}`, 502);
+    try {
+      releases = { at: Date.now(), value: (await Promise.all(REPOS.map(github))).flat() };
+    } catch (e) {
+      if (!releases.value) return text(e.message, 502);
+    }
   }
   return json({ fetchedAt: iso(releases.at), downloads: releases.value.reduce((n, rel) => n + rel.downloads, 0), releases: releases.value });
 }

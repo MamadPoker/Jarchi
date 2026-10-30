@@ -210,7 +210,7 @@ test('relay /admin: key, lockout, stats, installs, downloads, delete, requests p
   assert.equal((await call('/admin/nope', { key: 'nope' })).status, 401, 'unknown admin addresses say nothing either');
 
   const { requests, ...counts } = await get('/admin/stats');
-  assert.deepEqual(counts, { installs: 4, online: 2, activeToday: 3, active7Days: 4, live: 1,
+  assert.deepEqual(counts, { installs: 4, installsInstalled: 3, installsDev: 1, installsNew7Days: 3, online: 2, activeToday: 3, active7Days: 4, live: 1,
     versions: [{ version: '1.0.0', installs: 3 }, { version: '0.9.0', installs: 1 }] });
   assert.equal(requests.limit, 100000);
   assert.equal((await get('/admin/stats?tz=300')).activeToday, 2, 'UTC+5: it is already the 24th there, B was yesterday');
@@ -253,34 +253,41 @@ test('relay /admin: key, lockout, stats, installs, downloads, delete, requests p
   assert.equal((await call(`/admin/installs/${id.A}`, { method: 'DELETE' })).status, 404);
   assert.deepEqual(db.prepare('SELECT id FROM installs ORDER BY first_seen').all().map((r) => r.id), [id.B, id.C, id.D]);
 
-  // Downloads from GitHub: kept 10 minutes; while GitHub fails, the last answer again.
+  // Downloads from GitHub, both repos summed, only the installer counted: kept 10 minutes; while either fails, the last
+  // full answer again.
   const real = globalThis.fetch, asked = [];
-  let github = new Response('rate limited', { status: 403 });
-  globalThis.fetch = async (url, init) => (asked.push([url, init.headers['user-agent']]), github.clone());
+  const REL = (repo) => `https://api.github.com/repos/MamadPoker/${repo}/releases?per_page=100`;
+  let github = {}; // address -> GitHub's answer; none: rate limited
+  globalThis.fetch = async (url, init) => (asked.push([url, init.headers['user-agent']]), (github[url] ?? new Response('rate limited', { status: 403 })).clone());
   assert.equal((await call('/admin/downloads')).status, 502, 'nothing to show yet');
-  github = Response.json([
-    { tag_name: 'v1.0.1', name: 'Jarchi 1.0.1', published_at: '2026-10-23T12:00:00Z', prerelease: false, assets: [
-      { name: 'Jarchi-Setup-1.0.1.exe', size: 1000, download_count: 7 }, { name: 'latest.yml', size: 10, download_count: 30 }] },
-    { tag_name: 'v1.0.0', name: 'Jarchi 1.0.0', published_at: '2026-10-20T12:00:00Z', prerelease: false, assets: [
-      { name: 'Jarchi-Setup-1.0.0.exe', size: 900, download_count: 5 }] },
+  const setup = (n) => ({ name: 'Jarchi-Setup.exe', size: 1000, download_count: n });
+  const updates = [{ name: 'Jarchi-Setup.exe.blockmap', size: 5, download_count: 4 }, { name: 'latest.yml', size: 10, download_count: 30 }];
+  github[REL('Jarchi-releases')] = Response.json([
+    { tag_name: 'v1.0.1', name: 'Jarchi 1.0.1', published_at: '2026-10-23T12:00:00Z', prerelease: false, assets: [setup(6), ...updates] },
+    { tag_name: 'v1.0.0', name: 'Jarchi 1.0.0', published_at: '2026-10-20T12:00:00Z', prerelease: false, assets: [setup(8)] },
+  ]);
+  assert.equal((await call('/admin/downloads')).status, 502, 'one repo alone is not shown: its sum would be short');
+  github[REL('Jarchi')] = Response.json([
+    { tag_name: 'v1.0.2', name: 'Jarchi 1.0.2', published_at: '2026-10-23T15:00:00Z', prerelease: false, assets: [setup(2), ...updates] },
   ]);
   const d = await get('/admin/downloads');
-  assert.deepEqual(d, { fetchedAt: '2026-10-23T20:00:00.000Z', downloads: 42, releases: [
-    { tag: 'v1.0.1', name: 'Jarchi 1.0.1', publishedAt: '2026-10-23T12:00:00Z', prerelease: false, downloads: 37, files: [
-      { name: 'Jarchi-Setup-1.0.1.exe', size: 1000, downloads: 7 }, { name: 'latest.yml', size: 10, downloads: 30 }] },
-    { tag: 'v1.0.0', name: 'Jarchi 1.0.0', publishedAt: '2026-10-20T12:00:00Z', prerelease: false, downloads: 5, files: [
-      { name: 'Jarchi-Setup-1.0.0.exe', size: 900, downloads: 5 }] },
+  const files = (n) => [{ name: 'Jarchi-Setup.exe', size: 1000, downloads: n }, { name: 'Jarchi-Setup.exe.blockmap', size: 5, downloads: 4 }, { name: 'latest.yml', size: 10, downloads: 30 }];
+  assert.deepEqual(d, { fetchedAt: '2026-10-23T20:00:00.000Z', downloads: 16, releases: [
+    { repo: 'MamadPoker/Jarchi', tag: 'v1.0.2', name: 'Jarchi 1.0.2', publishedAt: '2026-10-23T15:00:00Z', prerelease: false, downloads: 2, files: files(2) },
+    { repo: 'MamadPoker/Jarchi-releases', tag: 'v1.0.1', name: 'Jarchi 1.0.1', publishedAt: '2026-10-23T12:00:00Z', prerelease: false, downloads: 6, files: files(6) },
+    { repo: 'MamadPoker/Jarchi-releases', tag: 'v1.0.0', name: 'Jarchi 1.0.0', publishedAt: '2026-10-20T12:00:00Z', prerelease: false, downloads: 8,
+      files: [{ name: 'Jarchi-Setup.exe', size: 1000, downloads: 8 }] },
   ] });
-  assert.deepEqual(asked.at(-1), ['https://api.github.com/repos/MamadPoker/Jarchi-releases/releases?per_page=100', 'jarchi-relay']);
+  assert.deepEqual(asked.slice(-2), [[REL('Jarchi'), 'jarchi-relay'], [REL('Jarchi-releases'), 'jarchi-relay']]);
   at('2026-10-23T20:09:59.000Z');
   assert.deepEqual(await get('/admin/downloads'), d);
-  assert.equal(asked.length, 2, 'cached');
+  assert.equal(asked.length, 6, 'cached');
   at('2026-10-23T20:10:00.000Z');
   assert.equal((await get('/admin/downloads')).fetchedAt, '2026-10-23T20:10:00.000Z');
   at('2026-10-23T20:30:00.000Z');
-  github = new Response('down', { status: 500 });
-  assert.equal((await get('/admin/downloads')).fetchedAt, '2026-10-23T20:10:00.000Z');
-  assert.equal(asked.length, 4);
+  github[REL('Jarchi')] = new Response('down', { status: 500 });
+  assert.deepEqual(await get('/admin/downloads'), { ...d, fetchedAt: '2026-10-23T20:10:00.000Z' }, 'one repo down: the last full answer');
+  assert.equal(asked.length, 10);
   globalThis.fetch = real;
 
   // 10 wrong tries from one source in an hour: that source is refused for an hour, even with the right key.
@@ -314,4 +321,9 @@ test('relay /admin: key, lockout, stats, installs, downloads, delete, requests p
   assert.deepEqual(Object.fromEntries(db.prepare('SELECT day, count FROM requests').all().map((r) => [r.day, r.count])), made);
   const { days } = (await get('/admin/stats')).requests;
   assert.deepEqual(days.map((r) => [r.day, r.count]), [['2026-10-23', made['2026-10-23']], ['2026-10-20', 2]]);
+
+  // New in 7 days: first seen after exactly 7 days ago (A is deleted; B 18:00, C 19:55, D a dev run).
+  at('2026-10-30T18:00:00.000Z');
+  const later = await get('/admin/stats');
+  assert.deepEqual([later.installs, later.installsInstalled, later.installsDev, later.installsNew7Days], [3, 2, 1, 1]);
 });
