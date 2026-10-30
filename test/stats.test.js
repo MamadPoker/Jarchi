@@ -166,9 +166,27 @@ test('relay POST /ping: one row per install, UTC times, refusals, rate limit', a
   }
   assert.equal((await worker.fetch(new Request('https://relay.test/ping'), { DB }, ctx)).status, 405);
   assert.equal(db.prepare('SELECT COUNT(*) AS n FROM installs').get().n, 2);
+
+  // Active installs per day (UTC), on that day's requests row: each install once, by its first taken ping; only counts.
+  const active = (day) => ({ ...db.prepare('SELECT active_installed, active_dev FROM requests WHERE day = ?').get(day) });
+  assert.deepEqual(active('2026-10-23'), { active_installed: 0, active_dev: 101 }, 'two dev runs and 99 made-up ids; the refused one not counted');
+  t.mock.timers.setTime(Date.parse('2026-10-23T23:58:00.000Z'));
+  for (let i = 0; i < 10; i++) assert.equal((await post(sent)).status, 200);
+  t.mock.timers.setTime(Date.parse('2026-10-24T00:07:59.000Z'));
+  assert.equal((await post(sent)).status, 429);
+  assert.deepEqual(active('2026-10-24'), { active_installed: 0, active_dev: 0 }, 'a refused ping counts nothing');
+  t.mock.timers.setTime(Date.parse('2026-10-24T00:08:00.000Z'));
+  for (const p of [{ ...sent, installed: true }, { ...sent, installed: true }, other]) assert.equal((await post(p)).status, 200);
+  assert.deepEqual(active('2026-10-24'), { active_installed: 1, active_dev: 1 }, 'a new day: each install again, once, as its first ping says');
+  assert.deepEqual(Object.keys(db.prepare('SELECT * FROM requests').get()), ['day', 'count', 'active_installed', 'active_dev'], 'no ids');
+  // A day whose row is from before these columns (the day they're added) stays unrecorded.
+  t.mock.timers.setTime(Date.parse('2026-10-25T09:00:00.000Z'));
+  db.exec("INSERT INTO requests (day, count) VALUES ('2026-10-25', 3)");
+  assert.equal((await post(sent)).status, 200);
+  assert.deepEqual(active('2026-10-25'), { active_installed: null, active_dev: null });
 });
 
-test('relay /admin: key, lockout, stats, installs, downloads, delete, requests per day', async (t) => {
+test('relay /admin: key, lockout, stats, installs, downloads, delete, requests per day, history', async (t) => {
   const { default: worker } = await import('../relay/worker.mjs');
   const { db, DB } = d1();
   const KEY = 'k'.repeat(96), env = { DB, ADMIN_KEY: KEY }, made = {};
@@ -321,6 +339,21 @@ test('relay /admin: key, lockout, stats, installs, downloads, delete, requests p
   assert.deepEqual(Object.fromEntries(db.prepare('SELECT day, count FROM requests').all().map((r) => [r.day, r.count])), made);
   const { days } = (await get('/admin/stats')).requests;
   assert.deepEqual(days.map((r) => [r.day, r.count]), [['2026-10-23', made['2026-10-23']], ['2026-10-20', 2]]);
+
+  // 30 days for a chart (UTC), oldest first: installs active each day (A pinged twice, counted once), requests; null:
+  // not recorded (the 19th: a row from before the active columns).
+  db.exec("INSERT INTO requests (day, count) VALUES ('2026-10-19', 7)");
+  const { days: history } = await get('/admin/history');
+  assert.deepEqual([history.length, history[0]], [30, { day: '2026-09-24', installed: null, dev: null, requests: null }]);
+  assert.deepEqual(history.slice(-5), [
+    { day: '2026-10-19', installed: null, dev: null, requests: 7 },
+    { day: '2026-10-20', installed: 1, dev: 0, requests: 2 },
+    { day: '2026-10-21', installed: null, dev: null, requests: null },
+    { day: '2026-10-22', installed: null, dev: null, requests: null },
+    { day: '2026-10-23', installed: 2, dev: 1, requests: made['2026-10-23'] },
+  ]);
+  assert.equal((await call('/admin/history', { method: 'POST' })).status, 405);
+  assert.equal((await call('/admin/history', { key: 'nope' })).status, 401);
 
   // New in 7 days: first seen after exactly 7 days ago (A is deleted; B 18:00, C 19:55, D a dev run).
   at('2026-10-30T18:00:00.000Z');

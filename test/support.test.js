@@ -95,7 +95,7 @@ test('relay /support and /admin/tickets: tokens, forms, screenshots, unread, sta
   assert.equal((await call('/admin/tickets', { headers: { 'cf-connecting-ip': '10.0.0.2' } })).status, 401);
   let list = await ok(await admin('/tickets'));
   assert.deepEqual(list, { unread: 1, tickets: [{ id, category: 'bug', subject: 'Alerts stop', status: 'open', createdAt: at, updatedAt: at,
-    installId: install, kick: 'Mamad_Poker', twitch: null, hiddenByUser: false, hiddenByUserAt: null, messages: 1, unread: true }] });
+    installId: install, kick: 'Mamad_Poker', twitch: null, hiddenByUser: false, hiddenByUserAt: null, messages: 1, unread: true, lastAuthor: 'user', lastMessageAt: at }] });
   assert.equal((await ok(await admin('/tickets?category=bug&status=open'))).tickets.length, 1);
   assert.deepEqual(await ok(await admin('/tickets?status=closed')), { unread: 1, tickets: [] }, 'unread counts every ticket');
   for (const q of ['status=nope', 'category=Bug']) await refused(await admin(`/tickets?${q}`), 400, 'bad_request');
@@ -113,6 +113,8 @@ test('relay /support and /admin/tickets: tokens, forms, screenshots, unread, sta
   assert.equal((await ok(await call(`/support/tickets/${id}`))).messages.length, 2);
   assert.equal((await ok(await call('/support/tickets')))[0].unread, false, 'opened');
   assert.equal((await ok(await admin('/tickets'))).unread, 0, "the admin's own reply isn't unread for the admin");
+  const last = async () => { const x = (await ok(await admin('/tickets'))).tickets[0]; return [x.lastAuthor, x.lastMessageAt]; };
+  assert.deepEqual(await last(), ['admin', '2026-10-23T10:01:00.000Z'], 'who wrote last, without opening it');
 
   // The install answers with a screenshot only (JPG); empty is refused. The admin sees it unread.
   t.mock.timers.tick(60e3);
@@ -122,6 +124,7 @@ test('relay /support and /admin/tickets: tokens, forms, screenshots, unread, sta
   await refused(await call(`/support/tickets/${id}/messages`, { method: 'POST', body: form({ message: '  ' }) }), 400, 'bad_request');
   await refused(await call(`/support/tickets/${id}/messages`, { method: 'POST', body: form({ message: 'x', subject: 'y' }) }), 400, 'bad_request');
   assert.equal((await ok(await admin('/tickets'))).unread, 1);
+  assert.deepEqual(await last(), ['user', '2026-10-23T10:02:00.000Z']);
 
   // Status: the admin's only; a closed ticket takes no more messages from the install.
   assert.equal((await ok(await admin(`/tickets/${id}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: '{"status":"progress"}' }))).status, 'progress');

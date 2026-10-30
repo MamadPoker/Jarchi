@@ -13,7 +13,8 @@
 //                   in the D1 database DB (schema.sql). No IP address or anything else about the request is kept.
 //   /support/...    Jarchi's Support page: an install's tickets (see "Support tickets" below), screenshots in KV SHOTS.
 //   /admin/...      Jarchi's admin app: counts, the installs, downloads, tickets (see "Admin API" below). Needs ADMIN_KEY.
-// Every request is counted per day (UTC) in DB, so the admin app can show it against Cloudflare's free limit.
+// Every request is counted per day (UTC) in DB, so the admin app can show it against Cloudflare's free limit; the same
+// row counts the installs active that day (see ping).
 // Settings (secrets): KICK_CLIENT_ID, KICK_CLIENT_SECRET, ADMIN_KEY. Deploy: see README.md here.
 const KICK_ID = 'https://id.kick.com';
 const KICK_API = 'https://api.kick.com/public/v1';
@@ -26,7 +27,7 @@ const STATE = /^(\d{2,5})\.[\w-]{16,128}$/; // "<Jarchi's port>.<random>"
 
 // ponytail: one D1 row written per request, sharing D1's free 100,000 writes a day with the pings; move the count to a
 // Durable Object if D1 writes get close.
-const COUNT = 'INSERT INTO requests (day, count) VALUES (?1, 1) ON CONFLICT (day) DO UPDATE SET count = count + 1';
+const COUNT = 'INSERT INTO requests (day, count, active_installed, active_dev) VALUES (?1, 1, 0, 0) ON CONFLICT (day) DO UPDATE SET count = count + 1';
 
 export default {
   async fetch(req, env, ctx) {
@@ -167,6 +168,10 @@ ON CONFLICT (id) DO UPDATE SET last_seen = excluded.last_seen, version = exclude
   window_start = CASE WHEN ?3 - window_start >= ?15 THEN ?3 ELSE window_start END,
   window_pings = CASE WHEN ?3 - window_start >= ?15 THEN 1 ELSE window_pings + 1 END
 WHERE ?3 - installs.window_start >= ?15 OR installs.window_pings < ?16`;
+// An install's first taken ping of the day (UTC) counts it once on that day's requests row, as the installed app (?2 = 1)
+// or a dev run: only the two counts, no id. A day from before these columns stays NULL (not recorded).
+const ACTIVE = `INSERT INTO requests (day, count, active_installed, active_dev) VALUES (?1, 0, ?2, 1 - ?2)
+ON CONFLICT (day) DO UPDATE SET active_installed = active_installed + ?2, active_dev = active_dev + 1 - ?2`;
 
 // The body's bytes, or null past max bytes (read no further).
 async function capped(req, max) {
@@ -195,12 +200,16 @@ async function ping(req, env) {
   let p;
   try { p = JSON.parse(new TextDecoder().decode(body)); } catch { return text('Bad request', 400); }
   if (!pingOk(p)) return text('Bad request', 400);
-  const now = Date.now(), bit = (v) => (v === null || v === undefined ? null : Number(v)), d = p.diag;
-  const { meta } = await env.DB.prepare(UPSERT).bind(p.id, new Date(now).toISOString(), now, p.version, bit(p.installed), bit(p.open),
+  const now = Date.now(), at = new Date(now).toISOString(), bit = (v) => (v === null || v === undefined ? null : Number(v)), d = p.diag;
+  const seen = await env.DB.prepare('SELECT last_seen FROM installs WHERE id = ?1').bind(p.id).first();
+  const { meta } = await env.DB.prepare(UPSERT).bind(p.id, at, now, p.version, bit(p.installed), bit(p.open),
     p.kick?.name ?? null, p.kick?.picture ?? null, bit(p.kick?.live), p.twitch?.name ?? null, p.twitch?.picture ?? null, bit(p.twitch?.live),
     p.privacy.version, p.privacy.acceptedAt, PING_WINDOW_MS, PING_MAX, new Date(now - NEW_WINDOW_MS).toISOString(), NEW_MAX,
     d?.kick ?? null, d?.kickReason ?? null, d?.twitch ?? null, d?.twitchReason ?? null, d?.proxy ?? null, bit(d?.vpn)).run();
-  return meta.changes ? text('ok') : text('Too many pings', 429);
+  if (!meta.changes) return text('Too many pings', 429);
+  const day = at.slice(0, 10);
+  if (!(seen?.last_seen >= day)) await env.DB.prepare(ACTIVE).bind(day, bit(p.installed)).run();
+  return text('ok');
 }
 
 // ---------- Admin API ----------
@@ -209,12 +218,16 @@ async function ping(req, env) {
 //   GET    /admin/stats          installs (all, installed app, dev runs, installed app new in 7 days), online now, active
 //                                today (?tz= minutes east of UTC, Tehran 210; default UTC) and in 7 days, live now,
 //                                installs per version, the relay's requests per day (UTC)
-//   GET    /admin/installs       the installs, newest first; ?q= part of a Kick/Twitch channel name, ?limit= 1-200
+//   GET    /admin/history        the last 30 days (UTC), oldest first, each { day, installed, dev, requests }: installs
+//                                active that day (each once; installed app / dev runs) and the relay's requests, null
+//                                where that day wasn't recorded
+//   GET    /admin/installs      the installs, newest first; ?q= part of a Kick/Twitch channel name, ?limit= 1-200
 //                                (50), ?offset=
 //   GET    /admin/downloads      download counts per release and file, from GitHub (REPOS), cached RELEASES_MS
 //   DELETE /admin/installs/<id>  one install's row (a data-deletion request)
 //   GET    /admin/tickets        every support ticket, last changed first (?status=, ?category=), each with unread (a
-//                                message from the install the admin hasn't opened), and unread: how many tickets have one
+//                                message from the install the admin hasn't opened), lastAuthor (user | admin) and
+//                                lastMessageAt, and unread: how many tickets have one
 //   GET    /admin/tickets/<id>   one, with its messages (opening it marks them read); its screenshots at
 //                                /admin/tickets/<id>/images/<name>
 //   POST   /admin/tickets/<id>/messages  a reply (a form, like the install's messages below)
@@ -263,6 +276,7 @@ async function admin(req, url, env) {
   const get = req.method === 'GET';
   switch (url.pathname) {
     case '/admin/stats': return get ? stats(url, env, now) : text('GET only', 405);
+    case '/admin/history': return get ? history(env, now) : text('GET only', 405);
     case '/admin/installs': return get ? installs(url, env, now) : text('GET only', 405);
     case '/admin/downloads': return get ? downloads() : text('GET only', 405);
   }
@@ -291,6 +305,16 @@ async function stats(url, env, now) {
     env.DB.prepare('SELECT day, count FROM requests ORDER BY day DESC LIMIT 30').all(),
   ]);
   return json({ ...counts, versions: versions.results, requests: { limit: FREE_REQUESTS, days: days.results } });
+}
+
+async function history(env, now) {
+  const days = Array.from({ length: 30 }, (_, i) => iso(now - (29 - i) * DAY_MS).slice(0, 10));
+  const { results } = await env.DB.prepare('SELECT * FROM requests WHERE day >= ?1').bind(days[0]).all();
+  const of = new Map(results.map((r) => [r.day, r]));
+  return json({ days: days.map((day) => {
+    const r = of.get(day);
+    return { day, installed: r?.active_installed ?? null, dev: r?.active_dev ?? null, requests: r?.count ?? null };
+  }) });
 }
 
 // Shaped like a ping: { id, version, installed, open, kick, twitch, privacy, diag } (diag null: its last ping had none)
@@ -414,13 +438,16 @@ async function tickets(req, url, env, me) {
 }
 
 // A ticket as a side sees it (the admin also sees whose it is). A list row also has its messages' count and unread: a
-// message from the other side newer than this side last opened it.
+// message from the other side newer than this side last opened it; the admin's also who wrote the last message and when.
 const UNREAD = (side) => `EXISTS (SELECT 1 FROM ticket_messages m WHERE m.ticket_id = t.id AND m.author != '${side}' AND m.created_at > COALESCE(t.${side}_read_at, ''))`;
-const TICKET_LIST = (side) => `SELECT t.*, (SELECT COUNT(*) FROM ticket_messages m WHERE m.ticket_id = t.id) AS messages, ${UNREAD(side)} AS unread FROM tickets t`;
+const LAST = (column) => `(SELECT m.${column} FROM ticket_messages m WHERE m.ticket_id = t.id ORDER BY m.id DESC LIMIT 1)`;
+const TICKET_LIST = (side) => `SELECT t.*, (SELECT COUNT(*) FROM ticket_messages m WHERE m.ticket_id = t.id) AS messages, ${UNREAD(side)} AS unread,
+  ${LAST('author')} AS last_author, ${LAST('created_at')} AS last_message_at FROM tickets t`;
 const ticketOf = (r, side) => ({
   id: r.id, category: r.category, subject: r.subject, status: r.status, createdAt: r.created_at, updatedAt: r.updated_at,
   ...(side === 'admin' && { installId: r.install_id, kick: r.kick_name, twitch: r.twitch_name, hiddenByUser: !!r.hidden_by_user_at, hiddenByUserAt: r.hidden_by_user_at }),
   ...('unread' in r && { messages: r.messages, unread: r.unread === 1 }),
+  ...(side === 'admin' && 'unread' in r && { lastAuthor: r.last_author, lastMessageAt: r.last_message_at }),
 });
 
 async function mine(env, me) {

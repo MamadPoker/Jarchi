@@ -37,10 +37,16 @@ CREATE TABLE IF NOT EXISTS admin_fails (
   fails INTEGER NOT NULL,         -- wrong tries in it
   blocked_until INTEGER NOT NULL  -- refused until then (ms), 0: not blocked
 );
--- The relay's own requests per day (UTC), for the admin app (Cloudflare's free plan: 100,000 a day).
+-- Per day (UTC), for the admin app: the relay's own requests (Cloudflare's free plan: 100,000 a day) and the installs
+-- active that day. Only counts: no ids, no addresses.
 CREATE TABLE IF NOT EXISTS requests (
   day TEXT PRIMARY KEY,  -- "2026-10-23"
-  count INTEGER NOT NULL
+  count INTEGER NOT NULL,
+  -- Installs that pinged that day, each counted once, by its first ping of the day: the installed app / dev runs.
+  -- NULL: not recorded (before these columns). Added 2026-10-30; a database made before needs, once:
+  -- ALTER TABLE requests ADD COLUMN active_installed INTEGER; ALTER TABLE requests ADD COLUMN active_dev INTEGER
+  active_installed INTEGER,
+  active_dev INTEGER
 );
 
 -- Support tickets (worker.mjs /support and /admin/tickets): an install's tickets with Jarchi's admin, each a thread of
