@@ -234,6 +234,17 @@ const CHAT_STYLES = Object.fromEntries(Object.entries({
 // The chat can also use these bundled fonts (assets/fonts).
 const CHAT_FONTS = [...FONTS, 'Press Start 2P', 'Bangers', 'Fredoka', 'Vazirmatn', 'Inter'];
 const CHAT_LOOK = Object.keys(CHAT_BASE); // the fields a style sets
+// What makes a design itself (font, colors, box, its size, motion): each design remembers the user's own changes to
+// these (saved.chat.looks holds the designs not picked), so switching away and back brings them back. The rest of the
+// look (text and emote sizes, what a line shows, badges, effects, how long and how many messages) is shared by all
+// designs: it stays as it is when the design changes.
+const CHAT_OWN = ['font', 'textColor', 'textShadow', 'nameColor', 'namePos', 'showColon', 'bg', 'bgColor', 'bgOpacity', 'bubbles', 'border', 'borderColor',
+  'borderWidth', 'radius', 'padding', 'gap', 'width', 'height', 'blur', 'layout', 'tickerDir', 'tickerSpeed', 'tickerLoop', 'enterAnim', 'exitAnim', 'animSpeed',
+  'fade', 'fadeZone', 'typewriter', 'typeSound'];
+const CHAT_SHARED = CHAT_LOOK.filter((k) => !CHAT_OWN.includes(k));
+const pick = (o, keys) => Object.fromEntries(keys.filter((k) => k in o).map((k) => [k, o[k]]));
+// The panel's style thumbnails: each design's own look, over the user's shared values (what picking it gives).
+const CHAT_DESIGNS = Object.fromEntries(Object.entries(CHAT_STYLES).map(([id, s]) => [id, pick(s, CHAT_OWN)]));
 const CHAT_DEFAULTS = {
   enabled: true,
   kickChannel: '',
@@ -400,9 +411,9 @@ function alert(t) {
   return cfg;
 }
 
-// Chat = its style's look + the chat defaults + the user's changes.
+// Chat = its style's look + the chat defaults + the user's changes (the other designs' own changes aren't in it).
 function chat() {
-  const o = saved.chat ?? {};
+  const { looks, ...o } = saved.chat ?? {};
   const style = o.style in CHAT_STYLES ? o.style : CHAT_DEFAULTS.style;
   return { ...CHAT_STYLES[style], ...CHAT_DEFAULTS, ...o, style };
 }
@@ -451,7 +462,17 @@ function update(patch) {
   }
   if (chatFields) {
     const o = (saved.chat ??= {});
-    if ('style' in chatFields) for (const k of CHAT_LOOK) delete o[k];
+    const from = chat().style, to = chatFields.style;
+    if (to && to !== from) {
+      // Another design: the shared look stays as it was (the old design's value where the user never changed it); the
+      // old design's own changes are put away and the new one's come back.
+      for (const k of CHAT_SHARED) o[k] ??= CHAT_STYLES[from][k];
+      const looks = (o.looks ??= {});
+      looks[from] = pick(o, CHAT_OWN);
+      for (const k of CHAT_OWN) delete o[k];
+      Object.assign(o, looks[to]);
+      delete looks[to];
+    }
     Object.assign(o, chatFields);
   }
   persist();
@@ -645,5 +666,5 @@ module.exports = {
   get, update, saveUpload, removeUpload, reset, saveGoalSound, removeGoalSound, saveProfilePicture, resetGoalStyle, resetChatStyle,
   resetAlertText, setTier, saveTierFile, removeTierFile, sniff, installId, privacyAcceptedAt, supportToken, obsSize, setObsSize,
   connectState, setConnectState,
-  GOAL_IDS, GOAL_STYLES, CHAT_STYLES, CHAT_FONTS, FONTS, KICK_GIFTS,
+  GOAL_IDS, GOAL_STYLES, CHAT_DESIGNS, CHAT_FONTS, FONTS, KICK_GIFTS,
 };

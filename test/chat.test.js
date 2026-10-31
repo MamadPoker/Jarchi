@@ -287,8 +287,8 @@ test('chat styles: all 27 can be picked (Kick default first), new options valida
   for (const bad of [{ nameColorMode: 'rainbow' }, { enterAnim: 'spin' }, { typewriter: 'yes' }, { font: 'Comic Sans' }, { badgeMode: 'some' }, { badgeSize: 5 },
     { hatStyle: 'tophat' }, { hatPos: 'middle' }, { badgeBg: 'light' }]) assert.equal((await call('PATCH', '/api/settings', { chat: bad })).status, 400, JSON.stringify(bad));
   const fresh = (await (await call('PATCH', '/api/settings', { chat: { style: 'comic' } })).json()).chat;
-  assert.deepEqual([fresh.ogHat, fresh.hatStyle, fresh.hatPos, fresh.badgeBg, fresh.badgeMode], [false, 'fedora', 'avatar', 'off', 'important'],
-    'the OG hat and the badge background stay when the style changes; badges take the style\'s');
+  assert.deepEqual([fresh.ogHat, fresh.hatStyle, fresh.hatPos, fresh.badgeBg, fresh.badgeMode], [false, 'fedora', 'avatar', 'off', 'all'],
+    'the OG hat, the badge background and the badges stay when the style changes');
   await call('PATCH', '/api/settings', { chat: { ogHat: true, hatStyle: 'cap', hatPos: 'first', badgeBg: 'auto' } });
   for (const hat of ['cap', 'beanie', 'fedora']) assert.equal((await fetch(`${base}/assets/og-hats/${hat}.svg`)).status, 200, hat);
   for (const file of ['press-start-2p/PressStart2P-Regular.ttf', 'bangers/Bangers-Regular.ttf', 'fredoka/Fredoka-Variable.ttf', 'vazirmatn/Vazirmatn-Variable.ttf', 'inter/Inter-Variable.ttf']) {
@@ -297,6 +297,33 @@ test('chat styles: all 27 can be picked (Kick default first), new options valida
   }
   await call('POST', '/api/chat/reset-style');
   await call('PATCH', '/api/settings', { chat: { style: 'classic' } });
+});
+
+test('another chat design: the shared settings stay as they are, each design keeps its own', async () => {
+  if (!server.listening) await new Promise((r) => server.once('listening', r));
+  const chat = async (fields) => (await (await call('PATCH', '/api/settings', { chat: fields })).json()).chat;
+  const shared = (c) => [c.fontSize, c.showPlatform, c.avatars, c.hideAfter, c.showBadges, c.hideBots];
+  await chat({ style: 'kick' });
+  await call('POST', '/api/chat/reset-style');
+  let c = await chat({ style: 'neon' });
+  assert.deepEqual(shared(c), [14, false, false, 0, true, true], "Kick's text size and platform icon, never changed, stay");
+  assert.deepEqual([c.bgColor, c.border, c.font], ['#07031a', true, 'Segoe UI'], "Neon's own look");
+  await chat({ fontSize: 30, avatars: true, hideAfter: 45, showBadges: false, hideBots: false, bgColor: '#112233', enterAnim: 'drop' });
+  c = await chat({ style: 'news' });
+  assert.deepEqual(shared(c), [30, false, true, 45, false, false], 'shared: as they were');
+  assert.deepEqual([c.layout, c.height, c.bgColor, c.enterAnim], ['horizontal', 56, '#ffffff', 'slide'], "the bar's own look, not Neon's changes");
+  await chat({ height: 80, tickerSpeed: 200 });
+  c = await chat({ style: 'neon' });
+  assert.deepEqual([c.layout, c.bgColor, c.enterAnim, c.height], ['vertical', '#112233', 'drop', 600], "Neon's changes are back");
+  assert.deepEqual(shared(c), [30, false, true, 45, false, false]);
+  c = await chat({ style: 'news' });
+  assert.deepEqual([c.height, c.tickerSpeed, c.bgColor], [80, 200, '#ffffff'], "and the bar's");
+  assert.equal((await chat({ style: 'news' })).height, 80, 'picking the same design again changes nothing');
+  assert.ok(!('looks' in c), 'the other designs\' changes stay on the server');
+  const { styles } = await (await call('GET', '/api/chat/styles')).json();
+  assert.ok(!('fontSize' in styles.floating) && styles.floating.bg === 'off', 'thumbnails: a design\'s own look over the shared values');
+  await call('POST', '/api/chat/reset-style');
+  await chat({ style: 'classic', fontSize: 18, avatars: false, hideAfter: 0, showBadges: true, hideBots: true });
 });
 
 test('profile pictures: the message never waits for a lookup; a returning chatter\'s picture comes with the message', async () => {

@@ -16,6 +16,7 @@ fs.writeFileSync(path.join(dataDir, 'settings.json'), JSON.stringify({
   alertSize: 0.8, // before v9: one size for every alert
   alerts: { sub: { volume: 0.4, sound: { file: 'sub-sound-1.wav', name: 'old.wav' } }, raid: { font: 'Lalezar', textShadow: false } }, // raid: before v8
   goals: { subs: { title: 'Road to 50', countTwitch: true, source: 'twitch' }, followers: { source: 'both' } }, // before v6
+  chat: { fontSize: 24, bgColor: '#101010' }, // from before each chat design kept its own changes
 }));
 // The Home page's feed and today's numbers from before a restart (a broken feed entry is dropped).
 fs.writeFileSync(path.join(dataDir, 'feed.json'), JSON.stringify([{ id: 'old', time: 1, platform: 'kick', type: 'sub', user: 'Saved', amount: 0, months: 0, message: '', test: false }, { type: 'nope' }]));
@@ -74,6 +75,11 @@ test('migration, settings, uploads, reset, events', async () => {
   // v5 -> v6: the Sub and Followers goals stay (as Kick's), without "Also count Twitch subs" and Source.
   assert.deepEqual([s.goals.subs.title, 'countTwitch' in s.goals.subs, 'source' in s.goals.subs, 'source' in s.goals.followers], ['Road to 50', false, false, false]);
   assert.equal(s.chat.style, 'classic', 'an earlier user who never picked a chat style keeps Classic (Kick default is for new users)');
+  // Their chat changes are kept: the text size through another design, Classic's own box color when it's picked again.
+  let c = (await (await call('PATCH', '/api/settings', { chat: { style: 'neon' } })).json()).chat;
+  assert.deepEqual([c.fontSize, c.bgColor], [24, '#07031a']);
+  c = (await (await call('PATCH', '/api/settings', { chat: { style: 'classic' } })).json()).chat;
+  assert.deepEqual([c.style, c.fontSize, c.bgColor], ['classic', 24, '#101010']);
   assert.equal((await fetch(`${base}/uploads/sub-sound-1.wav`)).status, 200);
 
   // Platform badge: setting on by default, but nothing is connected yet, so widgets keep it hidden.
