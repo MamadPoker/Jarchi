@@ -1,5 +1,14 @@
 [
   {
+    "version": "1.0.4",
+    "en": [
+      "Custom CSS for every OBS widget (chat, goals, alerts), in a new \"Advanced\" section"
+    ],
+    "fa": [
+      "کد ظاهر دلخواه (CSS) برای همه‌ی ویجت‌های OBS (چت، گول‌ها، هشدارها)، در بخش جدید «پیشرفته»"
+    ]
+  },
+  {
     "version": "1.0.3",
     "en": [
       "Chat settings no longer reset when you switch style: each style remembers its own look",
