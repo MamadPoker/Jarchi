@@ -868,6 +868,13 @@
            settings in five tabs (right). No Save button: every change saves by itself (send(), the "Saved" note). ===== -->
       <section class="view chat-page" data-view="chat" hidden>
         <div class="page-head">
+          <!-- The chats (renderChatTabs): Chat 1, Chat 2 or "+", rename the selected one, delete Chat 2 -->
+          <div class="row chat-tabs">
+            <div id="chatTabs" class="seg" role="radiogroup" data-aria="chatList"></div>
+            <button id="chatAdd" class="icon-btn" data-title="chatAdd"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
+            <button id="chatRename" class="icon-btn" data-title="chatRename"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4"/></svg></button>
+            <button id="chatDelete" class="icon-btn" data-title="chatDelete" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg><span></span></button>
+          </div>
           <span id="chatSaved" class="saved-note"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span data-i18n="saved"></span><button id="chatUndo" class="link" data-i18n="undo" hidden></button></span>
           <div class="menu split-btn">
             <button id="chatTest">

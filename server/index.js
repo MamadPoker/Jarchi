@@ -153,12 +153,20 @@ app.post('/api/reset{/:type}', (req, res) => {
   res.json(changed(s));
 });
 
-// Chat: connectors run in core/chat; the look is a regular setting.
+// Chat: connectors run in core/chat; the look is a regular setting. Tests and resets are for one chat: { chat: 'chat2' }
+// is Chat 2, else Chat 1. "+" adds Chat 2, remove deletes it.
+const chatOf = (body) => (body?.chat === 'chat2' ? 'chat2' : 'chat');
 app.get('/api/chat/status', (req, res) => res.json(chat.status()));
 app.get('/api/chat/styles', (req, res) => res.json({ styles: settings.CHAT_DESIGNS, fonts: settings.CHAT_FONTS }));
-app.post('/api/chat/test', (req, res) => res.json(chat.test(['burst', 'all'].includes(req.body?.kind) ? req.body.kind : 'sample')));
-app.get('/api/chat/thumbs', (req, res) => res.json(chat.thumbs()));
-app.post('/api/chat/reset-style', (req, res) => res.json(changed(settings.resetChatStyle(req.body?.own === true))));
+app.post('/api/chat/test', (req, res) => {
+  const key = chatOf(req.body);
+  if (!settings.get()[key]) return res.status(400).json({ error: 'bad_request' }); // Chat 2 is gone (another window)
+  res.json(chat.test(['burst', 'all'].includes(req.body?.kind) ? req.body.kind : 'sample', key));
+});
+app.get('/api/chat/thumbs', (req, res) => res.json(chat.thumbs(chatOf(req.query))));
+app.post('/api/chat/reset-style', (req, res) => res.json(changed(settings.resetChatStyle(req.body?.own === true, chatOf(req.body)))));
+app.post('/api/chat/add', (req, res) => res.json(changed(settings.addChat())));
+app.post('/api/chat/remove', (req, res) => res.json(changed(settings.removeChat())));
 // The streamer's profile pictures for the panel's background art: { kick, twitch }, null where no channel / picture.
 app.get('/api/streamer', async (req, res) => res.json(await chat.streamer()));
 
@@ -237,6 +245,8 @@ app.get('/remote', async (req, res) => {
   }
 });
 
+// Chat 2's OBS link; Chat 1's is /widgets/chat (below).
+app.get('/widgets/chat/2{/}', (req, res) => res.sendFile(path.join(ROOT, 'widgets', 'chat', 'index.html')));
 app.use('/uploads', express.static(UPLOADS_DIR, { setHeaders: (res) => res.set('X-Content-Type-Options', 'nosniff') }));
 // One goal page, an OBS URL per goal: Kick's /widgets/goal/subs, /kicks, /followers; Twitch's /twitchSubs, /bits, /twitchFollowers.
 app.get('/widgets/goal/:id{/}', (req, res, next) => {
@@ -260,7 +270,7 @@ app.use((err, req, res, next) => {
 });
 
 // Widget pages open right now, in OBS or a browser (the panel's previews don't count): the Home page's green dots.
-const WIDGETS = ['alerts', 'chat', ...settings.GOAL_IDS];
+const WIDGETS = ['alerts', 'chat', 'chat2', ...settings.GOAL_IDS];
 const open = Object.fromEntries(WIDGETS.map((w) => [w, 0]));
 function opened(socket, w) {
   open[w]++;
@@ -296,7 +306,7 @@ io.on('connection', (socket) => {
     // In OBS: its Browser Source's size (on connect, and when it changes). A new one goes to the panel's preview.
     socket.on('obsSize', (s) => settings.setObsSize(s) && io.emit('obsSize', settings.obsSize()));
   });
-  socket.once('widgetJoin', (w) => w !== 'alerts' && WIDGETS.includes(w) && opened(socket, w)); // chat, a goal
+  socket.once('widgetJoin', (w) => w !== 'alerts' && WIDGETS.includes(w) && opened(socket, w)); // a chat, a goal
 
   // "Show chat timing": a chat widget says when it drew a live message; core/chat prints how long each step took.
   socket.on('chatShown', (r) => chat.timing(r, socket.conn.transport.name));

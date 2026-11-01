@@ -1011,6 +1011,10 @@ textarea { resize: vertical; line-height: 1.5; }
 
 /* ---------- Chat page: "Saved", tests and the OBS link on top; the live preview (left) next to the styles and tabs (right) ---------- */
 .view.chat-page { max-width: 1340px; }
+.chat-tabs { gap: 6px; }
+.chat-tabs .seg span { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chat-tabs .chat-rename { position: static; width: 160px; height: auto; padding: 4px 9px; opacity: 1; font-size: 13px; } /* not one of .seg's hidden radios */
+#chatDelete span:empty { display: none; } /* twoClick()'s "click again" only */
 .saved-note { display: inline-flex; align-items: center; gap: 6px; margin-inline-end: auto; color: var(--muted); font-size: 13px; font-weight: 600; }
 .saved-note svg { color: var(--ok); stroke-width: 2.5; }
 .saved-note.flash { animation: saved-flash 1.6s ease-out; } /* every save (send()) */

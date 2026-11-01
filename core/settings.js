@@ -246,7 +246,13 @@ const CHAT_SHARED = CHAT_LOOK.filter((k) => !CHAT_OWN.includes(k));
 const pick = (o, keys) => Object.fromEntries(keys.filter((k) => k in o).map((k) => [k, o[k]]));
 // The panel's style thumbnails: each design's own look, over the user's shared values (what picking it gives).
 const CHAT_DESIGNS = Object.fromEntries(Object.entries(CHAT_STYLES).map(([id, s]) => [id, pick(s, CHAT_OWN)]));
+// Up to 2 chats, each with all of these settings of its own: Chat 1 is saved.chat (as before there was a second one, so
+// its settings and OBS link /widgets/chat stay), Chat 2 is saved.chat2 (/widgets/chat/2), there once "+" added it. Both
+// show the same messages: the channels are Chat 1's (Chat 2 shows them, never keeps its own).
+const CHATS = ['chat', 'chat2'];
+const CHANNELS = ['kickChannel', 'twitchChannel'];
 const CHAT_DEFAULTS = {
+  name: '', // the Chat page's tab ('' = "Chat 1" / "Chat 2" in the panel's language)
   enabled: true,
   kickChannel: '',
   twitchChannel: '',
@@ -266,6 +272,7 @@ const CHAT_DEFAULTS = {
 const words = (v) => typeof v === 'string' && v.length <= 1000;
 const amount = (v) => Number.isInteger(v) && v >= 0 && v <= 1e6;
 const CHAT_RULES = {
+  name: (v) => typeof v === 'string' && v.length <= 30,
   enabled: bool,
   kickChannel: (v) => typeof v === 'string' && /^[a-z0-9_-]{0,40}$/i.test(v),
   twitchChannel: (v) => typeof v === 'string' && /^[a-z0-9_]{0,25}$/i.test(v),
@@ -442,6 +449,7 @@ function get() {
     alerts: Object.fromEntries(TYPES.map((t) => [t, alert(t)])),
     goals: Object.fromEntries(GOAL_IDS.map((id) => [id, goal(id)])),
     chat: chat(),
+    chat2: saved.chat2 ? chat('chat2') : null,
     profile: { ...PROFILE, ...saved.profile },
   };
 }
@@ -460,11 +468,17 @@ function alert(t) {
   return cfg;
 }
 
-// Chat = its style's look + the chat defaults + the user's changes (the other designs' own changes aren't in it).
-function chat() {
-  const { looks, ...o } = saved.chat ?? {};
+// A chat = its style's look + the chat defaults + the user's changes (the other designs' own changes aren't in it).
+// Chat 2 gets Chat 1's channels.
+function chat(key = 'chat') {
+  const { looks, ...o } = saved[key] ?? {};
   const style = o.style in CHAT_STYLES ? o.style : CHAT_DEFAULTS.style;
-  return { ...CHAT_STYLES[style], ...CHAT_DEFAULTS, ...o, style };
+  return { ...CHAT_STYLES[style], ...CHAT_DEFAULTS, ...o, style, ...(key !== 'chat' && pick(chat(), CHANNELS)) };
+}
+// A chat the panel names: Chat 1, or Chat 2 while it exists.
+function chatKey(key) {
+  if (key !== 'chat' && !(key === 'chat2' && saved.chat2)) throw bad();
+  return key;
 }
 
 // A goal = its style's look + the goal's defaults + the user's changes.
@@ -491,10 +505,10 @@ function update(patch, undoable = true) {
     if (!GOAL_IDS.includes(id) || !fields || typeof fields !== 'object') throw bad();
     for (const [k, v] of Object.entries(fields)) if (!GOAL_RULES[k] || !(k in GOAL_DEFAULTS[id] || GOAL_LOOK.includes(k)) || !GOAL_RULES[k](v)) throw bad();
   }
-  const chatFields = patch.chat;
-  if (chatFields !== undefined) {
-    if (!chatFields || typeof chatFields !== 'object') throw bad();
-    for (const [k, v] of Object.entries(chatFields)) if (!CHAT_RULES[k] || !CHAT_RULES[k](v)) throw bad();
+  const chats = CHATS.filter((key) => patch[key] !== undefined).map((key) => [chatKey(key), patch[key]]);
+  for (const [key, fields] of chats) {
+    if (!fields || typeof fields !== 'object') throw bad();
+    for (const [k, v] of Object.entries(fields)) if (!CHAT_RULES[k] || !CHAT_RULES[k](v) || (key !== 'chat' && CHANNELS.includes(k))) throw bad();
   }
   const profile = patch.profile;
   if (profile !== undefined) {
@@ -510,9 +524,9 @@ function update(patch, undoable = true) {
     if ('style' in fields) for (const k of GOAL_LOOK) delete o[k]; // a new style starts from its own look
     Object.assign(o, fields);
   }
-  if (chatFields) {
-    const o = (saved.chat ??= {});
-    const from = chat().style, to = chatFields.style;
+  for (const [key, chatFields] of chats) {
+    const o = (saved[key] ??= {});
+    const from = chat(key).style, to = chatFields.style;
     if (to && to !== from) {
       // Another design: the shared look stays as it was (the old design's value where the user never changed it); the
       // old design's own changes are put away and the new one's come back.
@@ -642,10 +656,25 @@ function resetAlertText(type) {
   return get();
 }
 
-// Back to the selected chat style's look; channels, filters and emote sources stay. own: only the style's own settings
+// A chat (key) back to its style's look; channels, filters and emote sources stay. own: only the style's own settings
 // (CHAT_OWN), the shared ones stay too.
-function resetChatStyle(own) {
-  for (const k of own ? CHAT_OWN : CHAT_LOOK) delete saved.chat?.[k];
+function resetChatStyle(own, key = 'chat') {
+  for (const k of own ? CHAT_OWN : CHAT_LOOK) delete saved[chatKey(key)]?.[k];
+  persist();
+  return get();
+}
+
+// The Chat page's "+": Chat 2, starting as a copy of Chat 1 (its look, the styles' own changes, filters...) with a name
+// of its own. Deleting it is a step Ctrl+Z can undo too.
+function addChat() {
+  if (saved.chat2) throw bad();
+  const { name, kickChannel, twitchChannel, ...o } = saved.chat ?? {};
+  saved.chat2 = structuredClone(o);
+  persist();
+  return get();
+}
+function removeChat() {
+  delete saved[chatKey('chat2')];
   persist();
   return get();
 }
@@ -715,7 +744,7 @@ function reset(type) {
 }
 
 module.exports = {
-  get, update, saveUpload, removeUpload, reset, saveGoalSound, removeGoalSound, saveProfilePicture, resetGoalStyle, resetChatStyle,
+  get, update, saveUpload, removeUpload, reset, saveGoalSound, removeGoalSound, saveProfilePicture, resetGoalStyle, resetChatStyle, addChat, removeChat,
   resetAlertText, setTier, saveTierFile, removeTierFile, sniff, installId, privacyAcceptedAt, supportToken, obsSize, setObsSize,
   connectState, setConnectState, undo, redo, canUndo, forget,
   GOAL_IDS, GOAL_STYLES, CHAT_DESIGNS, CHAT_FONTS, FONTS, KICK_GIFTS,

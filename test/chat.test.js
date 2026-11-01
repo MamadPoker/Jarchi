@@ -505,3 +505,48 @@ test('Test connection: every host tried with the proxy setting; Off: straight, n
     settings.update({ proxyMode: 'auto' });
   }
 });
+
+// A second chat (the Chat page's "+"): its own settings and OBS link, Chat 1's channels and messages.
+test('Chat 2: a copy of Chat 1 with its own settings, link, tests and resets; Chat 1 untouched; delete, undo', async () => {
+  if (!server.listening) await new Promise((r) => server.once('listening', r));
+  const json = async (r) => (assert.equal((r = await r).status, 200), r.json());
+  let s = await json(call('PATCH', '/api/settings', { chat: { style: 'neon', fontSize: 30, hiddenUsers: 'troll', name: 'Just Chatting', twitchChannel: 'somechannel' } }));
+  assert.equal(s.chat2, null);
+  assert.equal((await call('PATCH', '/api/settings', { chat2: { fontSize: 20 } })).status, 400, 'no Chat 2 yet');
+  assert.equal((await call('POST', '/api/chat/remove')).status, 400, 'Chat 1 stays');
+  assert.equal((await call('PATCH', '/api/settings', { chat: { name: 'x'.repeat(31) } })).status, 400);
+
+  s = await json(call('POST', '/api/chat/add'));
+  assert.deepEqual([s.chat2.style, s.chat2.fontSize, s.chat2.hiddenUsers, s.chat2.name, s.chat2.twitchChannel], ['neon', 30, 'troll', '', 'somechannel'], 'a copy, its own name, the same channel');
+  assert.equal((await call('POST', '/api/chat/add')).status, 400, 'at most 2');
+  assert.equal((await call('PATCH', '/api/settings', { chat2: { twitchChannel: 'other' } })).status, 400, "the channels are Chat 1's");
+  s = await json(call('PATCH', '/api/settings', { chat2: { style: 'ticker', fontSize: 22, hiddenUsers: '', name: 'In game' } }));
+  assert.deepEqual([s.chat.style, s.chat.fontSize, s.chat.hiddenUsers, s.chat.name], ['neon', 30, 'troll', 'Just Chatting'], 'Chat 1 untouched');
+  assert.deepEqual([s.chat2.layout, s.chat2.fontSize, s.chat2.hiddenUsers, s.chat2.name], ['horizontal', 22, '', 'In game']);
+  s = await json(call('PATCH', '/api/settings', { chat2: { style: 'neon' } }));
+  assert.equal(s.chat2.style, 'neon', "a style's own changes are each chat's");
+  s = await json(call('PATCH', '/api/settings', { chat2: { bgColor: '#222222' } }));
+  s = await json(call('POST', '/api/chat/reset-style', { own: true, chat: 'chat2' }));
+  assert.deepEqual([s.chat2.bgColor, s.chat2.fontSize], ['#07031a', 22], 'Reset <style> on Chat 2 only');
+  s = await json(call('POST', '/api/chat/reset-style', { chat: 'chat2' }));
+  assert.deepEqual([s.chat2.fontSize, s.chat.fontSize], [18, 30], 'Reset chat look on Chat 2 only');
+  assert.equal((await fetch(`${base}/widgets/chat/2`)).status, 200);
+
+  // Test messages are for the chat they were sent from.
+  const seen = [];
+  const onChat = (m) => seen.push(m);
+  bus.on('chat', onChat);
+  const sent = (await json(call('POST', '/api/chat/test', { kind: 'burst', chat: 'chat2' }))).sent;
+  await new Promise((r) => setTimeout(r, sent * 180 + 300));
+  bus.off('chat', onChat);
+  assert.ok(seen.length === sent && seen.every((m) => m.only === 'chat2'));
+  assert.equal(chatMessage({ platform: 'twitch', only: 'chat3' }).only, null);
+
+  // Delete Chat 2, Ctrl+Z brings it back.
+  s = await json(call('POST', '/api/chat/remove'));
+  assert.equal(s.chat2, null);
+  assert.equal((await call('POST', '/api/chat/test', { chat: 'chat2' })).status, 400);
+  s = await json(call('POST', '/api/settings/undo'));
+  assert.equal(s.chat2.name, 'In game');
+  await json(call('POST', '/api/reset'));
+});

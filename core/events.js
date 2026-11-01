@@ -96,6 +96,7 @@ function chatMessage(m) {
     action: !!m.action,
     system: String(m.system ?? '').slice(0, 300),
     test: !!m.test,
+    only: ['chat', 'chat2'].includes(m.only) ? m.only : null, // a test message for one chat (the other doesn't show it)
     // A reply: who it answers and what they said ('' when the platform didn't send it).
     reply: m.reply?.name ? { name: String(m.reply.name).slice(0, 64), text: String(m.reply.text ?? '').slice(0, 300) } : null,
     user: {

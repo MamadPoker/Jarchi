@@ -100,8 +100,11 @@ function restart() {
 function publish(m) {
   const cached = avatars.get(`${m.platform}:${String(m.user?.login ?? m.user?.name ?? '').toLowerCase()}`);
   const msg = emitChat({ ...m, user: { ...m.user, avatar: m.user?.avatar ?? cached }, parts: seventv.enrich(m.platform, m.parts ?? []) });
-  if (!msg.user.avatar && settings.get().chat.avatars) lookUpAvatar(msg);
+  if (!msg.user.avatar && either('avatars')) lookUpAvatar(msg);
 }
+
+// A setting that's on in Chat 1 or Chat 2 (the messages are the same for both).
+const either = (k) => { const s = settings.get(); return s.chat[k] || !!s.chat2?.[k]; };
 
 // ---------- Profile pictures: cached, and Kick lookups rate-limited (one website API call per new chatter) ----------
 const avatars = new Map(); // 'platform:login' -> url | null
@@ -164,7 +167,7 @@ bus.on('chatClear', (c) => {
 // r: { id, shown, where } from the widget (only an id we know and a number are used); transport: websocket | polling.
 const WHERE = ['OBS', 'panel', 'browser'];
 function timing(r, transport) {
-  const m = settings.get().chat.showTiming && recent.find((x) => x.id === r?.id);
+  const m = either('showTiming') && recent.find((x) => x.id === r?.id);
   const shown = Number(r?.shown);
   if (!m || !Number.isFinite(shown)) return null;
   const who = `${m.user.name}: ${m.text || m.system}`.replace(/\p{Cc}/gu, ' ').slice(0, 50); // viewers' text: no terminal control codes
@@ -238,8 +241,7 @@ const replyTo = (viewer, to) => ({ platform: to.platform, user: viewer(to.platfo
 // Messages that trigger each fancy effect: key -> () => a message, or a run of messages (combo). The widget shows an
 // effect only when it's on in the settings; the panel says which ones are off. The special lines (the chat's Events)
 // come from their amount up, so a test shows one whenever it's on.
-function effects(viewer) {
-  const c = settings.get().chat;
+function effects(viewer, c) {
   const streamer = c.twitchChannel || c.kickChannel || 'streamer';
   const seven = seventv.someGlobal(1)[0];
   const text = (v) => [{ t: 'text', v }];
@@ -293,9 +295,9 @@ const EVENTS = ['kicks', 'gift', 'bits', 'raid']; // special lines (a sub is one
 
 // "Send test message": emotes, 3 random effects, a special line and a reply. "Send 10 messages": 10 messages, 2 of them
 // (or a combo run) effects. "Show all effects": every effect in a row, then every special line. A combo run stays together.
-function build(kind) {
+function build(kind, c) {
   const viewer = viewers();
-  const fx = effects(viewer);
+  const fx = effects(viewer, c);
   const picked = kind === 'all' ? EFFECTS : shuffled(EFFECTS).slice(0, kind === 'burst' ? 2 : 3);
   const events = kind === 'all' ? EVENTS : kind === 'sample' ? [pick(EVENTS)] : [];
   const runs = [...picked, ...events].map((k) => [].concat(fx[k]()));
@@ -309,20 +311,20 @@ function build(kind) {
   return { list, effects: picked, events };
 }
 
-// kind 'sample' | 'burst' | 'all' -> { sent, effects, events }.
-function test(kind) {
+// kind 'sample' | 'burst' | 'all', for one chat (key 'chat' | 'chat2': only that one shows them) -> { sent, effects, events }.
+function test(kind, key = 'chat') {
   if (!globalRequested) { globalRequested = true; seventv.loadGlobal(); }
-  const { list, effects: used, events } = build(kind);
-  const c = settings.get().chat;
-  list.forEach((m, i) => setTimeout(() => emitChat({ ...m, test: true, channel: m.platform === 'kick' ? c.kickChannel : c.twitchChannel }), i * (kind === 'burst' ? 180 : 450)));
+  const c = settings.get()[key];
+  const { list, effects: used, events } = build(kind, c);
+  list.forEach((m, i) => setTimeout(() => emitChat({ ...m, test: true, only: key, channel: m.platform === 'kick' ? c.kickChannel : c.twitchChannel }), i * (kind === 'burst' ? 180 : 450)));
   return { sent: list.length, effects: used, events };
 }
 
 // The panel's style thumbnails (and the preview before any message): emotes, the effects that fit a still picture and
-// two special lines (a resub, Kicks).
-function thumbs() {
+// two special lines (a resub, Kicks). One chat's (key), Chat 1's when there's no such chat.
+function thumbs(key = 'chat') {
   const viewer = viewers();
-  const fx = effects(viewer);
+  const fx = effects(viewer, settings.get()[key] ?? settings.get().chat);
   return [plain.twitch(viewer), fx.sub(), fx.first(), fx.vip(), fx.kicks()].map((m) => chatMessage({ ...m, test: true }));
 }
 

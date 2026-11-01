@@ -1,4 +1,5 @@
-// Chat widget (/widgets/chat): Kick + Twitch chat in one box, transparent page, chat at the top-left.
+// Chat widget (/widgets/chat): Kick + Twitch chat in one box, transparent page, chat at the top-left. /widgets/chat/2 is
+// Chat 2: the same messages, with its own settings (s.chat2; null = there's no Chat 2, nothing shows).
 // Live (OBS): settings, messages and removals arrive over Socket.IO. ?preview: shown even when the chat is off (panel).
 // ?thumb: no socket; the panel posts { strings, cfg, messages } to draw a still style thumbnail.
 //
@@ -6,6 +7,7 @@
 // which slides the older rows up smoothly; a CSS mask fades them out in a soft zone at the far edge. Rows that leave
 // (max messages, hide-after, moderation) fade out first, then their height closes, so nothing ever jumps.
 const params = new URLSearchParams(location.search);
+const KEY = /^\/widgets\/chat\/2\/?$/.test(location.pathname) ? 'chat2' : 'chat';
 const root = document.getElementById('chat');
 const viewport = root.querySelector('.viewport');
 const list = root.querySelector('.list');
@@ -84,19 +86,20 @@ if (params.has('thumb')) {
   // WebSocket first: over HTTP polling, chat waited behind profile pictures and emotes still downloading (a browser
   // opens only 6 connections to this PC at a time). Polling stays as the fallback if WebSocket can't connect.
   socket = io({ transports: ['websocket', 'polling'], tryAllTransports: true });
-  if (!params.has('preview')) socket.on('connect', () => socket.emit('widgetJoin', 'chat')); // the panel's Home: open in OBS
+  if (!params.has('preview')) socket.on('connect', () => socket.emit('widgetJoin', KEY)); // the panel's Home: open in OBS
   socket.on('strings', (s) => (S = s));
   socket.on('settings', (s) => {
     mainSettings = s;
-    if (JSON.stringify(s.chat) === look) return;
-    look = JSON.stringify(s.chat);
-    cfg = s.chat;
+    if (JSON.stringify(s[KEY]) === look) return;
+    look = JSON.stringify(s[KEY]);
+    if (!s[KEY]) return void (root.hidden = true); // Chat 2 deleted, or not added yet
+    cfg = s[KEY];
     apply();
   });
   socket.on('chatHistory', async (msgs) => {
     // The panel preview always shows the style: sample messages until real or test ones come in.
     if (!msgs.length && params.has('preview')) {
-      msgs = await fetch('/api/chat/thumbs').then((r) => r.json()).catch(() => []);
+      msgs = await fetch(`/api/chat/thumbs?chat=${KEY}`).then((r) => r.json()).catch(() => []);
       seeded = true;
     }
     recent.splice(0, recent.length, ...msgs.slice(-KEEP));
@@ -235,6 +238,7 @@ async function marquee() {
 
 // ---------- Filters ----------
 function shown(m) {
+  if (m.only && m.only !== KEY) return false; // the other chat's test message
   if (cfg.source !== 'both' && m.platform !== cfg.source) return false;
   if (m.kind === 'event' && !special(m)) return false; // Kicks or a raid while that line is off (or under its amount)
   const login = m.user.login;

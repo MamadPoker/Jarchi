@@ -228,6 +228,54 @@ function ownMark() {
   return m;
 }
 
+// The Chat page's chats: Chat 1, and Chat 2 once "+" added it. The page is the selected one's (curChat): its settings,
+// preview, tests, resets and OBS link. The channels are the same for both (Chat 1's), so are the messages.
+const CHAT_KEYS = ['chat', 'chat2'];
+let curChat = remember.get('jarchi.chat') === 'chat2' ? 'chat2' : 'chat';
+const chatCfg = () => settings[curChat] ?? settings.chat;
+const chatDefaultName = (key) => tpl(S.panel.chatN, { n: fd(CHAT_KEYS.indexOf(key) + 1) });
+const chatName = (key) => settings[key]?.name || chatDefaultName(key);
+const chatUrl = (key) => `${location.origin}/widgets/chat${key === 'chat2' ? '/2' : ''}`;
+
+// The chats' tabs at the top of the Chat page (redrawn only when a chat or a name changes, so a tab keeps its focus),
+// "+" until there's a Chat 2; only Chat 2 can be deleted.
+let chatTabsDrawn = '';
+function renderChatTabs() {
+  const box = $('#chatTabs');
+  if ($('.chat-rename', box)) return; // being renamed
+  const keys = CHAT_KEYS.filter((k) => settings[k]);
+  if (JSON.stringify(keys.map(chatName)) !== chatTabsDrawn) {
+    chatTabsDrawn = JSON.stringify(keys.map(chatName));
+    box.replaceChildren(...keys.map((k) => el('label', {}, el('input', { type: 'radio', name: 'chatPick', value: k, onchange: () => select('chat', k) }),
+      el('span', { textContent: chatName(k), dir: 'auto' }))));
+  }
+  $$('input', box).forEach((r) => (r.checked = r.value === curChat));
+  $('#chatAdd').hidden = !!settings.chat2;
+  $('#chatDelete').hidden = curChat !== 'chat2';
+}
+// The selected chat's name becomes a field in its tab: Enter or leaving it saves, Esc doesn't. Empty: its usual name.
+function renameChat() {
+  const input = el('input', { type: 'text', className: 'chat-rename', value: chatName(curChat), maxLength: 30, dir: 'auto' });
+  input.setAttribute('aria-label', S.panel.chatRename);
+  let done;
+  const finish = (save) => {
+    if (done) return;
+    done = true;
+    input.remove();
+    chatTabsDrawn = '';
+    renderChatTabs();
+    const name = input.value.trim();
+    if (save && name !== chatName(curChat)) patchChat({ name: name === chatDefaultName(curChat) ? '' : name });
+  };
+  input.onkeydown = (e) => {
+    if (e.key === 'Enter' || e.key === 'Escape') finish(e.key === 'Enter');
+  };
+  input.onblur = () => finish(true);
+  $(`#chatTabs input[value=${curChat}]`).parentElement.replaceWith(input);
+  input.focus();
+  input.select();
+}
+
 // Each style's own look with sample messages; filters off so the samples always show. Only the group on screen: a
 // hidden thumbnail has no size to lay its messages out in (the other group is drawn when it's picked).
 function drawChatThumbs() {
@@ -235,7 +283,7 @@ function drawChatThumbs() {
   for (const f of $$('.chat-tile:not([hidden]) iframe')) {
     const style = f.dataset.style;
     const ticker = chatStyles[style].layout === 'horizontal';
-    const cfg = { ...settings.chat, ...chatStyles[style], style, enabled: true, width: ticker ? 440 : 400, height: ticker ? 64 : 290, maxMessages: 6,
+    const cfg = { ...chatCfg(), ...chatStyles[style], style, enabled: true, width: ticker ? 440 : 400, height: ticker ? 64 : 290, maxMessages: 6,
       hideCommands: false, hideBots: false, hiddenUsers: '', blockedWords: '', hideLinks: false, source: 'both', avatars: false, fxMention: false };
     f.contentWindow?.postMessage({ strings: EN, cfg, messages: chatThumbs }, location.origin);
   }
@@ -255,7 +303,7 @@ function showStyleGroup(g) {
 
 // The chat preview iframe is as big as the chat (+ a margin), scaled down to fit and centered.
 function fitChat() {
-  const box = $('.chat-preview'), f = $('#chatPreview'), c = settings.chat;
+  const box = $('.chat-preview'), f = $('#chatPreview'), c = chatCfg();
   const W = c.width + 60, H = c.height + 60;
   const k = Math.min(box.clientWidth / W, box.clientHeight / H, 1);
   Object.assign(f.style, { width: `${W}px`, height: `${H}px`, transform: `translate(${(box.clientWidth - W * k) / 2}px, ${(box.clientHeight - H * k) / 2}px) scale(${k})` });
@@ -352,9 +400,17 @@ async function send(method, url, body, headers) {
 }
 const patchAlert = (type, fields) => send('PATCH', '/api/settings', { alerts: { [type]: fields } });
 const patchGoal = (id, fields) => send('PATCH', '/api/settings', { goals: { [id]: fields } });
-const patchChat = (fields) => send('PATCH', '/api/settings', { chat: fields });
-// Undo / redo a settings change (the server keeps the last 5 while Jarchi runs): Ctrl+Z / Ctrl+Y, and the "Saved" note's Undo.
-const undoRedo = (s) => send('POST', `/api/settings/${s}`);
+// The selected chat's settings; the channels are Chat 1's.
+const patchChat = (fields) => send('PATCH', '/api/settings', { ['kickChannel' in fields || 'twitchChannel' in fields ? 'chat' : curChat]: fields });
+// Undo / redo a settings change (the server keeps the last 5 while Jarchi runs): Ctrl+Z / Ctrl+Y, and the "Saved" note's
+// Undo. On the Chat page, a step that changed only the other chat opens that one, so the change is in view.
+async function undoRedo(s) {
+  const was = settings;
+  await send('POST', `/api/settings/${s}`);
+  const other = curChat === 'chat' ? 'chat2' : 'chat';
+  const same = (k) => JSON.stringify(was[k]) === JSON.stringify(settings[k]);
+  if (view === 'chat' && settings[other] && same(curChat) && !same(other)) select('chat', other);
+}
 
 // Change a goal's count (the selected one's by default): { add: n } or { set: n }.
 async function goalCount(body, id = curGoal) {
@@ -437,7 +493,11 @@ function select(v, key) {
     const src = `/widgets/goal/${curGoal}?preview`;
     if ($('#goalPreview').getAttribute('src') !== src) $('#goalPreview').src = src;
   }
-  if (v === 'chat' && !$('#chatPreview').getAttribute('src')) $('#chatPreview').src = '/widgets/chat?preview';
+  if (v === 'chat' && key) { // one of the chats (its tab, Home's Fix, an undo)
+    curChat = key;
+    remember.set('jarchi.chat', key);
+    $('#chatFxHint').textContent = ''; // about the other chat's test
+  }
   if (v === 'home') loadHome(); // today's numbers may have started again at midnight
   if (v === 'events') loadHistory();
   if (v === 'support') loadTickets();
@@ -457,8 +517,8 @@ function select(v, key) {
   if (v === 'theme') $$('.theme-tile iframe').forEach((f) => playTile(f));
   if (v === 'chat') {
     fitChat();
-    if (!styleGroup) showStyleGroup(chatStyles[settings.chat.style].layout);
-    api('GET', '/api/chat/thumbs').then((m) => { chatThumbs = m; drawChatThumbs(); }, () => {});
+    if (!styleGroup || key) showStyleGroup(chatStyles[chatCfg().style].layout);
+    api('GET', `/api/chat/thumbs?chat=${curChat}`).then((m) => { chatThumbs = m; drawChatThumbs(); }, () => {});
   }
 }
 
@@ -603,12 +663,13 @@ const copyBtn = (name, url) => { // a widget's copy icon (Home's Widgets card, t
   return b;
 };
 // The widget pages: [id the server counts them by, name, OBS link]. Only the switched-on ones are needed (alerts always).
+// One chat is "Chat"; with Chat 2 each goes by its name.
 const widgetPages = () => [
   ['alerts', S.panel.groupAlerts, `${location.origin}/widgets/alerts`],
-  ['chat', S.panel.chatName, `${location.origin}/widgets/chat`],
+  ...CHAT_KEYS.filter((k) => settings[k]).map((k) => [k, settings.chat2 ? chatName(k) : S.panel.chatName, chatUrl(k)]),
   ...Object.keys(settings.goals).map((id) => [id, goalName(id), `${location.origin}/widgets/goal/${id}`]),
 ];
-const widgetOn = (id) => id === 'alerts' || (id === 'chat' ? settings.chat : settings.goals[id]).enabled;
+const widgetOn = (id) => id === 'alerts' || (CHAT_KEYS.includes(id) ? settings[id] : settings.goals[id]).enabled;
 const FEED_FILTERS = { all: null, subs: ['sub', 'resub', 'gift_sub'], kicks: ['kicks'], raids: ['raid'], follows: ['follow'] };
 const ofType = (list, f) => list.filter((ev) => !FEED_FILTERS[f] || FEED_FILTERS[f].includes(ev.type));
 const pressFilter = (box, f) => $$('button', box).forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.filter === f)));
@@ -618,7 +679,9 @@ function issues() {
   const out = ['kick', 'twitch'].filter((p) => chatStatus[p].state !== 'connected')
     .map((p) => [tpl(S.panel.issuePlatform, { platform: S.platforms[p] }), ['chat']]); // the channel names are on the Chat page for now
   if (!open.alerts) out.push([S.panel.issueAlerts, ['alert'], 'obs']);
-  if (settings.chat.enabled && !open.chat) out.push([S.panel.issueChat, ['chat'], 'obs']);
+  for (const k of CHAT_KEYS) {
+    if (settings[k]?.enabled && !open[k]) out.push([settings.chat2 ? tpl(S.panel.issueChatN, { chat: chatName(k) }) : S.panel.issueChat, ['chat', k], 'obs']);
+  }
   for (const [id, g] of Object.entries(settings.goals)) if (g.enabled && !open[id]) out.push([tpl(S.panel.issueGoal, { goal: goalName(id) }), ['goal', id], 'obs']);
   return out;
 }
@@ -682,6 +745,11 @@ function renderHome() {
   $('#obsOrderHint').hidden = !missing.some((m) => m[2]); // a widget isn't open in OBS
   $('#issues').replaceChildren(...missing.map(([text, page]) => el('li', {}, el('span', { textContent: text }),
     el('button', { textContent: S.panel.fix, onclick: () => select(...page) }))));
+  $('#obsMenu').replaceChildren(...widgetPages().map(([, name, url]) => { // the OBS links menu: Chat 2 comes and goes
+    const b = el('button', { onclick: () => copyLink(url) }, el('span', { textContent: name }));
+    b.insertAdjacentHTML('beforeend', COPY_ICON);
+    return b;
+  }));
 
   // Live feed: the 10 newest events, whenever they came. View all = History.
   pressFilter($('#feedChips'), feedFilter);
@@ -1274,7 +1342,7 @@ const SIDEBAR = TOUR.indexOf('sidebar');
 // More (under the line) have no title in the sidebar.
 const SPOTS = [['navMain', ['home', 'alert', 'chat', 'goal']], ['navLive', ['queue', 'events']], ['navBot', ['bot']], ['navContent', ['battle', 'clips']], ['navDonations', ['donations']],
   ['navSetup', ['connections', 'appearance', 'settings', 'guide']], ['navMore', ['about', 'support']]];
-const obsSize = (id) => (id === 'alerts' ? [800, 600] : id === 'chat' ? [settings.chat.width, settings.chat.height] : settings.goals[id].style === 'circle' ? [400, 400] : [800, 200]);
+const obsSize = (id) => (id === 'alerts' ? [800, 600] : CHAT_KEYS.includes(id) ? [settings[id].width, settings[id].height] : settings.goals[id].style === 'circle' ? [400, 400] : [800, 200]);
 const connCards = () => [$('#kcConnect'), $('#twConnect')].map((b) => b.closest('.box'));
 let tourStep = 0, spot = 0, faStrings;
 
@@ -1465,12 +1533,7 @@ function build() {
     const types = Object.keys(settings.alerts);
     api('POST', `/api/test/${types[Math.floor(Math.random() * types.length)]}`, { platform: $('#testAs').value }).then(() => toast(S.panel.testSent), (err) => toast(err.message, true));
   };
-  $('#obsMenu').append(...widgetPages().map(([, name, url]) => {
-    const b = el('button', { onclick: () => copyLink(url) }, el('span', { textContent: name }));
-    b.insertAdjacentHTML('beforeend', COPY_ICON);
-    return b;
-  }));
-  wireMenu($('#obsMenuBtn'), $('#obsMenu'));
+  wireMenu($('#obsMenuBtn'), $('#obsMenu')); // its links: renderHome()
   $('#widgetsManage').onclick = () => select('goal'); // the Widgets card shows only what's on: switch goals on or off there
   setInterval(() => view === 'home' && loadHome(), 30000); // "2 min ago", uptime, and today's numbers from 0 after midnight
 
@@ -1710,8 +1773,8 @@ function build() {
   // Test messages. Effects and special lines that are off still get their message (Kicks and raids: none), just
   // without that look: say which ones. A sub is a special line, or with those off the usual line with its glow.
   const OFF = { first: 'fxFirst', vip: 'fxRainbowVip', mention: 'fxMention', combo: 'fxCombo', avatar: 'avatars', kicks: 'eventKicks', gift: 'eventGifts', bits: 'eventBits', raid: 'eventRaids' };
-  const sendTest = (kind) => api('POST', '/api/chat/test', { kind }).then((r) => {
-    const c = settings.chat;
+  const sendTest = (kind) => api('POST', '/api/chat/test', { kind, chat: curChat }).then((r) => {
+    const c = chatCfg();
     const off = [...r.effects, ...r.events].map((k) => (k === 'sub' ? !c.eventSubs && 'fxSubGlow' : OFF[k])).filter((f) => f && !c[f]);
     $('#chatFxHint').textContent = off.map((f) => S.panel.fxOff[f]).join(' · ');
     toast(S.panel.chatTestSent);
@@ -1720,13 +1783,17 @@ function build() {
   $('#chatBurst').onclick = () => sendTest('burst');
   $('#chatAllFx').onclick = () => sendTest('all');
   wireMenu($('#chatTestMore'), $('#chatTestMenu'));
-  $('#chatResetStyle').onclick = () => send('POST', '/api/chat/reset-style');
+  $('#chatResetStyle').onclick = () => send('POST', '/api/chat/reset-style', { chat: curChat });
   const [before, after] = S.panel.chatStyleHint.split('{mark}');
   $('#chatStyleHint').replaceChildren(before, ownMark(), after);
-  $('#chatResetOwn').onclick = () => send('POST', '/api/chat/reset-style', { own: true }); // the shared settings stay
+  $('#chatResetOwn').onclick = () => send('POST', '/api/chat/reset-style', { own: true, chat: curChat }); // the shared settings stay
   $('#chatUndo').onclick = () => undoRedo('undo');
   $('#chatCopy').title = S.panel.chatCopyHint;
-  $('#chatCopy').onclick = () => copyLink(`${location.origin}/widgets/chat`, S.panel.chatCopied);
+  $('#chatCopy').onclick = () => copyLink(chatUrl(curChat), S.panel.chatCopied);
+  // The chats' tabs: "+" adds Chat 2 (a copy of Chat 1) and opens it; rename; delete Chat 2 (click twice).
+  $('#chatAdd').onclick = () => send('POST', '/api/chat/add').then(() => settings.chat2 && select('chat', 'chat2'));
+  $('#chatRename').onclick = renameChat;
+  twoClick($('#chatDelete'), $('#chatDelete span'), '', S.panel.chatDeleteConfirm, () => send('POST', '/api/chat/remove').then(() => select('chat', 'chat')));
   new ResizeObserver(() => { if (view === 'chat') fitChat(); }).observe($('.chat-preview'));
   renderStatus();
 
@@ -1844,7 +1911,11 @@ function renderSettings() {
 
 function renderChat() {
   const ed = $('main [data-view=chat]');
-  const c = settings.chat;
+  if (!settings[curChat]) curChat = 'chat'; // Chat 2 deleted (here, in another window, or undone)
+  const c = chatCfg();
+  const src = `${chatUrl(curChat).slice(location.origin.length)}?preview`;
+  if ($('#chatPreview').getAttribute('src') !== src) $('#chatPreview').src = src;
+  renderChatTabs();
   fill(ed, c);
   $$('.chat-tile').forEach((t) => t.classList.toggle('selected', t.dataset.style === c.style));
   $('#chatResetOwn').textContent = tpl(S.panel.chatResetOwn, { style: S.chatStyles[c.style] });

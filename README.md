@@ -150,6 +150,8 @@ Settings and uploads live in `data/` (gitignored). Delete that folder to start f
 
 Kick and Twitch chat in one box: `http://127.0.0.1:3000/widgets/chat` (transparent background).
 
+A second chat (say one for Just Chatting, one in-game): **+** at the top of the Chat page adds Chat 2 (`http://127.0.0.1:3000/widgets/chat/2`), a copy of Chat 1 with its own settings (style, looks, filters, layout...) and OBS link. Both show the same messages from the same channels. The tabs switch between them; the pencil renames one; Chat 2 can be deleted (Ctrl+Z brings it back). Send test message, the preview and both reset buttons go with the chat selected.
+
 1. In the panel, open **Chat** and type your **Kick channel** and/or **Twitch channel** (just the names, no login). Each shows Connected / Connecting / Error and reconnects by itself.
 2. In OBS: **Sources → + → Browser**, paste the link from **Copy OBS link** on the panel's Chat page. Make the source at least as big as the chat's width × height (More options → Box & messages); the chat sits in the top-left corner.
 3. **Send test message** and **Send 10 messages** mix in the fancy effects (sub glow, first message, rainbow VIP, mention, emote combo, profile picture); **Show all effects** sends one of each in a row. If an effect is off in the settings, its message still comes, without the effect, and the panel says so.
