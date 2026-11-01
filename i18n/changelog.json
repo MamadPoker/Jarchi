@@ -1,5 +1,22 @@
 [
   {
+    "version": "1.0.3",
+    "en": [
+      "Chat settings no longer reset when you switch style: each style remembers its own look",
+      "Undo / redo for settings (Ctrl+Z / Ctrl+Y), plus an \"Undo\" link in the \"Saved\" notice",
+      "Replies are shown in the chat widget, with several display options",
+      "A second chat widget, each with its own style, settings and OBS link",
+      "Message border can use each user's own name color"
+    ],
+    "fa": [
+      "تنظیمات چت دیگر با عوض‌کردن سبک از بین نمی‌رود: هر سبک ظاهر خودش را به خاطر می‌سپارد",
+      "برگرداندن و انجام دوبارهٔ تغییرات تنظیمات (Ctrl+Z / Ctrl+Y)، به‌علاوهٔ لینک «برگردان» در پیام «ذخیره شد»",
+      "پاسخ‌ها در ویجت چت نشان داده می‌شوند، با چند شکل نمایش",
+      "ویجت چت دوم، هر کدام با سبک، تنظیمات و لینک OBS جداگانه",
+      "حاشیهٔ پیام‌ها می‌تواند رنگ اسم خود هر کاربر را بگیرد"
+    ]
+  },
+  {
     "version": "1.0.2",
     "en": [
       "Test connection works properly again: Kick and Twitch no longer show as unreachable when they're fine",
