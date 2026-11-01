@@ -591,9 +591,10 @@ function resetAlertText(type) {
   return get();
 }
 
-// Back to the selected chat style's look; channels, filters and emote sources stay.
-function resetChatStyle() {
-  for (const k of CHAT_LOOK) delete saved.chat?.[k];
+// Back to the selected chat style's look; channels, filters and emote sources stay. own: only the style's own settings
+// (CHAT_OWN), the shared ones stay too.
+function resetChatStyle(own) {
+  for (const k of own ? CHAT_OWN : CHAT_LOOK) delete saved.chat?.[k];
   persist();
   return get();
 }

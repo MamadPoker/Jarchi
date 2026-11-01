@@ -1001,6 +1001,11 @@ textarea { resize: vertical; line-height: 1.5; }
 .style-tile .preview { width: 100%; border-radius: 8px; }
 .style-tile .tile-name { font-size: 13px; }
 .style-tile.selected { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold); }
+/* A Chat setting saved for each style: a small gold palette before its label (panel.js ownMark); the note says so. */
+.own-mark { display: inline-block; margin-inline-end: 5px; color: var(--gold); vertical-align: -2px; line-height: 0; }
+.own-mark svg { width: 13px; height: 13px; }
+.style-note small { flex: 1; }
+.style-note .own-mark { margin: 0; } /* in the sentence: spaces around it */
 .more-grid.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 
 /* ---------- Chat page: "Saved", tests and the OBS link on top; the live preview (left) next to the styles and tabs (right) ---------- */

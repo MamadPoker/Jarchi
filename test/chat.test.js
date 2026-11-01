@@ -322,6 +322,10 @@ test('another chat design: the shared settings stay as they are, each design kee
   assert.ok(!('looks' in c), 'the other designs\' changes stay on the server');
   const { styles } = await (await call('GET', '/api/chat/styles')).json();
   assert.ok(!('fontSize' in styles.floating) && styles.floating.bg === 'off', 'thumbnails: a design\'s own look over the shared values');
+  c = (await (await call('POST', '/api/chat/reset-style', { own: true })).json()).chat;
+  assert.deepEqual([c.height, c.tickerSpeed, ...shared(c)], [56, 110, 30, false, true, 45, false, false], 'Reset <style>: only its own settings');
+  c = await chat({ style: 'neon' });
+  assert.equal(c.bgColor, '#112233', "another style's own settings stay");
   await call('POST', '/api/chat/reset-style');
   await chat({ style: 'classic', fontSize: 18, avatars: false, hideAfter: 0, showBadges: true, hideBots: true });
 });

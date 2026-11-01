@@ -212,8 +212,19 @@ function chatControl(kind, f, o) {
     node = el('label', { className: 'field' }, el('span', { textContent: label }), input({ type: kind === 'color' ? 'color' : 'text', maxLength: 1000, ...(o.dir && { dir: o.dir }) }), o.hint ? el('small', { textContent: S.panel[o.hint] }) : '');
   }
   node.firstChild.dataset.help = `chat.${f}`; // the label: build() adds its "?"
+  if (f in chatStyles.kick) node.firstChild.prepend(ownMark()); // saved for each style: a style from /api/chat/styles has just those
   if (o.only) node.dataset.only = o.only;
   return node;
+}
+
+// The gold palette before a Chat setting that's saved for each style (and in the note under the style grid).
+function ownMark() {
+  const m = svgIn('own-mark', '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 0 0 0 18c1 0 1.7-.8 1.7-1.7 0-.4-.2-.8-.4-1.1-.3-.3-.4-.7-.4-1.1 0-.9.7-1.7 1.7-1.7h2a5.4 5.4 0 0 0 5.4-5.4C21 6.6 17 3 12 3z"/>'
+    + '<circle cx="7.5" cy="10.5" r="1" fill="currentColor"/><circle cx="10" cy="6.8" r="1" fill="currentColor"/><circle cx="14.5" cy="6.8" r="1" fill="currentColor"/><circle cx="17" cy="10.2" r="1" fill="currentColor"/></svg>');
+  m.title = S.panel.ownMark;
+  m.setAttribute('role', 'img');
+  m.setAttribute('aria-label', S.panel.ownMark);
+  return m;
 }
 
 // Each style's own look with sample messages; filters off so the samples always show. Only the group on screen: a
@@ -1696,6 +1707,9 @@ function build() {
   $('#chatAllFx').onclick = () => sendTest('all');
   wireMenu($('#chatTestMore'), $('#chatTestMenu'));
   $('#chatResetStyle').onclick = () => send('POST', '/api/chat/reset-style');
+  const [before, after] = S.panel.chatStyleHint.split('{mark}');
+  $('#chatStyleHint').replaceChildren(before, ownMark(), after);
+  $('#chatResetOwn').onclick = () => send('POST', '/api/chat/reset-style', { own: true }); // the shared settings stay
   $('#chatCopy').title = S.panel.chatCopyHint;
   $('#chatCopy').onclick = () => copyLink(`${location.origin}/widgets/chat`, S.panel.chatCopied);
   new ResizeObserver(() => { if (view === 'chat') fitChat(); }).observe($('.chat-preview'));
@@ -1817,6 +1831,7 @@ function renderChat() {
   const c = settings.chat;
   fill(ed, c);
   $$('.chat-tile').forEach((t) => t.classList.toggle('selected', t.dataset.style === c.style));
+  $('#chatResetOwn').textContent = tpl(S.panel.chatResetOwn, { style: S.chatStyles[c.style] });
   const show = {
     off: !c.enabled, badges: c.showBadges, big: c.bigEmotes, nameCustom: c.nameColorMode === 'custom', bgColor: c.bg === 'color',
     borderOn: c.border, typewriter: c.typewriter, ticker: c.layout === 'horizontal', vertical: c.layout === 'vertical', fade: c.fade, bots: c.hideBots,
