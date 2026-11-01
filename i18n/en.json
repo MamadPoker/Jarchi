@@ -465,6 +465,9 @@
     "textTitle": "Text",
     "templateHint": "Variables: {user} {amount} {months} {platform}",
     "moreOptions": "More options",
+    "advanced": "Advanced",
+    "customCss": "Custom CSS",
+    "clear": "Clear",
     "alertTabs": "Alert settings",
     "tabMedia": "Media",
     "tabSound": "Sound",
@@ -759,7 +762,8 @@
       "duration": "How many seconds the alert stays on screen. Bigger amounts add a little more.",
       "volume": "How loud this alert's sound (and video) plays.",
       "minAmount": "Smaller amounts don't play an alert; goals still count them. Example: 10 keeps single Kicks out.",
-      "videoSound": "For a video: muted, only the video's own sound, or the video plus the alert sound."
+      "videoSound": "For a video: muted, only the video's own sound, or the video plus the alert sound.",
+      "customCss": "Your own CSS on top of this alert's look, in the preview and in OBS (CSS only). Main classes: `.alert` (the whole alert, with `.type-sub`, `.tier-2`, `.plat-kick`…), `.media` (picture or emblem), `.box` (text box), `.text` (the words), `.hl` (name and numbers), `.msg` (the viewer's message), `.badge`, `.fx` (effects). Kicks in Kick's look: `.kick-alert`, `.kick-text`. A rule that doesn't take may need `!important`."
     },
     "goal": {
       "title": "The text viewers see with the goal, for example \"Subs\".",
@@ -787,7 +791,8 @@
       "kickSync": "Goals you set on your Kick channel (Kick's creator dashboard: followers, subscriptions, KICKs) show Kick's own count and target, here and on stream: read every minute, and at once when Kick sends a change. A goal with nothing set on Kick stays as you set it here. If Kick can't be reached, the last numbers stay.",
       "twitchSync": "Goals you set on your Twitch channel (Twitch's Creator Dashboard: followers, subs, bits) show Twitch's own count and target, here and on stream, as Twitch sends them. It needs your Twitch account connected on **Connections**. A goal with nothing set on Twitch stays as you set it here.",
       "celebrateSound": "The celebration's sound: the theme's, your own file, or none.",
-      "volume": "How loud the celebration sound plays."
+      "volume": "How loud the celebration sound plays.",
+      "customCss": "Your own CSS on top of this goal's look, in the preview and in OBS (CSS only). Main classes: `.goal` (the whole goal, with `.style-classic`… and `.full` once reached), `.label`, `.title`, `.nums` (count / target), `.pct` (percent), `.track` and `.fill` (the bar), `.ring` and `.ring-pct` (Circle), `.blocks` (Retro). A rule that doesn't take may need `!important`."
     },
     "chat": {
       "kickChannel": "Your channel name, as in `kick.com/name`. Brings the chat and real Kick alerts. No login.",
@@ -880,7 +885,8 @@
       "eventBitsMin": "Cheers of fewer bits than this stay a usual message. 0 = every cheer.",
       "eventRaids": "A special line when a channel raids you (on Kick: hosts you), with how many viewers came.",
       "eventLook": "**Card**: a tinted card with a bar in Kick's green or Twitch's purple. **Glow**: a glowing ring. **Simple line**: just the words. Each works inside every chat style.",
-      "eventLonger": "Special lines stay on screen twice as long: twice the **Hide each message after** time, and until twice **Max messages on screen** newer ones came. In a bar they go by twice."
+      "eventLonger": "Special lines stay on screen twice as long: twice the **Hide each message after** time, and until twice **Max messages on screen** newer ones came. In a bar they go by twice.",
+      "customCss": "Your own CSS on top of this chat's look, in the preview and in OBS (CSS only). Main classes: `.chat` (the whole chat, with `.style-kick`…), `.msg` (each message; `.event` for special lines), `.meta` (the start of the line), `.name`, `.badges` and `.badge`, `.platform`, `.avatar`, `time`, `.body` (the words), `.emote`, `.reply`. A rule that doesn't take may need `!important`."
     },
     "settings": {
       "showBadge": "A small Kick or Twitch badge on alerts. It only shows when both accounts are connected.",

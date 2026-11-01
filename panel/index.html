@@ -694,6 +694,18 @@
             </div>
           </div>
         </div>
+
+        <!-- Advanced: the user's own CSS on top of this alert's look (whichever tab is open) -->
+        <details class="more css-box" id="alertCss">
+          <summary>
+            <span data-i18n="advanced"></span>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+          </summary>
+          <div class="css-body">
+            <div class="row between"><span data-i18n="customCss" data-help="alert.customCss"></span><button class="ghost small-btn css-clear" data-i18n="clear"></button></div>
+            <textarea rows="6" maxlength="20000" dir="ltr" spellcheck="false" data-aria="customCss"></textarea>
+          </div>
+        </details>
         </div>
         </div>
       </section>
@@ -860,6 +872,18 @@
             </div>
           </div>
         </details>
+
+        <!-- Advanced: the user's own CSS on top of this goal's look -->
+        <details class="more css-box" id="goalCss">
+          <summary>
+            <span data-i18n="advanced"></span>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+          </summary>
+          <div class="css-body">
+            <div class="row between"><span data-i18n="customCss" data-help="goal.customCss"></span><button class="ghost small-btn css-clear" data-i18n="clear"></button></div>
+            <textarea rows="6" maxlength="20000" dir="ltr" spellcheck="false" data-aria="customCss"></textarea>
+          </div>
+        </details>
         </div>
         </div>
       </section>
@@ -963,6 +987,18 @@
             <div class="pane" role="tabpanel" id="pane-c-events" aria-labelledby="tab-c-events" data-tab="events" hidden></div>
             <div class="pane" role="tabpanel" id="pane-c-filters" aria-labelledby="tab-c-filters" data-tab="filters" hidden></div>
             <div class="pane" role="tabpanel" id="pane-c-layout" aria-labelledby="tab-c-layout" data-tab="layout" hidden></div>
+
+            <!-- Advanced: the user's own CSS on top of this chat's look (the open chat's) -->
+            <details class="more css-box" id="chatCss">
+              <summary>
+                <span data-i18n="advanced"></span>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+              </summary>
+              <div class="css-body">
+                <div class="row between"><span data-i18n="customCss" data-help="chat.customCss"></span><button class="ghost small-btn css-clear" data-i18n="clear"></button></div>
+                <textarea rows="6" maxlength="20000" dir="ltr" spellcheck="false" data-aria="customCss"></textarea>
+              </div>
+            </details>
           </div>
         </div>
       </section>

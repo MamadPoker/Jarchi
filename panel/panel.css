@@ -784,6 +784,10 @@ main { padding: 24px 28px 64px; container-type: inline-size; } /* editor rules b
 .more[open] summary svg { transform: rotate(180deg); }
 .more-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; padding: 0 14px 14px; }
 .more-grid .box { background: var(--bg); }
+/* An editor's Advanced box (Custom CSS): a smaller fold than More options, the CSS in a code font. */
+.css-box summary { padding: 10px 16px; font-size: 14px; }
+.css-body { display: grid; gap: 8px; padding: 0 16px 16px; }
+.css-body textarea { min-height: 120px; font: 13px/1.5 Consolas, ui-monospace, monospace; tab-size: 2; }
 
 #toast {
   position: fixed;

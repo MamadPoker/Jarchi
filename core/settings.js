@@ -90,6 +90,7 @@ const DEFAULTS = Object.fromEntries(TYPES.map((t) => [t, {
   textShadow: true,
   autoSize: true,
   theme: null, // null = the main theme
+  customCss: '', // the user's own CSS on top of this alert's look (Advanced, under the tabs); not part of its text style
   ...PER_TYPE[t],
 }]));
 const TEXT_STYLE = ['nameColor', 'nameFont', 'nameBold', 'nameShadow', 'textColor', 'textFont', 'textBold', 'textShadow', 'autoSize', 'fontSize'];
@@ -99,6 +100,8 @@ const ALERT_FONTS = ['Vazirmatn', 'Lalezar', 'Changa', 'Lemonada', 'Markazi Text
 const num = (min, max) => (v) => typeof v === 'number' && v >= min && v <= max;
 const oneOf = (...list) => (v) => list.includes(v);
 const hex = (v) => typeof v === 'string' && /^#[0-9a-f]{6}$/i.test(v);
+// Custom CSS (each widget's Advanced box): plain text, which the widget sets as its <style> element's text, never as HTML.
+const css = (v) => typeof v === 'string' && v.length <= 20000;
 const RULES = {
   enabled: (v) => typeof v === 'boolean',
   template: (v) => typeof v === 'string' && v.length <= 200,
@@ -128,6 +131,7 @@ const RULES = {
   nameShadow: (v) => typeof v === 'boolean',
   textShadow: (v) => typeof v === 'boolean',
   autoSize: (v) => typeof v === 'boolean',
+  customCss: css,
 };
 // ---------- Goals ----------
 // Kick's goals, then Twitch's (the ids before v6 stay, so their OBS links keep working). Each counts and syncs from its
@@ -155,6 +159,7 @@ const GOAL_DEFAULTS = Object.fromEntries(GOAL_IDS.map((id) => [id, {
   sound: null, // { file, name } once uploaded
   volume: 0.7,
   autoSize: true, // text: the biggest that fits (off: the style's fontSize, smaller only if it wouldn't fit). Kept when the style changes
+  customCss: '', // the user's own CSS on top of the look: kept when the style changes too
 }]));
 const bool = (v) => typeof v === 'boolean';
 const GOAL_RULES = {
@@ -183,6 +188,7 @@ const GOAL_RULES = {
   titlePos: oneOf('above', 'below', 'inside', 'hidden'),
   showPercent: bool,
   showNumbers: bool,
+  customCss: css,
 };
 
 // ---------- Chat ----------
@@ -269,6 +275,7 @@ const CHAT_DEFAULTS = {
   // from an amount up; their look (card | glow | line); "Keep special lines longer". Kept when the style changes.
   eventKicks: true, eventKicksMin: 0, eventSubs: true, eventGifts: true, eventGiftsMin: 0, eventBits: true, eventBitsMin: 0, eventRaids: false,
   eventLook: 'card', eventLonger: false,
+  customCss: '', // the user's own CSS on top of the look, this chat's (not a design's): kept when the style changes
 };
 const words = (v) => typeof v === 'string' && v.length <= 1000;
 const amount = (v) => Number.isInteger(v) && v >= 0 && v <= 1e6;
@@ -295,6 +302,7 @@ const CHAT_RULES = {
   tickerLoop: bool, tickerPos: oneOf('top', 'bottom'), showTiming: bool, replies: oneOf('line', 'name', 'quote', 'off'),
   eventKicks: bool, eventKicksMin: amount, eventSubs: bool, eventGifts: bool, eventGiftsMin: amount, eventBits: bool, eventBitsMin: amount, eventRaids: bool,
   eventLook: oneOf('card', 'glow', 'line'), eventLonger: bool,
+  customCss: css,
 };
 
 // The sidebar's profile chip (Edit profile): name and picture from the Kick or Twitch account, or the streamer's own

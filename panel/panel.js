@@ -1798,6 +1798,10 @@ function build() {
   new ResizeObserver(() => { if (view === 'chat') fitChat(); }).observe($('.chat-preview'));
   renderStatus();
 
+  wireCss($('#alertCss'), () => settings.alerts[cur], (f) => patchAlert(cur, f));
+  wireCss($('#goalCss'), () => settings.goals[curGoal], (f) => patchGoal(curGoal, f));
+  wireCss($('#chatCss'), chatCfg, patchChat);
+
   // Settings
   $('#showBadge').onchange = (e) => send('PATCH', '/api/settings', { showBadge: e.target.checked });
   for (const [id, name] of Object.entries(S.platforms)) $('#testAs').append(new Option(name, id));
@@ -1825,6 +1829,27 @@ function build() {
   $$('[data-help]').forEach(addHelp); // after data-i18n, which sets the labels' text
   $$('input[type=text]:not([dir]), input[type=number]:not([dir])').forEach((i) => (i.dir = 'ltr')); // links, {user}, names, numbers
   wireHelp();
+}
+
+// Custom CSS (an editor's Advanced box): saved half a second after the last key and when the box is left, so the
+// preview and OBS follow the typing, each save a step Ctrl+Z can undo (inside the box, Ctrl+Z is the box's own); Clear
+// empties it. cfg: the open alert's / goal's / chat's settings; patch saves fields to it. render() fills it in.
+function wireCss(box, cfg, patch) {
+  const area = $('textarea', box);
+  let typing;
+  const save = () => {
+    clearTimeout(typing);
+    if (area.value !== cfg().customCss) patch({ customCss: area.value });
+  };
+  area.oninput = () => {
+    clearTimeout(typing);
+    typing = setTimeout(save, 500);
+  };
+  area.onchange = save;
+  $('.css-clear', box).onclick = () => {
+    area.value = '';
+    save();
+  };
 }
 
 // Range sliders: filled track + value label (labels are per editor: both editors have e.g. "volume"). `f`: the field
@@ -1872,6 +1897,10 @@ function render() {
   }
 
   $('#chatUndo').hidden = !settings.canUndo;
+  for (const [box, cfg] of [['#alertCss', settings.alerts[cur]], ['#goalCss', settings.goals[curGoal]], ['#chatCss', chatCfg()]]) {
+    const area = $(`${box} textarea`);
+    if (area !== document.activeElement) area.value = cfg.customCss; // never under the cursor
+  }
   $('#themeSwatch').className = `swatch sw-${settings.theme}`;
   $('#themeName').textContent = S.themes[settings.theme];
   $$('#themeSwatches .swatch').forEach((s) => s.classList.toggle('current', s.dataset.theme === settings.theme));

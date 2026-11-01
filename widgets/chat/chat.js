@@ -37,6 +37,9 @@ const RTL = /[֐-ࣿיִ-﷿ﹰ-﻿]/;
 const EVENTS = { kicks: ['eventKicks', 'eventKicksMin'], sub: ['eventSubs'], resub: ['eventSubs'], gift_sub: ['eventGifts', 'eventGiftsMin'], bits: ['eventBits', 'eventBitsMin'], raid: ['eventRaids'] };
 const EVENT_COLOR = { kick: '#53fc18', twitch: '#9146ff' }; // the platforms' own colors
 const GEMS = [10000, 5000, 1000, 100, 1]; // Twitch's cheer gems, by amount (assets/twitch-bits)
+// The user's Custom CSS (Advanced box), after the page's own CSS so it wins. Set as text, so nothing in it is ever HTML
+// (a "</style>" can't end it).
+const userCss = document.head.appendChild(document.createElement('style'));
 let S, cfg, mainSettings, look = '', f = {};
 const recent = []; // known messages, newest last (to rebuild when the look changes)
 let rows = []; // on screen: { el, msg, timer, exiting, combo, count, at }
@@ -90,8 +93,14 @@ if (params.has('thumb')) {
   socket.on('strings', (s) => (S = s));
   socket.on('settings', (s) => {
     mainSettings = s;
-    if (JSON.stringify(s[KEY]) === look) return;
-    look = JSON.stringify(s[KEY]);
+    const css = s[KEY]?.customCss ?? '';
+    if (userCss.textContent !== css) {
+      userCss.textContent = css;
+      refit(); // names readable on what the CSS put behind them
+    }
+    const now = JSON.stringify(s[KEY] && { ...s[KEY], customCss: '' }); // the CSS alone needs no redraw
+    if (now === look) return;
+    look = now;
     if (!s[KEY]) return void (root.hidden = true); // Chat 2 deleted, or not added yet
     cfg = s[KEY];
     apply();
