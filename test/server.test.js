@@ -395,3 +395,40 @@ test('Twitch goals: Sync from Twitch shows Twitch\'s numbers in the Twitch goals
   assert.equal((await fetch(`${base}/widgets/goal/twitchFollowers`)).status, 200);
   goals.events.off('change', onChange);
 });
+
+test('undo / redo: the last 5 settings changes; a replaced file stays while a step has it; Reset everything forgets', async () => {
+  const json = async (r) => (assert.equal((r = await r).status, 200), r.json());
+  const step = (s) => call('POST', `/api/settings/${s}`);
+  const gif = Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64');
+  const has = (f) => fs.existsSync(path.join(dataDir, 'uploads', f));
+  let s = await json(call('POST', '/api/reset'));
+  assert.equal(s.canUndo, false);
+  assert.deepEqual([(await step('undo')).status, (await step('redo')).status], [409, 409]);
+
+  const a = (await json(upload('follow', 'image', gif))).alerts.follow.image.file;
+  const b = (await json(upload('follow', 'image', gif))).alerts.follow.image.file;
+  assert.ok(has(a), 'replaced, but a step still has it');
+  await json(call('PATCH', '/api/settings', { welcomed: true })); // not a setting: no step, never undone
+  s = await json(step('undo'));
+  assert.deepEqual([s.alerts.follow.image.file, s.welcomed, s.canUndo], [a, true, true]);
+  s = await json(step('redo'));
+  assert.equal(s.alerts.follow.image.file, b);
+  assert.equal((await step('redo')).status, 409, 'nothing undone');
+
+  // A chat design's own changes come back with it.
+  await json(call('PATCH', '/api/settings', { chat: { textColor: '#123456' } }));
+  await json(call('PATCH', '/api/settings', { chat: { style: 'neon' } }));
+  s = await json(step('undo'));
+  assert.equal(s.chat.textColor, '#123456');
+  // Up to 5 back: 6 more changes, and a (in the step before b) drops off, its file with it.
+  for (const theme of ['fun', 'retro', 'glass', 'fire', 'ice', 'galaxy']) await json(call('PATCH', '/api/settings', { theme }));
+  assert.ok(!has(a));
+  for (const theme of ['ice', 'fire', 'glass', 'retro', 'fun']) assert.equal((await json(step('undo'))).theme, theme);
+  assert.equal((await step('undo')).status, 409);
+  s = await json(step('redo'));
+  assert.deepEqual([s.theme, s.canUndo], ['retro', true]);
+
+  // Reset everything: no step back to before it; the files only steps had are gone.
+  s = await json(call('POST', '/api/reset'));
+  assert.deepEqual([s.canUndo, (await step('undo')).status, (await step('redo')).status, has(b)], [false, 409, 409, false]);
+});

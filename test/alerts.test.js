@@ -100,7 +100,7 @@ test("media by amount: fixed tiers (Kick's gift amounts), on/off and files; old 
   const first = tier(s, 'bits', 1000).image;
   s = await (await up('bits', 1000, 'image', gif, 'b.gif')).json();
   assert.equal(tier(s, 'bits', 1000).image.name, 'b.gif');
-  assert.ok(!fs.existsSync(file(first)), 'the replaced file is removed');
+  assert.ok(fs.existsSync(file(first)), 'the replaced file stays while Ctrl+Z can bring it back');
   s = await (await up('bits', 1000, 'sound', wav, 's.wav')).json();
   s = await (await call('PATCH', '/api/tiers/bits/1000', { on: false })).json();
   assert.deepEqual([tier(s, 'bits', 1000).on, tier(s, 'bits', 1000).sound.name], [false, 's.wav'], 'off keeps the files');
@@ -113,10 +113,12 @@ test("media by amount: fixed tiers (Kick's gift amounts), on/off and files; old 
   assert.equal((await up('gift_sub', 5, 'sound', gif, 'x.gif')).status, 400, 'a GIF is not a sound');
   assert.equal((await call('PATCH', '/api/settings', { alerts: { raid: { tiersOn: true } } })).status, 400, 'raid has no tiers');
 
-  // Reset removes tier files.
+  // Reset removes tier files (once Ctrl+Z can't bring them back: here, Jarchi quits).
   const kept = tier(s, 'bits', 1000).image;
   s = await (await call('POST', '/api/reset/bits')).json();
-  assert.ok(s.alerts.bits.tiers.every((t) => !t.on && !t.image) && !fs.existsSync(file(kept)));
+  assert.ok(s.alerts.bits.tiers.every((t) => !t.on && !t.image) && fs.existsSync(file(kept)));
+  require('../core/settings').forget();
+  assert.ok(![first, kept].some((f) => fs.existsSync(file(f))));
 });
 
 test('proxy: HTTP CONNECT and SOCKS5 tunnels, auto, finding a VPN app, Windows proxy strings, plain-word errors, /remote only for the platforms', async () => {

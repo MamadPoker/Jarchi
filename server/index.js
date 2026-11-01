@@ -28,8 +28,9 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
-// What the panel and widgets see: the settings plus which accounts are connected (widgets use it for the badge).
-const view = (s = settings.get()) => ({ ...s, connected: connectedPlatforms() });
+// What the panel and widgets see: the settings plus which accounts are connected (widgets use it for the badge), and
+// whether there's a change to undo (the panel's "Saved" note shows Undo).
+const view = (s = settings.get()) => ({ ...s, connected: connectedPlatforms(), canUndo: settings.canUndo() });
 // Push every settings change to all open widgets.
 const changed = (s) => {
   const v = view(s);
@@ -61,14 +62,28 @@ function reconnect() {
   kickAccount.start();
   vpn.fine();
 }
+// What a settings change sets off. patch: what changed (a PATCH's body, or what an undo / redo changed).
+function follow(patch) {
+  for (const [id, fields] of Object.entries(patch.goals ?? {})) if ('target' in fields) goals.retarget(id);
+  // Widgets switch between Kick's / Twitch's numbers and their own.
+  if ('kickGoalSync' in patch || 'twitchGoalSync' in patch) goals.refresh();
+  if (Object.keys(patch).some((k) => k.startsWith('proxy'))) reconnect();
+  else if (patch.chat) chat.sync(); // channel names may have changed
+}
 app.patch('/api/settings', (req, res) => {
   const s = settings.update(req.body);
   if ('privacyAccepted' in req.body) stats.ping(); // the Privacy Policy accepted just now: the first usage ping
-  for (const [id, fields] of Object.entries(req.body.goals ?? {})) if ('target' in fields) goals.retarget(id);
-  // Widgets switch between Kick's / Twitch's numbers and their own.
-  if ('kickGoalSync' in req.body || 'twitchGoalSync' in req.body) goals.refresh();
-  if (Object.keys(req.body).some((k) => k.startsWith('proxy'))) reconnect();
-  else if (req.body.chat) chat.sync(); // channel names may have changed
+  follow(req.body);
+  res.json(changed(s));
+});
+// Undo / redo (the panel's Ctrl+Z / Ctrl+Y, and Undo in its "Saved" note): one change back or forward again.
+const changes = (a, b) => Object.fromEntries(Object.keys(b).filter((k) => JSON.stringify(a[k]) !== JSON.stringify(b[k])).map((k) => [k, b[k]]));
+for (const step of ['undo', 'redo']) app.post(`/api/settings/${step}`, (req, res) => {
+  const before = settings.get(), s = settings[step]();
+  if (!s) return res.status(409).json({ error: `nothing_to_${step}` });
+  const patch = changes(before, s);
+  if (patch.goals) patch.goals = Object.fromEntries(Object.keys(s.goals).map((id) => [id, changes(before.goals[id], s.goals[id])])); // retarget: a target changed
+  follow(patch);
   res.json(changed(s));
 });
 
@@ -320,7 +335,7 @@ function fillChannel(platform, login) {
   const key = `${platform}Channel`;
   if (!login || settings.get().chat[key]) return;
   try {
-    changed(settings.update({ chat: { [key]: platform === 'kick' ? kickAccount.slug(login) : login } }));
+    changed(settings.update({ chat: { [key]: platform === 'kick' ? kickAccount.slug(login) : login } }, false)); // not a Ctrl+Z step
   } catch {
     return; // a name the channel rules don't take: left empty
   }
@@ -363,12 +378,15 @@ server.listen(PORT, HOST, () => {
 // The desktop app (electron/main.js) asks: 'quit' -> the last usage ping, then goodbye (`npm start` gets Ctrl+C);
 // 'proxy' -> the proxy in use as a URL (or null), before each update check, so updates come the same way.
 process.parentPort?.on('message', async (e) => {
-  if (e.data === 'quit') stats.ping(false).finally(() => process.parentPort.postMessage('bye'));
+  if (e.data === 'quit') {
+    settings.forget(); // the files kept for undo go
+    stats.ping(false).finally(() => process.parentPort.postMessage('bye'));
+  }
   if (e.data === 'proxy') {
     const p = await net.current().catch(() => null);
     process.parentPort.postMessage({ proxy: p && `${p.type}://${p.host}:${p.port}` });
   }
 });
-process.once('SIGINT', () => stats.ping(false).finally(() => process.exit(130)));
+process.once('SIGINT', () => (settings.forget(), stats.ping(false).finally(() => process.exit(130))));
 
 module.exports = { app, server, io };

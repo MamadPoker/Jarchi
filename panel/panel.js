@@ -322,13 +322,15 @@ async function api(method, url, body, headers = {}) {
 }
 
 let toastTimer;
-function toast(msg, isError) {
+// undoable: "Saved" with an Undo link after it (a little longer, to reach it).
+function toast(msg, isError, undoable) {
   const t = $('#toast');
   ($('dialog[open]') ?? document.body).append(t); // over an open dialog's backdrop, not under it
   t.textContent = msg;
+  if (undoable) t.append(' · ', el('button', { className: 'link', textContent: S.panel.undo, onclick: () => undoRedo('undo') }));
   t.className = isError ? 'show error' : 'show';
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => (t.className = ''), 2000);
+  toastTimer = setTimeout(() => (t.className = ''), undoable ? 4000 : 2000);
 }
 
 // Any call that returns settings: store them, re-sync the UI (also reverts rejected values), replay the preview.
@@ -340,7 +342,7 @@ async function send(method, url, body, headers) {
       note.classList.remove('flash');
       void note.offsetWidth; // restart its animation
       note.classList.add('flash');
-    } else toast(S.panel.saved);
+    } else toast(S.panel.saved, false, settings.canUndo);
     preview();
   } catch (err) {
     toast(err.message, true);
@@ -350,6 +352,8 @@ async function send(method, url, body, headers) {
 const patchAlert = (type, fields) => send('PATCH', '/api/settings', { alerts: { [type]: fields } });
 const patchGoal = (id, fields) => send('PATCH', '/api/settings', { goals: { [id]: fields } });
 const patchChat = (fields) => send('PATCH', '/api/settings', { chat: fields });
+// Undo / redo a settings change (the server keeps the last 5 while Jarchi runs): Ctrl+Z / Ctrl+Y, and the "Saved" note's Undo.
+const undoRedo = (s) => send('POST', `/api/settings/${s}`);
 
 // Change a goal's count (the selected one's by default): { add: n } or { set: n }.
 async function goalCount(body, id = curGoal) {
@@ -1408,6 +1412,15 @@ function build() {
     e.preventDefault();
     select('support');
   });
+  // Ctrl+Z undoes the last settings change (again: the one before), Ctrl+Y or Ctrl+Shift+Z redoes it; by the key's place
+  // too. Not in a text field: there it's the field's own undo.
+  addEventListener('keydown', (e) => {
+    if (!e.ctrlKey || e.altKey || e.metaKey) return;
+    const s = e.code === 'KeyZ' ? (e.shiftKey ? 'redo' : 'undo') : e.code === 'KeyY' && !e.shiftKey && 'redo';
+    if (!s || e.target.closest?.('textarea, [contenteditable], input:not([type=checkbox], [type=radio], [type=range], [type=color], [type=file])')) return;
+    e.preventDefault();
+    undoRedo(s);
+  });
 
   // Alerts and Goals pages: their list (a goal goes in its platform's group). An alert's row also gets a swatch that
   // render() shows when it has its own theme, and the logo of its platform when it's from one platform only.
@@ -1710,6 +1723,7 @@ function build() {
   const [before, after] = S.panel.chatStyleHint.split('{mark}');
   $('#chatStyleHint').replaceChildren(before, ownMark(), after);
   $('#chatResetOwn').onclick = () => send('POST', '/api/chat/reset-style', { own: true }); // the shared settings stay
+  $('#chatUndo').onclick = () => undoRedo('undo');
   $('#chatCopy').title = S.panel.chatCopyHint;
   $('#chatCopy').onclick = () => copyLink(`${location.origin}/widgets/chat`, S.panel.chatCopied);
   new ResizeObserver(() => { if (view === 'chat') fitChat(); }).observe($('.chat-preview'));
@@ -1788,6 +1802,7 @@ function render() {
     });
   }
 
+  $('#chatUndo').hidden = !settings.canUndo;
   $('#themeSwatch').className = `swatch sw-${settings.theme}`;
   $('#themeName').textContent = S.themes[settings.theme];
   $$('#themeSwatches .swatch').forEach((s) => s.classList.toggle('current', s.dataset.theme === settings.theme));

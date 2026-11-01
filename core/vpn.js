@@ -156,7 +156,7 @@ function look() {
 function accept() {
   if (st.state !== 'offer') return null;
   const { app, type, host, port } = st.found;
-  const s = settings.update({ proxyMode: 'auto', proxyFound: { app, type, host, port } });
+  const s = settings.update({ proxyMode: 'auto', proxyFound: { app, type, host, port } }, false); // its own popup: not a Ctrl+Z step
   fine();
   return s;
 }

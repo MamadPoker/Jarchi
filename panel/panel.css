@@ -801,6 +801,7 @@ main { padding: 24px 28px 64px; container-type: inline-size; } /* editor rules b
   transition: 0.2s;
 }
 #toast.show { opacity: 1; transform: translate(-50%, 0); }
+#toast.show button { pointer-events: auto; } /* Undo */
 #toast.error { border-color: var(--danger); color: var(--danger-text); box-shadow: none; }
 /* Over the gold border, a short bright streak runs round it, one loop every 3 s (like .made-by's light), only while it's
    shown. Not on errors; Background art off (the panel's effects) or Reduce animations (the panel's or Windows'): just

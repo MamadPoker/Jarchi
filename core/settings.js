@@ -301,6 +301,16 @@ const ALLOWED = { image: ['png', 'jpg', 'gif', 'webp', 'webm', 'mp4'], sound: ['
 
 const bad = (code = 'bad_request') => Object.assign(new Error(code), { status: 400, code });
 
+// Undo / redo (the panel's Ctrl+Z / Ctrl+Y): the settings as they were before each of the last 5 changes (past), and
+// the ones undone since (future), only while Jarchi runs. Each is JSON without what isn't a setting (KEEP: those stay as
+// they are). A file a change replaced or removed stays in uploads until no step has it any more (gone, sweep()).
+const UNDO_MAX = 5;
+const KEEP = ['version', 'installId', 'supportToken', 'obsSize', 'connect', 'welcomed', 'privacyAccepted', 'privacyAcceptedAt'];
+let past = [], future = [], last; // last: the settings now, as JSON (once loaded)
+const gone = new Set();
+const plain = () => JSON.stringify({ ...saved, ...Object.fromEntries(KEEP.map((k) => [k])) }); // undefined: left out
+const files = (json) => [...json.matchAll(/"file":"([^"]+)"/g)].map((m) => path.basename(m[1]));
+
 fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 let saved = store.load(FILE);
 const from = saved.version ?? 1;
@@ -381,9 +391,47 @@ if (secrets.on && PLAIN.test(saved.supportToken)) {
   saved.supportToken = sealToken(saved.supportToken); // one from before: sealed now
   persist();
 }
+last = plain();
 
-function persist() {
+// Every change is a step Ctrl+Z can undo, but one that isn't undoable (Reset everything, a VPN offer's Yes, a connected
+// account's channel): the steps before it are forgotten, as undoing them would undo it too.
+function persist(undoable = true) {
+  const now = plain();
+  if (last !== undefined && now !== last) {
+    past = undoable ? [...past, last].slice(-UNDO_MAX) : [];
+    future = [];
+    last = now;
+  }
   store.save(FILE, saved);
+  sweep();
+}
+// Back (undo) or forward again (redo) one step -> the settings, or null when there's none.
+function step(from, to) {
+  if (!from.length) return null;
+  to.push(last);
+  files(last).forEach((f) => gone.add(f)); // an upload undone: its file goes once no step has it
+  last = from.pop();
+  saved = { ...JSON.parse(last), ...pick(saved, KEEP) };
+  store.save(FILE, saved);
+  sweep();
+  return get();
+}
+const undo = () => step(past, future);
+const redo = () => step(future, past);
+const canUndo = () => past.length > 0;
+// Jarchi quits: no more steps, so their files go.
+function forget() {
+  past = [];
+  future = [];
+  sweep();
+}
+function sweep() {
+  const kept = new Set([last ?? plain(), ...past, ...future].flatMap(files));
+  for (const f of gone) {
+    if (kept.has(f)) continue;
+    fs.rmSync(path.join(UPLOADS_DIR, f), { force: true });
+    gone.delete(f);
+  }
 }
 
 function get() {
@@ -428,7 +476,8 @@ function goal(id) {
 const overrides = (type) => ((saved.alerts ??= {})[type] ??= {});
 const goalOverrides = (id) => ((saved.goals ??= {})[id] ??= {});
 
-function update(patch) {
+// undoable false: a change the server makes, not a step of the panel's Ctrl+Z (persist()).
+function update(patch, undoable = true) {
   if (!patch || typeof patch !== 'object') throw bad();
   for (const k in GLOBAL) if (k in patch && !GLOBAL_RULES[k](patch[k])) throw bad();
   const alerts = Object.entries(patch.alerts ?? {});
@@ -475,7 +524,7 @@ function update(patch) {
     }
     Object.assign(o, chatFields);
   }
-  persist();
+  persist(undoable);
   return get();
 }
 
@@ -494,8 +543,9 @@ function sniff(b) {
   if (ascii.startsWith('ID3') || (b[0] === 0xff && (b[1] & 0xe0) === 0xe0)) return 'mp3';
 }
 
+// Deleted at the next save, or once no undo step has it (sweep()).
 function removeFile(entry) {
-  if (entry?.file) fs.rmSync(path.join(UPLOADS_DIR, path.basename(entry.file)), { force: true });
+  if (entry?.file) gone.add(path.basename(entry.file));
 }
 
 // Check an upload's real type and write it -> { file, name }.
@@ -659,13 +709,13 @@ function reset(type) {
     removeFile(saved.profile?.picture);
     saved = { version: VERSION, installId: saved.installId, supportToken: saved.supportToken, obsSize: saved.obsSize, connect: saved.connect }; // still the same install and OBS (none yet: left out)
   }
-  persist();
+  persist(!!type); // Reset everything can't be undone
   return get();
 }
 
 module.exports = {
   get, update, saveUpload, removeUpload, reset, saveGoalSound, removeGoalSound, saveProfilePicture, resetGoalStyle, resetChatStyle,
   resetAlertText, setTier, saveTierFile, removeTierFile, sniff, installId, privacyAcceptedAt, supportToken, obsSize, setObsSize,
-  connectState, setConnectState,
+  connectState, setConnectState, undo, redo, canUndo, forget,
   GOAL_IDS, GOAL_STYLES, CHAT_DESIGNS, CHAT_FONTS, FONTS, KICK_GIFTS,
 };
