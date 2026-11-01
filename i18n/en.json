@@ -205,7 +205,7 @@
     "chatHint": "Reads Kick and Twitch chat with just the channel names, no login. Each channel also brings its real alerts (Kick: subs, resubs, gifted subs, Kicks, hosts; Twitch: subs, resubs, gifted subs, raids, bits). The switch only hides the chat on stream.",
     "chatCopyHint": "Add it in OBS as a Browser Source. Make it at least as big as the chat's width and height (Layout tab).",
     "chatCopied": "Chat link copied!",
-    "chatResetStyle": "Reset style",
+    "chatResetStyle": "Reset everything",
     "chatChannels": "Channels",
     "kickChannel": "Kick channel",
     "twitchChannel": "Twitch channel",
