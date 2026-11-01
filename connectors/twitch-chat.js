@@ -96,6 +96,15 @@ function cheerParts(parts) {
   });
 }
 
+// Twitch's chat starts a reply with "@<who it answers> ": cut from the text and its parts, since the chat's Replies
+// setting shows who instead. names: the display name and the login (either may be the one typed).
+function unmention(text, parts, names) {
+  const at = names.filter(Boolean).map((n) => `@${n}`).find((n) => text.slice(0, n.length).toLowerCase() === n.toLowerCase() && !text[n.length]?.trim());
+  if (!at || parts[0]?.t !== 'text') return [text, parts];
+  const rest = text.slice(at.length).trimStart(), first = parts[0].v.slice(text.length - rest.length);
+  return [rest, first ? [{ t: 'text', v: first }, ...parts.slice(1)] : parts.slice(1)];
+}
+
 // One IRC line -> the alert it is (for cb.onAlert), or null. Key: Twitch's message id, so a repeat is dropped (core/events).
 //   USERNOTICE sub / resub        sub, or resub with months (msg-param-cumulative-months) and the viewer's message
 //   USERNOTICE submysterygift     gifted subs: ONE alert per gift, amount = msg-param-mass-gift-count. Twitch then sends a
@@ -138,8 +147,11 @@ function handle(line, channel, cb) {
     let text = trailing ?? '';
     const action = text.startsWith('\u0001ACTION ') && text.endsWith('\u0001');
     if (action) text = text.slice(8, -1);
-    const parts = emoteParts(text, t.emotes);
-    cb.onMessage({ platform: 'twitch', id: t.id, channel, time: Number(t['tmi-sent-ts']) || Date.now(), text, action, first: t['first-msg'] === '1', user: user(), parts: t.bits ? cheerParts(parts) : parts, event });
+    let parts = emoteParts(text, t.emotes);
+    const to = t['reply-parent-display-name'] || t['reply-parent-user-login']; // a reply: who it answers, and their message
+    if (to) [text, parts] = unmention(text, parts, [t['reply-parent-display-name'], t['reply-parent-user-login']]);
+    cb.onMessage({ platform: 'twitch', id: t.id, channel, time: Number(t['tmi-sent-ts']) || Date.now(), text, action, first: t['first-msg'] === '1', user: user(), parts: t.bits ? cheerParts(parts) : parts, event,
+      ...(to && { reply: { name: to, text: t['reply-parent-msg-body'] ?? '' } }) });
   } else if (command === 'USERNOTICE' && (SUB_NOTICES.has(t['msg-id']) || t['msg-id'] === 'raid')) {
     const text = trailing ?? '';
     cb.onMessage({ platform: 'twitch', id: t.id, channel, kind: t['msg-id'] === 'raid' ? 'event' : 'sub', system: t['system-msg'] || '', time: Number(t['tmi-sent-ts']) || Date.now(), text, user: user(), parts: emoteParts(text, t.emotes), event });

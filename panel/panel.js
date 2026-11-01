@@ -139,7 +139,8 @@ const CHAT_TABS = () => ({
   text: [
     ['chatText', [['select', 'font', { options: chatFonts.map((x) => [x, x]) }], ['range', 'fontSize', { min: 10, max: 72, label: 'messageSize' }],
       ['color', 'textColor', { label: 'messageColor' }], ['toggle', 'textShadow'], ['select', 'textDir', { options: [['auto', 'dirAuto'], ['ltr', 'dirLtr'], ['rtl', 'dirRtl']] }],
-      ['toggle', 'showTime'], ['toggle', 'showColon']]],
+      ['toggle', 'showTime'], ['toggle', 'showColon'],
+      ['select', 'replies', { options: [['line', 'repliesLine'], ['name', 'repliesName'], ['quote', 'repliesQuote'], ['off', 'repliesOff']] }]]],
     ['chatEmotes', [['toggle', 'emotesKick'], ['toggle', 'emotesTwitch'], ['toggle', 'emotes7tv'], ['toggle', 'emotesAnimated'], ['range', 'emoteSize', { min: 12, max: 112 }],
       ['toggle', 'bigEmotes'], ['range', 'bigEmoteSize', { min: 16, max: 160, only: 'big' }]]],
   ],

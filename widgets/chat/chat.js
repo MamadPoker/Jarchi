@@ -243,14 +243,17 @@ function shown(m) {
   if (m.kind === 'message') {
     const text = m.text.trim();
     if (cfg.hideCommands && text.startsWith('!')) return false;
-    if (cfg.hideLinks && LINK.test(text)) return false;
-    if (f.blocked.length) {
-      const lower = text.toLowerCase();
-      const tokens = new Set(lower.split(/[^\p{L}\p{N}_]+/u));
-      if (f.blocked.some((w) => (w.includes(' ') ? lower.includes(w) : tokens.has(w)))) return false;
-    }
+    if (filtered(text)) return false;
   }
   return true;
+}
+// Text with a blocked word, or a link while links are hidden: such a message isn't shown, nor quoted by a reply.
+function filtered(text) {
+  if (cfg.hideLinks && LINK.test(text)) return true;
+  if (!f.blocked.length) return false;
+  const lower = text.toLowerCase();
+  const tokens = new Set(lower.split(/[^\p{L}\p{N}_]+/u));
+  return f.blocked.some((w) => (w.includes(' ') ? lower.includes(w) : tokens.has(w)));
 }
 
 // ---------- One message ----------
@@ -516,11 +519,32 @@ function eventEl(m, rainbow) {
   return h('div', { className: 'ev' }, head, said ? h('div', { className: 'ev-msg' }, bodyEl(m)) : null);
 }
 
+// Which way a text reads: the "Text direction" setting, or with Auto its first letter's (Persian, Arabic: right to left).
+const dirOf = (text) => (cfg.textDir !== 'auto' ? cfg.textDir : RTL.test(text.match(/\p{L}/u)?.[0] ?? '') ? 'rtl' : 'ltr');
+const cut = (s, n) => { const c = Array.from(s.trim()); return c.length > n ? `${c.slice(0, n).join('').trimEnd()}…` : c.join(''); };
+
+// A reply (the Replies setting), above it: "↩ replying to <name>: <start of their message…>" on one small line, or
+// "<name>: <their message>" in a small quote box (2 lines at most); in a bar, before it. Small and faded (chat.css), so
+// it never looks bigger than the message. The name and their words are isolated (<bdi>): Persian keeps its order inside
+// the English line and the other way round. Their words a filter would hide aren't quoted: just the name.
+function replyEl(r) {
+  const quote = cfg.replies === 'quote';
+  const said = r.text && !filtered(r.text) ? cut(r.text, quote ? 120 : 60) : '';
+  const name = h('bdi', { className: 'reply-name', textContent: r.name });
+  if (quote) return h('div', { className: 'reply reply-quote', dir: dirOf(said) }, name, ...(said ? [': ', h('bdi', { textContent: said })] : []));
+  // Their words are a box of their own (chat.css), so a cut-off Persian message loses its end, not its start.
+  const [before, after] = S.chatText.replyTo.split('{user}');
+  return h('div', { className: 'reply reply-line', dir: 'auto' }, h('span', { className: 'reply-head' }, '↩ ', before, name, after, said ? ':' : ''),
+    said ? h('bdi', { className: 'reply-said', textContent: said }) : null);
+}
+
 function msgEl(m) {
   const ev = special(m);
   const vip = m.user.badges.some((b) => b.type === 'vip');
   const rainbow = (cfg.fxRainbowVip && vip) || f.rainbow.has(m.user.login) || f.rainbow.has(m.user.name.toLowerCase());
-  const mention = !ev && cfg.fxMention && [...f.streamer, ...(m.test ? ['streamer'] : [])].some((s) => new RegExp(`(^|[^\\w])@?${s}\\b`, 'i').test(m.text));
+  const to = !ev && cfg.replies !== 'off' && m.reply; // a reply, shown as one
+  // A reply to the streamer counts as a mention too (Twitch's own "@streamer" is cut from its text).
+  const mention = !ev && cfg.fxMention && [...f.streamer, ...(m.test ? ['streamer'] : [])].some((s) => new RegExp(`(^|[^\\w])@?${s}\\b`, 'i').test(`${m.reply ? `@${m.reply.name} ` : ''}${m.text}`));
   const glow = !ev && m.kind === 'sub' && cfg.fxSubGlow;
   const first = !ev && m.first && cfg.fxFirst;
   const tags = [glow && h('span', { className: 'tag tag-sub', textContent: S.chatText.subTag }), first && h('span', { className: 'tag tag-first', textContent: S.chatText.firstTag })].filter(Boolean);
@@ -539,12 +563,15 @@ function msgEl(m) {
     cfg.showColon && m.kind === 'message' && !m.action && h('span', { className: 'colon', textContent: SEPARATOR[cfg.style] ?? ':' }));
   const avatar = cfg.avatars && (hat === 'avatar' ? h('span', { className: 'avatar-box' }, avatarEl(m), hatEl('avatar')) : avatarEl(m));
   const hasText = m.parts.some((p) => p.t !== 'text' || p.v.trim());
+  const body = bodyEl(m);
+  if (to && cfg.replies === 'name') body.prepend(h('bdi', { className: 'reply-at', textContent: `@${to.name}` }), ' '); // <bdi>: not what Auto direction goes by
   const el = ev
     ? h('div', { className: `msg event ev-${m.event.type}` }, eventEl(m, rainbow))
     : h('div', { className: ['msg', m.kind === 'sub' && 'kind-sub', glow && 'glow', first && 'first', mention && 'mention', m.action && 'action', hat && hat !== 'badge' && 'hatted'].filter(Boolean).join(' ') },
       tags.length ? h('div', { className: 'tags' }, ...tags) : null,
       m.kind === 'sub' && m.system ? h('div', { className: 'system', dir: cfg.textDir, textContent: m.system }) : null,
-      m.kind === 'message' || hasText ? h('div', { className: 'line' }, avatar, meta, bodyEl(m)) : null);
+      to && cfg.replies !== 'name' ? replyEl(to) : null,
+      m.kind === 'message' || hasText ? h('div', { className: 'line' }, avatar, meta, body) : null);
   if (ev) {
     const c = EVENT_COLOR[m.platform] ?? '#ffd54d';
     el.style.setProperty('--ev', c);
@@ -553,7 +580,7 @@ function msgEl(m) {
   }
   if (turn) el.style.setProperty('--turn', rgba(turn, cfg.bgOpacity));
   el.style.setProperty('--tilt', `${(hash(m.id) % 61) / 10 - 3}deg`);
-  el.dataset.dir = cfg.textDir !== 'auto' ? cfg.textDir : RTL.test(m.text.match(/\p{L}/u)?.[0] ?? '') ? 'rtl' : 'ltr';
+  el.dataset.dir = dirOf(m.text);
   return el;
 }
 

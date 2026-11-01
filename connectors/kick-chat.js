@@ -185,12 +185,14 @@ function handle(event, raw, channel, info, cb) {
       const s = d.sender ?? {};
       const c = d.metadata?.celebration;
       const renewed = d.type === 'celebration' && c?.type === 'subscription_renewed' && (Number(c.total_months) || 2);
+      const to = d.metadata?.original_sender?.username; // a reply (type "reply"): who it answers, and their message
       cb.onMessage({
         platform: 'kick', id: d.id, channel, time: Date.parse(d.created_at) || Date.now(),
         text: (d.content ?? '').replace(EMOTE, '$2'),
         user: { id: s.id, login: s.slug, name: s.username, color: s.identity?.color, badges: kickBadges(s.identity, info.subBadges) },
         parts: kickParts(d.content ?? ''),
         ...(renewed && { event: { type: 'resub', months: renewed } }),
+        ...(to && { reply: { name: to, text: (d.metadata.original_message?.content ?? '').replace(EMOTE, '$2') } }),
       });
       if (renewed) sub(s.username, renewed, (d.content ?? '').replace(EMOTE, '$2'));
       return;

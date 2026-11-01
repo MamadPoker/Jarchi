@@ -195,6 +195,7 @@ const CHAT_BASE = {
   layout: 'vertical', tickerDir: 'rtl', tickerSpeed: 120, newAt: 'bottom', maxMessages: 30, hideAfter: 0, enterAnim: 'slide', exitAnim: 'fade', animSpeed: 1, fadeZone: 80, fade: true,
   fxSubGlow: true, fxFirst: true, fxRainbowVip: true, fxMention: true, fxCombo: true, avatars: false, blur: 0, typewriter: false, typeSound: false,
   tickerLoop: false,
+  replies: 'line', // a reply: line ("↩ replying to name: …" above it) | name ("@name" before it) | quote (a small box above) | off
 };
 // What the horizontal styles share: a 1920-wide bar that keeps looping the recent messages when chat is quiet.
 const BAR = { layout: 'horizontal', width: 1920, height: 64, radius: 0, padding: 10, maxMessages: 15, fadeZone: 120, tickerLoop: true };
@@ -283,7 +284,7 @@ const CHAT_RULES = {
   maxMessages: (v) => Number.isInteger(v) && v >= 1 && v <= 100, hideAfter: num(0, 600),
   enterAnim: oneOf('slide', 'fade', 'pop', 'float', 'bounce', 'drop', 'none'), exitAnim: oneOf('fade', 'slide', 'none'), animSpeed: num(0.25, 3), fadeZone: num(0, 400), fade: bool,
   fxSubGlow: bool, fxFirst: bool, fxRainbowVip: bool, fxMention: bool, fxCombo: bool, avatars: bool, blur: num(0, 40), typewriter: bool, typeSound: bool,
-  tickerLoop: bool, tickerPos: oneOf('top', 'bottom'), showTiming: bool,
+  tickerLoop: bool, tickerPos: oneOf('top', 'bottom'), showTiming: bool, replies: oneOf('line', 'name', 'quote', 'off'),
   eventKicks: bool, eventKicksMin: amount, eventSubs: bool, eventGifts: bool, eventGiftsMin: amount, eventBits: bool, eventBitsMin: amount, eventRaids: bool,
   eventLook: oneOf('card', 'glow', 'line'), eventLonger: bool,
 };

@@ -232,6 +232,8 @@ const plain = {
   twitch: (viewer) => ({ platform: 'twitch', user: viewer('twitch'), text: T.mod, parts: [twitchEmote(25, 'Kappa'), { t: 'text', v: T.mod.slice(5, -7) }, twitchEmote(30259, 'HeyGuys')] }),
   kick: (viewer) => ({ platform: 'kick', user: viewer('kick'), text: T.kick.replace(/\[emote:\d+:([^\]]*)\]/g, '$1'), parts: kick.kickParts(T.kick) }),
 };
+// A reply to an earlier message (the chat's Replies setting), on the same platform.
+const replyTo = (viewer, to) => ({ platform: to.platform, user: viewer(to.platform), text: T.reply, parts: [{ t: 'text', v: T.reply }], reply: { name: to.user.name, text: to.text } });
 
 // Messages that trigger each fancy effect: key -> () => a message, or a run of messages (combo). The widget shows an
 // effect only when it's on in the settings; the panel says which ones are off. The special lines (the chat's Events)
@@ -289,8 +291,8 @@ function effects(viewer) {
 const EFFECTS = ['sub', 'first', 'vip', 'mention', 'avatar', 'combo'];
 const EVENTS = ['kicks', 'gift', 'bits', 'raid']; // special lines (a sub is one too: the 'sub' effect)
 
-// "Send test message": emotes, 3 random effects and a special line. "Send 10 messages": 10 messages, 2 of them (or a
-// combo run) effects. "Show all effects": every effect in a row, then every special line. A combo run stays together.
+// "Send test message": emotes, 3 random effects, a special line and a reply. "Send 10 messages": 10 messages, 2 of them
+// (or a combo run) effects. "Show all effects": every effect in a row, then every special line. A combo run stays together.
 function build(kind) {
   const viewer = viewers();
   const fx = effects(viewer);
@@ -301,7 +303,10 @@ function build(kind) {
   const fill = kind === 'burst'
     ? shuffled(T.burst).slice(0, 10 - runs.flat().length).map((v) => { const platform = pick(PLATFORMS); return [{ platform, user: viewer(platform), text: v, parts: [{ t: 'text', v }] }]; })
     : [[plain.twitch(viewer)], [plain.kick(viewer)]];
-  return { list: shuffled([...runs, ...fill]).flat(), effects: picked, events };
+  const list = shuffled([...runs, ...fill]).flat();
+  // "Send test message" ends with a reply to its Twitch message, so what it answers is on screen above it.
+  if (kind === 'sample') list.push(replyTo(viewer, fill[0][0]));
+  return { list, effects: picked, events };
 }
 
 // kind 'sample' | 'burst' | 'all' -> { sent, effects, events }.

@@ -69,6 +69,16 @@ test('Twitch IRC lines -> messages, removals, room id', () => {
 
   twitch.handle('@emote-only=0;room-id=71092938 :tmi.twitch.tv ROOMSTATE #xqc', 'xqc', cb);
   assert.deepEqual(out.channels, [{ userId: '71092938' }]);
+
+  // A reply: who it answers and what they said (reply-parent-*); Twitch's "@name " in front is cut, emotes still in place.
+  out.messages.length = 0;
+  twitch.handle('@display-name=Ana;emotes=25:11-15;id=r1;reply-parent-display-name=Märk;reply-parent-msg-body=Kappa\\süber\\sKappa!;reply-parent-user-login=mark;user-id=8 :ana!ana@ana.tmi.twitch.tv PRIVMSG #xqc :@mark  yes Kappa', 'xqc', cb);
+  twitch.handle('@display-name=Bo;id=r2;reply-parent-display-name=Märk;reply-parent-user-login=mark;user-id=9 :bo!bo@bo.tmi.twitch.tv PRIVMSG #xqc :@markus hi', 'xqc', cb);
+  twitch.handle('@display-name=Cy;id=r3;user-id=10 :cy!cy@cy.tmi.twitch.tv PRIVMSG #xqc :@mark hi', 'xqc', cb);
+  const [r1, r2, r3] = out.messages.map(chatMessage);
+  assert.deepEqual([r1.text, r1.parts.map((p) => (p.t === 'emote' ? `[${p.name}]` : p.v)), r1.reply], ['yes Kappa', ['yes ', '[Kappa]'], { name: 'Märk', text: 'Kappa über Kappa!' }]);
+  assert.deepEqual([r2.text, r2.reply], ['@markus hi', { name: 'Märk', text: '' }], 'another name stays; no body: just the name');
+  assert.deepEqual([r3.text, r3.reply], ['@mark hi', null], 'not a reply: untouched');
 });
 
 test('Kick Pusher events -> messages, badges, removals', () => {
@@ -124,11 +134,19 @@ test('Kick Pusher events -> messages, badges, removals', () => {
   kick.handle('App\\Events\\SubscriptionEvent', { username: 'b', months: 1 }, 'xqc', info, cb);
   const [gift, host, fan, giftee] = out.messages.slice(2).map(chatMessage);
   assert.equal(out.messages.length, 6, 'one line per Kicks gift');
+  assert.equal(chatMessage(m).reply, null);
   assert.deepEqual([gift.kind, gift.user.login, gift.user.color, gift.user.avatar, gift.text, gift.event],
     ['event', 'lifewing', '#E26EFF', 'https://files.kick.com/p.webp', 'hi', { type: 'kicks', amount: 1, months: 0, gift: 'hell_yeah', name: 'Hell Yeah' }]);
   assert.deepEqual([host.kind, host.user.name, host.event.type, host.event.amount], ['event', 'Friend', 'raid', 42]);
   assert.deepEqual([fan.kind, fan.event], ['sub', { type: 'resub', amount: 0, months: 5, gift: null, name: '' }]);
   assert.deepEqual([giftee.kind, giftee.event], ['sub', null]);
+
+  // A reply (type "reply"): who it answers and their message, emotes as their names.
+  kick.handle('App\\Events\\ChatMessageEvent', { id: 'k-2', type: 'reply', content: 'true', sender: { id: 1, username: 'Bo', slug: 'bo' },
+    metadata: { original_sender: { id: 56477090, username: 'Ali' }, original_message: { id: 'k-1', content: 'gg [emote:37230:POLICE] nice' } } }, 'xqc', info, cb);
+  kick.handle('App\\Events\\ChatMessageEvent', { id: 'k-3', type: 'reply', content: 'hm', sender: { id: 1, username: 'Bo', slug: 'bo' },
+    metadata: { original_sender: { username: 'Ali' } } }, 'xqc', info, cb);
+  assert.deepEqual(out.messages.slice(-2).map((x) => chatMessage(x).reply), [{ name: 'Ali', text: 'gg POLICE nice' }, { name: 'Ali', text: '' }]);
 });
 
 test("Kick's Pusher key comes from Kick (it changes); anything odd falls back to the built-in one", async () => {
@@ -210,6 +228,10 @@ test('chat settings, Reset style, test messages, OBS page and logos', async () =
   assert.equal(seen.length, sample.sent + burst.sent);
   assert.ok(seen.every((m) => m.test));
   assert.ok(seen.some((m) => m.parts.some((p) => p.t === 'emote')));
+  const replies = seen.filter((m) => m.reply);
+  assert.equal(replies.length, 1, 'Send test message: one reply');
+  assert.ok(seen.indexOf(seen.find((m) => m.platform === replies[0].platform && m.user.name === replies[0].reply.name && m.text === replies[0].reply.text)) < seen.indexOf(replies[0]),
+    'to its Twitch message, sent before it');
 
   assert.equal((await fetch(`${base}/widgets/chat/`)).status, 200);
   for (const logo of ['kick', 'twitch']) assert.equal((await fetch(`${base}/assets/platform-logos/${logo}.svg`)).status, 200);
@@ -283,9 +305,9 @@ test('chat styles: all 27 can be picked (Kick default first), new options valida
   assert.equal((await call('PATCH', '/api/settings', { chat: { style: 'rpg' } })).status, 200);
   assert.equal((await (await call('GET', '/api/settings')).json()).chat.typewriter, true, 'RPG dialog types out');
   for (const ok of [{ nameColorMode: 'style' }, { enterAnim: 'drop' }, { typeSound: true }, { font: 'Vazirmatn' }, { badgeMode: 'all' }, { badgeSize: 1.5 }, { readableNames: false },
-    { ogHat: false }, { hatStyle: 'fedora' }, { hatPos: 'avatar' }, { badgeBg: 'off' }]) assert.equal((await call('PATCH', '/api/settings', { chat: ok })).status, 200, JSON.stringify(ok));
+    { ogHat: false }, { hatStyle: 'fedora' }, { hatPos: 'avatar' }, { badgeBg: 'off' }, { replies: 'quote' }, { replies: 'off' }]) assert.equal((await call('PATCH', '/api/settings', { chat: ok })).status, 200, JSON.stringify(ok));
   for (const bad of [{ nameColorMode: 'rainbow' }, { enterAnim: 'spin' }, { typewriter: 'yes' }, { font: 'Comic Sans' }, { badgeMode: 'some' }, { badgeSize: 5 },
-    { hatStyle: 'tophat' }, { hatPos: 'middle' }, { badgeBg: 'light' }]) assert.equal((await call('PATCH', '/api/settings', { chat: bad })).status, 400, JSON.stringify(bad));
+    { hatStyle: 'tophat' }, { hatPos: 'middle' }, { badgeBg: 'light' }, { replies: 'big' }]) assert.equal((await call('PATCH', '/api/settings', { chat: bad })).status, 400, JSON.stringify(bad));
   const fresh = (await (await call('PATCH', '/api/settings', { chat: { style: 'comic' } })).json()).chat;
   assert.deepEqual([fresh.ogHat, fresh.hatStyle, fresh.hatPos, fresh.badgeBg, fresh.badgeMode], [false, 'fedora', 'avatar', 'off', 'all'],
     'the OG hat, the badge background and the badges stay when the style changes');
@@ -302,20 +324,20 @@ test('chat styles: all 27 can be picked (Kick default first), new options valida
 test('another chat design: the shared settings stay as they are, each design keeps its own', async () => {
   if (!server.listening) await new Promise((r) => server.once('listening', r));
   const chat = async (fields) => (await (await call('PATCH', '/api/settings', { chat: fields })).json()).chat;
-  const shared = (c) => [c.fontSize, c.showPlatform, c.avatars, c.hideAfter, c.showBadges, c.hideBots];
+  const shared = (c) => [c.fontSize, c.showPlatform, c.avatars, c.hideAfter, c.showBadges, c.hideBots, c.replies];
   await chat({ style: 'kick' });
   await call('POST', '/api/chat/reset-style');
   let c = await chat({ style: 'neon' });
-  assert.deepEqual(shared(c), [14, false, false, 0, true, true], "Kick's text size and platform icon, never changed, stay");
+  assert.deepEqual(shared(c), [14, false, false, 0, true, true, 'line'], "Kick's text size and platform icon, never changed, stay");
   assert.deepEqual([c.bgColor, c.border, c.font], ['#07031a', true, 'Segoe UI'], "Neon's own look");
-  await chat({ fontSize: 30, avatars: true, hideAfter: 45, showBadges: false, hideBots: false, bgColor: '#112233', enterAnim: 'drop' });
+  await chat({ fontSize: 30, avatars: true, hideAfter: 45, showBadges: false, hideBots: false, replies: 'quote', bgColor: '#112233', enterAnim: 'drop' });
   c = await chat({ style: 'news' });
-  assert.deepEqual(shared(c), [30, false, true, 45, false, false], 'shared: as they were');
+  assert.deepEqual(shared(c), [30, false, true, 45, false, false, 'quote'], 'shared: as they were');
   assert.deepEqual([c.layout, c.height, c.bgColor, c.enterAnim], ['horizontal', 56, '#ffffff', 'slide'], "the bar's own look, not Neon's changes");
   await chat({ height: 80, tickerSpeed: 200 });
   c = await chat({ style: 'neon' });
   assert.deepEqual([c.layout, c.bgColor, c.enterAnim, c.height], ['vertical', '#112233', 'drop', 600], "Neon's changes are back");
-  assert.deepEqual(shared(c), [30, false, true, 45, false, false]);
+  assert.deepEqual(shared(c), [30, false, true, 45, false, false, 'quote']);
   c = await chat({ style: 'news' });
   assert.deepEqual([c.height, c.tickerSpeed, c.bgColor], [80, 200, '#ffffff'], "and the bar's");
   assert.equal((await chat({ style: 'news' })).height, 80, 'picking the same design again changes nothing');
@@ -323,11 +345,11 @@ test('another chat design: the shared settings stay as they are, each design kee
   const { styles } = await (await call('GET', '/api/chat/styles')).json();
   assert.ok(!('fontSize' in styles.floating) && styles.floating.bg === 'off', 'thumbnails: a design\'s own look over the shared values');
   c = (await (await call('POST', '/api/chat/reset-style', { own: true })).json()).chat;
-  assert.deepEqual([c.height, c.tickerSpeed, ...shared(c)], [56, 110, 30, false, true, 45, false, false], 'Reset <style>: only its own settings');
+  assert.deepEqual([c.height, c.tickerSpeed, ...shared(c)], [56, 110, 30, false, true, 45, false, false, 'quote'], 'Reset <style>: only its own settings');
   c = await chat({ style: 'neon' });
   assert.equal(c.bgColor, '#112233', "another style's own settings stay");
   await call('POST', '/api/chat/reset-style');
-  await chat({ style: 'classic', fontSize: 18, avatars: false, hideAfter: 0, showBadges: true, hideBots: true });
+  await chat({ style: 'classic', fontSize: 18, avatars: false, hideAfter: 0, showBadges: true, hideBots: true, replies: 'line' });
 });
 
 test('profile pictures: the message never waits for a lookup; a returning chatter\'s picture comes with the message', async () => {
