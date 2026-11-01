@@ -583,6 +583,7 @@ function msgEl(m) {
     el.style.setProperty('--ev-b', rgba(c, 0.55));
   }
   if (turn) el.style.setProperty('--turn', rgba(turn, cfg.bgOpacity));
+  if (cfg.border && cfg.borderColorMode === 'user' && m.user.color) el.style.setProperty('--mbd', m.user.color); // its border: the sender's color (chat.css)
   el.style.setProperty('--tilt', `${(hash(m.id) % 61) / 10 - 3}deg`);
   el.dataset.dir = dirOf(m.text);
   return el;

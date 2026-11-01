@@ -532,6 +532,15 @@ test('Chat 2: a copy of Chat 1 with its own settings, link, tests and resets; Ch
   assert.deepEqual([s.chat2.fontSize, s.chat.fontSize], [18, 30], 'Reset chat look on Chat 2 only');
   assert.equal((await fetch(`${base}/widgets/chat/2`)).status, 200);
 
+  // Border color "User's color": saved for each style like Border color, and each chat's own.
+  assert.deepEqual([s.chat.borderColorMode, s.chat2.borderColorMode], ['custom', 'custom']);
+  assert.equal((await call('PATCH', '/api/settings', { chat2: { borderColorMode: 'rainbow' } })).status, 400);
+  s = await json(call('PATCH', '/api/settings', { chat2: { borderColorMode: 'user' } }));
+  s = await json(call('PATCH', '/api/settings', { chat2: { style: 'comic' } }));
+  assert.deepEqual([s.chat2.borderColorMode, s.chat.borderColorMode], ['custom', 'custom']);
+  s = await json(call('PATCH', '/api/settings', { chat2: { style: 'neon' } }));
+  assert.equal(s.chat2.borderColorMode, 'user');
+
   // Test messages are for the chat they were sent from.
   const seen = [];
   const onChat = (m) => seen.push(m);

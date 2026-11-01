@@ -30,10 +30,10 @@ body.preview, body.thumb { display: grid; place-items: center; }
 .chat.boxed.bg-transparent { background: transparent; }
 .chat.boxed.bordered { border: var(--bw) solid var(--bd); }
 .chat.boxed.layout-vertical .viewport { margin: var(--pad) 0; }
-/* ... or one bubble per message */
+/* ... or one bubble per message. A message's own border: --mbd, the sender's color with Border color "User's color" (chat.js) */
 .chat.bubbles .msg { padding: var(--pad); border-radius: var(--radius); background: var(--bg); }
 .chat.bubbles.bg-transparent .msg { background: transparent; }
-.chat.bubbles.bordered .msg { border: var(--bw) solid var(--bd); }
+.chat.bubbles.bordered .msg { border: var(--bw) solid var(--mbd, var(--bd)); }
 .chat.bubbles.bg-off .msg { padding: 0; background: none; border: 0; }
 /* Only with a blur set: a backdrop filter puts the box on its own layer, and text on such a layer can come out soft */
 .chat.blurred.boxed, .chat.blurred.bubbles .msg { backdrop-filter: blur(var(--blur)); }
@@ -176,7 +176,7 @@ body.preview, body.thumb { display: grid; place-items: center; }
 .unshown { visibility: hidden; }
 
 /* No box: the border option draws a line beside each message */
-.chat.bg-off.bordered .msg { border-left: var(--bw) solid var(--bd); padding-left: 0.6em; }
+.chat.bg-off.bordered .msg { border-left: var(--bw) solid var(--mbd, var(--bd)); padding-left: 0.6em; }
 
 /* Light boxes: dark text tags. A light name (lname) keeps its color and gets a thin, hard dark outline instead (no blur, so
    it stays sharp), here and on the other light message backgrounds (Cyberpunk bar's yellow pills, Cyberpunk's newest
@@ -264,7 +264,7 @@ body.preview, body.thumb { display: grid; place-items: center; }
 
 /* Cyberpunk: black strips with a cut corner, the newest one solid yellow; glitch on arrival; scanlines */
 .style-cyberpunk .msg { clip-path: polygon(0 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%); }
-.chat.style-cyberpunk.bubbles.bordered .msg { border: 0; border-left: var(--bw) solid var(--bd); }
+.chat.style-cyberpunk.bubbles.bordered .msg { border: 0; border-left: var(--bw) solid var(--mbd, var(--bd)); }
 .style-cyberpunk .name { text-transform: uppercase; letter-spacing: 0.08em; }
 .chat.style-cyberpunk.new-bottom .row:last-child .msg, .chat.style-cyberpunk.new-top .row:first-child .msg, .chat.style-cyberpunk .tick:last-child .msg { background: var(--bd); color: #0b0b0b; }
 .style-cyberpunk .arrive .msg:not(.glow) { animation: glitch 0.55s steps(1) 1; }
@@ -285,7 +285,7 @@ body.preview, body.thumb { display: grid; place-items: center; }
   box-shadow: 4px 4px 0 #111;
 }
 .chat.style-comic.bubbles .msg::before, .chat.style-comic.bubbles .msg::after { content: ""; position: absolute; top: 100%; clip-path: polygon(0 0, 100% 0, 0 100%); }
-.chat.style-comic.bubbles .msg::before { left: 20px; width: 24px; height: 16px; background: var(--bd); }
+.chat.style-comic.bubbles .msg::before { left: 20px; width: 24px; height: 16px; background: var(--mbd, var(--bd)); } /* the tail's outline */
 .chat.style-comic.bubbles .msg::after { left: calc(20px + var(--bw)); width: calc(24px - var(--bw) * 3); height: calc(16px - var(--bw) * 2.2); background: var(--turn, var(--bg)); }
 .style-comic .name { font-family: "Bangers", Impact, sans-serif; font-weight: 400; letter-spacing: 0.05em; }
 .style-comic .body { font-weight: 600; }

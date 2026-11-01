@@ -169,7 +169,8 @@ const CHAT_TABS = () => ({
   layout: [
     ['chatBox', [['seg', 'bg', { label: 'bgMode', options: [['color', 'bgColor'], ['transparent', 'bgTransparent'], ['off', 'bgOff']] }], ['color', 'bgColor', { only: 'bgColor' }],
       ['range', 'bgOpacity', { min: 0, max: 1, step: 0.05, only: 'bgColor' }], ['toggle', 'bubbles', { label: 'bubblesOpt' }], ['toggle', 'border'],
-      ['color', 'borderColor', { only: 'borderOn' }], ['range', 'borderWidth', { min: 1, max: 12, only: 'borderOn' }], ['range', 'radius', { min: 0, max: 40 }],
+      ['color', 'borderColor', { only: 'borderOn' }], ['seg', 'borderColorMode', { options: [['user', 'borderUser'], ['custom', 'borderCustom']], only: 'msgBorder' }],
+      ['range', 'borderWidth', { min: 1, max: 12, only: 'borderOn' }], ['range', 'radius', { min: 0, max: 40 }],
       ['range', 'padding', { min: 0, max: 60 }], ['range', 'gap', { min: 0, max: 40 }], ['range', 'width', { min: 200, max: 1920, step: 10, label: 'chatWidth' }],
       ['range', 'height', { min: 40, max: 1080, step: 10, label: 'chatHeight' }], ['range', 'blur', { min: 0, max: 40 }]]],
     ['chatMotion', [['seg', 'layout', { options: [['vertical', 'layoutVertical'], ['horizontal', 'layoutHorizontal']] }],
@@ -1921,7 +1922,7 @@ function renderChat() {
   $('#chatResetOwn').textContent = tpl(S.panel.chatResetOwn, { style: S.chatStyles[c.style] });
   const show = {
     off: !c.enabled, badges: c.showBadges, big: c.bigEmotes, nameCustom: c.nameColorMode === 'custom', bgColor: c.bg === 'color',
-    borderOn: c.border, typewriter: c.typewriter, ticker: c.layout === 'horizontal', vertical: c.layout === 'vertical', fade: c.fade, bots: c.hideBots,
+    borderOn: c.border, msgBorder: c.border && (c.bubbles || c.bg === 'off'), typewriter: c.typewriter, ticker: c.layout === 'horizontal', vertical: c.layout === 'vertical', fade: c.fade, bots: c.hideBots,
     nameOwn: c.nameColorMode === 'user', hat: c.ogHat, evKicks: c.eventKicks, evGifts: c.eventGifts, evBits: c.eventBits,
   };
   $$('[data-only]', ed).forEach((e) => (e.hidden = !show[e.dataset.only]));

@@ -196,6 +196,7 @@ const CHAT_BASE = {
   fxSubGlow: true, fxFirst: true, fxRainbowVip: true, fxMention: true, fxCombo: true, avatars: false, blur: 0, typewriter: false, typeSound: false,
   tickerLoop: false,
   replies: 'line', // a reply: line ("↩ replying to name: …" above it) | name ("@name" before it) | quote (a small box above) | off
+  borderColorMode: 'custom', // each message's own border: custom (borderColor) | user (the sender's name color; none: borderColor)
 };
 // What the horizontal styles share: a 1920-wide bar that keeps looping the recent messages when chat is quiet.
 const BAR = { layout: 'horizontal', width: 1920, height: 64, radius: 0, padding: 10, maxMessages: 15, fadeZone: 120, tickerLoop: true };
@@ -240,7 +241,7 @@ const CHAT_LOOK = Object.keys(CHAT_BASE); // the fields a style sets
 // look (text and emote sizes, what a line shows, badges, effects, how long and how many messages) is shared by all
 // designs: it stays as it is when the design changes.
 const CHAT_OWN = ['font', 'textColor', 'textShadow', 'nameColor', 'namePos', 'showColon', 'bg', 'bgColor', 'bgOpacity', 'bubbles', 'border', 'borderColor',
-  'borderWidth', 'radius', 'padding', 'gap', 'width', 'height', 'blur', 'layout', 'tickerDir', 'tickerSpeed', 'tickerLoop', 'enterAnim', 'exitAnim', 'animSpeed',
+  'borderColorMode', 'borderWidth', 'radius', 'padding', 'gap', 'width', 'height', 'blur', 'layout', 'tickerDir', 'tickerSpeed', 'tickerLoop', 'enterAnim', 'exitAnim', 'animSpeed',
   'fade', 'fadeZone', 'typewriter', 'typeSound'];
 const CHAT_SHARED = CHAT_LOOK.filter((k) => !CHAT_OWN.includes(k));
 const pick = (o, keys) => Object.fromEntries(keys.filter((k) => k in o).map((k) => [k, o[k]]));
@@ -285,7 +286,7 @@ const CHAT_RULES = {
   emotesAnimated: bool, emoteSize: num(12, 112), bigEmotes: bool, bigEmoteSize: num(16, 160),
   font: oneOf(...CHAT_FONTS), fontSize: num(10, 72), nameSize: num(10, 72), nameColorMode: oneOf('user', 'custom', 'style'), readableNames: bool, nameColor: hex, textColor: hex,
   namePos: oneOf('inline', 'above'), textShadow: bool, textDir: oneOf('auto', 'ltr', 'rtl'),
-  bg: oneOf('color', 'transparent', 'off'), bgColor: hex, bgOpacity: num(0, 1), bubbles: bool, border: bool, borderColor: hex, borderWidth: num(1, 12),
+  bg: oneOf('color', 'transparent', 'off'), bgColor: hex, bgOpacity: num(0, 1), bubbles: bool, border: bool, borderColor: hex, borderColorMode: oneOf('custom', 'user'), borderWidth: num(1, 12),
   radius: num(0, 40), padding: num(0, 60), gap: num(0, 40), width: num(200, 1920), height: num(40, 1080),
   layout: oneOf('vertical', 'horizontal'), tickerDir: oneOf('rtl', 'ltr'), tickerSpeed: num(20, 600), newAt: oneOf('bottom', 'top'),
   maxMessages: (v) => Number.isInteger(v) && v >= 1 && v <= 100, hideAfter: num(0, 600),
