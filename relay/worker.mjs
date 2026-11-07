@@ -173,9 +173,13 @@ ON CONFLICT (id) DO UPDATE SET last_seen = excluded.last_seen, version = exclude
   window_pings = CASE WHEN ?3 - window_start >= ?15 THEN 1 ELSE window_pings + 1 END
 WHERE ?3 - installs.window_start >= ?15 OR installs.window_pings < ?16`;
 // An install's first taken ping of the day (UTC) counts it once on that day's requests row, as the installed app (?2 = 1)
-// or a dev run: only the two counts, no id. A day from before these columns stays NULL (not recorded).
-const ACTIVE = `INSERT INTO requests (day, count, active_installed, active_dev) VALUES (?1, 0, ?2, 1 - ?2)
-ON CONFLICT (day) DO UPDATE SET active_installed = active_installed + ?2, active_dev = active_dev + 1 - ?2`;
+// or a dev run (?3 = 1, see DEV): only the two counts, no id. A day from before these columns stays NULL (not recorded).
+const ACTIVE = `INSERT INTO requests (day, count, active_installed, active_dev) VALUES (?1, 0, ?2, ?3)
+ON CONFLICT (day) DO UPDATE SET active_installed = active_installed + ?2, active_dev = active_dev + ?3`;
+// A dev run is one that says so: installed false in a ping with diag (Jarchi 1.0.2 on). 1.0.1 sent no diag and its
+// installed false isn't trusted (an unpacked build, an install whose uninstaller check failed): counted as neither.
+const isDev = (p) => p.installed === false && !!p.diag;
+const DEV = 'installed = 0 AND kick_connect IS NOT NULL'; // the same for a row: diag kept (kick_connect is never NULL in one)
 
 // The body's bytes, or null past max bytes (read no further).
 async function capped(req, max) {
@@ -212,14 +216,14 @@ async function ping(req, env) {
     d?.kick ?? null, d?.kickReason ?? null, d?.twitch ?? null, d?.twitchReason ?? null, d?.proxy ?? null, bit(d?.vpn)).run();
   if (!meta.changes) return text('Too many pings', 429);
   const day = at.slice(0, 10);
-  if (!(seen?.last_seen >= day)) await env.DB.prepare(ACTIVE).bind(day, bit(p.installed)).run();
+  if (!(seen?.last_seen >= day)) await env.DB.prepare(ACTIVE).bind(day, bit(p.installed), Number(isDev(p))).run();
   return text('ok');
 }
 
 // ---------- Admin API ----------
 // For Jarchi's admin app. Every /admin address needs "Authorization: Bearer <ADMIN_KEY>". A source (its address, kept
 // only as a hash keyed with ADMIN_KEY) with FAIL_MAX wrong tries in FAIL_MS is refused for FAIL_MS, right key or not.
-//   GET    /admin/stats          installs (all, installed app, dev runs, installed app new in 7 days), online now, active
+//   GET    /admin/stats          installs (all, installed app, dev runs (DEV), installed app new in 7 days), online now, active
 //                                today (?tz= minutes east of UTC, Tehran 210; default UTC) and in 7 days, live now,
 //                                installs per version, the relay's requests per day (UTC)
 //   GET    /admin/history        the last 30 days (UTC), oldest first, each { day, installed, dev, requests }: installs
@@ -296,7 +300,7 @@ async function admin(req, url, env) {
 
 const COUNTS = `SELECT COUNT(*) AS installs,
   COUNT(*) FILTER (WHERE installed = 1) AS installsInstalled,
-  COUNT(*) FILTER (WHERE installed = 0) AS installsDev,
+  COUNT(*) FILTER (WHERE ${DEV}) AS installsDev,
   COUNT(*) FILTER (WHERE installed = 1 AND first_seen > ?3) AS installsNew7Days,
   COUNT(*) FILTER (WHERE is_open = 1 AND last_seen > ?1) AS online,
   COUNT(*) FILTER (WHERE last_seen >= ?2) AS activeToday,

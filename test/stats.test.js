@@ -186,6 +186,23 @@ test('relay POST /ping: one row per install, UTC times, refusals, rate limit', a
   assert.deepEqual(active('2026-10-25'), { active_installed: null, active_dev: null });
 });
 
+test('relay: a dev run only when it says so (installed false with diag, 1.0.2 on), not 1.0.1 without diag', async (t) => {
+  const { default: worker } = await import('../relay/worker.mjs');
+  const { db, DB } = d1(), KEY = 'k'.repeat(96), env = { DB, ADMIN_KEY: KEY };
+  t.mock.timers.enable({ apis: ['Date'], now: Date.parse('2026-11-07T10:00:00.000Z') });
+  const call = (p, init) => worker.fetch(new Request(`https://relay.test${p}`, init), env, ctx);
+  const ping = async (p) => assert.equal((await call('/ping', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(p) })).status, 200);
+  const base = { version: '1.0.4', open: true, kick: null, twitch: null, privacy: { version: 1, acceptedAt: null } };
+  const diag = { kick: 'never', kickReason: null, twitch: 'never', twitchReason: null, proxy: 'auto', vpn: null };
+  await ping({ ...base, id: crypto.randomUUID(), version: '1.0.1', installed: false }); // old, no diag: not a dev run
+  await ping({ ...base, id: crypto.randomUUID(), version: '1.0.1', installed: true }); // old but installed: still the installed app
+  await ping({ ...base, id: crypto.randomUUID(), installed: false, diag }); // a dev run
+  await ping({ ...base, id: crypto.randomUUID(), installed: true, diag });
+  const s = await (await call('/admin/stats', { headers: { authorization: `Bearer ${KEY}` } })).json();
+  assert.deepEqual([s.installs, s.installsInstalled, s.installsDev], [4, 2, 1]);
+  assert.deepEqual({ ...db.prepare('SELECT active_installed, active_dev FROM requests WHERE day = ?').get('2026-11-07') }, { active_installed: 2, active_dev: 1 });
+});
+
 test('relay /admin: key, lockout, stats, installs, downloads, delete, requests per day, history', async (t) => {
   const { default: worker } = await import('../relay/worker.mjs');
   const { db, DB } = d1();
@@ -219,7 +236,7 @@ test('relay /admin: key, lockout, stats, installs, downloads, delete, requests p
   await ping({ ...base, id: id.C, kick: { name: 'MamadXPoker', picture: '', live: true }, twitch: { name: 'cTwitch', picture: '', live: false },
     privacy: { version: 2, acceptedAt: '2026-10-20T20:00:00.000Z' }, diag: C_DIAG });
   at('2026-10-23T19:56:00.000Z');
-  await ping({ ...base, id: id.D, installed: false });
+  await ping({ ...base, id: id.D, installed: false, diag: C_DIAG }); // a dev run (Jarchi 1.0.2 on sends diag)
   at('2026-10-23T20:00:00.000Z');
 
   // No key, a wrong one, one character more or less, not "Bearer": refused.
