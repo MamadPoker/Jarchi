@@ -47,12 +47,28 @@ For Jarchi's admin app (also its support tickets). Every request needs `Authoriz
 | `GET /admin/history` | The last 30 days (UTC, today included), oldest first: `{ days: [{ day, installed, dev, requests }] }`. `installed` / `dev`: installs active that day (each counted once, by its first ping of the day; the installed app / dev runs), `requests`: the relay's requests that day. `null`: that day wasn't recorded (requests from 2026-10-23, active installs from the day after the columns below were added). Only counts are kept, no ids. |
 | `GET /admin/installs` | The installs, newest first, each `{ id, version, installed, open, online, live, kick, twitch, firstSeen, lastSeen, privacy, diag }` (`diag` null: its last ping had none). `?q=` part of a Kick or Twitch channel name, `?limit=` 1-200 (50), `?offset=`. |
 | `GET /admin/downloads` | Download counts from GitHub's public API for `MamadPoker/Jarchi` (v1.0.2 on) and `MamadPoker/Jarchi-releases` (v1.0.2 and before), published releases only, each release with its `repo`. A release's `downloads` and the total count only `Jarchi-Setup.exe` (`latest.yml` and the `.blockmap` are Jarchi's own update check); `files` has every file's count. Kept for 10 minutes; while either repo fails, the last full answer. |
-| `DELETE /admin/installs/<id>` | Deletes that install's row (a data-deletion request). A Jarchi still running with that id adds it again with its next ping. Its support tickets stay (delete them below). |
+| `DELETE /admin/installs/<id>` | Deletes that install's row and which team messages it saw / closed (a data-deletion request). A Jarchi still running with that id adds it again with its next ping. Its support tickets stay (delete them below). |
 | `GET /admin/tickets` | Every support ticket, last changed first, each with whose it is (`installId`, `kick`, `twitch`), its message count, `unread` (a message from the streamer not opened yet), `lastAuthor` (`user` / `admin`) and `lastMessageAt`, plus `unread`: how many tickets have one. `?status=open|progress|closed`, `?category=bug|suggestion|question|data`. |
 | `GET /admin/tickets/<id>` | One ticket with its messages (`author` user / admin, `text`, `images`, `at`); opening it marks them read. Screenshots: `GET /admin/tickets/<id>/images/<name>`. |
 | `POST /admin/tickets/<id>/messages` | A reply: a `multipart/form-data` form with `message` and/or up to 3 `image` files (as below). |
 | `PATCH /admin/tickets/<id>` | `{ "status": "open" | "progress" | "closed" }`. |
 | `DELETE /admin/tickets/<id>` | The ticket, its messages and its screenshots. |
+| `GET /admin/messages` | Every team message (below), newest first, each with `target`, `active`, `seenBy` and `closedBy` (how many installs saw / closed it; closed counts as seen too). |
+| `POST /admin/messages` | A new team message, JSON: `title: { en, fa }`, `body: { en, fa }`, `style` (`info`, `update`, `warning`), `target` (`"all"`, `"dev"`, `{ "version": "1.0.4" }` or `{ "install": "<install id>" }`), and optionally `link: { label: { en, fa }, url: "https://..." }` and `expiresAt` (ISO 8601, UTC). Plain text only: `<`, `>` and control characters (but line ends in a body) are refused (`bad_request`). Title up to 120 characters, body 2,000, link label 40. |
+| `PATCH /admin/messages/<id>` | `{ "active": false }` deactivates it (`true` turns it back on). |
+| `DELETE /admin/messages/<id>` | The message and its seen / closed records. |
+
+## Team messages (`/messages...`)
+
+Messages from Jarchi's team, written in the admin app (above) and shown in Jarchi. Each request sends `X-Jarchi-Install: <its install id>` and `?version=<its Jarchi version>&installed=1` (the installed app) or `0` (a dev run). An install gets only messages that are active, not expired, not closed by it, and for all installs, for its version, for dev runs or for its id; only installs that have pinged get any (and only they are counted). Plain text only, as stored.
+
+| | |
+|---|---|
+| `GET /messages` | My messages, newest first: `{ id, title: { en, fa }, body: { en, fa }, link: { label: { en, fa }, url } \| null, style, createdAt, expiresAt, seen }`. |
+| `POST /messages/<id>/seen` | I saw it. |
+| `POST /messages/<id>/closed` | I closed it (seen too): never on my list again. |
+
+A message not meant for that install is `not_found`, like one that isn't there. Errors are JSON `{ "error": "..." }`: `bad_request`, `not_found`, `method`. Kept in the D1 tables `team_messages` and `team_message_views` (install id, when it saw / closed each message), from `migrations/0001_team_messages.sql`. Set up once, from this folder, **before** deploying the worker that uses them (without them `DELETE /admin/installs/<id>` fails too): `npx wrangler d1 migrations apply jarchi-stats --remote`.
 
 ## Support tickets (`/support/...`)
 

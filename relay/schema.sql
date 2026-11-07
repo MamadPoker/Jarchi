@@ -1,6 +1,7 @@
 -- Jarchi's usage stats (worker.mjs POST /ping): one row per install. No IP addresses. Times are ISO 8601 in UTC
 -- ("2026-10-23T09:30:00.000Z"), so an admin page can show them in any time zone.
 -- Once, from this folder: npx wrangler d1 execute jarchi-stats --remote --file=schema.sql
+-- Tables added later are in migrations/ (team messages: 0001), then: npx wrangler d1 migrations apply jarchi-stats --remote
 CREATE TABLE IF NOT EXISTS installs (
   id TEXT PRIMARY KEY,            -- the install's random id (a UUID Jarchi made)
   first_seen TEXT NOT NULL,       -- its first ping

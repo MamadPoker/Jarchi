@@ -12,7 +12,9 @@
 //   POST /ping      Jarchi's usage ping (core/stats.js, only once its Privacy Policy is accepted): one row per install
 //                   in the D1 database DB (schema.sql). No IP address or anything else about the request is kept.
 //   /support/...    Jarchi's Support page: an install's tickets (see "Support tickets" below), screenshots in KV SHOTS.
-//   /admin/...      Jarchi's admin app: counts, the installs, downloads, tickets (see "Admin API" below). Needs ADMIN_KEY.
+//   /messages...    the team's messages for an install (see "Team messages" below).
+//   /admin/...      Jarchi's admin app: counts, the installs, downloads, tickets, team messages (see "Admin API" below).
+//                   Needs ADMIN_KEY.
 // Every request is counted per day (UTC) in DB, so the admin app can show it against Cloudflare's free limit; the same
 // row counts the installs active that day (see ping).
 // Settings (secrets): KICK_CLIENT_ID, KICK_CLIENT_SECRET, ADMIN_KEY. Deploy: see README.md here.
@@ -35,6 +37,7 @@ export default {
     const url = new URL(req.url);
     if (url.pathname === '/admin' || url.pathname.startsWith('/admin/')) return admin(req, url, env);
     if (url.pathname.startsWith('/support/')) return support(req, url, env);
+    if (url.pathname === '/messages' || url.pathname.startsWith('/messages/')) return teamMessages(req, url, env);
     switch (url.pathname) {
       case '/': return text('Jarchi Kick relay: running.');
       case '/login': return login(url, env);
@@ -138,6 +141,7 @@ const PING_BYTES = 2048, PING_MAX = 10, PING_WINDOW_MS = 10 * 60 * 1000;
 const NEW_MAX = 100, NEW_WINDOW_MS = 60 * 60 * 1000;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const ISO = /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$/;
+const VERSION = /^\d{1,4}\.\d{1,4}\.\d{1,4}(-[\w.]{1,20})?$/;
 const exactly = (o, keys) => !!o && typeof o === 'object' && !Array.isArray(o) && Object.keys(o).length === keys.length && keys.every((k) => Object.hasOwn(o, k));
 const bool = (v) => typeof v === 'boolean';
 const channelOk = (c) => c === null || (exactly(c, ['name', 'picture', 'live']) && typeof c.name === 'string' && /^[^\p{C}]{1,50}$/u.test(c.name)
@@ -147,7 +151,7 @@ const connectOk = (s, why) => ['never', 'ok', 'failed'].includes(s) && (s === 'f
 const diagOk = (d) => exactly(d, ['kick', 'kickReason', 'twitch', 'twitchReason', 'proxy', 'vpn']) && connectOk(d.kick, d.kickReason)
   && connectOk(d.twitch, d.twitchReason) && ['off', 'auto', 'manual'].includes(d.proxy) && (d.vpn === null || bool(d.vpn));
 const pingOk = (p) => (exactly(p, PING_KEYS) || (exactly(p, [...PING_KEYS, 'diag']) && diagOk(p.diag))) && typeof p.id === 'string' && UUID.test(p.id)
-  && typeof p.version === 'string' && /^\d{1,4}\.\d{1,4}\.\d{1,4}(-[\w.]{1,20})?$/.test(p.version) && bool(p.installed) && bool(p.open)
+  && typeof p.version === 'string' && VERSION.test(p.version) && bool(p.installed) && bool(p.open)
   && channelOk(p.kick) && channelOk(p.twitch) && exactly(p.privacy, ['version', 'acceptedAt']) && Number.isInteger(p.privacy.version)
   && p.privacy.version >= 1 && p.privacy.version <= 1000
   && (p.privacy.acceptedAt === null || (typeof p.privacy.acceptedAt === 'string' && ISO.test(p.privacy.acceptedAt) && !Number.isNaN(Date.parse(p.privacy.acceptedAt))));
@@ -224,7 +228,7 @@ async function ping(req, env) {
 //   GET    /admin/installs      the installs, newest first; ?q= part of a Kick/Twitch channel name, ?limit= 1-200
 //                                (50), ?offset=
 //   GET    /admin/downloads      download counts per release and file, from GitHub (REPOS), cached RELEASES_MS
-//   DELETE /admin/installs/<id>  one install's row (a data-deletion request)
+//   DELETE /admin/installs/<id>  one install's row and its message views (a data-deletion request)
 //   GET    /admin/tickets        every support ticket, last changed first (?status=, ?category=), each with unread (a
 //                                message from the install the admin hasn't opened), lastAuthor (user | admin) and
 //                                lastMessageAt, and unread: how many tickets have one
@@ -233,6 +237,10 @@ async function ping(req, env) {
 //   POST   /admin/tickets/<id>/messages  a reply (a form, like the install's messages below)
 //   PATCH  /admin/tickets/<id>   { status: open | progress | closed }
 //   DELETE /admin/tickets/<id>   it, its messages and its screenshots
+//   GET    /admin/messages       every team message, newest first, each with seenBy / closedBy (how many installs)
+//   POST   /admin/messages       a new one (see "Team messages" below)
+//   PATCH  /admin/messages/<id>  { active: false | true }
+//   DELETE /admin/messages/<id>  it and its views
 // "Online" = open and seen in ONLINE_MS (Jarchi pings every 5 minutes); "live" = online and live on Kick or Twitch.
 const FAIL_MAX = 10, FAIL_MS = 60 * 60 * 1000;
 const ONLINE_MS = 10 * 60 * 1000, DAY_MS = 24 * 60 * 60 * 1000, RELEASES_MS = 10 * 60 * 1000;
@@ -273,6 +281,7 @@ async function admin(req, url, env) {
     return text('Unauthorized', 401);
   }
   if (url.pathname.startsWith('/admin/tickets')) return tickets(req, url, env, null);
+  if (url.pathname.startsWith('/admin/messages')) return teamAdmin(req, url, env);
   const get = req.method === 'GET';
   switch (url.pathname) {
     case '/admin/stats': return get ? stats(url, env, now) : text('GET only', 405);
@@ -372,7 +381,8 @@ async function downloads() {
 }
 
 async function remove(env, id) {
-  const { meta } = await env.DB.prepare('DELETE FROM installs WHERE id = ?1').bind(id).run();
+  const [, { meta }] = await env.DB.batch([env.DB.prepare('DELETE FROM team_message_views WHERE install_id = ?1').bind(id),
+    env.DB.prepare('DELETE FROM installs WHERE id = ?1').bind(id)]);
   return meta.changes ? json({ deleted: id }) : text('Not found', 404);
 }
 
@@ -588,6 +598,109 @@ async function deleteTicket(env, id) {
   await dropShots(env, id, results.flatMap((m) => JSON.parse(m.images)));
   await env.DB.batch([env.DB.prepare('DELETE FROM ticket_messages WHERE ticket_id = ?1').bind(id), env.DB.prepare('DELETE FROM tickets WHERE id = ?1').bind(id)]);
   return json({ deleted: id });
+}
+
+// ---------- Team messages ----------
+// Jarchi's team to the streamers: written in the admin app (/admin/messages above), shown in Jarchi. An install says who
+// it is with "X-Jarchi-Install: <its install id>" and ?version=<its Jarchi version>&installed=1 (the installed app) or 0
+// (a dev run), and gets only what's meant for it: active, not expired, not closed by it, and for all installs, for its
+// version, for dev runs (installed=0) or for its id. Only installs that have pinged (an accepted Privacy Policy) get
+// any, so only they are ever counted (table team_message_views, migrations/0001_team_messages.sql).
+//   GET  /messages              mine, newest first, each with seen (I marked it seen)
+//   POST /messages/<id>/seen    I saw it
+//   POST /messages/<id>/closed  I closed it (seen too): off my list for good
+// One not meant for the install is not_found, like one that isn't there. Errors are JSON { error }: bad_request,
+// not_found, method.
+// A new message (POST /admin/messages, JSON): { title: { en, fa }, body: { en, fa }, style: info | update | warning,
+// target: "all" | "dev" | { version: "1.0.4" } | { install: "<install id>" }, link?: { label: { en, fa }, url:
+// "https://..." } | null, expiresAt?: ISO 8601 UTC | null }. Plain text only: < > and control characters (but a body's
+// line ends) are refused, so no HTML is ever stored or sent; trimmed, line ends \n, a title or label on one line.
+// ponytail: every message in one admin answer, no paging; page it like /admin/installs if there are ever hundreds.
+const STYLES = ['info', 'update', 'warning'], MESSAGE_KEYS = ['title', 'body', 'style', 'target', 'link', 'expiresAt'];
+const TITLE_MAX = 120, BODY_MAX = 2000, LABEL_MAX = 40;
+const HTTPS = /^https:\/\/[^\s<>"]{1,490}$/;
+const ADMIN_MESSAGE = /^\/admin\/messages(?:\/(\d{1,15}))?$/, MY_MESSAGE = /^\/messages(?:\/(\d{1,15})\/(seen|closed))?$/;
+const is = (re, v) => typeof v === 'string' && re.test(v);
+// A text as stored, or null: not a string, empty, too long, HTML (< >) or control characters (but \n in a body).
+const plain = (v, max, oneLine) => {
+  if (typeof v !== 'string') return null;
+  const s = (oneLine ? v.replace(/\s+/g, ' ') : v.replace(/\r\n?/g, '\n')).trim();
+  return s && s.length <= max && !/[<>]|[^\P{Cc}\n]/u.test(s) ? s : null;
+};
+const both = (o, max, oneLine) => (exactly(o, ['en', 'fa']) ? [plain(o.en, max, oneLine), plain(o.fa, max, oneLine)] : [null]);
+
+// The admin's message -> its columns (title en/fa, body en/fa, link label en/fa, link url, style, target, target value,
+// expires), or null.
+function messageIn(b) {
+  if (!b || typeof b !== 'object' || Array.isArray(b) || !Object.keys(b).every((k) => MESSAGE_KEYS.includes(k))) return null;
+  const t = b.target, l = b.link ?? null, expires = b.expiresAt ?? null;
+  const target = t === 'all' || t === 'dev' ? [t, null]
+    : exactly(t, ['version']) && is(VERSION, t.version) ? ['version', t.version]
+    : exactly(t, ['install']) && is(UUID, t.install) ? ['install', t.install] : null;
+  if (!target || !STYLES.includes(b.style) || (l !== null && !(exactly(l, ['label', 'url']) && is(HTTPS, l.url)))
+    || (expires !== null && !(is(ISO, expires) && !Number.isNaN(Date.parse(expires))))) return null;
+  const title = both(b.title, TITLE_MAX, true), body = both(b.body, BODY_MAX, false), label = l ? both(l.label, LABEL_MAX, true) : [null, null];
+  if ([...title, ...body, ...(l ? label : [])].includes(null)) return null;
+  return [...title, ...body, ...label, l?.url ?? null, b.style, ...target, expires];
+}
+
+const teamMessageOf = (r) => ({
+  id: r.id, title: { en: r.title_en, fa: r.title_fa }, body: { en: r.body_en, fa: r.body_fa },
+  link: r.link_url === null ? null : { label: { en: r.link_label_en, fa: r.link_label_fa }, url: r.link_url },
+  style: r.style, createdAt: r.created_at, expiresAt: r.expires_at,
+});
+// The admin also sees whom it's for, whether it's active and how many installs saw / closed it.
+const teamAdminOf = (r) => ({ ...teamMessageOf(r), target: r.target_value === null ? r.target : { [r.target]: r.target_value },
+  active: r.active === 1, seenBy: r.seen_by, closedBy: r.closed_by });
+const VIEWS = `SELECT m.*, COUNT(v.install_id) AS seen_by, COUNT(v.closed_at) AS closed_by FROM team_messages m
+  LEFT JOIN team_message_views v ON v.message_id = m.id`;
+const NEW_TEAM_MESSAGE = `INSERT INTO team_messages (title_en, title_fa, body_en, body_fa, link_label_en, link_label_fa, link_url,
+  style, target, target_value, expires_at, created_at, active) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, 1) RETURNING id`;
+const teamMessage = async (env, id) => json(teamAdminOf(await env.DB.prepare(`${VIEWS} WHERE m.id = ?1 GROUP BY m.id`).bind(id).first()));
+
+async function teamAdmin(req, url, env) {
+  const m = ADMIN_MESSAGE.exec(url.pathname), method = req.method;
+  if (!m) return fail('not_found', 404);
+  if (m[1] === undefined) {
+    if (method === 'GET') return json((await env.DB.prepare(`${VIEWS} GROUP BY m.id ORDER BY m.id DESC`).all()).results.map(teamAdminOf));
+    if (method !== 'POST') return fail('method', 405);
+    const cols = messageIn(await req.json().catch(() => null));
+    if (!cols) return fail('bad_request');
+    return teamMessage(env, (await env.DB.prepare(NEW_TEAM_MESSAGE).bind(...cols, iso(Date.now())).first()).id);
+  }
+  const id = Number(m[1]);
+  if (method === 'PATCH') {
+    const b = await req.json().catch(() => null);
+    if (!exactly(b, ['active']) || !bool(b.active)) return fail('bad_request');
+    const { meta } = await env.DB.prepare('UPDATE team_messages SET active = ?2 WHERE id = ?1').bind(id, Number(b.active)).run();
+    return meta.changes ? teamMessage(env, id) : fail('not_found', 404);
+  }
+  if (method !== 'DELETE') return fail('method', 405);
+  const [, { meta }] = await env.DB.batch([env.DB.prepare('DELETE FROM team_message_views WHERE message_id = ?1').bind(id),
+    env.DB.prepare('DELETE FROM team_messages WHERE id = ?1').bind(id)]);
+  return meta.changes ? json({ deleted: id }) : fail('not_found', 404);
+}
+
+// Meant for install ?1 (its version ?2, installed ?3: 1 / 0) at ?4 (now), as above.
+const FOR_ME = `m.active = 1 AND (m.expires_at IS NULL OR m.expires_at > ?4) AND EXISTS (SELECT 1 FROM installs WHERE id = ?1)
+  AND (m.target = 'all' OR (m.target = 'dev' AND ?3 = 0) OR (m.target = 'version' AND m.target_value = ?2) OR (m.target = 'install' AND m.target_value = ?1))`;
+const MINE = `SELECT m.*, v.seen_at FROM team_messages m LEFT JOIN team_message_views v ON v.message_id = m.id AND v.install_id = ?1
+WHERE ${FOR_ME} AND v.closed_at IS NULL ORDER BY m.id DESC`;
+// Message ?5 seen (a row the first time) or closed (?6 = now; the first close kept). Not meant for the install: no row.
+const MARK = `INSERT INTO team_message_views (message_id, install_id, seen_at, closed_at)
+SELECT m.id, ?1, ?4, ?6 FROM team_messages m WHERE m.id = ?5 AND ${FOR_ME}
+ON CONFLICT (message_id, install_id) DO UPDATE SET closed_at = COALESCE(closed_at, excluded.closed_at)`;
+
+async function teamMessages(req, url, env) {
+  const m = MY_MESSAGE.exec(url.pathname);
+  if (!m) return fail('not_found', 404);
+  if (req.method !== (m[1] ? 'POST' : 'GET')) return fail('method', 405);
+  const install = req.headers.get('x-jarchi-install') ?? '', version = url.searchParams.get('version') ?? '', installed = url.searchParams.get('installed');
+  if (!UUID.test(install) || !VERSION.test(version) || !['0', '1'].includes(installed)) return fail('bad_request');
+  const me = [install, version, Number(installed), iso(Date.now())];
+  if (!m[1]) return json((await env.DB.prepare(MINE).bind(...me).all()).results.map((r) => ({ ...teamMessageOf(r), seen: r.seen_at !== null })));
+  const { meta } = await env.DB.prepare(MARK).bind(...me, Number(m[1]), m[2] === 'closed' ? me[3] : null).run();
+  return meta.changes ? json({ [m[2]]: Number(m[1]) }) : fail('not_found', 404);
 }
 
 // One channel: the Jarchi sockets open for it (usually one), handed each of its events. Hibernates between them; the

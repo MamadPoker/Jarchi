@@ -1,12 +1,16 @@
 // The relay's Cloudflare bindings for tests (test/stats.test.js, test/support.test.js). D1: SQLite (node:sqlite) with
-// relay/schema.sql, D1's ?NNN parameters made plain ? for node:sqlite, batch() in one transaction like D1's. KV: a Map.
+// relay/schema.sql then relay/migrations/*.sql in order, D1's ?NNN parameters made plain ? for node:sqlite, batch() in
+// one transaction like D1's. KV: a Map.
 const fs = require('node:fs');
 const path = require('node:path');
 const { DatabaseSync } = require('node:sqlite');
 
+const RELAY = path.join(__dirname, '..', 'relay'), MIGRATIONS = path.join(RELAY, 'migrations');
+
 function d1() {
   const db = new DatabaseSync(':memory:');
-  db.exec(fs.readFileSync(path.join(__dirname, '..', 'relay', 'schema.sql'), 'utf8'));
+  db.exec(fs.readFileSync(path.join(RELAY, 'schema.sql'), 'utf8'));
+  for (const f of fs.readdirSync(MIGRATIONS).sort()) db.exec(fs.readFileSync(path.join(MIGRATIONS, f), 'utf8'));
   const statement = (sql, args = []) => {
     const run = (how) => db.prepare(sql.replace(/\?\d+/g, '?'))[how](...[...sql.matchAll(/\?(\d+)/g)].map((m) => args[m[1] - 1]));
     const now = () => ({ meta: { changes: run('run').changes } });
