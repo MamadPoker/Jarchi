@@ -850,7 +850,7 @@
       "padding": "Space inside the box, around the messages.",
       "gap": "Space between two messages.",
       "width": "Width of the chat. Make the OBS source at least this wide.",
-      "height": "Height of the chat. Make the OBS source at least this tall.",
+      "height": "Height of the chat here in the preview. In OBS a chat (not a bar) is as tall as its source: a taller source shows more messages.",
       "layout": "**Vertical**: a list of messages. **Horizontal**: one bar where messages scroll by.",
       "tickerDir": "Which way messages move along the bar.",
       "tickerSpeed": "How fast the bar moves, in pixels per second.",

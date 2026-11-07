@@ -90,6 +90,8 @@ if (params.has('thumb')) {
   // opens only 6 connections to this PC at a time). Polling stays as the fallback if WebSocket can't connect.
   socket = io({ transports: ['websocket', 'polling'], tryAllTransports: true });
   if (!params.has('preview')) socket.on('connect', () => socket.emit('widgetJoin', KEY)); // the panel's Home: open in OBS
+  // OBS source resized: a vertical chat is as tall as it (chat.css), so it's drawn again, rows that didn't fit before too.
+  if (!params.has('preview')) addEventListener('resize', () => { if (fontsIn && vertical()) rebuild(); });
   socket.on('strings', (s) => (S = s));
   socket.on('settings', (s) => {
     mainSettings = s;

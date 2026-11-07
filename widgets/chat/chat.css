@@ -25,6 +25,9 @@ body.preview, body.thumb { display: grid; place-items: center; }
   font-synthesis: style; /* no fake bold: fonts with one weight (Impact, Bangers, Press Start 2P) stay crisp */
 }
 .chat[hidden] { display: none; }
+/* In OBS (not the panel's preview or thumbnails), a vertical chat is as tall as its Browser Source, whatever its Height
+   setting: a taller source shows more messages, a shorter one never cuts off the newest. */
+body:not(.preview):not(.thumb) .chat.layout-vertical { height: 100%; }
 /* One box around the whole chat (bubbles off) */
 .chat.boxed { padding: 0 var(--pad); border-radius: var(--radius); background: var(--bg); }
 .chat.boxed.bg-transparent { background: transparent; }
