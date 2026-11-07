@@ -608,8 +608,12 @@ function add(m, animate, still = false) {
 }
 
 // "Show chat timing" (debug): when a live message is first drawn, its label says how long after Kick / Twitch made it,
-// and the server prints each step on the way (core/chat.js). Drawn = the next frame after it went on the page.
-const lateBy = (m) => `${m.shownAt < m.time ? '-' : '+'}${(Math.abs(m.shownAt - m.time) / 1000).toFixed(1)}s`;
+// and the server prints each step on the way (core/chat.js). Drawn = the next frame after it went on the page. skew:
+// this PC's clock against theirs, so a wrong clock doesn't read as a delay.
+const lateBy = (m) => {
+  const late = m.shownAt - m.time - m.skew;
+  return `${late < 0 ? '-' : '+'}${(Math.abs(late) / 1000).toFixed(1)}s`;
+};
 function markShown(m, el) {
   if (!cfg.showTiming || m.shownAt) return;
   requestAnimationFrame(() => {

@@ -64,7 +64,7 @@ function count(kind) {
 const today = () => count();
 
 // Chat. Connectors call emitChat() for every message and emitChatClear() when a moderator removes messages.
-// Message: { id, platform, time (Kick's / Twitch's own), received (by Jarchi), kind: 'message' | 'sub' | 'event', channel, text, first, action, system, test,
+// Message: { id, platform, time (Kick's / Twitch's own), skew (ms this PC's clock is ahead of theirs: see clockAhead), received (by Jarchi), kind: 'message' | 'sub' | 'event', channel, text, first, action, system, test,
 //   user: { id, login, name, color, avatar, badges: [{ type: 'broadcaster'|'moderator'|'vip'|'subscriber'|'other', name, img, title }] },
 //   parts: [{ t: 'text', v } | { t: 'emote', name, src, still, provider: 'twitch'|'kick'|'7tv' } | { t: 'cheer', name, amount, gem }],
 //   event: what Kick / Twitch said happened, for the chat's special lines (Events), or null:
@@ -88,6 +88,7 @@ function chatMessage(m) {
     id: String(m.id ?? randomUUID()),
     platform: m.platform,
     time: Number(m.time) || Date.now(),
+    skew: m.time ? clockAhead() : 0, // none for a time made here: that one is on this PC's clock
     received: Date.now(), // connectors hand a message over in the same tick their socket got it
     kind: m.kind === 'sub' || m.kind === 'event' ? m.kind : 'message',
     channel: String(m.channel ?? '').toLowerCase(),
@@ -150,8 +151,20 @@ function logIncoming(platform, name, data) {
   }
 }
 
+// How far this PC's clock is ahead of the real time, in ms. It can be seconds off (with Windows Time stopped it gained
+// about 1 s a day), which would read as a chat delay: Kick's and Twitch's times are on their own clocks. A web server's
+// Date header says it: that whole second was written between sending the request and getting the reply, which bounds
+// the difference, and more replies narrow it down to about the round trip. One that doesn't fit: the clock was set, start over.
+let ahead = null; // [lowest, highest]
+function serverTime(sent, got, date) {
+  if (!Number.isFinite(date)) return;
+  const low = sent - date - 1000, high = got - date;
+  ahead = ahead && low <= ahead[1] && high >= ahead[0] ? [Math.max(low, ahead[0]), Math.min(high, ahead[1])] : [low, high];
+}
+const clockAhead = () => (ahead ? Math.round((ahead[0] + ahead[1]) / 2) : 0);
+
 // For the timing lines (chat, alerts): a time as local time with ms, and the time between two times.
 const clock = (t) => new Date(t - new Date(t).getTimezoneOffset() * 60000).toISOString().slice(11, 23);
 const step = (a, b) => `${b >= a ? '+' : '-'}${(Math.abs(b - a) / 1000).toFixed(2)}s`;
 
-module.exports = { bus, emitEvent, emitChat, chatMessage, emitChatClear, setConnected, connectedPlatforms, logIncoming, today, clock, step, TYPES, PLATFORMS };
+module.exports = { bus, emitEvent, emitChat, chatMessage, emitChatClear, setConnected, connectedPlatforms, logIncoming, serverTime, clockAhead, today, clock, step, TYPES, PLATFORMS };

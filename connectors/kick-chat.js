@@ -4,7 +4,7 @@
 // only answers HTTP/2: Kick's firewall blocks HTTP/1.1 clients such as Node's fetch, so this uses node:http2.
 const http2 = require('node:http2');
 const net = require('../core/net');
-const { logIncoming } = require('../core/events');
+const { logIncoming, serverTime, clockAhead } = require('../core/events');
 const strings = require('../i18n/en.json');
 
 // Kick's Pusher socket. Kick changes its app key now and then (32cbd69e4b950bf97679 stopped working in October 2026), so
@@ -18,7 +18,22 @@ const ROLE = { broadcaster: 'broadcaster', moderator: 'moderator', vip: 'vip', s
 const BADGES = '/assets/kick-badges';
 const ICONS = new Set(['broadcaster', 'moderator', 'vip', 'og', 'founder', 'subscriber', 'verified', 'staff', 'bot', 'sidekick', 'trainwreckstv']);
 const GIFT_TIERS = [1, 5, 10, 25, 50, ...Array.from({ length: 18 }, (_, i) => 100 + 50 * i), 1000, 2000, 3000, 4000, 5000].reverse();
-const QUIET_MS = 150 * 1000; // we ping every minute; silence longer than this means the socket is dead
+// A ping every PING_MS. Its answer comes behind everything else on the socket, so none within ANSWER_MS means the socket
+// is dead, or stuck that far behind: it's left and connected again. Other data doesn't count: a stuck socket still trickles.
+const PING_MS = 15 * 1000;
+const ANSWER_MS = 12 * 1000;
+// Pusher's feed itself is late at times, with Jarchi and Kick's other routes on time: the same follows came 2-31 s later on
+// it than through the relay, 6 of 113 (event log, 2026-10-23 to 11-01). So while the channel is live Kick's chat history is read
+// too (the uncached one kick.com's page loads, same message ids): a message Pusher hasn't brought LATE_MS after it was
+// said is shown from there, and Pusher's copy is dropped when it comes. Read every HISTORY_MS, every HISTORY_LATE_MS while
+// Pusher is late, which ends after CALM_MS without such a message. If Kick refuses, it's tried again every HISTORY_RETRY_MS.
+// ponytail: 25 messages per read, a new connection each time. In a chat faster than 25 per read the rest still comes by
+// Pusher, just late; keep one HTTP/2 connection open if Kick ever minds the reads.
+const LATE_MS = 2 * 1000;
+const HISTORY_MS = 5 * 1000;
+const HISTORY_LATE_MS = 2 * 1000;
+const CALM_MS = 60 * 1000;
+const HISTORY_RETRY_MS = 60 * 1000;
 
 const fill = (tpl, v) => tpl.replace(/\{(\w+)\}/g, (m, k) => v[k] ?? m);
 
@@ -29,12 +44,16 @@ async function kickGet(path, { host = 'kick.com', body: payload } = {}) {
     const client = http2.connect(`https://${host}`, { createConnection: () => sock });
     const finish = (fn, v) => { client.close(); fn(v); };
     client.on('error', (e) => finish(reject, e));
-    client.setTimeout(10000, () => finish(reject, new Error('timeout')));
+    client.setTimeout(10000, () => { client.destroy(); reject(new Error('timeout')); }); // close() would wait for the stuck request
+    const sent = Date.now();
     const req = client.request({ ':path': path, 'user-agent': UA, accept: 'application/json', ...(payload && { ':method': 'POST', 'content-type': 'application/json' }) });
     if (payload) req.end(JSON.stringify(payload));
     let status = 0, body = '';
     req.setEncoding('utf8');
-    req.on('response', (h) => (status = h[':status']));
+    req.on('response', (h) => {
+      status = h[':status'];
+      if (!h.age) serverTime(sent, Date.now(), Date.parse(h.date)); // a cached reply's Date is from earlier
+    });
     req.on('data', (d) => (body += d));
     req.on('end', () => {
       let json = null;
@@ -55,7 +74,7 @@ function biggest(image) {
 
 // Channel name -> what chat needs: chatroom id, the user id (for 7TV), the channel's own subscriber badges.
 async function channelInfo(slug) {
-  const { status, json } = await kickGet(`/api/v2/channels/${encodeURIComponent(slug)}`);
+  const { status, json } = await module.exports.kickGet(`/api/v2/channels/${encodeURIComponent(slug)}`);
   if (status === 404) throw Object.assign(new Error('Kick channel not found'), { detail: 'not_found' });
   if (status !== 200 || !json?.chatroom?.id) throw Object.assign(new Error(`Kick API ${status}`), { detail: status === 403 ? 'blocked' : 'network' });
   return {
@@ -301,18 +320,92 @@ async function readGoals(slug, send) {
   } catch {}
 }
 
+// metadata in Kick's history is JSON in a string; on the socket it's the object itself.
+const unpacked = (v) => { try { return JSON.parse(v); } catch { return v; } };
+
 // cb: { onStatus(state, detail), onMessage(msg), onClear(clear), onChannel({ userId, subBadges }), onAlert(alert),
 // onGoals(list), onGoal(goal) }. Goals are read now and every minute, besides their live events. Returns { stop() }.
+// Connects, drops and late spells also go to the event log as "socket": the installed app has no console to read.
 function connect(slug, cb) {
-  let ws, timer, info, last = Date.now(), retry = 0, stopped = false;
+  let ws, timer, poller, info, retry = 0, stopped = false;
+  let waiting = 0, rtt = 0, downAt = 0; // since when the socket owes us an answer, the last ping's round trip, when it dropped
+  let live = false, before = null, failing = false, late = null; // before: ids in the first history read; late: { at, count, worst }
+  const note = (text) => {
+    console.log(`Kick chat: ${text}`);
+    logIncoming('kick', 'socket', text);
+  };
+  const secs = (ms) => `${(ms / 1000).toFixed(1)} s`;
   const again = (ms) => { if (!stopped) timer = setTimeout(open, ms); };
   const goals = () => readGoals(slug, (list) => !stopped && cb.onGoals?.(list)); // never after stop(): another channel by then
-  const keepAlive = setInterval(() => {
-    if (ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ event: 'pusher:ping', data: {} }));
-    if (Date.now() - last > QUIET_MS) net.hangUp(ws); // no answer to our pings: connect again
-    goals();
-  }, 60000);
+  const onAir = () => module.exports.kickGet(`/api/v2/channels/${encodeURIComponent(slug)}`).then(({ status, json }) => {
+    if (status === 200) live = !!json?.livestream?.is_live;
+  }, () => {});
+  const everyMinute = setInterval(() => { goals(); onAir(); }, 60000);
+  const pulse = setInterval(() => {
+    if (waiting && Date.now() - waiting >= ANSWER_MS) {
+      note(`no answer for ${Math.round((Date.now() - waiting) / 1000)} s, connecting again`);
+      downAt = waiting;
+      waiting = 0;
+      return net.hangUp(ws);
+    }
+    if (!waiting && ws?.readyState === WebSocket.OPEN) {
+      waiting = Date.now();
+      ws.send(JSON.stringify({ event: 'pusher:ping', data: {} }));
+    }
+  }, PING_MS);
   goals();
+  onAir();
+
+  // Every chat message comes in here, from the socket or from history: the first copy is shown, a later one only tells
+  // how late it was.
+  const seen = new Set();
+  const once = { ...cb, onMessage(m) {
+    if (m.id && seen.has(m.id)) {
+      if (late) late.worst = Math.max(late.worst, Date.now() - clockAhead() - m.time);
+      return;
+    }
+    if (m.id) seen.add(m.id);
+    if (seen.size > 500) seen.delete(seen.values().next().value);
+    cb.onMessage(m);
+  } };
+
+  // One read of Kick's history -> ms until the next one. The first only notes what was said before: not for history to
+  // bring, though the socket still may. The list is newest first.
+  async function readHistory() {
+    try {
+      const { status, json } = await module.exports.kickGet(`/api/v1/chat/${encodeURIComponent(info.channelId)}/history`, { host: 'web.kick.com' });
+      if (status !== 200) throw new Error(`Kick answered ${status}`);
+      if (stopped) return 0;
+      const said = json?.data?.messages ?? [];
+      if (!before) before = new Set(said.map((m) => m.id));
+      for (const m of said.toReversed()) {
+        const age = Date.now() - clockAhead() - Date.parse(m.created_at);
+        if (seen.has(m.id) || before.has(m.id) || age < LATE_MS) continue;
+        if (!late) {
+          late = { at: 0, count: 0, worst: 0 };
+          note(`chat late: Pusher hasn't brought a message said ${secs(age)} ago, showing it from Kick's history (ping ${rtt} ms)`);
+        }
+        Object.assign(late, { at: Date.now(), count: late.count + 1, worst: Math.max(late.worst, age) });
+        handle('ChatMessageEvent', { ...m, metadata: unpacked(m.metadata) }, slug, info, once);
+      }
+      if (late && Date.now() - late.at >= CALM_MS) {
+        note(`chat late over: ${late.count} messages from history, Pusher up to ${secs(late.worst)} behind (ping ${rtt} ms)`);
+        late = null;
+      }
+      failing = false;
+      return late ? HISTORY_LATE_MS : HISTORY_MS;
+    } catch (err) {
+      if (!failing) note(`history failed (${err.message}), trying again every minute`);
+      failing = true;
+      return HISTORY_RETRY_MS;
+    }
+  }
+  async function history() {
+    if (!live) before = null; // the next stream's first read starts over
+    const wait = live && info ? await readHistory() : HISTORY_MS;
+    if (!stopped) poller = setTimeout(history, wait);
+  }
+
   async function open() {
     cb.onStatus('connecting');
     try {
@@ -326,36 +419,47 @@ function connect(slug, cb) {
     const url = await pusherUrl(info.channelId).catch(() => PUSHER);
     if (stopped) return;
     const { host, pathname } = new URL(url);
-    console.log(`Kick chat: ${slug} on ${host}, Pusher app ${pathname.split('/').pop()}`);
-    last = Date.now();
+    note(`${slug} on ${host}, Pusher app ${pathname.split('/').pop()}`);
+    waiting = Date.now();
     ws = new WebSocket(url);
     ws.onmessage = (e) => {
-      last = Date.now();
       const msg = JSON.parse(e.data);
       if (msg.event === 'pusher:connection_established') {
+        waiting = 0;
         for (const channel of [`chatrooms.${info.chatroomId}.v2`, `chatroom_${info.chatroomId}`, `channel_${info.channelId}`]) ws.send(JSON.stringify({ event: 'pusher:subscribe', data: { auth: '', channel } }));
       } else if (msg.event === 'pusher_internal:subscription_succeeded') {
         if (!msg.channel?.endsWith('.v2')) return; // the chat itself is what "connected" means
         retry = 0;
+        if (downAt) note(`back after ${secs(Date.now() - downAt)}`);
+        downAt = 0;
         cb.onStatus('connected');
       } else if (msg.event === 'pusher:ping') {
         ws.send(JSON.stringify({ event: 'pusher:pong', data: {} }));
-      } else if (msg.event !== 'pusher:pong') { // the answer to our ping: nothing to do
-        try { handle(msg.event, msg.data, slug, info, cb); } catch (err) { console.warn('Kick chat:', err.message); }
+      } else if (msg.event === 'pusher:pong') {
+        if (waiting) rtt = Date.now() - waiting;
+        waiting = 0;
+      } else {
+        try { handle(msg.event, msg.data, slug, info, once); } catch (err) { console.warn('Kick chat:', err.message); }
       }
     };
     ws.onerror = () => cb.onStatus('error', 'network');
     ws.onclose = (e) => {
+      waiting = 0;
+      if (stopped) return;
+      downAt ||= Date.now();
       // 4000-4099: Pusher refused us (an old app key: "not in this cluster"). Say so, instead of "connecting" forever.
       if (e.code >= 4000 && e.code < 4100) {
         console.warn(`Kick chat: Pusher refused the connection (${e.code} ${e.reason})`);
         cb.onStatus('error', 'refused');
       }
-      again(Math.min(30000, 2000 * 2 ** retry++));
+      const wait = Math.min(30000, 500 * 2 ** retry++);
+      note(`closed (${e.code}${e.reason ? ` ${e.reason}` : ''}), connecting again in ${secs(wait)}`);
+      again(wait);
     };
   }
   open();
-  return { stop() { stopped = true; clearTimeout(timer); clearInterval(keepAlive); ws?.close(); } };
+  history();
+  return { stop() { stopped = true; clearTimeout(timer); clearTimeout(poller); clearInterval(everyMinute); clearInterval(pulse); ws?.close(); } };
 }
 
 module.exports = { connect, handle, official, kickParts, kickBadges, biggest, avatar, kickGet, subMonths, pusherUrl, PUSHER, SETTLE_MS, GIFT_WAIT_MS };

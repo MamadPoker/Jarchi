@@ -874,7 +874,7 @@
       "fxCombo": "When people send the same emote again and again, it shows once with a counter (x12).",
       "avatars": "Profile pictures next to names. Kick: real pictures, or Kick's own default picture for viewers without one. Twitch: real pictures too (no key needed), or the first letter of the name when one can't be found.",
       "blur": "Blurs what's behind a see-through box, like frosted glass.",
-      "showTiming": "For finding chat delays. Each new message gets a small label like `+1.2s`: how long after Kick or Twitch made it, it showed here. The window where Jarchi runs prints one line per message with each step: **received** (Jarchi got it), **sent** (to the chat), **shown** (the chat drew it). Turn it off when you're done.",
+      "showTiming": "For finding chat delays. Each new message gets a small label like `+1.2s`: how long after Kick or Twitch made it, it showed here, with this PC's clock error taken off. The window where Jarchi runs prints one line per message with each step: **received** (Jarchi got it), **sent** (to the chat), **shown** (the chat drew it). Turn it off when you're done.",
       "enabled": "Off: the chat is hidden on stream. Kick and Twitch stay connected, so alerts still come.",
       "eventKicks": "A special line when someone sends Kicks, with Kick's gift picture, its name and what it's worth: **LifeWing sent HELL YEAH ×1 · 1 Kicks**, then their message.",
       "eventKicksMin": "Gifts worth fewer Kicks than this get no line. 0 = every gift.",

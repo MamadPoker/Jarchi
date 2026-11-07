@@ -163,7 +163,8 @@ bus.on('chatClear', (c) => {
 
 // ---------- "Show chat timing" (debug): one line in the server output per message a widget drew ----------
 // created (Kick's / Twitch's own clock) -> received (Jarchi got it) -> sent (to widgets) -> shown (the widget drew it).
-// Each step is the time since the one before; total = created -> shown. Only "created" is another computer's clock.
+// Each step is the time since the one before; total = created -> shown. Only "created" is another computer's clock, so
+// it's put on this PC's first (m.skew).
 // r: { id, shown, where } from the widget (only an id we know and a number are used); transport: websocket | polling.
 const WHERE = ['OBS', 'panel', 'browser'];
 function timing(r, transport) {
@@ -171,8 +172,9 @@ function timing(r, transport) {
   const shown = Number(r?.shown);
   if (!m || !Number.isFinite(shown)) return null;
   const who = `${m.user.name}: ${m.text || m.system}`.replace(/\p{Cc}/gu, ' ').slice(0, 50); // viewers' text: no terminal control codes
-  const line = `chat timing  ${m.platform.padEnd(6)} created ${clock(m.time)}  received ${step(m.time, m.received)}  sent ${step(m.received, m.sent)}  `
-    + `shown ${step(m.sent, shown)}  total ${step(m.time, shown)}  ${WHERE.includes(r.where) ? r.where : '?'}/${transport}  ${who}`;
+  const made = m.time + m.skew;
+  const line = `chat timing  ${m.platform.padEnd(6)} created ${clock(m.time)}  received ${step(made, m.received)}  sent ${step(m.received, m.sent)}  `
+    + `shown ${step(m.sent, shown)}  total ${step(made, shown)}  ${WHERE.includes(r.where) ? r.where : '?'}/${transport}  ${who}`;
   console.log(line);
   return line;
 }
