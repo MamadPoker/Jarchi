@@ -514,6 +514,7 @@ function select(v, key) {
   $$('.nav-item').forEach((b) => b.setAttribute('aria-current', b.dataset.view === page ? 'page' : 'false'));
   $('#pageTitle').textContent = v === 'news' ? S.panel.updateNotes : $(`.nav-item[data-view="${page}"] [data-i18n]`).textContent;
   render();
+  renderTeam(); // on Home: seen; elsewhere: the dot
   preview();
   if (v === 'theme') $$('.theme-tile iframe').forEach((f) => playTile(f));
   if (v === 'chat') {
@@ -789,6 +790,42 @@ function homeGoal(id, name, current, target, marks = [], under = '') {
     under, el('div', { className: 'goal-bar' }, bar));
   row.dataset.goal = id;
   return row;
+}
+
+// ---------- Team messages ----------
+// From Jarchi's team (core/messages.js, by socket, to the panel only): a card each at the top of Home, in the panel's
+// language and its style's colour (info | update | warning); a link (https only) is a button that opens in the browser.
+// A card on screen = seen (told once); its ✕ = closed for good. Unseen ones put a dot on Home in the sidebar.
+let teamMsgs = [];
+const TEAM_ICON = {
+  info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/>',
+  update: '<path d="M12 3v12M7 10l5 5 5-5M5 21h14"/>',
+  warning: '<path d="M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0zM12 9v4M12 17h.01"/>',
+};
+const teamCall = (id, what) => api('POST', `/api/messages/${id}/${what}`).catch(() => {});
+function renderTeam() {
+  const lang = FA ? 'fa' : 'en';
+  $('#teamMsgs').hidden = !teamMsgs.length;
+  $('#teamMsgs').replaceChildren(...teamMsgs.map((m) => {
+    const style = Object.hasOwn(TEAM_ICON, m.style) ? m.style : 'info';
+    const close = el('button', { className: 'ghost team-close', title: S.panel.teamClose, ariaLabel: S.panel.teamClose, onclick: () => {
+      teamMsgs = teamMsgs.filter((x) => x !== m);
+      renderTeam();
+      teamCall(m.id, 'closed');
+    } });
+    close.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>';
+    const link = m.link && /^https:\/\//i.test(m.link.url)
+      ? el('button', { className: 'team-link', textContent: m.link.label[lang], dir: 'auto', onclick: () => window.open(m.link.url, '_blank', 'noopener') }) : '';
+    return el('div', { className: `team-msg ${style}` }, svgIn('team-icon', `<svg viewBox="0 0 24 24" aria-hidden="true">${TEAM_ICON[style]}</svg>`),
+      el('div', { className: 'team-text' }, el('b', { textContent: m.title[lang], dir: 'auto' }), el('p', { textContent: m.body[lang], dir: 'auto' })), link, close);
+  }));
+  if (view === 'home' && document.visibilityState === 'visible') {
+    for (const m of teamMsgs.filter((x) => !x.seen)) {
+      m.seen = true;
+      teamCall(m.id, 'seen');
+    }
+  }
+  $('#homeDot').hidden = view === 'home' || !teamMsgs.some((m) => !m.seen);
 }
 
 // Two clicks instead of confirm(): no blocking dialog. The first click arms the button for 3 seconds.
@@ -1669,6 +1706,12 @@ function build() {
   $('#goalCopy').onclick = () => copyLink(`${location.origin}/widgets/goal/${curGoal}`, S.panel.goalCopied);
   // Counts and chat status change on their own (events, connections), so follow them live.
   const socket = io();
+  socket.on('connect', () => socket.emit('panelJoin')); // this is the panel: the team's messages come to it (never to OBS)
+  socket.on('teamMessages', (list) => {
+    teamMsgs = list;
+    renderTeam();
+  });
+  document.addEventListener('visibilitychange', renderTeam); // a card on Home counts as seen once the window is back
   socket.on('goals', (state) => {
     goalData.state = state;
     render();

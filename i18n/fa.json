@@ -89,6 +89,8 @@
     "updateRestart": "همین حالا ری‌استارت",
     "updateNotes": "تازه‌ها",
     "updateClose": "بستن",
+    "teamMsgs": "پیام‌های تیم جارچی",
+    "teamClose": "بستن برای همیشه",
     "updateTo": "به‌روزرسانی به v{version} – ری‌استارت",
     "updateInstall": "برای نصب، ری‌استارت کنید",
     "updateNotice": "به‌روزرسانی v{version} آماده است. برای ری‌استارت Jarchi کلیک کنید.",

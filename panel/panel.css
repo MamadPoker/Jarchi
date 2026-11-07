@@ -33,6 +33,7 @@
   --danger-line: rgba(244, 63, 94, 0.4);
   --danger-text: #fecdd3;
   --ok: #22c55e;
+  --info: #60a5fa; /* a team message's info style */
   --warn: #fbbf24;
   --warn-soft: rgba(245, 158, 11, 0.08);
   --warn-line: rgba(245, 158, 11, 0.45);
@@ -75,6 +76,7 @@
   --danger-line: rgba(192, 38, 63, 0.4);
   --danger-text: #9f1d33;
   --ok: #1f7a3d;
+  --info: #1d4ed8;
   --warn: #8a5a00;
   --warn-soft: rgba(184, 120, 0, 0.1);
   --warn-line: rgba(160, 100, 0, 0.45);
@@ -849,6 +851,18 @@ main { padding: 24px 28px 64px; container-type: inline-size; } /* editor rules b
 
 /* ---------- Home: banner, live feed | widgets, goals, today's numbers ---------- */
 .view.home { max-width: 1340px; }
+/* Messages from Jarchi's team (renderTeam): a card each, in its style's colour (--c). */
+.team-msgs { display: grid; gap: 10px; }
+.team-msg { --c: var(--info); display: flex; flex-wrap: wrap; align-items: center; gap: 12px 14px; padding: 14px 16px; border: 1px solid color-mix(in srgb, var(--c) 45%, transparent); border-radius: 14px;
+  background: linear-gradient(color-mix(in srgb, var(--c) 9%, transparent), color-mix(in srgb, var(--c) 9%, transparent)), var(--card-see, var(--card)); }
+.team-msg.update { --c: var(--ok); }
+.team-msg.warning { --c: var(--warn); }
+.team-icon { display: grid; place-items: center; width: 36px; height: 36px; flex: none; border-radius: 50%; background: color-mix(in srgb, var(--c) 16%, transparent); color: var(--c); }
+.team-icon svg { width: 20px; height: 20px; stroke-width: 2.2; }
+.team-text { display: grid; flex: 1 1 240px; gap: 4px; min-width: 0; }
+.team-text p { margin: 0; color: var(--muted); white-space: pre-line; overflow-wrap: anywhere; }
+.team-link { border-color: color-mix(in srgb, var(--c) 55%, transparent); }
+.team-close { padding: 5px; border-color: transparent; background: transparent; }
 .banner { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; padding: 18px 20px; border: 1px solid var(--warn-line); border-radius: 14px; background: var(--card); }
 .banner.ready { border-color: var(--main); background: linear-gradient(var(--main-soft), var(--main-soft)), var(--card); }
 .banner-icon { display: grid; place-items: center; width: 44px; height: 44px; flex: none; border-radius: 50%; background: var(--warn-soft); color: var(--warn); }
@@ -1239,6 +1253,7 @@ code { padding: 1px 6px; border-radius: 6px; background: var(--card2); font: 0.9
   :where(:root[data-art]) .topbar { background: color-mix(in srgb, var(--topbar) 88%, transparent); }
   :where(:root[data-art]) :is(.box, .list, .more, .theme-row, .banner, .stats > div, .step, .faq) { background: var(--card-see); backdrop-filter: blur(12px); }
   :where(:root[data-art]) .theme-row:hover { background: var(--card-see); }
+  :where(:root[data-art]) .team-msg { backdrop-filter: blur(12px); } /* its background has --card-see already */
   :where(:root[data-art]) .banner.ready { background: linear-gradient(var(--main-soft), var(--main-soft)), var(--card-see); }
   :where(:root[data-art]) .banner { position: relative; z-index: 1; } /* the blur makes it a layer: its OBS links menu stays over the cards below */
   .more-grid .box { backdrop-filter: none; } /* solid, inside a card already */

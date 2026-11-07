@@ -76,9 +76,10 @@ async function ping(open = true) {
   } catch {} // offline, or no relay: the next one
 }
 
+// -> the first ping (done or failed).
 function start() {
-  ping();
   setInterval(ping, EVERY_MS).unref();
+  return ping();
 }
 
-module.exports = { start, ping, accepted };
+module.exports = { start, ping, accepted, INSTALLED };

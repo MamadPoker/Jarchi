@@ -89,6 +89,8 @@
     "updateRestart": "Restart now",
     "updateNotes": "What's new",
     "updateClose": "Close",
+    "teamMsgs": "Messages from the Jarchi team",
+    "teamClose": "Close for good",
     "updateTo": "Update to v{version} – Restart",
     "updateInstall": "Restart to install",
     "updateNotice": "Update v{version} is ready. Click to restart Jarchi.",

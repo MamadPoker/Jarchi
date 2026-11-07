@@ -16,6 +16,7 @@ const twitchAccount = require('../connectors/twitch-account');
 const kickAccount = require('../connectors/kick-account');
 const stats = require('../core/stats');
 const support = require('../core/support');
+const messages = require('../core/messages');
 const vpn = require('../core/vpn');
 const release = require('../core/release');
 const strings = require('../i18n/en.json');
@@ -72,7 +73,7 @@ function follow(patch) {
 }
 app.patch('/api/settings', (req, res) => {
   const s = settings.update(req.body);
-  if ('privacyAccepted' in req.body) stats.ping(); // the Privacy Policy accepted just now: the first usage ping
+  if ('privacyAccepted' in req.body) stats.ping().then(messages.load); // the Privacy Policy accepted just now: the first usage ping, then the team's messages
   follow(req.body);
   res.json(changed(s));
 });
@@ -198,6 +199,14 @@ app.use('/api/support', raw, async (req, res) => {
   res.set({ 'content-type': type, 'x-content-type-options': 'nosniff', 'cache-control': 'private, max-age=86400' }).send(body);
 });
 
+// Team messages (Home's cards, core/messages.js): a card shown = seen, its ✕ = closed. The list itself goes by socket, to
+// the panel only.
+app.post('/api/messages/:id/:what', (req, res) => {
+  const id = Number(req.params.id), what = req.params.what;
+  if (!(what === 'seen' ? messages.seen(id) : what === 'closed' && messages.close(id))) return res.status(404).json({ error: 'not_found' });
+  res.json(messages.list());
+});
+
 // Goals: counts (current / reached) live in core/goals; their look and target are regular settings.
 app.get('/api/goals', (req, res) => res.json({ state: goals.all(), styles: settings.GOAL_STYLES, fonts: settings.FONTS }));
 app.patch('/api/goals/:id', (req, res) => res.json(goals.change(req.params.id, req.body)));
@@ -293,6 +302,11 @@ io.on('connection', (socket) => {
   socket.emit('kickAccount', kickAccount.status());
   socket.emit('proxyHelp', vpn.state());
   socket.emit('obsSize', settings.obsSize()); // the panel's alert preview
+  // The panel says it's the panel: only its sockets get the team's messages (never a widget in OBS).
+  socket.once('panelJoin', () => {
+    socket.join('panel');
+    socket.emit('teamMessages', messages.list());
+  });
   if (DEV && release.latest()) socket.emit('devUpdate', release.latest()); // a newer Jarchi than this source copy (core/release.js)
   // The alerts overlay joins to get alerts from the queue (the panel's previews don't): the main link, or one type's own
   // (its lane in core/alerts). The Home page counts the main link.
@@ -336,6 +350,7 @@ chat.events.on('status', (st) => {
   for (const p of ['kick', 'twitch']) health(p, st[p].state === 'connected', st[p].state === 'error' && st[p].detail === 'network');
 });
 vpn.events.on('state', (st) => io.emit('proxyHelp', st));
+messages.events.on('change', (list) => io.to('panel').emit('teamMessages', list));
 release.events.on('found', (r) => io.emit('devUpdate', r));
 // A Kick / Twitch account connected on the Connections page fills that platform's channel on the Chat page, only when
 // it's empty there (a name typed there always stays), so its chat, alerts and the panel's background art start at once.
@@ -382,7 +397,7 @@ server.listen(PORT, HOST, () => {
   twitchAccount.start(); // and the Twitch and Kick accounts, when they're connected
   kickAccount.start();
   media.shrinkOld().catch(console.error); // uploads from before the 512 px rule, once
-  stats.start(); // usage pings, once the Privacy Policy is accepted
+  stats.start().then(messages.start); // usage pings, once the Privacy Policy is accepted; then the team's messages (the relay knows this install by its ping)
   if (DEV) release.start(); // a dev run doesn't update itself: it hears of new versions (core/release.js)
 });
 // The desktop app (electron/main.js) asks: 'quit' -> the last usage ping, then goodbye (`npm start` gets Ctrl+C);
