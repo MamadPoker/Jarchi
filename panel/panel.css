@@ -34,6 +34,8 @@
   --danger-text: #fecdd3;
   --ok: #22c55e;
   --info: #60a5fa; /* a team message's info style */
+  --gift: #a855f7; /* a team message's gift style, with --gold */
+  --on-tint: var(--bg); /* text on --info / --ok / --warn */
   --warn: #fbbf24;
   --warn-soft: rgba(245, 158, 11, 0.08);
   --warn-line: rgba(245, 158, 11, 0.45);
@@ -77,6 +79,8 @@
   --danger-text: #9f1d33;
   --ok: #1f7a3d;
   --info: #1d4ed8;
+  --gift: #7e22ce;
+  --on-tint: #fff;
   --warn: #8a5a00;
   --warn-soft: rgba(184, 120, 0, 0.1);
   --warn-line: rgba(160, 100, 0, 0.45);
@@ -851,18 +855,69 @@ main { padding: 24px 28px 64px; container-type: inline-size; } /* editor rules b
 
 /* ---------- Home: banner, live feed | widgets, goals, today's numbers ---------- */
 .view.home { max-width: 1340px; }
-/* Messages from Jarchi's team (renderTeam): a card each, in its style's colour (--c). */
-.team-msgs { display: grid; gap: 10px; }
-.team-msg { --c: var(--info); display: flex; flex-wrap: wrap; align-items: center; gap: 12px 14px; padding: 14px 16px; border: 1px solid color-mix(in srgb, var(--c) 45%, transparent); border-radius: 14px;
-  background: linear-gradient(color-mix(in srgb, var(--c) 9%, transparent), color-mix(in srgb, var(--c) 9%, transparent)), var(--card-see, var(--card)); }
+/* A message from Jarchi's team (#teamMsg, teamShow): in the middle, the page behind blurred and dimmed, in its style's
+   colour (--c) and icon; it comes in softly. Warning: a firmer look (an amber edge on top, a filled icon, no bounce).
+   Gift: gold and purple, its edge softly glowing; first a gently shaking box, whose lid lifts off with a little confetti
+   (over the page too: overflow visible). Reduce animations (Windows' or the panel's): all still, no confetti (panel.js). */
+.team-msg { --c: var(--info); width: min(460px, calc(100vw - 32px)); padding: 28px 24px 20px; overflow: visible; text-align: center;
+  border-color: color-mix(in srgb, var(--c) 50%, transparent); background: linear-gradient(color-mix(in srgb, var(--c) 10%, var(--card)), var(--card) 60%); }
+.team-msg[open] { animation: team-in 0.34s cubic-bezier(0.2, 0.9, 0.3, 1.15); }
+.team-msg::backdrop { background: rgb(0 0 0 / 0.5); backdrop-filter: blur(6px); animation: team-fade 0.34s ease-out; }
+@keyframes team-in { from { opacity: 0; transform: translateY(16px) scale(0.94); } }
+@keyframes team-fade { from { opacity: 0; } }
+#teamBody { display: grid; justify-items: center; gap: 12px; }
 .team-msg.update { --c: var(--ok); }
-.team-msg.warning { --c: var(--warn); }
-.team-icon { display: grid; place-items: center; width: 36px; height: 36px; flex: none; border-radius: 50%; background: color-mix(in srgb, var(--c) 16%, transparent); color: var(--c); }
-.team-icon svg { width: 20px; height: 20px; stroke-width: 2.2; }
-.team-text { display: grid; flex: 1 1 240px; gap: 4px; min-width: 0; }
-.team-text p { margin: 0; color: var(--muted); white-space: pre-line; overflow-wrap: anywhere; }
-.team-link { border-color: color-mix(in srgb, var(--c) 55%, transparent); }
-.team-close { padding: 5px; border-color: transparent; background: transparent; }
+.team-msg.warning { --c: var(--warn); border-top: 4px solid var(--warn); }
+.team-msg.warning[open] { animation: team-fade 0.25s ease-out; }
+.team-msg.gift { --c: var(--gold); border-color: color-mix(in srgb, var(--gold) 70%, transparent); box-shadow: 0 0 26px 3px color-mix(in srgb, var(--gold) 35%, transparent);
+  background: linear-gradient(160deg, color-mix(in srgb, var(--gold) 14%, var(--card)), var(--card) 50%, color-mix(in srgb, var(--gift) 18%, var(--card))); }
+.team-msg.gift[open] { animation: team-in 0.34s cubic-bezier(0.2, 0.9, 0.3, 1.15), gift-glow 3.2s ease-in-out 0.34s infinite; }
+@keyframes gift-glow {
+  0%, 100% { box-shadow: 0 0 22px 2px color-mix(in srgb, var(--gold) 40%, transparent); }
+  50% { box-shadow: 0 0 34px 6px color-mix(in srgb, var(--gift) 45%, transparent); }
+}
+.team-x { position: absolute; top: 10px; inset-inline-end: 10px; padding: 6px; border-color: transparent; }
+.team-icon { display: grid; place-items: center; width: 56px; height: 56px; border-radius: 50%; background: color-mix(in srgb, var(--c) 16%, transparent); color: var(--c); }
+.team-icon svg { width: 28px; height: 28px; }
+.team-msg.warning .team-icon { background: var(--warn); color: var(--on-tint); }
+.team-msg.gift .team-icon { background: linear-gradient(135deg, var(--gold), var(--gift)); color: #fff; }
+.team-msg h2 { margin: 0; font-size: 1.5rem; line-height: 1.3; overflow-wrap: anywhere; }
+.team-text { max-height: 40vh; margin: 0; overflow: auto; color: var(--muted); line-height: 1.6; white-space: pre-line; overflow-wrap: anywhere; }
+.team-code { display: flex; align-items: center; gap: 10px; max-width: 100%; padding-block: 6px; padding-inline: 14px 6px; border: 1px dashed color-mix(in srgb, var(--c) 65%, transparent);
+  border-radius: 10px; background: color-mix(in srgb, var(--c) 8%, transparent); }
+.team-code code { padding: 0; background: none; font: 700 1.05rem/1.3 ui-monospace, Consolas, monospace; letter-spacing: 0.06em; user-select: all; }
+.team-link, .team-link:hover { justify-content: center; width: 100%; padding: 11px 16px; border-color: transparent; background: var(--c); color: var(--on-tint); font-weight: 700; }
+.team-link:hover { filter: brightness(1.08); }
+.team-msg.gift .team-link { color: var(--on-gold); }
+.team-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; margin-top: 4px; }
+.team-foot small { color: var(--muted); }
+.team-foot button { justify-content: center; min-width: 100px; }
+.gift-box svg { width: 136px; height: 136px; margin-top: 4px; overflow: visible; stroke: none; }
+.gift-body { fill: var(--gift); }
+.gift-top { fill: color-mix(in srgb, var(--gift) 72%, #fff); }
+.gift-ribbon { fill: var(--gold); }
+.gift-shade { fill: rgb(0 0 0 / 0.2); }
+.gift-all { transform-box: fill-box; transform-origin: 50% 100%; animation: gift-shake 2.4s ease-in-out infinite; }
+.gift-lid { transform-box: fill-box; transform-origin: 0% 100%; transition: transform 0.5s cubic-bezier(0.3, 1.5, 0.5, 1); }
+.opening .gift-all { animation: none; }
+.opening .gift-lid { transform: translate(-8px, -38px) rotate(-22deg); }
+.opening .gift-open { opacity: 0; transition: opacity 0.2s; }
+@keyframes gift-shake { 0%, 58%, 100% { transform: rotate(0); } 64% { transform: rotate(-6deg); } 70% { transform: rotate(5deg); } 76% { transform: rotate(-4deg); }
+  82% { transform: rotate(2deg); } 88% { transform: rotate(-1deg); } }
+.confetti { position: absolute; inset: 0; pointer-events: none; }
+.confetti i { position: absolute; top: 34%; left: 50%; width: 8px; height: 12px; margin: -6px -4px; border-radius: 2px; background: var(--c); opacity: 0;
+  animation: confetti 1.4s cubic-bezier(0.2, 0.7, 0.4, 1) forwards; }
+@keyframes confetti {
+  0% { opacity: 1; transform: translate(0, 0) rotate(0); }
+  45% { opacity: 1; transform: translate(calc(var(--x) * 0.7), var(--y)) rotate(calc(var(--r) * 0.5)); }
+  100% { opacity: 0; transform: translate(var(--x), calc(var(--y) + 230px)) rotate(var(--r)); }
+}
+:root[data-still] :is(.team-msg[open], .team-msg::backdrop, .gift-all) { animation: none !important; }
+:root[data-still] .gift-lid { transition: none; }
+@media (prefers-reduced-motion: reduce) {
+  .team-msg[open], .team-msg::backdrop, .gift-all { animation: none !important; }
+  .gift-lid { transition: none; }
+}
 .banner { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; padding: 18px 20px; border: 1px solid var(--warn-line); border-radius: 14px; background: var(--card); }
 .banner.ready { border-color: var(--main); background: linear-gradient(var(--main-soft), var(--main-soft)), var(--card); }
 .banner-icon { display: grid; place-items: center; width: 44px; height: 44px; flex: none; border-radius: 50%; background: var(--warn-soft); color: var(--warn); }
@@ -1253,7 +1308,6 @@ code { padding: 1px 6px; border-radius: 6px; background: var(--card2); font: 0.9
   :where(:root[data-art]) .topbar { background: color-mix(in srgb, var(--topbar) 88%, transparent); }
   :where(:root[data-art]) :is(.box, .list, .more, .theme-row, .banner, .stats > div, .step, .faq) { background: var(--card-see); backdrop-filter: blur(12px); }
   :where(:root[data-art]) .theme-row:hover { background: var(--card-see); }
-  :where(:root[data-art]) .team-msg { backdrop-filter: blur(12px); } /* its background has --card-see already */
   :where(:root[data-art]) .banner.ready { background: linear-gradient(var(--main-soft), var(--main-soft)), var(--card-see); }
   :where(:root[data-art]) .banner { position: relative; z-index: 1; } /* the blur makes it a layer: its OBS links menu stays over the cards below */
   .more-grid .box { backdrop-filter: none; } /* solid, inside a card already */

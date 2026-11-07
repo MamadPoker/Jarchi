@@ -611,13 +611,14 @@ async function deleteTicket(env, id) {
 //   POST /messages/<id>/closed  I closed it (seen too): off my list for good
 // One not meant for the install is not_found, like one that isn't there. Errors are JSON { error }: bad_request,
 // not_found, method.
-// A new message (POST /admin/messages, JSON): { title: { en, fa }, body: { en, fa }, style: info | update | warning,
+// A new message (POST /admin/messages, JSON): { title: { en, fa }, body: { en, fa }, style: info | update | warning | gift,
 // target: "all" | "dev" | { version: "1.0.4" } | { install: "<install id>" }, link?: { label: { en, fa }, url:
-// "https://..." } | null, expiresAt?: ISO 8601 UTC | null }. Plain text only: < > and control characters (but a body's
+// "https://..." } | null, code?: "<one line, CODE_MAX at most>" | null (e.g. a gift's activation code, the same in both
+// languages; migrations/0002_team_message_code.sql), expiresAt?: ISO 8601 UTC | null }. Plain text only: < > and control characters (but a body's
 // line ends) are refused, so no HTML is ever stored or sent; trimmed, line ends \n, a title or label on one line.
 // ponytail: every message in one admin answer, no paging; page it like /admin/installs if there are ever hundreds.
-const STYLES = ['info', 'update', 'warning'], MESSAGE_KEYS = ['title', 'body', 'style', 'target', 'link', 'expiresAt'];
-const TITLE_MAX = 120, BODY_MAX = 2000, LABEL_MAX = 40;
+const STYLES = ['info', 'update', 'warning', 'gift'], MESSAGE_KEYS = ['title', 'body', 'style', 'target', 'link', 'code', 'expiresAt'];
+const TITLE_MAX = 120, BODY_MAX = 2000, LABEL_MAX = 40, CODE_MAX = 64;
 const HTTPS = /^https:\/\/[^\s<>"]{1,490}$/;
 const ADMIN_MESSAGE = /^\/admin\/messages(?:\/(\d{1,15}))?$/, MY_MESSAGE = /^\/messages(?:\/(\d{1,15})\/(seen|closed))?$/;
 const is = (re, v) => typeof v === 'string' && re.test(v);
@@ -630,24 +631,25 @@ const plain = (v, max, oneLine) => {
 const both = (o, max, oneLine) => (exactly(o, ['en', 'fa']) ? [plain(o.en, max, oneLine), plain(o.fa, max, oneLine)] : [null]);
 
 // The admin's message -> its columns (title en/fa, body en/fa, link label en/fa, link url, style, target, target value,
-// expires), or null.
+// expires, code), or null.
 function messageIn(b) {
   if (!b || typeof b !== 'object' || Array.isArray(b) || !Object.keys(b).every((k) => MESSAGE_KEYS.includes(k))) return null;
-  const t = b.target, l = b.link ?? null, expires = b.expiresAt ?? null;
+  const t = b.target, l = b.link ?? null, expires = b.expiresAt ?? null, code = b.code ?? null;
   const target = t === 'all' || t === 'dev' ? [t, null]
     : exactly(t, ['version']) && is(VERSION, t.version) ? ['version', t.version]
     : exactly(t, ['install']) && is(UUID, t.install) ? ['install', t.install] : null;
   if (!target || !STYLES.includes(b.style) || (l !== null && !(exactly(l, ['label', 'url']) && is(HTTPS, l.url)))
     || (expires !== null && !(is(ISO, expires) && !Number.isNaN(Date.parse(expires))))) return null;
   const title = both(b.title, TITLE_MAX, true), body = both(b.body, BODY_MAX, false), label = l ? both(l.label, LABEL_MAX, true) : [null, null];
-  if ([...title, ...body, ...(l ? label : [])].includes(null)) return null;
-  return [...title, ...body, ...label, l?.url ?? null, b.style, ...target, expires];
+  const kept = code === null ? null : plain(code, CODE_MAX, true);
+  if ([...title, ...body, ...(l ? label : [])].includes(null) || (code !== null && kept === null)) return null;
+  return [...title, ...body, ...label, l?.url ?? null, b.style, ...target, expires, kept];
 }
 
 const teamMessageOf = (r) => ({
   id: r.id, title: { en: r.title_en, fa: r.title_fa }, body: { en: r.body_en, fa: r.body_fa },
   link: r.link_url === null ? null : { label: { en: r.link_label_en, fa: r.link_label_fa }, url: r.link_url },
-  style: r.style, createdAt: r.created_at, expiresAt: r.expires_at,
+  code: r.code, style: r.style, createdAt: r.created_at, expiresAt: r.expires_at,
 });
 // The admin also sees whom it's for, whether it's active and how many installs saw / closed it.
 const teamAdminOf = (r) => ({ ...teamMessageOf(r), target: r.target_value === null ? r.target : { [r.target]: r.target_value },
@@ -655,7 +657,8 @@ const teamAdminOf = (r) => ({ ...teamMessageOf(r), target: r.target_value === nu
 const VIEWS = `SELECT m.*, COUNT(v.install_id) AS seen_by, COUNT(v.closed_at) AS closed_by FROM team_messages m
   LEFT JOIN team_message_views v ON v.message_id = m.id`;
 const NEW_TEAM_MESSAGE = `INSERT INTO team_messages (title_en, title_fa, body_en, body_fa, link_label_en, link_label_fa, link_url,
-  style, target, target_value, expires_at, created_at, active) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, 1) RETURNING id`;
+  style, target, target_value, expires_at, code, created_at, active) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, 1)
+  RETURNING id`;
 const teamMessage = async (env, id) => json(teamAdminOf(await env.DB.prepare(`${VIEWS} WHERE m.id = ?1 GROUP BY m.id`).bind(id).first()));
 
 async function teamAdmin(req, url, env) {

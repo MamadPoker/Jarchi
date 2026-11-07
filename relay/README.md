@@ -54,7 +54,7 @@ For Jarchi's admin app (also its support tickets). Every request needs `Authoriz
 | `PATCH /admin/tickets/<id>` | `{ "status": "open" | "progress" | "closed" }`. |
 | `DELETE /admin/tickets/<id>` | The ticket, its messages and its screenshots. |
 | `GET /admin/messages` | Every team message (below), newest first, each with `target`, `active`, `seenBy` and `closedBy` (how many installs saw / closed it; closed counts as seen too). |
-| `POST /admin/messages` | A new team message, JSON: `title: { en, fa }`, `body: { en, fa }`, `style` (`info`, `update`, `warning`), `target` (`"all"`, `"dev"`, `{ "version": "1.0.4" }` or `{ "install": "<install id>" }`), and optionally `link: { label: { en, fa }, url: "https://..." }` and `expiresAt` (ISO 8601, UTC). Plain text only: `<`, `>` and control characters (but line ends in a body) are refused (`bad_request`). Title up to 120 characters, body 2,000, link label 40. |
+| `POST /admin/messages` | A new team message, JSON: `title: { en, fa }`, `body: { en, fa }`, `style` (`info`, `update`, `warning`, `gift`), `target` (`"all"`, `"dev"`, `{ "version": "1.0.4" }` or `{ "install": "<install id>" }`), and optionally `link: { label: { en, fa }, url: "https://..." }`, `code` (one line, the same in both languages, e.g. a gift's activation code) and `expiresAt` (ISO 8601, UTC). Plain text only: `<`, `>` and control characters (but line ends in a body) are refused (`bad_request`). Title up to 120 characters, body 2,000, link label 40, code 64. |
 | `PATCH /admin/messages/<id>` | `{ "active": false }` deactivates it (`true` turns it back on). |
 | `DELETE /admin/messages/<id>` | The message and its seen / closed records. |
 
@@ -64,11 +64,11 @@ Messages from Jarchi's team, written in the admin app (above) and shown in Jarch
 
 | | |
 |---|---|
-| `GET /messages` | My messages, newest first: `{ id, title: { en, fa }, body: { en, fa }, link: { label: { en, fa }, url } \| null, style, createdAt, expiresAt, seen }`. |
+| `GET /messages` | My messages, newest first: `{ id, title: { en, fa }, body: { en, fa }, link: { label: { en, fa }, url } \| null, code \| null, style, createdAt, expiresAt, seen }`. |
 | `POST /messages/<id>/seen` | I saw it. |
 | `POST /messages/<id>/closed` | I closed it (seen too): never on my list again. |
 
-A message not meant for that install is `not_found`, like one that isn't there. Errors are JSON `{ "error": "..." }`: `bad_request`, `not_found`, `method`. Kept in the D1 tables `team_messages` and `team_message_views` (install id, when it saw / closed each message), from `migrations/0001_team_messages.sql`. Set up once, from this folder, **before** deploying the worker that uses them (without them `DELETE /admin/installs/<id>` fails too): `npx wrangler d1 migrations apply jarchi-stats --remote`.
+A message not meant for that install is `not_found`, like one that isn't there. Errors are JSON `{ "error": "..." }`: `bad_request`, `not_found`, `method`. Kept in the D1 tables `team_messages` and `team_message_views` (install id, when it saw / closed each message), from `migrations/` (`0001_team_messages.sql`, then `0002_team_message_code.sql` for `code`). Apply new ones from this folder **before** deploying the worker that uses them (without them `DELETE /admin/installs/<id>` and `POST /admin/messages` fail): `npx wrangler d1 migrations apply jarchi-stats --remote` (it runs only the ones not applied yet).
 
 ## Support tickets (`/support/...`)
 

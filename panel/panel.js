@@ -514,7 +514,6 @@ function select(v, key) {
   $$('.nav-item').forEach((b) => b.setAttribute('aria-current', b.dataset.view === page ? 'page' : 'false'));
   $('#pageTitle').textContent = v === 'news' ? S.panel.updateNotes : $(`.nav-item[data-view="${page}"] [data-i18n]`).textContent;
   render();
-  renderTeam(); // on Home: seen; elsewhere: the dot
   preview();
   if (v === 'theme') $$('.theme-tile iframe').forEach((f) => playTile(f));
   if (v === 'chat') {
@@ -793,39 +792,75 @@ function homeGoal(id, name, current, target, marks = [], under = '') {
 }
 
 // ---------- Team messages ----------
-// From Jarchi's team (core/messages.js, by socket, to the panel only): a card each at the top of Home, in the panel's
-// language and its style's colour (info | update | warning); a link (https only) is a button that opens in the browser.
-// A card on screen = seen (told once); its ✕ = closed for good. Unseen ones put a dot on Home in the sidebar.
-let teamMsgs = [];
+// From Jarchi's team (core/messages.js, by socket, to the panel only; never in OBS): a window in the middle of Jarchi
+// (#teamMsg, the page behind blurred and dimmed), one message at a time ("1 of 3", Next), in the panel's language and its
+// style's colour and icon (info | update | warning | gift). A gift is a gently shaking box first; Open it: a little
+// confetti, then the message. A link (https only) is a strong button that opens in the browser; a code has Copy. Shown =
+// seen (told once); Next, OK, ✕ or Esc = that one closed for good, and ✕ before the last leaves the rest for Jarchi's
+// next start. It waits for the window to be in front and for any other dialog (the tour, the Privacy Policy) to close.
+let teamMsgs = [], teamQueue = [], teamAt = 0;
+const teamSkip = new Set(); // closed here (a list sent just before may still have it) or left for the next start
 const TEAM_ICON = {
   info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/>',
-  update: '<path d="M12 3v12M7 10l5 5 5-5M5 21h14"/>',
+  update: '<path d="M4.5 16.5c-1.5 1.3-2 5-2 5s3.7-.5 5-2c.7-.8.7-2.1-.1-2.9a2.2 2.2 0 0 0-2.9-.1zM12 15l-3-3a22 22 0 0 1 2-4A12.9 12.9 0 0 1 22 2c0 2.7-.8 7.5-6 11a22.4 22.4 0 0 1-4 2zM9 12H4s.6-3 2-4c1.6-1.1 5 0 5 0M12 15v5s3-.6 4-2c1.1-1.6 0-5 0-5"/>', // rocket
   warning: '<path d="M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0zM12 9v4M12 17h.01"/>',
+  gift: `<path d="${TYPE_ICON.gift_sub}"/>`,
 };
+// The gift's box: the lid (with its bow) lifts off when it's opened.
+const GIFT_BOX = `<svg viewBox="0 0 120 120" aria-hidden="true"><ellipse class="gift-shade" cx="60" cy="112" rx="40" ry="4"/><g class="gift-all">
+  <rect class="gift-body" x="22" y="56" width="76" height="52" rx="6"/><rect class="gift-ribbon" x="53" y="56" width="14" height="52"/>
+  <g class="gift-lid"><path class="gift-ribbon" d="M60 41c-5-13-23-18-26-9-2 8 14 10 26 9zM60 41c5-13 23-18 26-9 2 8-14 10-26 9z"/>
+  <rect class="gift-top" x="16" y="40" width="88" height="20" rx="5"/><rect class="gift-ribbon" x="53" y="40" width="14" height="20"/></g></g></svg>`;
+const CONFETTI = ['var(--gold)', 'var(--gift)', 'var(--ok)', 'var(--info)', '#f472b6'];
 const teamCall = (id, what) => api('POST', `/api/messages/${id}/${what}`).catch(() => {});
+const calm = () => STILL.matches || document.documentElement.hasAttribute('data-still'); // Reduce animations: Windows' or the panel's
 function renderTeam() {
-  const lang = FA ? 'fa' : 'en';
-  $('#teamMsgs').hidden = !teamMsgs.length;
-  $('#teamMsgs').replaceChildren(...teamMsgs.map((m) => {
-    const style = Object.hasOwn(TEAM_ICON, m.style) ? m.style : 'info';
-    const close = el('button', { className: 'ghost team-close', title: S.panel.teamClose, ariaLabel: S.panel.teamClose, onclick: () => {
-      teamMsgs = teamMsgs.filter((x) => x !== m);
-      renderTeam();
-      teamCall(m.id, 'closed');
-    } });
-    close.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>';
-    const link = m.link && /^https:\/\//i.test(m.link.url)
-      ? el('button', { className: 'team-link', textContent: m.link.label[lang], dir: 'auto', onclick: () => window.open(m.link.url, '_blank', 'noopener') }) : '';
-    return el('div', { className: `team-msg ${style}` }, svgIn('team-icon', `<svg viewBox="0 0 24 24" aria-hidden="true">${TEAM_ICON[style]}</svg>`),
-      el('div', { className: 'team-text' }, el('b', { textContent: m.title[lang], dir: 'auto' }), el('p', { textContent: m.body[lang], dir: 'auto' })), link, close);
-  }));
-  if (view === 'home' && document.visibilityState === 'visible') {
-    for (const m of teamMsgs.filter((x) => !x.seen)) {
-      m.seen = true;
-      teamCall(m.id, 'seen');
-    }
+  if (document.visibilityState !== 'visible' || $('dialog[open]')) return; // again when it's in front / the other one closes
+  teamQueue = teamMsgs.filter((m) => !teamSkip.has(m.id));
+  if (!teamQueue.length) return;
+  teamShow(0);
+  $('#teamMsg').showModal();
+}
+function teamDone(m) { // closed for good: not shown again here, and the relay told
+  teamSkip.add(m.id);
+  teamCall(m.id, 'closed');
+}
+function teamShow(i, opened) {
+  const d = $('#teamMsg'), m = teamQueue[(teamAt = i)], lang = FA ? 'fa' : 'en', last = i === teamQueue.length - 1;
+  const style = Object.hasOwn(TEAM_ICON, m.style) ? m.style : 'info';
+  if (!m.seen) {
+    m.seen = true;
+    teamCall(m.id, 'seen');
   }
-  $('#homeDot').hidden = view === 'home' || !teamMsgs.some((m) => !m.seen);
+  d.className = `profile-dialog team-msg ${style}`;
+  const x = el('button', { className: 'ghost team-x', title: S.panel.teamClose, ariaLabel: S.panel.teamClose, onclick: () => d.close() });
+  x.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>';
+  if (style === 'gift' && !opened) { // the box first
+    const box = Object.assign(svgIn('gift-box', GIFT_BOX), { id: 'teamTitle', role: 'img', ariaLabel: S.panel.teamGift });
+    const open = el('button', { className: 'primary gift-open', autofocus: true, textContent: S.panel.teamGiftOpen, onclick: () => {
+      if (calm()) return teamShow(i, true);
+      open.disabled = true;
+      d.classList.add('opening');
+      const bits = el('div', { className: 'confetti' }, ...Array.from({ length: 30 }, (_, n) => el('i', {
+        style: `--x: ${rnd(-170, 170)}px; --y: ${rnd(-190, -70)}px; --r: ${rnd(-720, 720)}deg; --c: ${CONFETTI[n % CONFETTI.length]}; animation-delay: ${rnd(0, 120)}ms` })));
+      d.append(bits);
+      setTimeout(() => bits.remove(), 1800);
+      setTimeout(() => d.open && teamQueue[i] === m && teamShow(i, true), 600); // not if it was closed meanwhile
+    } });
+    $('#teamBody').replaceChildren(x, box, open);
+    return open.focus();
+  }
+  const link = m.link && /^https:\/\//i.test(m.link.url)
+    ? el('button', { className: 'team-link', textContent: m.link.label[lang], dir: 'auto', onclick: () => window.open(m.link.url, '_blank', 'noopener') }) : '';
+  const code = m.code ? el('div', { className: 'team-code' }, el('code', { textContent: m.code, dir: 'ltr' }),
+    el('button', { textContent: S.panel.teamCopy, onclick: () => copyLink(m.code, S.panel.teamCopied) })) : '';
+  const go = el('button', { className: link ? '' : 'primary', autofocus: true, textContent: last ? S.panel.teamOk : S.panel.next,
+    onclick: () => (last ? d.close() : (teamDone(m), teamShow(i + 1))) });
+  const count = teamQueue.length > 1 ? tpl(S.panel.teamOf, { n: fmt(i + 1), total: fmt(teamQueue.length) }) : '';
+  $('#teamBody').replaceChildren(x, svgIn('team-icon', `<svg viewBox="0 0 24 24" aria-hidden="true">${TEAM_ICON[style]}</svg>`),
+    el('h2', { id: 'teamTitle', textContent: m.title[lang], dir: 'auto' }), el('p', { className: 'team-text', textContent: m.body[lang], dir: 'auto' }),
+    code, link, el('div', { className: 'team-foot' }, el('small', { textContent: count }), go));
+  go.focus();
 }
 
 // Two clicks instead of confirm(): no blocking dialog. The first click arms the button for 3 seconds.
@@ -1706,12 +1741,18 @@ function build() {
   $('#goalCopy').onclick = () => copyLink(`${location.origin}/widgets/goal/${curGoal}`, S.panel.goalCopied);
   // Counts and chat status change on their own (events, connections), so follow them live.
   const socket = io();
-  socket.on('connect', () => socket.emit('panelJoin')); // this is the panel: the team's messages come to it (never to OBS)
+  socket.on('connect', () => window.obsstudio || socket.emit('panelJoin')); // the panel: the team's messages come to it (never in OBS)
   socket.on('teamMessages', (list) => {
     teamMsgs = list;
     renderTeam();
   });
-  document.addEventListener('visibilitychange', renderTeam); // a card on Home counts as seen once the window is back
+  document.addEventListener('visibilitychange', renderTeam); // shown once the window is in front
+  $('#teamMsg').addEventListener('close', () => { // OK, ✕ or Esc: this one closed for good, the ones after it for the next start
+    teamDone(teamQueue[teamAt]);
+    teamQueue.slice(teamAt + 1).forEach((m) => teamSkip.add(m.id));
+    renderTeam(); // any new one that came meanwhile
+  });
+  $$('dialog:not(#teamMsg)').forEach((x) => x.addEventListener('close', renderTeam)); // it waited for that one
   socket.on('goals', (state) => {
     goalData.state = state;
     render();
