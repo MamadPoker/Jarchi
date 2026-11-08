@@ -1502,8 +1502,8 @@ function wireSupport() {
 const TOUR = ['hello', 'connect', 'obs', 'sidebar', 'done'];
 const SIDEBAR = TOUR.indexOf('sidebar');
 // Sidebar's stops, the sidebar's own groups: [the group's name, its pages, first to last]. Main (the pages on top) and
-// More (under the line) have no title in the sidebar.
-const SPOTS = [['navMain', ['home', 'alert', 'chat', 'goal', 'viewers']], ['navLive', ['queue', 'events']], ['navBot', ['bot']], ['navContent', ['battle', 'clips', 'giveaway']], ['navDonations', ['donations']],
+// More (under the line) have no title in the sidebar. Viewer count is a stop of its own, just after Main.
+const SPOTS = [['navMain', ['home', 'alert', 'chat', 'goal']], ['navViewers', ['viewers']], ['navLive', ['queue', 'events']], ['navBot', ['bot']], ['navContent', ['battle', 'clips', 'giveaway']], ['navDonations', ['donations']],
   ['navSetup', ['connections', 'appearance', 'settings', 'guide']], ['navMore', ['about', 'support']]];
 const obsSize = (id) => (id === 'alerts' ? [800, 600] : id.startsWith('viewers-') ? [400, 200] : CHAT_KEYS.includes(id) ? [settings[id].width, settings[id].height] : settings.goals[id].style === 'circle' ? [400, 400] : [800, 200]);
 const connCards = () => [$('#kcConnect'), $('#twConnect')].map((b) => b.closest('.box'));
