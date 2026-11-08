@@ -222,19 +222,20 @@ function handle(type, d) {
   kickChat.official(type, d, { onAlert: (a) => emitEvent({ ...a, platform: 'kick' }) });
 }
 
-// Live now? The channel's livestream on Kick's website API (kickGet, as chat reads it); null when Kick doesn't say.
-async function live() {
+// The channel's stream now, from its livestream on Kick's website API (kickGet, as chat reads it): { live, viewers }
+// (offline: 0 viewers), null without an account; throws when Kick doesn't say.
+async function stream() {
   if (!saved.refresh || !saved.login) return null;
-  try {
-    const { status, json } = await kickChat.kickGet(`/api/v2/channels/${encodeURIComponent(slug(saved.login))}`);
-    return status === 200 ? Boolean(json?.livestream?.is_live) : null;
-  } catch {
-    return null;
-  }
+  const { status, json } = await kickChat.kickGet(`/api/v2/channels/${encodeURIComponent(slug(saved.login))}`);
+  if (status !== 200) throw new Error(`Kick channel ${status}`);
+  const on = Boolean(json?.livestream?.is_live);
+  return { live: on, viewers: on ? Number(json.livestream.viewer_count) || 0 : 0 };
 }
+// Live now? null when Kick doesn't say.
+const live = () => stream().then((s) => s?.live ?? null, () => null);
 
 setInterval(() => ws?.readyState === WebSocket.OPEN && ws.send('ping'), 30000).unref();
 // Every hour: the login still works (one Kick no longer takes ends it: refresh() -> forget()), and still subscribed.
 setInterval(() => st.state === 'connected' && subscribe().catch(() => {}), 3600000).unref();
 
-module.exports = { status, login, callback, disconnect, start, handle, live, slug, RELAY, events: account };
+module.exports = { status, login, callback, disconnect, start, handle, live, stream, slug, RELAY, events: account };

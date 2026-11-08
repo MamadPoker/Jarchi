@@ -264,14 +264,14 @@ function handle(type, e) {
 // Twitch asks apps to check their token every hour; one it no longer takes ends the login (refresh() -> forget()).
 setInterval(() => st.state === 'connected' && authed(`${ID}/validate`).catch(() => {}), 3600000).unref();
 
-// Live now? Helix GET /streams lists the channel while it streams; null when Twitch doesn't say.
-async function live() {
+// The channel's stream now: Helix GET /streams lists it while it streams, with its viewer count. { live, viewers }
+// (offline: 0 viewers), null without an account; throws when Twitch doesn't say.
+async function stream() {
   if (!saved.refresh || !saved.userId) return null;
-  try {
-    return (await authed(`${HELIX}/streams?user_id=${saved.userId}`)).data.length > 0;
-  } catch {
-    return null;
-  }
+  const s = (await authed(`${HELIX}/streams?user_id=${saved.userId}`)).data[0];
+  return { live: !!s, viewers: Number(s?.viewer_count) || 0 };
 }
+// Live now? null when Twitch doesn't say.
+const live = () => stream().then((s) => s?.live ?? null, () => null);
 
-module.exports = { status, login, disconnect, start, handle, live, events: account };
+module.exports = { status, login, disconnect, start, handle, live, stream, events: account };

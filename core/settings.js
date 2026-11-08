@@ -305,6 +305,30 @@ const CHAT_RULES = {
   customCss: css,
 };
 
+// ---------- Viewers ----------
+// One look for its three OBS links (/widgets/viewers/kick, /twitch, /total). Each style is a complete set of look values,
+// as with goals: picking one starts from its look. The rest is kept when the style changes. icon: Jarchi gold's (the
+// people icon, a logo, or "switch": the people icon and the logo taking turns). offline: hide it, or "Offline".
+const VIEWER_STYLES = {
+  gold: { font: 'Inter', numberColor: '#d6a83e', bgColor: '#0f1416', accentColor: '#d6a83e' },
+  chart: { font: 'Inter', numberColor: '#ffffff', bgColor: '#0f1416', accentColor: '#2dd4bf' },
+  angled: { font: 'Inter', numberColor: '#ffffff', bgColor: '#16181d', accentColor: '#ffffff' },
+  comic: { font: 'Bangers', numberColor: '#111111', bgColor: '#ffffff', accentColor: '#111111' },
+};
+const VIEWER_LOOK = Object.keys(VIEWER_STYLES.gold);
+const VIEWERS_DEFAULTS = { style: 'gold', icon: 'people', chartMinutes: 10, offline: 'text', anim: 'roll', size: 1, customCss: '' };
+const VIEWER_RULES = {
+  style: (v) => v in VIEWER_STYLES,
+  icon: oneOf('people', 'kick', 'twitch', 'switch'),
+  chartMinutes: oneOf(10, 15),
+  offline: oneOf('hide', 'text'),
+  anim: oneOf('roll', 'flip', 'fade', 'pop'),
+  size: num(0.5, 1),
+  font: oneOf(...CHAT_FONTS),
+  numberColor: hex, bgColor: hex, accentColor: hex,
+  customCss: css,
+};
+
 // The sidebar's profile chip (Edit profile): name and picture from the Kick or Twitch account, or the streamer's own
 // (name; picture: { file, name } once uploaded, cropped round in the panel).
 const PROFILE = { nameFrom: 'kick', name: '', pictureFrom: 'kick', picture: null };
@@ -459,8 +483,16 @@ function get() {
     goals: Object.fromEntries(GOAL_IDS.map((id) => [id, goal(id)])),
     chat: chat(),
     chat2: saved.chat2 ? chat('chat2') : null,
+    viewers: viewers(),
     profile: { ...PROFILE, ...saved.profile },
   };
+}
+
+// The viewers widget = its style's look + its defaults + the user's changes.
+function viewers() {
+  const o = saved.viewers ?? {};
+  const style = o.style in VIEWER_STYLES ? o.style : VIEWERS_DEFAULTS.style;
+  return { ...VIEWER_STYLES[style], ...VIEWERS_DEFAULTS, ...o, style };
 }
 
 // An alert = its defaults + the user's changes to fields it has (so e.g. raid's old tiers stay ignored),
@@ -519,6 +551,11 @@ function update(patch, undoable = true) {
     if (!fields || typeof fields !== 'object') throw bad();
     for (const [k, v] of Object.entries(fields)) if (!CHAT_RULES[k] || !CHAT_RULES[k](v) || (key !== 'chat' && CHANNELS.includes(k))) throw bad();
   }
+  const view = patch.viewers;
+  if (view !== undefined) {
+    if (!view || typeof view !== 'object') throw bad();
+    for (const [k, v] of Object.entries(view)) if (!VIEWER_RULES[k] || !VIEWER_RULES[k](v)) throw bad();
+  }
   const profile = patch.profile;
   if (profile !== undefined) {
     if (!profile || typeof profile !== 'object') throw bad();
@@ -527,6 +564,11 @@ function update(patch, undoable = true) {
   if (patch.privacyAccepted > (saved.privacyAccepted ?? 0)) saved.privacyAcceptedAt = new Date().toISOString(); // when (a newer one)
   for (const k in GLOBAL) if (k in patch) saved[k] = patch[k];
   if (profile) Object.assign((saved.profile ??= {}), profile);
+  if (view) {
+    const o = (saved.viewers ??= {});
+    if ('style' in view) for (const k of VIEWER_LOOK) delete o[k]; // a new style starts from its own look
+    Object.assign(o, view);
+  }
   for (const [type, fields] of alerts) Object.assign(overrides(type), fields);
   for (const [id, fields] of goals) {
     const o = goalOverrides(id);
@@ -756,5 +798,5 @@ module.exports = {
   get, update, saveUpload, removeUpload, reset, saveGoalSound, removeGoalSound, saveProfilePicture, resetGoalStyle, resetChatStyle, addChat, removeChat,
   resetAlertText, setTier, saveTierFile, removeTierFile, sniff, installId, privacyAcceptedAt, supportToken, obsSize, setObsSize,
   connectState, setConnectState, undo, redo, canUndo, forget,
-  GOAL_IDS, GOAL_STYLES, CHAT_DESIGNS, CHAT_FONTS, FONTS, KICK_GIFTS,
+  GOAL_IDS, GOAL_STYLES, CHAT_DESIGNS, CHAT_FONTS, FONTS, KICK_GIFTS, VIEWER_STYLES,
 };

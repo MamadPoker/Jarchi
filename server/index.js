@@ -17,6 +17,7 @@ const kickAccount = require('../connectors/kick-account');
 const stats = require('../core/stats');
 const support = require('../core/support');
 const messages = require('../core/messages');
+const viewers = require('../core/viewers');
 const vpn = require('../core/vpn');
 const release = require('../core/release');
 const strings = require('../i18n/en.json');
@@ -214,6 +215,9 @@ app.post('/api/goals/:id/reset-style', (req, res) => res.json(changed(settings.r
 app.post('/api/goals/:id/sound', ...upload((p, buf, name) => settings.saveGoalSound(p.id, buf, name)));
 app.delete('/api/goals/:id/sound', (req, res) => res.json(changed(settings.removeGoalSound(req.params.id))));
 
+// Viewers: the styles' looks and the fonts (the panel's style picker); the numbers come by socket to viewers pages.
+app.get('/api/viewers', (req, res) => res.json({ styles: settings.VIEWER_STYLES, fonts: settings.CHAT_FONTS }));
+
 // Sample events for the Test button and the panel's live preview.
 const FAKE = {
   follow: {},
@@ -261,6 +265,11 @@ app.use('/uploads', express.static(UPLOADS_DIR, { setHeaders: (res) => res.set('
 app.get('/widgets/goal/:id{/}', (req, res, next) => {
   if (!settings.GOAL_IDS.includes(req.params.id)) return next();
   res.sendFile(path.join(ROOT, 'widgets', 'goal', 'index.html'));
+});
+// One viewers page, an OBS URL per count: /widgets/viewers/kick, /twitch, /total (both added up).
+app.get('/widgets/viewers/:source{/}', (req, res, next) => {
+  if (!['kick', 'twitch', 'total'].includes(req.params.source)) return next();
+  res.sendFile(path.join(ROOT, 'widgets', 'viewers', 'index.html'));
 });
 // One alerts page, an OBS URL per alert type too: /widgets/alerts/sub plays only subs.
 app.get('/widgets/alerts/:type{/}', (req, res, next) => {
@@ -321,6 +330,13 @@ io.on('connection', (socket) => {
     socket.on('obsSize', (s) => settings.setObsSize(s) && io.emit('obsSize', settings.obsSize()));
   });
   socket.once('widgetJoin', (w) => w !== 'alerts' && WIDGETS.includes(w) && opened(socket, w)); // a chat, a goal
+  // A viewers page (OBS or the panel's preview): the counts are asked while one is open (core/viewers.js).
+  socket.once('viewersJoin', () => {
+    socket.join('viewers');
+    socket.emit('viewers', viewers.state());
+    viewers.watch(1);
+    socket.once('disconnect', () => viewers.watch(-1));
+  });
 
   // "Show chat timing": a chat widget says when it drew a live message; core/chat prints how long each step took.
   socket.on('chatShown', (r) => chat.timing(r, socket.conn.transport.name));
@@ -331,6 +347,7 @@ alertQueue.events.on('state', (st) => io.emit('alertQueue', st));
 // Every count change goes to widgets and the panel; the second argument names a goal that just hit its target.
 goals.events.on('change', (reached) => io.emit('goals', goals.all(), reached));
 goals.events.on('kick', (list) => io.emit('kickGoals', list)); // Home's Kick tab
+viewers.events.on('change', (st) => io.to('viewers').emit('viewers', st));
 bus.on('event', (ev) => io.emit('event', ev));
 bus.on('connections', () => changed());
 bus.on('chat', (m) => {

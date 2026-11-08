@@ -96,6 +96,10 @@ let twitch; // the Twitch account: { state, error, code, uri, login, goals } (/a
 let kick; // the Kick account: { state, error, uri, login } (/api/kick, then the socket)
 let privacy; // the Privacy Policy: { version, en, fa } (i18n/privacy.json)
 let showGoalTab; // the Goals list's Kick | Twitch tab (wireTabs, in build())
+let viewerData; // the Viewers widget's { styles, fonts } (/api/viewers)
+// The Viewers page's preview: one of its OBS links (remembered in this browser).
+const VIEWER_SOURCES = ['kick', 'twitch', 'total'];
+const viewerSource = () => (VIEWER_SOURCES.includes(remember.get('jarchi.viewersSource')) ? remember.get('jarchi.viewersSource') : 'total');
 
 const pct = (v) => `${Math.round(v * 100)}%`;
 const px = (v) => `${v}px`;
@@ -401,6 +405,7 @@ async function send(method, url, body, headers) {
 }
 const patchAlert = (type, fields) => send('PATCH', '/api/settings', { alerts: { [type]: fields } });
 const patchGoal = (id, fields) => send('PATCH', '/api/settings', { goals: { [id]: fields } });
+const patchViewers = (fields) => send('PATCH', '/api/settings', { viewers: fields });
 // The selected chat's settings; the channels are Chat 1's.
 const patchChat = (fields) => send('PATCH', '/api/settings', { ['kickChannel' in fields || 'twitchChannel' in fields ? 'chat' : curChat]: fields });
 // Undo / redo a settings change (the server keeps the last 5 while Jarchi runs): Ctrl+Z / Ctrl+Y, and the "Saved" note's
@@ -493,6 +498,10 @@ function select(v, key) {
     if (key) showGoalTab(goalPlatform(key)); // e.g. Home's Fix for a Twitch goal: the Twitch tab
     const src = `/widgets/goal/${curGoal}?preview`;
     if ($('#goalPreview').getAttribute('src') !== src) $('#goalPreview').src = src;
+  }
+  if (v === 'viewers') {
+    const src = `/widgets/viewers/${viewerSource()}?preview`;
+    if ($('#viewersPreview').getAttribute('src') !== src) $('#viewersPreview').src = src;
   }
   if (v === 'chat' && key) { // one of the chats (its tab, Home's Fix, an undo)
     curChat = key;
@@ -1492,7 +1501,7 @@ const TOUR = ['hello', 'connect', 'obs', 'sidebar', 'done'];
 const SIDEBAR = TOUR.indexOf('sidebar');
 // Sidebar's stops, the sidebar's own groups: [the group's name, its pages, first to last]. Main (the pages on top) and
 // More (under the line) have no title in the sidebar.
-const SPOTS = [['navMain', ['home', 'alert', 'chat', 'goal']], ['navLive', ['queue', 'events']], ['navBot', ['bot']], ['navContent', ['battle', 'clips']], ['navDonations', ['donations']],
+const SPOTS = [['navMain', ['home', 'alert', 'chat', 'goal', 'viewers']], ['navLive', ['queue', 'events']], ['navBot', ['bot']], ['navContent', ['battle', 'clips']], ['navDonations', ['donations']],
   ['navSetup', ['connections', 'appearance', 'settings', 'guide']], ['navMore', ['about', 'support']]];
 const obsSize = (id) => (id === 'alerts' ? [800, 600] : CHAT_KEYS.includes(id) ? [settings[id].width, settings[id].height] : settings.goals[id].style === 'circle' ? [400, 400] : [800, 200]);
 const connCards = () => [$('#kcConnect'), $('#twConnect')].map((b) => b.closest('.box'));
@@ -1883,6 +1892,7 @@ function build() {
     kick = k;
     renderKick();
     renderProfile();
+    if (view === 'viewers') renderViewers(); // its Kick link's hint
   });
   // Home: new events (also from the test buttons), today's chat count, widget pages opening and closing.
   socket.on('event', (ev) => {
@@ -1965,6 +1975,39 @@ function build() {
   wireCss($('#goalCss'), () => settings.goals[curGoal], (f) => patchGoal(curGoal, f));
   wireCss($('#chatCss'), chatCfg, patchChat);
 
+  // Viewers page: [data-f] inputs save the widget's settings (Chart's minutes are numbers); the style picker (a live
+  // thumbnail per style; a click starts from its look); the preview's link and Test (a made-up change of its number,
+  // in the preview only); a row per OBS link, with Connect while its account isn't connected (renderViewers()).
+  const viewersEd = $('main [data-view=viewers]');
+  $('#viewersFont').append(...viewerData.fonts.map((f) => new Option(f, f)));
+  $$('[data-f]', viewersEd).forEach((inp) => inp.addEventListener('change', () => patchViewers({ [inp.dataset.f]: inp.dataset.f === 'chartMinutes' ? Number(inp.value) : valueOf(inp) })));
+  $$('input[type=range]', viewersEd).forEach((inp) => inp.addEventListener('input', () => showRange(inp)));
+  for (const [id, name] of Object.entries(S.viewerStyles)) {
+    const frame = el('iframe', { src: '/widgets/viewers/total?thumb', title: name, tabIndex: -1, onload: drawViewerThumbs });
+    frame.dataset.style = id;
+    frame.setAttribute('aria-hidden', 'true');
+    const tile = el('button', { className: 'style-tile viewers-tile', onclick: () => patchViewers({ style: id }) },
+      el('div', { className: 'preview' }, frame), el('span', { className: 'tile-name', textContent: name }));
+    tile.dataset.style = id;
+    $('#viewersStyleGrid').append(tile);
+    fit.observe(tile.querySelector('.preview'));
+  }
+  $$('[name=viewersSource]').forEach((r) => {
+    r.checked = r.value === viewerSource();
+    r.onchange = () => (remember.set('jarchi.viewersSource', r.value), select('viewers'));
+  });
+  $('#viewersTest').onclick = () => $('#viewersPreview').contentWindow?.postMessage({ test: true }, location.origin);
+  $('#viewersLinks').append(...VIEWER_SOURCES.map((p) => {
+    const logos = (p === 'total' ? ['kick', 'twitch'] : [p]).map((l) => el('img', { className: 'plat-logo', src: `/assets/platform-logos/${l}.svg`, alt: '' }));
+    const copy = el('button', { title: S.panel.viewersCopyHint, onclick: () => copyLink(`${location.origin}/widgets/viewers/${p}`, S.panel.viewersCopied) }, el('span', { textContent: S.panel.copyObs }));
+    copy.insertAdjacentHTML('afterbegin', COPY_ICON);
+    const connect = el('button', { className: 'ghost connect', textContent: S.panel[p === 'kick' ? 'kcConnect' : 'twConnect'], hidden: true, onclick: () => select('connections') });
+    const row = el('li', {}, el('span', { className: 'row' }, ...logos), el('span', { className: 'stack' }, el('b', { textContent: p === 'total' ? S.panel.viewersTotal : S.platforms[p] }), el('small')), connect, copy);
+    row.dataset.source = p;
+    return row;
+  }));
+  wireCss($('#viewersCss'), () => settings.viewers, patchViewers);
+
   // Settings
   $('#showBadge').onchange = (e) => send('PATCH', '/api/settings', { showBadge: e.target.checked });
   for (const [id, name] of Object.entries(S.platforms)) $('#testAs').append(new Option(name, id));
@@ -2028,7 +2071,7 @@ function fill(root, cfg) {
   $$('[data-f]', root).forEach((inp) => {
     const val = cfg[inp.dataset.f];
     if (inp.type === 'checkbox') inp.checked = val;
-    else if (inp.type === 'radio') inp.checked = inp.value === val;
+    else if (inp.type === 'radio') inp.checked = inp.value === String(val); // a number too (Viewers' chart minutes)
     else if (inp.type === 'color') inp.value = val ?? '#ffffff';
     else if (inp !== document.activeElement || !['text', 'number'].includes(inp.type)) inp.value = val ?? ''; // never under the cursor
     if (inp.type === 'range') showRange(inp);
@@ -2060,7 +2103,7 @@ function render() {
   }
 
   $('#chatUndo').hidden = !settings.canUndo;
-  for (const [box, cfg] of [['#alertCss', settings.alerts[cur]], ['#goalCss', settings.goals[curGoal]], ['#chatCss', chatCfg()]]) {
+  for (const [box, cfg] of [['#alertCss', settings.alerts[cur]], ['#goalCss', settings.goals[curGoal]], ['#chatCss', chatCfg()], ['#viewersCss', settings.viewers]]) {
     const area = $(`${box} textarea`);
     if (area !== document.activeElement) area.value = cfg.customCss; // never under the cursor
   }
@@ -2092,6 +2135,7 @@ function render() {
   if (view === 'settings') renderSettings();
   if (view === 'alert') renderAlert();
   if (view === 'goal') renderGoal();
+  if (view === 'viewers') renderViewers();
   if (view === 'chat') renderChat();
   if (view === 'home') renderHome();
   if (view === 'events') renderHistory();
@@ -2479,6 +2523,32 @@ function renderGoal() {
   $('.file .remove', ed).hidden = !g.sound;
 }
 
+// The Viewers page. Its links: a hint and Connect while that account isn't connected (Total: while neither is).
+function renderViewers() {
+  const ed = $('main [data-view=viewers]'), v = settings.viewers;
+  fill(ed, v);
+  $$('.viewers-tile').forEach((t) => t.classList.toggle('selected', t.dataset.style === v.style));
+  const show = { icon: v.style === 'gold', chart: v.style === 'chart', accent: v.style !== 'angled' }; // Angled bar has no border or line
+  $$('[data-only]', ed).forEach((e) => (e.hidden = !show[e.dataset.only]));
+  $('#viewersHidden').hidden = v.offline !== 'hide';
+  const on = { kick: !!kick.login, twitch: !!twitch.login };
+  for (const row of $$('#viewersLinks li')) {
+    const p = row.dataset.source, off = p === 'total' ? !on.kick && !on.twitch : !on[p];
+    const note = $('small', row);
+    note.textContent = off && p !== 'total' ? tpl(S.panel.viewersNoAccount, { platform: S.platforms[p] }) : p === 'total' ? S.panel.viewersTotalHint : '';
+    note.classList.toggle('warn', off && p !== 'total');
+    $('.connect', row).hidden = !off || p === 'total';
+  }
+  drawViewerThumbs();
+}
+// Style thumbnails: each style's own look with this widget's other settings, sample numbers.
+function drawViewerThumbs() {
+  for (const f of $$('.viewers-tile iframe')) {
+    const style = f.dataset.style;
+    f.contentWindow?.postMessage({ cfg: { ...settings.viewers, ...viewerData.styles[style], style, size: 1, customCss: '' } }, location.origin);
+  }
+}
+
 // ---------- Background art (Appearance; jarchi.art, on unless '0') ----------
 // Outline icons in the theme's main color and gold, Kick's and Twitch's logos, and the streamer's profile pictures (a
 // ring in the platform's color), faint and blurred behind the whole panel (#bgArt; panel.css draws them). Each drifts
@@ -2621,9 +2691,9 @@ artRun();
   EN = await (await fetch('/i18n/en.json')).json();
   S = FA ? await (await fetch('/i18n/fa.json')).json() : EN;
   try {
-    [settings, samples, goalData, { styles: chatStyles, fonts: chatFonts }, chatStatus, home, hist.list, twitch, kick, privacy, changelog] = await Promise.all([
+    [settings, samples, goalData, { styles: chatStyles, fonts: chatFonts }, chatStatus, home, hist.list, twitch, kick, privacy, changelog, viewerData] = await Promise.all([
       api('GET', '/api/settings'), api('GET', '/api/samples'), api('GET', '/api/goals'), api('GET', '/api/chat/styles'), api('GET', '/api/chat/status'), api('GET', '/api/home'), api('GET', '/api/history'),
-      api('GET', '/api/twitch'), api('GET', '/api/kick'), fetch('/i18n/privacy.json').then((r) => r.json()), fetch('/i18n/changelog.json').then((r) => r.json()),
+      api('GET', '/api/twitch'), api('GET', '/api/kick'), fetch('/i18n/privacy.json').then((r) => r.json()), fetch('/i18n/changelog.json').then((r) => r.json()), api('GET', '/api/viewers'),
     ]);
   } catch (err) {
     return toast(err.message, true);

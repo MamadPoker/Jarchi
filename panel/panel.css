@@ -1103,6 +1103,17 @@ textarea { resize: vertical; line-height: 1.5; }
 .goal-preview iframe, .style-tile iframe { width: 1000px; height: 400px; }
 .goal-preview, .style-tile .preview { aspect-ratio: 5 / 2; }
 .stage .preview.goal-preview { width: min(100%, 700px); }
+/* Viewers: its page is 800x400 in the preview and 600x300 on a style tile (any 2:1 source: it fills the box). */
+.viewers-preview iframe { width: 800px; height: 400px; }
+.viewers-preview, .viewers-grid .style-tile .preview { aspect-ratio: 2 / 1; }
+.stage .preview.viewers-preview { width: min(100%, 480px); }
+.style-grid.viewers-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); max-width: 760px; }
+.viewers-grid .style-tile iframe { width: 600px; height: 300px; }
+.viewers-links { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.viewers-links li { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 10px; background: var(--card2); }
+.viewers-links .plat-logo { width: 18px; height: 18px; }
+.viewers-links .stack { flex: 1; min-width: 140px; }
+.viewers-links small.warn { color: var(--warn); }
 .stepper { display: flex; gap: 6px; }
 .stepper input { text-align: center; }
 .stepper button { justify-content: center; min-width: 42px; font-size: 18px; line-height: 1; }

@@ -34,6 +34,7 @@
         <button class="nav-item" data-view="alert"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.9 1.9 0 0 0 3.4 0"/></svg><span data-i18n="groupAlerts"></span></button>
         <button class="nav-item" data-view="chat"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><span data-i18n="chatName"></span></button>
         <button class="nav-item" data-view="goal"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/></svg><span data-i18n="navGoals"></span></button>
+        <button class="nav-item" data-view="viewers"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg><span data-i18n="navViewers"></span></button>
         <h2 class="group-title" data-i18n="navLive"></h2>
         <button class="nav-item" data-view="queue"><svg class="flip" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01"/></svg><span data-i18n="queueTitle"></span><span class="q-count" id="qNavCount" hidden></span></button>
         <button class="nav-item" data-view="events"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 2.6-6.4L3 8M3 3v5h5M12 7v5l3 2"/></svg><span data-i18n="navEvents"></span></button>
@@ -887,6 +888,98 @@
           </div>
         </details>
         </div>
+        </div>
+      </section>
+
+      <!-- ===== Viewers: how many watch the connected Kick / Twitch channels (core/viewers.js). One look for its three OBS
+           links (Kick, Twitch, Total). The preview is one of them (Kick | Twitch | Total), Test changes its number. ===== -->
+      <section class="view" data-view="viewers" hidden>
+        <div class="editor">
+        <small data-i18n="viewersHint"></small>
+
+        <div class="stage">
+          <div class="preview viewers-preview"><iframe id="viewersPreview" data-title="viewersPreview"></iframe></div>
+          <p id="viewersHidden" class="fx-hint" data-i18n="viewersHidden" hidden></p>
+          <div class="stage-ctrl">
+            <div class="seg" role="radiogroup" data-aria="viewersPreview">
+              <label><input type="radio" name="viewersSource" value="kick"><span>Kick</span></label>
+              <label><input type="radio" name="viewersSource" value="twitch"><span>Twitch</span></label>
+              <label><input type="radio" name="viewersSource" value="total"><span data-i18n="viewersTotal"></span></label>
+            </div>
+            <button id="viewersTest" class="primary">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.3-5.7M4 4v5h5"/></svg>
+              <span data-i18n="viewersTest"></span>
+            </button>
+          </div>
+        </div>
+
+        <!-- One row per link: its name, a hint while that account isn't connected (+ Connect), Copy OBS link (panel.js) -->
+        <div class="box">
+          <h2 data-i18n="viewersLinks" data-help="viewers.links"></h2>
+          <ul id="viewersLinks" class="viewers-links"></ul>
+        </div>
+
+        <div class="box">
+          <div class="row between"><h2 data-i18n="goalStyle" data-help="viewers.style"></h2><small data-i18n="goalStyleHint"></small></div>
+          <div id="viewersStyleGrid" class="style-grid viewers-grid"></div>
+        </div>
+
+        <div class="box">
+          <h2 data-i18n="viewersLook"></h2>
+          <div class="cols">
+            <label class="field"><span data-i18n="font" data-help="viewers.font"></span><select id="viewersFont" data-f="font"></select></label>
+            <label class="field"><span data-help="viewers.size"><span data-i18n="scale"></span> <b data-out="size"></b></span><input type="range" data-f="size" min="0.5" max="1" step="0.05"></label>
+          </div>
+          <div class="cols4">
+            <label class="field"><span data-i18n="numberColor" data-help="viewers.numberColor"></span><input type="color" data-f="numberColor"></label>
+            <label class="field"><span data-i18n="viewersBg" data-help="viewers.bgColor"></span><input type="color" data-f="bgColor"></label>
+            <label class="field" data-only="accent"><span data-i18n="accentColor" data-help="viewers.accentColor"></span><input type="color" data-f="accentColor"></label>
+          </div>
+          <div class="field">
+            <span data-i18n="viewersAnim" data-help="viewers.anim"></span>
+            <div class="seg">
+              <label><input type="radio" name="viewersAnim" data-f="anim" value="roll"><span data-i18n="animRoll"></span></label>
+              <label><input type="radio" name="viewersAnim" data-f="anim" value="flip"><span data-i18n="animFlip"></span></label>
+              <label><input type="radio" name="viewersAnim" data-f="anim" value="fade"><span data-i18n="animFade"></span></label>
+              <label><input type="radio" name="viewersAnim" data-f="anim" value="pop"><span data-i18n="animPop"></span></label>
+            </div>
+          </div>
+          <div class="field" data-only="icon"><!-- Jarchi gold only -->
+            <span data-i18n="viewersIcon" data-help="viewers.icon"></span>
+            <div class="seg">
+              <label><input type="radio" name="viewersIcon" data-f="icon" value="people"><span data-i18n="iconPeople"></span></label>
+              <label><input type="radio" name="viewersIcon" data-f="icon" value="kick"><span data-i18n="iconKick"></span></label>
+              <label><input type="radio" name="viewersIcon" data-f="icon" value="twitch"><span data-i18n="iconTwitch"></span></label>
+              <label><input type="radio" name="viewersIcon" data-f="icon" value="switch"><span data-i18n="iconSwitch"></span></label>
+            </div>
+          </div>
+          <div class="field" data-only="chart"><!-- Live chart only -->
+            <span data-i18n="chartMinutes" data-help="viewers.chartMinutes"></span>
+            <div class="seg">
+              <label><input type="radio" name="viewersChart" data-f="chartMinutes" value="10"><span data-i18n="chart10"></span></label>
+              <label><input type="radio" name="viewersChart" data-f="chartMinutes" value="15"><span data-i18n="chart15"></span></label>
+            </div>
+          </div>
+          <div class="field">
+            <span data-i18n="viewersOffline" data-help="viewers.offline"></span>
+            <div class="seg">
+              <label><input type="radio" name="viewersOfflineMode" data-f="offline" value="text"><span data-i18n="offlineText"></span></label>
+              <label><input type="radio" name="viewersOfflineMode" data-f="offline" value="hide"><span data-i18n="offlineHide"></span></label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Advanced: the user's own CSS on top of the viewers widget's look -->
+        <details class="more css-box" id="viewersCss">
+          <summary>
+            <span data-i18n="advanced"></span>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+          </summary>
+          <div class="css-body">
+            <div class="row between"><span data-i18n="customCss" data-help="viewers.customCss"></span><button class="ghost small-btn css-clear" data-i18n="clear"></button></div>
+            <textarea rows="6" maxlength="20000" dir="ltr" spellcheck="false" data-aria="customCss"></textarea>
+          </div>
+        </details>
         </div>
       </section>
 
