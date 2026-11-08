@@ -1,5 +1,33 @@
 [
   {
+    "version": "1.0.5",
+    "types": ["feature", "feature", "feature", "feature", "feature", "feature", "improve", "fix", "fix", "security"],
+    "en": [
+      "New Viewer count widget for OBS: viewers from Kick, Twitch or both, with several styles and animations",
+      "You can now get news and messages from the Jarchi team right inside the app",
+      "New Support page: colored tags and icons, \"Answered\" or \"Waiting for reply\", and a sound for new replies",
+      "\"Seen\" check marks: see when the Jarchi team has read your ticket",
+      "Crypto donations straight to your own wallet: request the crypto gateway from Support",
+      "Giveaway is coming soon to the Content section",
+      "\"What's new\" now shows an icon for each change",
+      "Kick chat messages show up faster, and the connection reconnects by itself",
+      "The chat in OBS now fills the whole source: a bigger source shows more messages",
+      "Security update"
+    ],
+    "fa": [
+      "ویجت جدید شمارش بیننده‌ها برای او‌بی‌اس: تعداد بیننده‌های کیک، توییچ یا هر دو، با چند طرح و انیمیشن",
+      "از این به بعد خبرها و پیام‌های تیم جارچی را مستقیم داخل برنامه دریافت می‌کنید",
+      "صفحه‌ی جدید پشتیبانی: برچسب‌ها و آیکون‌های رنگی، «پاسخ داده شد» یا «در انتظار پاسخ»، و صدا برای پاسخ‌های جدید",
+      "تیک «دیده شد»: ببینید تیم جارچی چه زمانی تیکت شما را خوانده است",
+      "دونیت کریپتو مستقیم به کیف پول خودتان: درگاه کریپتو را از پشتیبانی درخواست کنید",
+      "قرعه‌کشی به‌زودی به بخش محتوا اضافه می‌شود",
+      "«چه چیزهایی جدیده» حالا برای هر تغییر یک آیکون نشان می‌دهد",
+      "پیام‌های چت کیک سریع‌تر نمایش داده می‌شوند و اتصال خودکار دوباره برقرار می‌شود",
+      "چت در او‌بی‌اس حالا کل کادر را پر می‌کند: کادر بزرگ‌تر، پیام‌های بیشتر",
+      "به‌روزرسانی امنیتی"
+    ]
+  },
+  {
     "version": "1.0.4",
     "types": ["feature"],
     "en": [
