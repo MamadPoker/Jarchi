@@ -2200,7 +2200,15 @@ function followUpdates() {
 // ---------- What's new ----------
 // Its own page: every version's changes, newest first, from i18n/changelog.json (this copy's), under a downloaded
 // update's own (its release notes) until Restart installs it. In the panel's language first; the switch shows the
-// other, Persian right to left.
+// other, Persian right to left. Each line has its type's icon (changelog.json's types, the same for both languages); a
+// line without one (older notes, a downloaded update's) has a small dot.
+const NEWS_ICON = {
+  feature: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5c.7 4.3 2.7 6.3 7 7-4.3.7-6.3 2.7-7 7-.7-4.3-2.7-6.3-7-7 4.3-.7 6.3-2.7 7-7z"/><path d="M18.5 2.5v5M16 5h5"/></svg>',
+  improve: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.8-3.8a6 6 0 0 1-7.9 7.9l-6.9 6.9a2.1 2.1 0 0 1-3-3l6.9-6.9a6 6 0 0 1 7.9-7.9z"/></svg>',
+  fix: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 8a3 3 0 0 1 6 0"/><rect x="7" y="8" width="10" height="12" rx="5"/><path d="M12 12v8M7 12H4M17 12h3M7.5 16.5 5 18M16.5 16.5 19 18M10.3 5.6 9 4M13.7 5.6 15 4"/></svg>',
+  security: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l7.5 3v5.5c0 4.6-3.2 8.3-7.5 9.5-4.3-1.2-7.5-4.9-7.5-9.5V6z"/><path d="M8.8 12.2l2.2 2.2 4.2-4.4"/></svg>',
+};
+const newsIcon = (t, P) => (NEWS_ICON[t] ? Object.assign(svgIn(`nt nt-${t}`, NEWS_ICON[t]), { role: 'img', title: P[`news_${t}`], ariaLabel: P[`news_${t}`] }) : el('span', { className: 'nt' }));
 let changelog, newsLang;
 async function renderNews(lang = newsLang) {
   newsLang = lang;
@@ -2210,7 +2218,7 @@ async function renderNews(lang = newsLang) {
   Object.assign(box, { lang, dir: lang === 'fa' ? 'rtl' : 'ltr' });
   box.replaceChildren(...list.map((c) => el('article', { className: 'box news-item' },
     el('div', { className: 'row' }, el('h2', { textContent: `v${c.version}` }), c.ready ? el('span', { className: 'pill news-ready', textContent: P.updateInstall }) : ''),
-    el('ul', {}, ...c[lang].map((s) => el('li', { textContent: s }))))));
+    el('ul', {}, ...c[lang].map((s, i) => el('li', {}, newsIcon(c.types?.[i], P), el('span', { textContent: s })))))));
 }
 
 // Settings > Uninstall Jarchi: only in the installed app (electron/main.js says whether its uninstaller is there; not

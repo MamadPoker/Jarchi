@@ -33,6 +33,7 @@
   --danger-line: rgba(244, 63, 94, 0.4);
   --danger-text: #fecdd3;
   --ok: #22c55e;
+  --teal: #1fa39a; /* Jarchi teal in every color theme (--main changes with them): Privacy's "collected", What's new's improvements */
   --info: #60a5fa; /* a team message's info style */
   --gift: #a855f7; /* a team message's gift style, with --gold */
   --on-tint: var(--bg); /* text on --info / --ok / --warn */
@@ -78,6 +79,7 @@
   --danger-line: rgba(192, 38, 63, 0.4);
   --danger-text: #9f1d33;
   --ok: #1f7a3d;
+  --teal: #127a72;
   --info: #1d4ed8;
   --gift: #7e22ce;
   --on-tint: #fff;
@@ -550,7 +552,7 @@ button.link:hover, button.link:focus-visible { color: var(--gold-text); }
 .privacy-points .stack span { color: var(--muted); font-size: 14px; }
 .pt-icon { width: 32px; height: 32px; border-radius: 9px; }
 .pt-icon svg { width: 17px; height: 17px; stroke-width: 2.2; }
-.pt-collect .pt-icon { background: rgb(31 163 154 / 0.14); color: #1fa39a; } /* teal: what's collected */
+.pt-collect .pt-icon { background: color-mix(in srgb, var(--teal) 14%, transparent); color: var(--teal); } /* what's collected */
 .pt-never .pt-icon { background: color-mix(in srgb, var(--danger) 12%, transparent); color: var(--danger); }
 .privacy-agree { display: flex; align-items: center; gap: 10px; padding-top: 14px; border-top: 1px solid var(--border); cursor: pointer; }
 .privacy-agree[hidden] { display: none; }
@@ -982,7 +984,17 @@ main { padding: 24px 28px 64px; container-type: inline-size; } /* editor rules b
 /* What's new: a box per version, newest first */
 .news-list { display: grid; gap: 14px; }
 .news-item h2 { font-size: 18px; }
-.news-item ul { display: grid; gap: 6px; margin: 0; padding-inline-start: 20px; line-height: 1.7; }
+.news-item ul { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; line-height: 1.7; }
+.news-item li { display: flex; align-items: flex-start; gap: 10px; }
+/* each line's type: a small tinted icon (feature gold, improve teal, fix coral, security blue), or a dot without one */
+.nt { display: grid; place-items: center; flex: none; width: 22px; height: 22px; margin-top: calc((1.7em - 22px) / 2); border-radius: 7px; color: var(--muted); background: color-mix(in srgb, currentColor 14%, transparent); }
+.nt svg { width: 13px; height: 13px; stroke-width: 2.2; }
+.nt:empty { background: none; }
+.nt:empty::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; opacity: 0.7; }
+.nt-feature { color: var(--gold-text); }
+.nt-improve { color: var(--teal); }
+.nt-fix { color: var(--danger); }
+.nt-security { color: var(--info); }
 .news-ready { border-color: var(--gold); color: var(--gold-text); }
 /* "Made with ♥ by MamadPoker": on hover (or keyboard focus) it fades into a small softly glowing box whose thin gold
    border has a light slowly running around it. Reduce animations: the border, still. */

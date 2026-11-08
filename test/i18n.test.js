@@ -31,12 +31,18 @@ test('the Privacy Policy has a version and the same parts in English and Persian
 
 test("What's new: every version in English and Persian, newest first; this version's notes make the release text", () => {
   const log = JSON.parse(read('i18n/changelog.json'));
+  const js = read('panel/panel.js'), drawn = js.slice(js.indexOf('const NEWS_ICON'), js.indexOf('const newsIcon'));
+  const NEWS_TYPES = [...drawn.matchAll(/\n  (\w+): '<svg/g)].map((m) => m[1]);
+  assert.deepEqual(NEWS_TYPES, ['feature', 'improve', 'fix', 'security']);
+  assert.ok(NEWS_TYPES.every((t) => en.panel[`news_${t}`] && fa.panel[`news_${t}`]), 'every type has its name');
   const order = (v) => v.split('.').map((n) => n.padStart(6, '0')).join('.'); // 1.10.0 after 1.9.0
   log.slice(1).forEach((c, i) => assert.ok(order(log[i].version) > order(c.version), `${log[i].version} before ${c.version}`));
   for (const c of log) {
     assert.match(c.version, /^\d+\.\d+\.\d+$/);
     assert.ok(c.en.length && c.en.length === c.fa.length, `${c.version}: the same changes in both languages`);
     assert.ok([...c.en, ...c.fa].every((s) => s.trim() && !s.includes('\n')), `${c.version}: one line each`);
+    // types (optional): one per line, each one the panel draws (an empty one: the line's dot)
+    if (c.types) assert.ok(c.types.length === c.en.length && c.types.every((t) => !t || NEWS_TYPES.includes(t)), `${c.version}: one known type per line`);
   }
   const mine = log.find((c) => c.version === JSON.parse(read('package.json')).version);
   assert.ok(mine, "package.json's version has its notes (npm run release needs them)");

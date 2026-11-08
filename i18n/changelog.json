@@ -1,6 +1,7 @@
 [
   {
     "version": "1.0.4",
+    "types": ["feature"],
     "en": [
       "Custom CSS for every OBS widget (chat, goals, alerts), in a new \"Advanced\" section"
     ],
@@ -10,6 +11,7 @@
   },
   {
     "version": "1.0.3",
+    "types": ["fix", "feature", "feature", "feature", "improve"],
     "en": [
       "Chat settings no longer reset when you switch style: each style remembers its own look",
       "Undo / redo for settings (Ctrl+Z / Ctrl+Y), plus an \"Undo\" link in the \"Saved\" notice",
@@ -27,6 +29,7 @@
   },
   {
     "version": "1.0.2",
+    "types": ["fix", "improve", "feature", "improve", "feature", "improve", "feature", "improve", "security"],
     "en": [
       "Test connection works properly again: Kick and Twitch no longer show as unreachable when they're fine",
       "Connect Twitch opens Twitch in your browser right away: just approve Jarchi, no code to type",
@@ -52,6 +55,7 @@
   },
   {
     "version": "1.0.1",
+    "types": ["feature", "feature", "feature", "feature"],
     "en": [
       "Support: send tickets with screenshots from inside Jarchi and get replies",
       "A separate OBS link for each alert type",
@@ -67,6 +71,7 @@
   },
   {
     "version": "1.0.0",
+    "types": ["feature"],
     "en": ["First public release: alerts for follows, subs, gifted subs, raids, Kicks and Bits; chat widget and goals for OBS; English and Persian panel; automatic updates."],
     "fa": ["نخستین نسخهٔ عمومی: آلرت فالو، ساب، گیفت‌ساب، رید، کیکس و بیتس؛ ویجت چت و گل برای OBS؛ پنل انگلیسی و فارسی؛ آپدیت خودکار."]
   }
