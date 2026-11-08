@@ -672,14 +672,16 @@ const copyBtn = (name, url) => { // a widget's copy icon (Home's Widgets card, t
   b.innerHTML = COPY_ICON; // fixed markup
   return b;
 };
-// The widget pages: [id the server counts them by, name, OBS link]. Only the switched-on ones are needed (alerts always).
-// One chat is "Chat"; with Chat 2 each goes by its name.
+// The widget pages: [id the server counts them by, name, OBS link]. Only the switched-on ones are needed (alerts and
+// viewers always: they have no switch). One chat is "Chat"; with Chat 2 each goes by its name. Viewers: one per link,
+// "Viewers (Kick)", "Viewers (Twitch)", "Viewers (Total)".
 const widgetPages = () => [
   ['alerts', S.panel.groupAlerts, `${location.origin}/widgets/alerts`],
   ...CHAT_KEYS.filter((k) => settings[k]).map((k) => [k, settings.chat2 ? chatName(k) : S.panel.chatName, chatUrl(k)]),
   ...Object.keys(settings.goals).map((id) => [id, goalName(id), `${location.origin}/widgets/goal/${id}`]),
+  ...VIEWER_SOURCES.map((p) => [`viewers-${p}`, tpl(S.panel.goalOn, { goal: S.panel.navViewers, platform: p === 'total' ? S.panel.viewersTotal : S.platforms[p] }), `${location.origin}/widgets/viewers/${p}`]),
 ];
-const widgetOn = (id) => id === 'alerts' || (CHAT_KEYS.includes(id) ? settings[id] : settings.goals[id]).enabled;
+const widgetOn = (id) => id === 'alerts' || id.startsWith('viewers-') || (CHAT_KEYS.includes(id) ? settings[id] : settings.goals[id]).enabled;
 const FEED_FILTERS = { all: null, subs: ['sub', 'resub', 'gift_sub'], kicks: ['kicks'], raids: ['raid'], follows: ['follow'] };
 const ofType = (list, f) => list.filter((ev) => !FEED_FILTERS[f] || FEED_FILTERS[f].includes(ev.type));
 const pressFilter = (box, f) => $$('button', box).forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.filter === f)));
@@ -1501,9 +1503,9 @@ const TOUR = ['hello', 'connect', 'obs', 'sidebar', 'done'];
 const SIDEBAR = TOUR.indexOf('sidebar');
 // Sidebar's stops, the sidebar's own groups: [the group's name, its pages, first to last]. Main (the pages on top) and
 // More (under the line) have no title in the sidebar.
-const SPOTS = [['navMain', ['home', 'alert', 'chat', 'goal', 'viewers']], ['navLive', ['queue', 'events']], ['navBot', ['bot']], ['navContent', ['battle', 'clips']], ['navDonations', ['donations']],
+const SPOTS = [['navMain', ['home', 'alert', 'chat', 'goal', 'viewers']], ['navLive', ['queue', 'events']], ['navBot', ['bot']], ['navContent', ['battle', 'clips', 'giveaway']], ['navDonations', ['donations']],
   ['navSetup', ['connections', 'appearance', 'settings', 'guide']], ['navMore', ['about', 'support']]];
-const obsSize = (id) => (id === 'alerts' ? [800, 600] : CHAT_KEYS.includes(id) ? [settings[id].width, settings[id].height] : settings.goals[id].style === 'circle' ? [400, 400] : [800, 200]);
+const obsSize = (id) => (id === 'alerts' ? [800, 600] : id.startsWith('viewers-') ? [400, 200] : CHAT_KEYS.includes(id) ? [settings[id].width, settings[id].height] : settings.goals[id].style === 'circle' ? [400, 400] : [800, 200]);
 const connCards = () => [$('#kcConnect'), $('#twConnect')].map((b) => b.closest('.box'));
 let tourStep = 0, spot = 0, faStrings;
 
@@ -2528,7 +2530,8 @@ function renderViewers() {
   const ed = $('main [data-view=viewers]'), v = settings.viewers;
   fill(ed, v);
   $$('.viewers-tile').forEach((t) => t.classList.toggle('selected', t.dataset.style === v.style));
-  const show = { icon: v.style === 'gold', chart: v.style === 'chart', accent: v.style !== 'angled' }; // Angled bar has no border or line
+  // Jarchi gold: Jarchi's own colors, no pickers. Angled bar has no border or line.
+  const show = { icon: v.style === 'gold', colors: v.style !== 'gold', chart: v.style === 'chart', accent: v.style !== 'angled' };
   $$('[data-only]', ed).forEach((e) => (e.hidden = !show[e.dataset.only]));
   $('#viewersHidden').hidden = v.offline !== 'hide';
   const on = { kick: !!kick.login, twitch: !!twitch.login };

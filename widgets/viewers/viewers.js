@@ -44,7 +44,10 @@ if (params.has('thumb')) {
   });
 } else {
   const socket = io();
-  socket.on('connect', () => socket.emit('viewersJoin')); // the counts are asked while a viewers page is open
+  socket.on('connect', () => {
+    socket.emit('viewersJoin'); // the counts are asked while a viewers page is open
+    if (!params.has('preview')) socket.emit('widgetJoin', `viewers-${source}`); // the panel's Home: open in OBS
+  });
   socket.on('strings', (s) => {
     strings = s;
     update();

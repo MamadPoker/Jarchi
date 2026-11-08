@@ -49,9 +49,30 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: transparent;
 .num.popping { animation: v-pop 0.45s cubic-bezier(0.3, 1.6, 0.5, 1); }
 @keyframes v-pop { 40% { transform: scale(1.25); } }
 
-/* Jarchi gold: a dark card with a thin gold border, the icon on the left, the gold number. "Switch": icons take turns. */
+/* Jarchi gold: a dark card with a thin gold border, the icon on the left, the gold number, all in Jarchi's colors (Kick's
+   and Twitch's logos too, their real shapes). A soft light travels round the border, one loop every 5 s (none with
+   reduced motion). Offline: the icon and the text a little dimmer. "Switch": icons take turns. */
+@property --v-light { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
 .style-gold { padding: 0.15em; }
-.style-gold .card { display: flex; align-items: center; gap: 0.32em; padding: 0.22em 0.42em; border: 2px solid var(--accent); border-radius: 0.26em; background: var(--bg); box-shadow: 0 0.06em 0.3em rgba(0, 0, 0, 0.35); }
+.style-gold .card { position: relative; display: flex; align-items: center; gap: 0.32em; padding: 0.22em 0.42em; border: 2px solid var(--accent); border-radius: 0.26em; background: var(--bg); box-shadow: 0 0.06em 0.3em rgba(0, 0, 0, 0.35); }
+.style-gold .card::before {
+  content: "";
+  position: absolute;
+  inset: -2px; /* over the border */
+  padding: 2px; /* the border's width: the mask keeps only this ring */
+  border-radius: inherit;
+  background: conic-gradient(from var(--v-light), transparent 0 60%, rgba(255, 226, 150, 0.45) 80%, rgba(255, 243, 212, 0.8) 89%, transparent 97%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+  animation: v-light 5s linear infinite;
+}
+@keyframes v-light { to { --v-light: 360deg; } }
+@media (prefers-reduced-motion: reduce) { .style-gold .card::before { display: none; } }
+.style-gold .kick, .style-gold .twitch .f, .style-gold .twitch .e { fill: var(--num); }
+.style-gold .twitch .i { fill: none; }
+.style-gold.offline .icon { opacity: 0.75; }
 .style-gold .icon { position: relative; flex: none; width: 0.78em; height: 0.78em; color: var(--num); perspective: 3em; }
 .style-gold .icon > svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; transform: rotateY(90deg); transition: transform 0.45s ease, opacity 0.45s ease; }
 .style-gold .icon > svg.on { opacity: 1; transform: none; }

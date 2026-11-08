@@ -288,7 +288,7 @@ app.use((err, req, res, next) => {
 });
 
 // Widget pages open right now, in OBS or a browser (the panel's previews don't count): the Home page's green dots.
-const WIDGETS = ['alerts', 'chat', 'chat2', ...settings.GOAL_IDS];
+const WIDGETS = ['alerts', 'chat', 'chat2', ...settings.GOAL_IDS, 'viewers-kick', 'viewers-twitch', 'viewers-total'];
 const open = Object.fromEntries(WIDGETS.map((w) => [w, 0]));
 function opened(socket, w) {
   open[w]++;

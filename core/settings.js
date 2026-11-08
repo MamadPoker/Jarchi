@@ -316,6 +316,7 @@ const VIEWER_STYLES = {
   comic: { font: 'Bangers', numberColor: '#111111', bgColor: '#ffffff', accentColor: '#111111' },
 };
 const VIEWER_LOOK = Object.keys(VIEWER_STYLES.gold);
+const VIEWER_COLORS = ['numberColor', 'bgColor', 'accentColor']; // Jarchi gold: always its own (Jarchi's brand colors)
 const VIEWERS_DEFAULTS = { style: 'gold', icon: 'people', chartMinutes: 10, offline: 'text', anim: 'roll', size: 1, customCss: '' };
 const VIEWER_RULES = {
   style: (v) => v in VIEWER_STYLES,
@@ -488,11 +489,11 @@ function get() {
   };
 }
 
-// The viewers widget = its style's look + its defaults + the user's changes.
+// The viewers widget = its style's look + its defaults + the user's changes. Jarchi gold keeps Jarchi's own colors.
 function viewers() {
   const o = saved.viewers ?? {};
   const style = o.style in VIEWER_STYLES ? o.style : VIEWERS_DEFAULTS.style;
-  return { ...VIEWER_STYLES[style], ...VIEWERS_DEFAULTS, ...o, style };
+  return { ...VIEWER_STYLES[style], ...VIEWERS_DEFAULTS, ...o, style, ...(style === 'gold' && pick(VIEWER_STYLES.gold, VIEWER_COLORS)) };
 }
 
 // An alert = its defaults + the user's changes to fields it has (so e.g. raid's old tiers stay ignored),

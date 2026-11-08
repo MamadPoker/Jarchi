@@ -80,14 +80,17 @@ test("Kick's and Twitch's stream: viewers while live, 0 offline, null without an
   assert.equal(await fresh.live(), null);
 });
 
-test('viewers settings: a style starts from its own look, the rest stays; wrong values are refused', () => {
+test('viewers settings: a style starts from its own look, the rest stays; Jarchi gold keeps its colors; wrong values are refused', () => {
   assert.equal(settings.get().viewers.style, 'gold');
-  let v = settings.update({ viewers: { numberColor: '#123456', anim: 'flip', chartMinutes: 15 } }).viewers;
-  assert.deepEqual([v.numberColor, v.anim, v.chartMinutes], ['#123456', 'flip', 15]);
+  let v = settings.update({ viewers: { numberColor: '#123456', font: 'Bangers', anim: 'flip', chartMinutes: 15 } }).viewers;
+  assert.deepEqual([v.numberColor, v.font, v.anim, v.chartMinutes], ['#d6a83e', 'Bangers', 'flip', 15], "Jarchi gold: Jarchi's colors, its font can change");
+  v = settings.update({ viewers: { style: 'chart' } }).viewers;
+  v = settings.update({ viewers: { numberColor: '#123456' } }).viewers;
+  assert.equal(v.numberColor, '#123456', 'other styles: the color picked');
   v = settings.update({ viewers: { style: 'comic' } }).viewers;
   assert.deepEqual([v.style, v.numberColor, v.font, v.anim, v.chartMinutes], ['comic', '#111111', 'Bangers', 'flip', 15]);
   for (const bad of [{ style: 'nope' }, { chartMinutes: 12 }, { anim: 'spin' }, { size: 2 }, { numberColor: 'red' }, { live: true }]) {
     assert.throws(() => settings.update({ viewers: bad }), /bad_request/, JSON.stringify(bad));
   }
-  assert.equal(settings.undo().viewers.style, 'gold', 'Ctrl+Z: the style before');
+  assert.equal(settings.undo().viewers.style, 'chart', 'Ctrl+Z: the style before');
 });
