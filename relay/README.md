@@ -48,7 +48,7 @@ For Jarchi's admin app (also its support tickets). Every request needs `Authoriz
 | `GET /admin/installs` | The installs, newest first, each `{ id, version, installed, open, online, live, kick, twitch, firstSeen, lastSeen, privacy, diag }` (`diag` null: its last ping had none). `?q=` part of a Kick or Twitch channel name, `?limit=` 1-200 (50), `?offset=`. |
 | `GET /admin/downloads` | Download counts from GitHub's public API for `MamadPoker/Jarchi` (v1.0.2 on) and `MamadPoker/Jarchi-releases` (v1.0.2 and before), published releases only, each release with its `repo`. A release's `downloads` and the total count only `Jarchi-Setup.exe` (`latest.yml` and the `.blockmap` are Jarchi's own update check); `files` has every file's count. Kept for 10 minutes; while either repo fails, the last full answer. |
 | `DELETE /admin/installs/<id>` | Deletes that install's row and which team messages it saw / closed (a data-deletion request). A Jarchi still running with that id adds it again with its next ping. Its support tickets stay (delete them below). |
-| `GET /admin/tickets` | Every support ticket, last changed first, each with whose it is (`installId`, `kick`, `twitch`), its message count, `unread` (a message from the streamer not opened yet), `lastAuthor` (`user` / `admin`) and `lastMessageAt`, plus `unread`: how many tickets have one. `?status=open|progress|closed`, `?category=bug|suggestion|question|data`. |
+| `GET /admin/tickets` | Every support ticket, last changed first, each with whose it is (`installId`, `kick`, `twitch`), its message count, `unread` (a message from the streamer not opened yet), `lastAuthor` (`user` / `admin`) and `lastMessageAt`, plus `unread`: how many tickets have one. `?status=open|progress|closed`, `?category=bug|suggestion|question|data|crypto`. |
 | `GET /admin/tickets/<id>` | One ticket with its messages (`author` user / admin, `text`, `images`, `at`); opening it marks them read. Screenshots: `GET /admin/tickets/<id>/images/<name>`. |
 | `POST /admin/tickets/<id>/messages` | A reply: a `multipart/form-data` form with `message` and/or up to 3 `image` files (as below). |
 | `PATCH /admin/tickets/<id>` | `{ "status": "open" | "progress" | "closed" }`. |
@@ -76,8 +76,8 @@ The Support page in Jarchi (`core/support.js`, only once the Privacy Policy is a
 
 | | |
 |---|---|
-| `GET /support/tickets` | My tickets, last changed first, each with `unread` (an admin reply not opened yet). |
-| `POST /support/tickets` | A new ticket: a `multipart/form-data` form with `category` (`bug`, `suggestion`, `question`, `data`), `subject` (up to 120 characters), `message` (up to 5,000) and up to 3 `image` files. |
+| `GET /support/tickets` | My tickets, last changed first, each with `unread` (an admin reply not opened yet), `lastAuthor` (`user` / `admin`) and `lastMessageAt`. |
+| `POST /support/tickets` | A new ticket: a `multipart/form-data` form with `category` (`bug`, `suggestion`, `question`, `data`, `crypto`), `subject` (up to 120 characters), `message` (up to 5,000) and up to 3 `image` files. |
 | `GET /support/tickets/<id>` | One ticket with its messages; opening it marks the admin's replies read. Screenshots: `GET /support/tickets/<id>/images/<name>`. |
 | `POST /support/tickets/<id>/messages` | A message (`message` and/or `image` files). Refused (`closed`) once the ticket is closed. |
 | `PATCH /support/tickets/<id>` | `{ "hidden": true }`: takes a closed ticket off my list (`not_closed` otherwise). Nothing is deleted: the admin still sees it (`hiddenByUser`, `hiddenByUserAt`), and reopening it puts it back on the list. |

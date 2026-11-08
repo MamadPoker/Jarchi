@@ -396,7 +396,8 @@ async function remove(env, id) {
 // that Jarchi for its first ticket and never shown). A ticket is read only with the token it was made with, and an
 // install keeps the token of its first ticket (another one makes no ticket). Only installs that have pinged make
 // tickets, so made-up ids meet the new-install cap first; a ticket keeps the Kick / Twitch channels of that last ping.
-//   GET  /support/tickets                     my tickets, last changed first, each with unread (an admin reply not opened yet)
+//   GET  /support/tickets                     my tickets, last changed first, each with unread (an admin reply not opened
+//                                             yet), lastAuthor (user | admin) and lastMessageAt
 //   POST /support/tickets                     a new one: a form with category, subject, message and up to 3 "image"
 //   GET  /support/tickets/<id>                one, with its messages (opening it marks the admin's replies read)
 //   POST /support/tickets/<id>/messages       a message (form: message and/or images), not on a closed ticket
@@ -410,7 +411,7 @@ async function remove(env, id) {
 // not_closed, ticket_limit, message_limit, storage (KV refused it).
 // ponytail: KV's free plan takes 1,000 writes a day (one per screenshot) and 1 GB in all; past that its puts fail
 // ("storage") until the next day / until old tickets are deleted in the admin app.
-const CATEGORIES = ['bug', 'suggestion', 'question', 'data'], STATUSES = ['open', 'progress', 'closed'];
+const CATEGORIES = ['bug', 'suggestion', 'question', 'data', 'crypto'], STATUSES = ['open', 'progress', 'closed'];
 const TICKETS_MAX = 5, MESSAGES_MAX = 30, HOUR_MS = 60 * 60 * 1000;
 const SUBJECT_MAX = 120, TEXT_MAX = 5000, SHOTS_MAX = 3, SHOT_BYTES = 2 * 1024 * 1024;
 const FORM_BYTES = SHOTS_MAX * SHOT_BYTES + 64 * 1024; // the screenshots, the text and the form's own lines
@@ -452,7 +453,7 @@ async function tickets(req, url, env, me) {
 }
 
 // A ticket as a side sees it (the admin also sees whose it is). A list row also has its messages' count and unread: a
-// message from the other side newer than this side last opened it; the admin's also who wrote the last message and when.
+// message from the other side newer than this side last opened it; and who wrote the last message and when.
 const UNREAD = (side) => `EXISTS (SELECT 1 FROM ticket_messages m WHERE m.ticket_id = t.id AND m.author != '${side}' AND m.created_at > COALESCE(t.${side}_read_at, ''))`;
 const LAST = (column) => `(SELECT m.${column} FROM ticket_messages m WHERE m.ticket_id = t.id ORDER BY m.id DESC LIMIT 1)`;
 const TICKET_LIST = (side) => `SELECT t.*, (SELECT COUNT(*) FROM ticket_messages m WHERE m.ticket_id = t.id) AS messages, ${UNREAD(side)} AS unread,
@@ -460,8 +461,7 @@ const TICKET_LIST = (side) => `SELECT t.*, (SELECT COUNT(*) FROM ticket_messages
 const ticketOf = (r, side) => ({
   id: r.id, category: r.category, subject: r.subject, status: r.status, createdAt: r.created_at, updatedAt: r.updated_at,
   ...(side === 'admin' && { installId: r.install_id, kick: r.kick_name, twitch: r.twitch_name, hiddenByUser: !!r.hidden_by_user_at, hiddenByUserAt: r.hidden_by_user_at }),
-  ...('unread' in r && { messages: r.messages, unread: r.unread === 1 }),
-  ...(side === 'admin' && 'unread' in r && { lastAuthor: r.last_author, lastMessageAt: r.last_message_at }),
+  ...('unread' in r && { messages: r.messages, unread: r.unread === 1, lastAuthor: r.last_author, lastMessageAt: r.last_message_at }),
 });
 
 async function mine(env, me) {

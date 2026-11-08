@@ -58,7 +58,7 @@ CREATE TABLE IF NOT EXISTS tickets (
   token_hash TEXT NOT NULL,    -- SHA-256 of that install's ticket token: only it can read the ticket
   kick_name TEXT,              -- the install's Kick / Twitch channels when it was made (from its last ping), NULL: none
   twitch_name TEXT,
-  category TEXT NOT NULL,      -- bug | suggestion | question | data
+  category TEXT NOT NULL,      -- bug | suggestion | question | data | crypto (a crypto gateway request)
   subject TEXT NOT NULL,
   status TEXT NOT NULL,        -- open | progress | closed
   created_at TEXT NOT NULL,

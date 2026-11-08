@@ -34,6 +34,7 @@
   --danger-text: #fecdd3;
   --ok: #22c55e;
   --teal: #1fa39a; /* Jarchi teal in every color theme (--main changes with them): Privacy's "collected", What's new's improvements */
+  --pink: #ec4899; /* a Bug ticket */
   --info: #60a5fa; /* a team message's info style */
   --gift: #a855f7; /* a team message's gift style, with --gold */
   --on-tint: var(--bg); /* text on --info / --ok / --warn */
@@ -80,6 +81,7 @@
   --danger-text: #9f1d33;
   --ok: #1f7a3d;
   --teal: #127a72;
+  --pink: #be185d;
   --info: #1d4ed8;
   --gift: #7e22ce;
   --on-tint: #fff;
@@ -595,6 +597,7 @@ button.link:hover, button.link:focus-visible { color: var(--gold-text); }
 .nav-item[aria-current="page"] { background: var(--main-soft); color: var(--text); }
 .nav-item svg { width: 18px; height: 18px; }
 .nav-item .q-count { margin-inline-start: auto; background: var(--gold); color: var(--on-gold); }
+.nav-soon { margin-inline-start: auto; padding: 1px 7px; border: 1px solid var(--gold-line); border-radius: 99px; color: var(--gold-text); font-size: 11px; font-weight: 700; } /* a page not built yet */
 [dir="rtl"] .flip { transform: scaleX(-1); } /* list bullets, and the Persian question mark, on the other side */
 
 .page { min-width: 0; }
@@ -979,6 +982,7 @@ main { padding: 24px 28px 64px; container-type: inline-size; } /* editor rules b
 .view.soon { justify-items: center; align-content: center; gap: 8px; min-height: 55vh; text-align: center; }
 .soon svg { width: 40px; height: 40px; margin-bottom: 6px; color: var(--gold); }
 .soon h2 { font-size: 20px; }
+.crypto-request { margin-top: 10px; }
 .about img { width: 160px; height: auto; margin-bottom: 8px; }
 .about p { max-width: 460px; margin: 6px 0; }
 /* What's new: a box per version, newest first */
@@ -1039,8 +1043,26 @@ main { padding: 24px 28px 64px; container-type: inline-size; } /* editor rules b
 .ticket-row .stack { flex: 1; min-width: 0; gap: 0; }
 .ticket-row b { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .ticket-row small { font-weight: 500; }
-.pill.tk-open { border-color: var(--gold-line); color: var(--gold-text); }
-.pill.tk-progress { border-color: var(--warn-line); color: var(--warn); }
+/* A ticket's status, category and who's next as soft tinted badges (Jarchi Admin's colors); Waiting for reply stays plain */
+.tk-tags { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 5px; }
+.tk-tags small { color: var(--muted); }
+.tk-open { --tint: var(--ok); }
+.tk-progress { --tint: var(--warn); }
+.tk-closed { --tint: var(--danger); }
+.tk-answered { --tint: var(--teal); }
+.cat-bug { --tint: var(--pink); }
+.cat-suggestion { --tint: var(--gift); }
+.cat-question { --tint: var(--info); }
+.cat-data { --tint: var(--muted); } /* Data request, and any other */
+.cat-crypto { --tint: var(--gold-text); }
+.pill:is(.tk-open, .tk-progress, .tk-closed, .tk-answered, .tk-cat) { border-color: transparent; background: color-mix(in srgb, var(--tint) 15%, transparent); color: var(--tint); }
+.tk-cat { display: inline-flex; align-items: center; gap: 5px; }
+.tk-cat svg, #ticketCats svg { width: 13px; height: 13px; stroke-width: 2.2; }
+#ticketCats span { display: inline-flex; align-items: center; gap: 6px; }
+#ticketCats svg { color: var(--tint); }
+#ticketCats input:checked + span svg { color: inherit; } /* on the main color: the text's */
+.ticket-sound { flex: none; padding: 8px; color: var(--muted); }
+.ticket-sound[aria-pressed="true"] { color: var(--gold-text); }
 .pill.unread { border-color: transparent; background: var(--gold); color: var(--on-gold); }
 .ticket-error { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 0; color: var(--danger); font-size: 13px; }
 textarea { resize: vertical; line-height: 1.5; }

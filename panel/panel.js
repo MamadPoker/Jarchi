@@ -1207,18 +1207,61 @@ addEventListener('keydown', (e) => {
 // My tickets on Jarchi's relay (/api/support, core/support.js), once the Privacy Policy is accepted: the list (again
 // every 5 minutes and when the page opens; an admin reply not opened yet puts a dot on Support in the sidebar), the New
 // ticket form, or one ticket as a chat with its reply box (none while it's closed). Screenshots are made small here
-// before they go (shrinkShot).
-const support = { tickets: [], error: '', mode: 'list', open: null }; // mode: list | new | ticket; open: the ticket shown, with its messages
+// before they go (shrinkShot). Every 15 seconds while the page is on screen; a new admin reply rings softly (the
+// page's sound switch, remembered in this browser).
+const support = { tickets: [], error: '', mode: 'list', open: null, loaded: false, asked: 0 }; // mode: list | new | ticket; open: the ticket shown, with its messages; asked: when the list was last asked for
 let formShots, replyShots; // the screenshots picked for a new ticket / a reply (wireShots)
 const SHOTS = 3, SHOT_PX = 1920, SHOT_BYTES = 2 * 1024 * 1024, SHOT_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
 const shotUrl = (id, name) => `/api/support/tickets/${id}/images/${name}`;
 const statusPill = (s) => el('span', { className: `pill tk-${s}`, textContent: S.panel.ticketStatus[s] });
 const TRASH = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>';
+// Each category's icon (Data request and any unknown one: the grey bubble), as in Jarchi Admin's colors.
+const CAT_ICON = {
+  bug: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 8a3 3 0 0 1 6 0"/><rect x="7" y="8" width="10" height="12" rx="5"/><path d="M12 12v8M7 12H4M17 12h3M7.5 16.5 5 18M16.5 16.5 19 18M10.3 5.6 9 4M13.7 5.6 15 4"/></svg>',
+  suggestion: POINT_ICON.why, // a light bulb
+  question: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.4a2.5 2.5 0 1 1 3.4 2.4c-.6.3-1 .9-1 1.5v.4M12 17h.01"/></svg>',
+  data: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>',
+  crypto: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M14.8 9.2a2.8 2.8 0 0 0-2.8-1.7c-1.6 0-2.8.9-2.8 2.1 0 2.9 5.6 1.5 5.6 4.5 0 1.2-1.2 2.2-2.8 2.2a2.9 2.9 0 0 1-2.8-1.8M12 6v1.5M12 16.3v1.7"/></svg>',
+};
+// A category's icon and name (cat-<category> gives its color): the list's badge, the New ticket form's choice.
+function catTag(c, cls = '') {
+  const known = CAT_ICON[c] ? c : 'data', s = svgIn(`cat-${known} ${cls}`, CAT_ICON[known]);
+  s.append(S.panel.ticketCats[c] ?? c);
+  return s;
+}
+// Who wrote last (the relay's lastAuthor; an older relay's list: an unread one is the admin's, a lone message mine).
+const lastAuthor = (t) => t.lastAuthor ?? (t.unread ? 'admin' : t.messages === 1 ? 'user' : undefined);
+const replyState = (t) => (t.status === 'closed' || !lastAuthor(t) ? '' : lastAuthor(t) === 'admin'
+  ? el('span', { className: 'pill tk-answered', textContent: S.panel.ticketAnswered }) : el('span', { className: 'pill tk-waiting', textContent: S.panel.ticketWaiting }));
+const SOUND = 'jarchi.ticketSound'; // 'off', or on
+let audio;
+// A new reply: two soft rising notes, made here (no sound file).
+function ding() {
+  if (remember.get(SOUND) === 'off') return;
+  try {
+    audio ??= new AudioContext();
+    audio.resume();
+    const t = audio.currentTime;
+    for (const [hz, at] of [[880, 0], [1320, 0.13]]) {
+      const o = new OscillatorNode(audio, { frequency: hz }), g = new GainNode(audio, { gain: 0.0001 });
+      g.gain.exponentialRampToValueAtTime(0.07, t + at + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + at + 0.4);
+      o.connect(g).connect(audio.destination);
+      o.start(t + at);
+      o.stop(t + at + 0.45);
+    }
+  } catch {}
+}
 
 function loadTickets() {
   if (mustAccept()) return renderSupport();
+  support.asked = Date.now();
   api('GET', '/api/support/tickets').then((list) => {
+    // A new admin reply since the last list (not on the first one): a ticket unread with more messages than before.
+    const before = new Map(support.tickets.map((t) => [t.id, t.messages]));
+    if (support.loaded && list.some((t) => t.unread && t.messages > (before.get(t.id) ?? 0))) ding();
     support.tickets = list;
+    support.loaded = true;
     support.error = '';
     // A reply to the ticket open on the page right now: shown at once.
     if (view === 'support' && support.mode === 'ticket' && list.some((t) => t.unread && t.id === support.open.id)) openTicket(support.open.id);
@@ -1230,8 +1273,9 @@ function renderSupport() {
   $('#supportPrivacy').hidden = ok;
   for (const [sel, mode] of [['#ticketsBox', 'list'], ['#ticketForm', 'new'], ['#ticketView', 'ticket']]) $(sel).hidden = !ok || support.mode !== mode;
   $('#ticketList').replaceChildren(...support.tickets.map((t) => el('li', {}, el('button', { className: 'ticket-row', onclick: () => openTicket(t.id) },
-    el('span', { className: 'stack' }, el('b', { textContent: t.subject, dir: 'auto' }), el('small', { textContent: `${S.panel.ticketCats[t.category]} · ${dateTime(Date.parse(t.updatedAt))}` })),
-    t.unread ? el('span', { className: 'pill unread', textContent: S.panel.ticketUnread }) : '', statusPill(t.status)), t.status === 'closed' ? hideButton(t.id) : '')));
+    el('span', { className: 'stack' }, el('b', { textContent: t.subject, dir: 'auto' }),
+      el('span', { className: 'tk-tags' }, statusPill(t.status), catTag(t.category, 'pill tk-cat'), replyState(t), el('small', { textContent: dateTime(Date.parse(t.updatedAt)) }))),
+    t.unread ? el('span', { className: 'pill unread', textContent: S.panel.ticketUnread }) : ''), t.status === 'closed' ? hideButton(t.id) : '')));
   $('#ticketsEmpty').hidden = support.tickets.length > 0 || !!support.error;
   $('#ticketsError').hidden = !support.error;
   $('#ticketsError span').textContent = support.error;
@@ -1267,7 +1311,7 @@ async function openTicket(id) {
     return toast(err.message, true);
   }
   const t = support.tickets.find((x) => x.id === id);
-  if (t) t.unread = false;
+  if (t) Object.assign(t, { unread: false, lastAuthor: support.open.messages.at(-1)?.author ?? t.lastAuthor });
   showSupport('ticket');
 }
 
@@ -1366,11 +1410,27 @@ async function sendForm(url, form, shots) {
 
 function wireSupport() {
   const form = $('#ticketForm'), reply = $('#replyForm');
-  $('#ticketCats').append(...Object.entries(S.panel.ticketCats).map(([v, name], i) => el('label', {},
-    el('input', { type: 'radio', name: 'category', value: v, defaultChecked: !i }), el('span', { textContent: name }))));
+  $('#ticketCats').append(...Object.keys(S.panel.ticketCats).map((v, i) => el('label', {},
+    el('input', { type: 'radio', name: 'category', value: v, defaultChecked: !i }), catTag(v))));
   const catHint = () => ($('#ticketCatHint').textContent = S.panel.ticketCatHints[form.category.value]);
   $('#ticketCats').onchange = catHint;
   catHint();
+  // Crypto's "Request crypto gateway": a new ticket of that category.
+  $('#cryptoRequest').onclick = () => {
+    form.category.value = 'crypto';
+    catHint();
+    select('support');
+    showSupport('new');
+  };
+  // The sound for a new reply: on unless switched off here.
+  const sound = $('#ticketSound'), drawSound = () => {
+    const on = remember.get(SOUND) !== 'off';
+    sound.setAttribute('aria-pressed', on);
+    sound.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="${on ? 'M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13' : 'M16 9.5l5 5M21 9.5l-5 5'}"/></svg>`;
+  };
+  Object.assign(sound, { title: S.panel.ticketSound, onclick: () => (remember.set(SOUND, remember.get(SOUND) === 'off' ? 'on' : 'off'), drawSound(), ding()) });
+  sound.setAttribute('aria-label', S.panel.ticketSound);
+  drawSound();
   formShots = wireShots($('#ticketShots'), form.message);
   replyShots = wireShots($('#replyShots'), reply.message);
   $('#ticketNew').onclick = () => showSupport('new');
@@ -1400,7 +1460,8 @@ function wireSupport() {
     loadTickets();
   };
   loadTickets();
-  setInterval(loadTickets, 5 * 60 * 1000);
+  // Every 15 seconds while Support is on screen (not in the tray or minimized), else every 5 minutes.
+  setInterval(() => ((view === 'support' && !document.hidden) || Date.now() - support.asked >= 5 * 60e3) && loadTickets(), 15e3);
 }
 
 // ---------- Welcome tour ----------
@@ -2205,7 +2266,7 @@ function followUpdates() {
 const NEWS_ICON = {
   feature: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5c.7 4.3 2.7 6.3 7 7-4.3.7-6.3 2.7-7 7-.7-4.3-2.7-6.3-7-7 4.3-.7 6.3-2.7 7-7z"/><path d="M18.5 2.5v5M16 5h5"/></svg>',
   improve: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.8-3.8a6 6 0 0 1-7.9 7.9l-6.9 6.9a2.1 2.1 0 0 1-3-3l6.9-6.9a6 6 0 0 1 7.9-7.9z"/></svg>',
-  fix: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 8a3 3 0 0 1 6 0"/><rect x="7" y="8" width="10" height="12" rx="5"/><path d="M12 12v8M7 12H4M17 12h3M7.5 16.5 5 18M16.5 16.5 19 18M10.3 5.6 9 4M13.7 5.6 15 4"/></svg>',
+  fix: CAT_ICON.bug,
   security: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l7.5 3v5.5c0 4.6-3.2 8.3-7.5 9.5-4.3-1.2-7.5-4.9-7.5-9.5V6z"/><path d="M8.8 12.2l2.2 2.2 4.2-4.4"/></svg>',
 };
 const newsIcon = (t, P) => (NEWS_ICON[t] ? Object.assign(svgIn(`nt nt-${t}`, NEWS_ICON[t]), { role: 'img', title: P[`news_${t}`], ariaLabel: P[`news_${t}`] }) : el('span', { className: 'nt' }));

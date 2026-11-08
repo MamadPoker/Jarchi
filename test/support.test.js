@@ -63,7 +63,7 @@ test('relay /support and /admin/tickets: tokens, forms, screenshots, unread, sta
   let r = await call(`/support/tickets/${id}/images/${pngName}`);
   assert.deepEqual([r.status, r.headers.get('content-type'), r.headers.get('x-content-type-options')], [200, 'image/png', 'nosniff']);
   assert.deepEqual(Buffer.from(await r.arrayBuffer()), png);
-  assert.deepEqual(await ok(await call('/support/tickets')), [{ id, category: 'bug', subject: 'Alerts stop', status: 'open', createdAt: at, updatedAt: at, messages: 1, unread: false }]);
+  assert.deepEqual(await ok(await call('/support/tickets')), [{ id, category: 'bug', subject: 'Alerts stop', status: 'open', createdAt: at, updatedAt: at, messages: 1, unread: false, lastAuthor: 'user', lastMessageAt: at }]);
   const row = db.prepare('SELECT * FROM tickets').get();
   assert.deepEqual([row.install_id, row.kick_name, row.twitch_name, row.token_hash.length], [install, 'Mamad_Poker', null, 64], 'channels from its ping, the token only hashed');
 
@@ -109,7 +109,7 @@ test('relay /support and /admin/tickets: tokens, forms, screenshots, unread, sta
   const replied = await ok(await admin(`/tickets/${id}/messages`, { method: 'POST', body: form({ message: 'Thanks! Fixed in 1.0.1.' }) }));
   assert.deepEqual(replied.messages.at(-1), { author: 'admin', text: 'Thanks! Fixed in 1.0.1.', images: [], at: '2026-10-23T10:01:00.000Z' });
   assert.deepEqual((await ok(await call('/support/tickets')))[0], { id, category: 'bug', subject: 'Alerts stop', status: 'open', createdAt: at,
-    updatedAt: '2026-10-23T10:01:00.000Z', messages: 2, unread: true });
+    updatedAt: '2026-10-23T10:01:00.000Z', messages: 2, unread: true, lastAuthor: 'admin', lastMessageAt: '2026-10-23T10:01:00.000Z' }, 'answered: the admin wrote last');
   assert.equal((await ok(await call(`/support/tickets/${id}`))).messages.length, 2);
   assert.equal((await ok(await call('/support/tickets')))[0].unread, false, 'opened');
   assert.equal((await ok(await admin('/tickets'))).unread, 0, "the admin's own reply isn't unread for the admin");
@@ -125,6 +125,8 @@ test('relay /support and /admin/tickets: tokens, forms, screenshots, unread, sta
   await refused(await call(`/support/tickets/${id}/messages`, { method: 'POST', body: form({ message: 'x', subject: 'y' }) }), 400, 'bad_request');
   assert.equal((await ok(await admin('/tickets'))).unread, 1);
   assert.deepEqual(await last(), ['user', '2026-10-23T10:02:00.000Z']);
+  const mineNow = (await ok(await call('/support/tickets')))[0];
+  assert.deepEqual([mineNow.lastAuthor, mineNow.lastMessageAt], ['user', '2026-10-23T10:02:00.000Z'], 'waiting for a reply: the install wrote last');
 
   // Status: the admin's only; a closed ticket takes no more messages from the install.
   assert.equal((await ok(await admin(`/tickets/${id}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: '{"status":"progress"}' }))).status, 'progress');
@@ -152,7 +154,7 @@ test('relay /support and /admin/tickets: tokens, forms, screenshots, unread, sta
   assert.deepEqual((await ok(await call('/support/tickets'))).map((x) => [x.id, x.status]), [[id, 'open']]);
 
   // Limits: 5 new tickets an install a day, 30 messages (new tickets' too) an hour.
-  for (let i = 0; i < 4; i++) await ok(await post({ ...bug, category: 'question' }));
+  for (const category of ['question', 'question', 'question', 'crypto']) await ok(await post({ ...bug, category })); // crypto: a crypto gateway request
   await refused(await post(bug), 429, 'ticket_limit');
   t.mock.timers.tick(24 * 3600e3 - 4 * 60e3 - 1); // just before 10:00 the next day, when the first ticket is a day old
   await refused(await post(bug), 429, 'ticket_limit');
@@ -163,7 +165,7 @@ test('relay /support and /admin/tickets: tokens, forms, screenshots, unread, sta
   assert.equal((await ok(await admin(`/tickets/${open.id}/messages`, { method: 'POST', body: form({ message: 'ok' }) }))).messages.length, 31, "the admin's don't count");
   t.mock.timers.tick(3600e3);
   await ok(await call(`/support/tickets/${open.id}/messages`, { method: 'POST', body: form({ message: 'an hour later' }) }));
-  assert.equal((await ok(await admin('/tickets?category=question'))).tickets.length, 4);
+  assert.deepEqual(await Promise.all(['question', 'crypto'].map(async (c) => (await ok(await admin(`/tickets?category=${c}`))).tickets.length)), [3, 1]);
 
   // KV refusing a screenshot (full for today): nothing saved, a clear error.
   const full = { ...env, SHOTS: { ...KV, put: async () => { throw new Error('KV put() limit exceeded for the day.'); } } };
