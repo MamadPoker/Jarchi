@@ -66,15 +66,15 @@
     "menu": "Menu",
     "navHome": "Home",
     "navGoals": "Goals",
-    "navViewers": "Viewers",
+    "navViewers": "Viewer count",
     "viewersHint": "How many people watch your Kick and Twitch streams, for OBS. Updated every 30 seconds.",
-    "viewersPreview": "Viewers preview",
+    "viewersPreview": "Viewer count preview",
     "viewersTest": "Test",
     "viewersLinks": "OBS links",
     "viewersTotal": "Total",
     "viewersTotalHint": "Kick + Twitch",
     "viewersNoAccount": "{platform} isn't connected.",
-    "viewersCopied": "Viewers link copied!",
+    "viewersCopied": "Viewer count link copied!",
     "viewersCopyHint": "Add it in OBS as a Browser Source, for example width 400, height 200. It fills the box: drag and resize it in OBS to place it.",
     "viewersLook": "Look",
     "numberColor": "Number",
@@ -1006,6 +1006,16 @@
           ["Add it to OBS", "Click **Copy OBS link** and add it as a Browser Source, 800 × 200 (Circle style: 400 × 400). The goal fills the box: drag and resize it in OBS."]
         ],
         "tip": "When the target is reached, the bar turns the \"full\" color and celebrates once. The switch in the list only hides the goal on stream; it keeps counting."
+      },
+      "viewers": {
+        "title": "Viewer count",
+        "intro": "How many people watch you right now, on your stream: Kick's count, Twitch's, or both added up (**Total**). Jarchi reads them from the Kick and Twitch accounts connected on **Connections**, about every 30 seconds while you're live.",
+        "steps": [
+          ["Connect your accounts","On **Connections**, connect Kick, Twitch or both. The **Viewer count** page says which one isn't connected yet."],
+          ["Pick a look","Open **Viewer count** and choose a style, then the font, size, colors and how the number changes. Press **Test** to see it change in the preview."],
+          ["Add it to OBS","Under **OBS links**, click **Copy OBS link** for Kick, Twitch or Total and add it as a Browser Source, 400 × 200. It fills the box: drag and resize it in OBS."]
+        ],
+        "tip": "Not live? It shows \"Offline\", or nothing at all with **Hide** under **When not live**. While you're live, the number updates about every 30 seconds."
       },
       "chat": {
         "title": "Chat widget",
