@@ -397,7 +397,8 @@ async function remove(env, id) {
 // install keeps the token of its first ticket (another one makes no ticket). Only installs that have pinged make
 // tickets, so made-up ids meet the new-install cap first; a ticket keeps the Kick / Twitch channels of that last ping.
 //   GET  /support/tickets                     my tickets, last changed first, each with unread (an admin reply not opened
-//                                             yet), lastAuthor (user | admin) and lastMessageAt
+//                                             yet), lastAuthor (user | admin), lastMessageAt and teamSeenAt (when
+//                                             the admin last opened it, null: never; also on the ticket below)
 //   POST /support/tickets                     a new one: a form with category, subject, message and up to 3 "image"
 //   GET  /support/tickets/<id>                one, with its messages (opening it marks the admin's replies read)
 //   POST /support/tickets/<id>/messages       a message (form: message and/or images), not on a closed ticket
@@ -462,6 +463,9 @@ const ticketOf = (r, side) => ({
   id: r.id, category: r.category, subject: r.subject, status: r.status, createdAt: r.created_at, updatedAt: r.updated_at,
   ...(side === 'admin' && { installId: r.install_id, kick: r.kick_name, twitch: r.twitch_name, hiddenByUser: !!r.hidden_by_user_at, hiddenByUserAt: r.hidden_by_user_at }),
   ...('unread' in r && { messages: r.messages, unread: r.unread === 1, lastAuthor: r.last_author, lastMessageAt: r.last_message_at }),
+  // The install's read receipt: when the team last opened it in the admin app (GET /admin/tickets/<id>), null: never.
+  // ponytail: the latest opening, not the first after the install's message; a column of its own if that matters.
+  ...(side === 'user' && { teamSeenAt: r.admin_read_at }),
 });
 
 async function mine(env, me) {

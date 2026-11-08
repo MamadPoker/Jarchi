@@ -53,7 +53,7 @@ test('relay /support and /admin/tickets: tokens, forms, screenshots, unread, sta
   const { id } = made, at = '2026-10-23T10:00:00.000Z';
   assert.match(id, /^[0-9A-F]{8}$/);
   assert.deepEqual({ ...made, messages: made.messages.map((m) => ({ ...m, images: m.images.length })) }, {
-    id, category: 'bug', subject: 'Alerts stop', status: 'open', createdAt: at, updatedAt: at,
+    id, category: 'bug', subject: 'Alerts stop', status: 'open', createdAt: at, updatedAt: at, teamSeenAt: null,
     messages: [{ author: 'user', text: 'Line 1\nLine 2', images: 2, at }],
   });
   const [pngName, webpName] = made.messages[0].images;
@@ -63,7 +63,7 @@ test('relay /support and /admin/tickets: tokens, forms, screenshots, unread, sta
   let r = await call(`/support/tickets/${id}/images/${pngName}`);
   assert.deepEqual([r.status, r.headers.get('content-type'), r.headers.get('x-content-type-options')], [200, 'image/png', 'nosniff']);
   assert.deepEqual(Buffer.from(await r.arrayBuffer()), png);
-  assert.deepEqual(await ok(await call('/support/tickets')), [{ id, category: 'bug', subject: 'Alerts stop', status: 'open', createdAt: at, updatedAt: at, messages: 1, unread: false, lastAuthor: 'user', lastMessageAt: at }]);
+  assert.deepEqual(await ok(await call('/support/tickets')), [{ id, category: 'bug', subject: 'Alerts stop', status: 'open', createdAt: at, updatedAt: at, messages: 1, unread: false, lastAuthor: 'user', lastMessageAt: at, teamSeenAt: null }]);
   const row = db.prepare('SELECT * FROM tickets').get();
   assert.deepEqual([row.install_id, row.kick_name, row.twitch_name, row.token_hash.length], [install, 'Mamad_Poker', null, 64], 'channels from its ping, the token only hashed');
 
@@ -99,8 +99,12 @@ test('relay /support and /admin/tickets: tokens, forms, screenshots, unread, sta
   assert.equal((await ok(await admin('/tickets?category=bug&status=open'))).tickets.length, 1);
   assert.deepEqual(await ok(await admin('/tickets?status=closed')), { unread: 1, tickets: [] }, 'unread counts every ticket');
   for (const q of ['status=nope', 'category=Bug']) await refused(await admin(`/tickets?${q}`), 400, 'bad_request');
+  assert.equal((await ok(await call('/support/tickets')))[0].teamSeenAt, null, "the admin's list isn't seen");
   const seen = await ok(await admin(`/tickets/${id}`));
   assert.deepEqual([seen.installId, seen.messages.length, seen.messages[0].images], [install, 1, [pngName, webpName]]);
+  assert.equal(seen.teamSeenAt, undefined, "the install's receipt only");
+  // Opened in the admin app: the install's read receipt, on its list and its ticket.
+  assert.deepEqual([(await ok(await call('/support/tickets')))[0].teamSeenAt, (await ok(await call(`/support/tickets/${id}`))).teamSeenAt], [at, at]);
   assert.deepEqual(Buffer.from(await (await admin(`/tickets/${id}/images/${webpName}`)).arrayBuffer()), webp);
   assert.equal((await ok(await admin('/tickets'))).unread, 0, 'opened');
 
@@ -109,7 +113,7 @@ test('relay /support and /admin/tickets: tokens, forms, screenshots, unread, sta
   const replied = await ok(await admin(`/tickets/${id}/messages`, { method: 'POST', body: form({ message: 'Thanks! Fixed in 1.0.1.' }) }));
   assert.deepEqual(replied.messages.at(-1), { author: 'admin', text: 'Thanks! Fixed in 1.0.1.', images: [], at: '2026-10-23T10:01:00.000Z' });
   assert.deepEqual((await ok(await call('/support/tickets')))[0], { id, category: 'bug', subject: 'Alerts stop', status: 'open', createdAt: at,
-    updatedAt: '2026-10-23T10:01:00.000Z', messages: 2, unread: true, lastAuthor: 'admin', lastMessageAt: '2026-10-23T10:01:00.000Z' }, 'answered: the admin wrote last');
+    updatedAt: '2026-10-23T10:01:00.000Z', messages: 2, unread: true, lastAuthor: 'admin', lastMessageAt: '2026-10-23T10:01:00.000Z', teamSeenAt: '2026-10-23T10:01:00.000Z' }, 'answered: the admin wrote last (and saw it then)');
   assert.equal((await ok(await call(`/support/tickets/${id}`))).messages.length, 2);
   assert.equal((await ok(await call('/support/tickets')))[0].unread, false, 'opened');
   assert.equal((await ok(await admin('/tickets'))).unread, 0, "the admin's own reply isn't unread for the admin");
@@ -127,6 +131,9 @@ test('relay /support and /admin/tickets: tokens, forms, screenshots, unread, sta
   assert.deepEqual(await last(), ['user', '2026-10-23T10:02:00.000Z']);
   const mineNow = (await ok(await call('/support/tickets')))[0];
   assert.deepEqual([mineNow.lastAuthor, mineNow.lastMessageAt], ['user', '2026-10-23T10:02:00.000Z'], 'waiting for a reply: the install wrote last');
+  assert.equal(mineNow.teamSeenAt, '2026-10-23T10:01:00.000Z', 'sent, not seen yet: opened before that message');
+  await ok(await admin(`/tickets/${id}`));
+  assert.equal((await ok(await call('/support/tickets')))[0].teamSeenAt, '2026-10-23T10:02:00.000Z', 'seen: opened at (or after) it');
 
   // Status: the admin's only; a closed ticket takes no more messages from the install.
   assert.equal((await ok(await admin(`/tickets/${id}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: '{"status":"progress"}' }))).status, 'progress');

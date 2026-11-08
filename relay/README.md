@@ -76,7 +76,7 @@ The Support page in Jarchi (`core/support.js`, only once the Privacy Policy is a
 
 | | |
 |---|---|
-| `GET /support/tickets` | My tickets, last changed first, each with `unread` (an admin reply not opened yet), `lastAuthor` (`user` / `admin`) and `lastMessageAt`. |
+| `GET /support/tickets` | My tickets, last changed first, each with `unread` (an admin reply not opened yet), `lastAuthor` (`user` / `admin`), `lastMessageAt` and `teamSeenAt` (when the team last opened it in the admin app, `GET /admin/tickets/<id>`; `null`: never). |
 | `POST /support/tickets` | A new ticket: a `multipart/form-data` form with `category` (`bug`, `suggestion`, `question`, `data`, `crypto`), `subject` (up to 120 characters), `message` (up to 5,000) and up to 3 `image` files. |
 | `GET /support/tickets/<id>` | One ticket with its messages; opening it marks the admin's replies read. Screenshots: `GET /support/tickets/<id>/images/<name>`. |
 | `POST /support/tickets/<id>/messages` | A message (`message` and/or `image` files). Refused (`closed`) once the ticket is closed. |

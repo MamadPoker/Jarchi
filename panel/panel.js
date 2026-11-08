@@ -1263,8 +1263,13 @@ function loadTickets() {
     support.tickets = list;
     support.loaded = true;
     support.error = '';
-    // A reply to the ticket open on the page right now: shown at once.
-    if (view === 'support' && support.mode === 'ticket' && list.some((t) => t.unread && t.id === support.open.id)) openTicket(support.open.id);
+    // The ticket open on the page right now: a reply shown at once (opening it again); the team seeing it, too.
+    const shown = view === 'support' && support.mode === 'ticket' && list.find((t) => t.id === support.open.id);
+    if (shown?.unread) openTicket(shown.id);
+    else if (shown && shown.teamSeenAt !== support.open.teamSeenAt) {
+      support.open.teamSeenAt = shown.teamSeenAt;
+      renderThread();
+    }
   }, (err) => (support.error = err.message)).finally(renderSupport);
 }
 
@@ -1321,15 +1326,28 @@ function renderThread() {
   $('#ticketSubject').textContent = t.subject;
   $('#ticketMeta').textContent = [S.panel.ticketCats[t.category], ltr(`#${t.id}`), dateTime(Date.parse(t.createdAt))].join(' · ');
   Object.assign($('#ticketStatus'), { className: `pill tk-${t.status}`, textContent: S.panel.ticketStatus[t.status] });
-  box.replaceChildren(...t.messages.map((m) => el('li', { className: `msg ${m.author === 'user' ? 'me' : 'them'}` },
+  const mine = t.messages.findLastIndex((m) => m.author === 'user');
+  box.replaceChildren(...t.messages.flatMap((m, i) => [el('li', { className: `msg ${m.author === 'user' ? 'me' : 'them'}` },
     el('small', { className: 'who', textContent: m.author === 'user' ? S.panel.ticketYou : S.panel.ticketAdmin }),
     m.text ? el('p', { textContent: m.text, dir: 'auto' }) : '',
     m.images.length ? el('span', { className: 'msg-shots' }, ...m.images.map((n) => el('a', { href: shotUrl(t.id, n), target: '_blank', rel: 'noopener' },
       el('img', { src: shotUrl(t.id, n), alt: S.panel.ticketShot })))) : '',
-    el('small', { className: 'when', textContent: dateTime(Date.parse(m.at)) }))));
+    el('small', { className: 'when', textContent: dateTime(Date.parse(m.at)) })), ...(i === mine ? receipt(t, m) : [])]));
   box.scrollTop = box.scrollHeight;
   $$('#replyForm textarea, #replyForm button').forEach((e) => (e.disabled = closed));
   $('#replyClosed').hidden = !closed;
+}
+
+// Under my last message: Seen (two checks, the time on hover) once the team opened the ticket at or after it (the
+// relay's teamSeenAt), else Sent (one check). None from an older relay, which doesn't say.
+const SEEN_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12.5l4.5 4.5L17 6.5M13 15.5l1.5 1.5L22 9.5"/></svg>';
+function receipt(t, m) {
+  if (!('teamSeenAt' in t)) return [];
+  const seen = !!t.teamSeenAt && t.teamSeenAt >= m.at;
+  const li = el('li', { className: `receipt${seen ? ' seen' : ''}`, title: seen ? S.panel.ticketSeenAt.replace('{time}', dateTime(Date.parse(t.teamSeenAt))) : '' });
+  li.innerHTML = seen ? SEEN_ICON : POINT_ICON.collect; // fixed markup: a check
+  li.append(seen ? S.panel.ticketSeen : S.panel.ticketSent);
+  return [li];
 }
 
 // A screenshot as the relay takes it (a PNG, JPG or WebP of at most SHOT_BYTES): one over SHOT_PX on a side, over

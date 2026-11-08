@@ -1072,6 +1072,9 @@ textarea { resize: vertical; line-height: 1.5; }
 .shot-x, .shot-x:hover { position: absolute; top: 4px; inset-inline-end: 4px; width: 22px; height: 22px; justify-content: center; padding: 0; border-color: transparent; border-radius: 50%; background: rgb(0 0 0 / 0.65); color: #fff; }
 .shot-x svg { width: 12px; height: 12px; }
 .shot-add { height: 66px; border-style: dashed; color: var(--muted); font-size: 13px; }
+.receipt { display: inline-flex; justify-self: end; align-items: center; gap: 4px; margin-top: -5px; color: var(--muted); font-size: 11px; font-weight: 600; } /* under my last message: Sent / Seen */
+.receipt svg { width: 15px; height: 15px; stroke-width: 2.2; }
+.receipt.seen { color: var(--teal); cursor: default; }
 .thread { display: grid; gap: 10px; max-height: min(60vh, 560px); margin: 0; padding: 2px; overflow-y: auto; list-style: none; }
 .msg { display: grid; justify-self: start; gap: 4px; max-width: 82%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 14px; border-end-start-radius: 4px; background: var(--card2); }
 .msg.me { justify-self: end; border-color: transparent; border-radius: 14px; border-end-end-radius: 4px; background: var(--main-soft); }
