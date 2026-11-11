@@ -611,6 +611,8 @@
     "moreOptions": "گزینه‌های بیشتر",
     "advanced": "پیشرفته",
     "customCss": "CSS دلخواه",
+    "cssApplyAll": "اعمال روی همهٔ الرت‌ها",
+    "cssApplyAllConfirm": "دوباره بزنید: CSS همهٔ الرت‌ها جایگزین می‌شود",
     "clear": "پاک کردن",
     "alertTabs": "تنظیمات الرت",
     "tabMedia": "مدیا",

@@ -691,6 +691,9 @@ const widgetPages = () => [
   ...Object.keys(settings.goals).map((id) => [id, goalName(id), `${location.origin}/widgets/goal/${id}`]),
   ...VIEWER_SOURCES.map((p) => [`viewers-${p}`, tpl(S.panel.goalOn, { goal: S.panel.navViewers, platform: p === 'total' ? S.panel.viewersTotal : S.platforms[p] }), `${location.origin}/widgets/viewers/${p}`]),
 ];
+// In use (Home's Widgets): on, and a Viewer count link only once it was opened in OBS (seenWidgets, from the server).
+let seenWidgets = [];
+const widgetUsed = (id) => widgetOn(id) && (!id.startsWith('viewers-') || open[id] > 0 || seenWidgets.includes(id));
 const widgetOn = (id) => id === 'alerts' || id.startsWith('viewers-') || (CHAT_KEYS.includes(id) ? settings[id] : settings.goals[id]).enabled;
 const FEED_FILTERS = { all: null, subs: ['sub', 'resub', 'gift_sub'], kicks: ['kicks'], raids: ['raid'], follows: ['follow'] };
 const ofType = (list, f) => list.filter((ev) => !FEED_FILTERS[f] || FEED_FILTERS[f].includes(ev.type));
@@ -779,8 +782,8 @@ function renderHome() {
   $('#feedList').replaceChildren(...rows.map((ev) => feedRow(ev, ago(ev.time))));
   $('#feedEmpty').hidden = rows.length > 0;
 
-  // Widgets: only the ones switched on (alerts always), green when a page of it is open (in OBS) right now.
-  $('#widgetList').replaceChildren(...widgetPages().filter(([id]) => widgetOn(id)).map(([id, name, url]) => el('li', { className: `widget-row${open[id] ? ' on' : ''}` }, el('i', { className: 'state-dot' }),
+  // Widgets: only the ones in use (alerts always), green when a page of it is open (in OBS) right now.
+  $('#widgetList').replaceChildren(...widgetPages().filter(([id]) => widgetUsed(id)).map(([id, name, url]) => el('li', { className: `widget-row${open[id] ? ' on' : ''}` }, el('i', { className: 'state-dot' }),
     el('span', { className: 'stack' }, el('b', { textContent: name }), el('small', { textContent: S.panel[open[id] ? 'widgetOpen' : 'widgetClosed'] })), copyBtn(name, url))));
 
   // Goals: what's set on each channel right now, exactly as Kick / Twitch list it (read-only; whatever the syncs do).
@@ -1912,8 +1915,9 @@ function build() {
     home.kickGoals = list;
     if (view === 'home') renderHome();
   });
-  socket.on('widgets', (o) => {
+  socket.on('widgets', (o, s) => {
     open = o;
+    seenWidgets = s ?? [];
     if (view === 'home') renderHome();
   });
   socket.on('alertQueue', (q) => {
@@ -1978,6 +1982,10 @@ function build() {
   renderStatus();
 
   wireCss($('#alertCss'), () => settings.alerts[cur], (f) => patchAlert(cur, f));
+  twoClick($('#cssAll'), $('#cssAll'), S.panel.cssApplyAll, S.panel.cssApplyAllConfirm, () => {
+    const customCss = $('#alertCss textarea').value; // as typed, even if not saved yet
+    send('PATCH', '/api/settings', { alerts: Object.fromEntries(ALERT_ORDER.map((t) => [t, { customCss }])) }); // one step: Undo brings every alert's back
+  });
   wireCss($('#goalCss'), () => settings.goals[curGoal], (f) => patchGoal(curGoal, f));
   wireCss($('#chatCss'), chatCfg, patchChat);
 
@@ -3041,6 +3049,7 @@ artRun();
     return toast(err.message, true);
   }
   build();
+  if (settings.lang !== S.lang) api('PATCH', '/api/settings', { lang: S.lang }).then((s) => (settings = s), () => {}); // a crypto alert's hidden name, in this language
   // Back from a language switch: open what was open.
   let back;
   try {

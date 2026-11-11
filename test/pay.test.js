@@ -158,8 +158,9 @@ test('crypto alerts: cursor, once each, hidden names and private messages, the l
   const played = [];
   queue.events.on('play', (a) => played.push(a));
   queue.join(() => {}, 'all');
-  queue.push(pay.alertOf({ name: 'Sara', amount: '60.0000', network: 'bep20' }));
-  assert.equal(played[0].ev.look, id);
+  settings.update({ lang: 'fa' }); // the panel's language: a hidden name on stream in it
+  queue.push(pay.alertOf({ name: null, amount: '60.0000', network: 'bep20' }));
+  assert.deepEqual([played[0].ev.look, played[0].ev.user, played[0].ev.anonymous], [id, '', 'ناشناس']);
   assert.ok(played[0].left > 11000 && played[0].left <= 12000);
   queue.skip();
   assert.equal(pay.alertOf({ name: 'Ali', amount: '1.0000' }, true, 'hologram').look, 'hologram'); // a test plays the look it names

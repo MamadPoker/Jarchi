@@ -18,6 +18,8 @@ const store = require('./store');
 const STEPS = { gift_sub: [5, 20], kicks: [100, 1000], bits: [100, 1000] }; // as in widgets/alerts/alerts.js: bigger amounts play longer
 const OUT_MS = 600; // the overlay's exit animation
 const GRACE_MS = 3000; // the last overlay left less than this before the end: a refresh, the alert counts as seen
+// A crypto donor who hid the name, in the panel's language (settings.lang).
+const ANONYMOUS = { en: require('../i18n/en.json').crypto.anonymous, fa: require('../i18n/fa.json').crypto.anonymous };
 const MAX_WAITING = 200, HISTORY = 10, FEED = 1000; // ponytail: feed.json is rewritten whole per event; an append-only log if more than 1000 ever matters
 
 const alerts = new EventEmitter(); // 'play' ({ id, ev, left }), 'skip' (id), 'state' (state())
@@ -90,7 +92,8 @@ function next() {
     lane.busy = true;
     lane.playing = { ...queue.splice(i, 1)[0], started: Date.now() };
     const { ev } = lane.playing;
-    if (ev.type === 'crypto' && !ev.look) lane.playing.ev = { ...ev, look: settings.cryptoPick(Number(ev.amount)) }; // the look it plays with: by the settings now
+    // A crypto alert plays with the look the settings pick now (unless it names one), a hidden name in the panel's language.
+    if (ev.type === 'crypto') lane.playing.ev = { ...ev, look: ev.look ?? settings.cryptoPick(Number(ev.amount)), anonymous: ANONYMOUS[settings.get().lang] };
     lane.playing.ms = onScreenMs(lane.playing.ev);
     alerts.emit('play', current(lane), name);
     lane.timer = setTimeout(() => ended(lane), lane.playing.ms + OUT_MS);

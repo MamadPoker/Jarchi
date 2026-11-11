@@ -4,7 +4,8 @@ const http = require('node:http');
 const { execFile } = require('node:child_process');
 const express = require('express');
 const { Server } = require('socket.io');
-const { HOST, PORT, UPLOADS_DIR } = require('../core/config');
+const { HOST, PORT, UPLOADS_DIR, DATA_DIR } = require('../core/config');
+const store = require('../core/store');
 const { bus, emitEvent, connectedPlatforms, today, TYPES, PLATFORMS } = require('../core/events');
 const settings = require('../core/settings');
 const net = require('../core/net'); // first: every outgoing connection after this goes through the proxy setting
@@ -322,13 +323,17 @@ app.use((err, req, res, next) => {
 
 // Widget pages open right now, in OBS or a browser (the panel's previews don't count): the Home page's green dots.
 const WIDGETS = ['alerts', 'chat', 'chat2', ...settings.GOAL_IDS, 'viewers-kick', 'viewers-twitch', 'viewers-total'];
+// seen: every widget link ever opened, kept (data/widgets.json): Home lists a Viewer count link only once it's in use.
 const open = Object.fromEntries(WIDGETS.map((w) => [w, 0]));
+const SEEN_FILE = path.join(DATA_DIR, 'widgets.json');
+const seen = new Set(store.load(SEEN_FILE).seen ?? []);
 function opened(socket, w) {
   open[w]++;
-  io.emit('widgets', open);
+  if (!seen.has(w)) store.save(SEEN_FILE, { seen: [...seen.add(w)] });
+  io.emit('widgets', open, [...seen]);
   socket.once('disconnect', () => {
     open[w]--;
-    io.emit('widgets', open);
+    io.emit('widgets', open, [...seen]);
   });
 }
 
@@ -339,7 +344,7 @@ io.on('connection', (socket) => {
   socket.emit('chatStatus', chat.status());
   socket.emit('chatHistory', chat.recent());
   socket.emit('alertQueue', alertQueue.state());
-  socket.emit('widgets', open);
+  socket.emit('widgets', open, [...seen]);
   socket.emit('twitchAccount', twitchAccount.status());
   socket.emit('kickAccount', kickAccount.status());
   socket.emit('proxyHelp', vpn.state());

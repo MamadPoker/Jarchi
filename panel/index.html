@@ -150,7 +150,7 @@
           </div>
           <div class="home-side">
             <div class="box">
-              <!-- Only the widgets that are switched on (alerts always); Manage opens the Goals page. -->
+              <!-- Only the widgets in use (widgetUsed: alerts always); Manage opens the Goals page. -->
               <div class="row between">
                 <h2 data-i18n="widgetsTitle"></h2>
                 <button id="widgetsManage" class="link-btn" data-i18n="widgetsManage"></button>
@@ -782,7 +782,7 @@
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
           </summary>
           <div class="css-body">
-            <div class="row between"><span data-i18n="customCss" data-help="alert.customCss"></span><button class="ghost small-btn css-clear" data-i18n="clear"></button></div>
+            <div class="row between"><span data-i18n="customCss" data-help="alert.customCss"></span><span class="row"><button id="cssAll" class="ghost small-btn" data-i18n="cssApplyAll"></button><button class="ghost small-btn css-clear" data-i18n="clear"></button></span></div>
             <textarea rows="6" maxlength="20000" dir="ltr" spellcheck="false" data-aria="customCss"></textarea>
           </div>
         </details>

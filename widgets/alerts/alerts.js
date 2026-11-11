@@ -326,7 +326,7 @@ function text(tpl, v) {
 }
 
 // ---------- Crypto alerts (Jarchi Pay donations; settings.crypto = the Crypto page's Alert settings) ----------
-// ev: { user ('' = anonymous: the donor hid the name), amount (USDT, as paid), network, message (never a private one:
+// ev: { user ('' = anonymous: the donor hid the name; ev.anonymous: that word in the panel's language), amount (USDT, as paid), network, message (never a private one:
 // the server leaves those out), txHash, look }. look: 'coin' | 'hologram' (Jarchi's two designs), 'custom' or an amount
 // alert's id (the streamer's own: an image and the text by it); one that's gone meanwhile: the card picked. Each one
 // opens with Jarchi's signature sound (sounds.js crypto), then the alert's own sound.
@@ -338,7 +338,7 @@ async function showCrypto(ev, { muted, hold, ms, id }) {
   const own = ev.look === 'custom' ? c.custom : c.tiers.find((t) => t.id === ev.look);
   const design = own ? null : ['coin', 'hologram'].includes(ev.look) ? ev.look : c.design === 'custom' ? null : c.design;
   const look = own ?? (design ? null : c.custom);
-  const name = ev.user || S.crypto.anonymous, amount = `${ev.amount} USDT`, net = NETWORK[ev.network] ?? '';
+  const name = ev.user || ev.anonymous || S.crypto.anonymous, amount = `${ev.amount} USDT`, net = NETWORK[ev.network] ?? '';
   const el = design === 'coin' ? coinCard(ev, name, amount, net) : design === 'hologram' ? hologram(ev, name, amount, net) : ownAlert(look, ev, name, amount);
   const scope = h('div', { className: 'crypto-scope' }, el);
   stage.append(scope);

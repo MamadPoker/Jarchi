@@ -611,6 +611,8 @@
     "moreOptions": "More options",
     "advanced": "Advanced",
     "customCss": "Custom CSS",
+    "cssApplyAll": "Apply to all alerts",
+    "cssApplyAllConfirm": "Click again: replaces every alert’s CSS",
     "clear": "Clear",
     "alertTabs": "Alert settings",
     "tabMedia": "Media",
