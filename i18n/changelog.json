@@ -1,5 +1,23 @@
 [
   {
+    "version": "1.0.6",
+    "types": ["feature", "feature", "improve", "improve", "improve"],
+    "en": [
+      "New Crypto page: request your crypto gateway, then see your donations, totals and donation page link (the list also opens in its own window)",
+      "Crypto alerts in OBS: two ready-made designs or your own, alerts for bigger amounts, and Replay",
+      "The Home page now lists only the widgets you use",
+      "Custom CSS: \"Apply to all alerts\" copies one alert's CSS to all of them",
+      "\"What's new\" is bigger and easier to read"
+    ],
+    "fa": [
+      "صفحه‌ی جدید کریپتو: درگاه کریپتو را درخواست کنید و دونیت‌ها، جمع مبلغ‌ها و لینک صفحه‌ی دونیت را ببینید (فهرست دونیت‌ها در پنجره‌ی جدا هم باز می‌شود)",
+      "هشدار دونیت کریپتو در OBS: دو طرح آماده یا هشدار خودتان، هشدار جدا برای مبلغ‌های بزرگ‌تر، و پخش دوباره",
+      "صفحه‌ی خانه حالا فقط ویجت‌هایی را نشان می‌دهد که استفاده می‌کنید",
+      "CSS دلخواه: دکمه‌ی «اعمال روی همه‌ی الرت‌ها» CSS یک الرت را روی همه‌ی الرت‌ها می‌گذارد",
+      "صفحه‌ی «تازه‌ها» بزرگ‌تر و خواناتر شده"
+    ]
+  },
+  {
     "version": "1.0.5",
     "types": ["feature", "feature", "feature", "feature", "feature", "feature", "improve", "fix", "fix", "security"],
     "en": [
