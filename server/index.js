@@ -135,11 +135,12 @@ app.post('/api/net/test', async (req, res) => res.json(await chat.check()));
 app.get('/api/net/proxy', async (req, res) => res.json({ mode: settings.get().proxyMode, proxy: await net.current() }));
 // The user's VPN app (core/vpn.js; its state comes by socket, 'proxyHelp'): look for it now, Yes (-> the settings), No.
 app.post('/api/proxy/look', (req, res) => res.json(vpn.look()));
-app.post('/api/proxy/accept', (req, res) => {
-  const s = vpn.accept();
-  if (!s) return res.status(409).json({ error: 'bad_request' }); // the offer is gone (answered in another window)
-  reconnect();
-  res.json(changed(s));
+// Yes: { settings } once Kick and the relay answer through it (everything reconnects), else { settings: null } and the
+// popup says why ('proxyHelp' failed), or the offer was answered in another window.
+app.post('/api/proxy/accept', async (req, res) => {
+  const s = await vpn.accept();
+  if (s) reconnect();
+  res.json({ settings: s && changed(s) });
 });
 app.post('/api/proxy/dismiss', (req, res) => {
   vpn.dismiss();
@@ -409,15 +410,16 @@ bus.on('chat', (m) => {
 });
 bus.on('chatClear', (c) => io.emit('chatClear', c));
 bus.on('chatAvatar', (a) => io.emit('chatAvatar', a));
-// Kick / Twitch / the relay can't be reached: maybe the user's VPN app can help (core/vpn.js). Connected: all clear.
-// Errors that aren't the network (channel not found, Kick refusing a request) don't count.
-function health(service, up, down) {
-  if (up) vpn.fine(service);
-  else if (down) vpn.trouble(service);
-}
+// Kick / Twitch / the relay out of reach for 30 s: maybe the user's VPN app can help (core/vpn.js). Still connecting
+// counts, and so does Kick refusing this network (blocked) or a proxy that stopped answering; a channel that isn't there
+// or Kick's chat server refusing Jarchi's app key don't.
+const NOT_NETWORK = ['not_found', 'refused'];
 chat.events.on('status', (st) => {
   io.emit('chatStatus', st);
-  for (const p of ['kick', 'twitch']) health(p, st[p].state === 'connected', st[p].state === 'error' && st[p].detail === 'network');
+  for (const p of ['kick', 'twitch']) {
+    const { state, detail } = st[p];
+    vpn.status(p, state === 'connected', state === 'connecting' || (state === 'error' && !NOT_NETWORK.includes(detail)));
+  }
 });
 vpn.events.on('state', (st) => io.emit('proxyHelp', st));
 messages.events.on('change', (list) => io.to('panel').emit('teamMessages', list));
@@ -446,12 +448,12 @@ twitchAccount.events.on('status', (st) => {
   io.emit('twitchAccount', st);
   goals.twitchGoals(st.goals); // "Sync from Twitch"
   accountChanged('twitch', st);
-  health('twitch', st.state === 'connected', st.error === 'network');
+  vpn.status('twitch', st.state === 'connected', st.state === 'connecting');
 });
 kickAccount.events.on('status', (st) => {
   io.emit('kickAccount', st);
   accountChanged('kick', st);
-  health('relay', st.state === 'connected', st.error === 'network'); // the Kick account's live events come through the relay
+  vpn.status('relay', st.state === 'connected', st.state === 'connecting'); // the Kick account's live events come through the relay
 });
 
 server.on('error', (err) => {

@@ -1223,7 +1223,8 @@ textarea { resize: vertical; line-height: 1.5; }
 
 /* ---------- Settings: queue gap; Connections: proxy ---------- */
 input.num { width: 110px; }
-.proxy-steps { display: grid; gap: 8px; margin: 0; padding-inline-start: 22px; line-height: 1.5; }
+.proxy-steps { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; margin: 0; padding-inline-start: 22px; line-height: 1.5; }
+#proxyHelp[open] { grid-template-columns: minmax(0, 1fr); } /* Jarchi's long path ends in "…" instead of widening the popup */
 .proxy-steps:empty, #proxyHelpText:empty { display: none; }
 #proxyHelpText { margin: 0; }
 .proxy-manual { display: grid; grid-template-columns: auto minmax(0, 1fr) 130px; gap: 12px; align-items: end; }
@@ -1597,6 +1598,14 @@ button.crypto-big { padding: 12px 22px; border-radius: 12px; font-size: 15px; bo
 .crypto-pfx input:focus-visible { outline: none; }
 .crypto-pfx:has([aria-invalid="true"]), #cryptoBio[aria-invalid="true"] { border-color: var(--danger); }
 .crypto-save { display: flex; justify-content: flex-end; margin-top: 14px; }
+/* Home: Kick / Twitch out of reach for over a minute, and Fix it (panel.js renderConnWarn) */
+.conn-card { grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 14px; margin-bottom: 16px; border-color: var(--warn-line); background: var(--warn-soft); }
+.conn-card[hidden] { display: none; }
+.conn-card-icon { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 50%; background: color-mix(in srgb, var(--warn, #f59e0b) 18%, transparent); color: var(--warn, #f59e0b); }
+.conn-card-icon svg { width: 22px; height: 22px; }
+.conn-card h2 { margin: 0; font-size: 16px; }
+.conn-card small { color: var(--muted); line-height: 1.7; }
+@media (max-width: 560px) { .conn-card { grid-template-columns: auto minmax(0, 1fr); } .conn-card button { grid-column: 1 / -1; } }
 /* Panel banner maker: the colors, wide or square, the banner itself (a canvas, as wide as there's room for), Download,
    and how to put it on a channel's panels */
 .banner-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 6px 0 12px; }
@@ -1612,9 +1621,9 @@ button.crypto-big { padding: 12px 22px; border-radius: 12px; font-size: 15px; bo
 .banner-how > b { color: var(--gold-text); }
 .banner-how ol { margin: 6px 0 0; padding-inline-start: 20px; }
 .banner-how p { margin: 8px 0 0; color: var(--muted); font-size: 13px; }
-.banner-link { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
-.banner-link code { flex: 1; min-width: 0; overflow: hidden; padding: 5px 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--gold-text); font: 600 13px ui-monospace, Consolas, monospace; text-overflow: ellipsis; white-space: nowrap; }
-.banner-link button { flex: none; padding: 5px 12px; font-size: 12px; }
+.copy-row { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+.copy-row code { flex: 1; min-width: 0; overflow: hidden; padding: 5px 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--gold-text); font: 600 13px ui-monospace, Consolas, monospace; text-overflow: ellipsis; white-space: nowrap; }
+.copy-row button { flex: none; padding: 5px 12px; font-size: 12px; }
 .crypto-fonts span { font-size: 16px; font-weight: 400; }
 .crypto-look-acts { justify-content: space-between; padding-top: 12px; border-top: 1px solid var(--border); }
 #cryptoLookDone { margin-inline-start: auto; }

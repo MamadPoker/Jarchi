@@ -1,11 +1,12 @@
 [
   {
     "version": "1.0.7",
-    "types": ["feature", "feature", "improve", "improve", "fix"],
+    "types": ["feature", "feature", "improve", "improve", "improve", "fix"],
     "en": [
       "New Donation page tab on the Crypto page: your page's banner, picture, text under your name and links, and your wallets",
       "Panel banner maker: a donation banner for your Kick or Twitch channel panels, in 8 colors, wide or square, as a PNG",
       "New sections in the menu are marked NEW until you open them",
+      "Easier VPN connection: when Kick or Jarchi's server can't be reached, Jarchi finds your VPN app by itself and asks to connect through it, even if Jarchi isn't on the VPN's app list",
       "Jarchi checks Jarchi Pay less often, so it uses less of your internet",
       "The donation page link no longer spills out of its card"
     ],
@@ -13,6 +14,7 @@
       "بخش جدید «صفحهٔ دونیت» در صفحهٔ کریپتو: بنر، عکس، متن زیر اسم و لینک‌های صفحه‌تان، و کیف پول‌هایتان",
       "ساخت بنر پنل: بنر دونیت برای پنل‌های کانال Kick یا Twitch، در ۸ رنگ، مستطیل یا مربع، به‌صورت PNG",
       "بخش‌های جدید منو تا وقتی بازشان نکرده‌اید برچسب «جدید» دارند",
+      "اتصال راحت‌تر با VPN: وقتی Kick یا سرور جارچی در دسترس نیست، جارچی خودش برنامهٔ VPN شما را پیدا می‌کند و می‌پرسد که از طریق آن وصل شود، حتی اگر جارچی در فهرست برنامه‌های VPN نباشد",
       "جارچی کمتر به Jarchi Pay سر می‌زند و اینترنت کمتری مصرف می‌کند",
       "لینک صفحهٔ دونیت دیگر از کادرش بیرون نمی‌زند"
     ]

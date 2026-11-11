@@ -113,6 +113,13 @@
     <main>
       <!-- ===== Home: ready to stream?, the last events, widgets open in OBS, goals, today's numbers (renderHome) ===== -->
       <section class="view home" data-view="home" hidden>
+        <!-- Kick / Twitch out of reach for over a minute (renderConnWarn; the top bar's warning instead on other pages):
+             what it means, and Fix it: the VPN popup (#proxyHelp). -->
+        <div id="connCard" class="box conn-card" role="alert" hidden>
+          <span class="conn-card-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2 20h20zM12 10v4M12 17v.5"/></svg></span>
+          <div class="stack"><h2 id="connCardTitle"></h2><small data-i18n="connCardText"></small></div>
+          <button id="connFix" class="primary" data-i18n="connFix"></button>
+        </div>
         <div id="banner" class="banner">
           <span class="banner-icon">
             <svg class="i-ok" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>

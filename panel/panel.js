@@ -363,32 +363,39 @@ function renderStatus() {
 }
 
 // The top bar's warning: a Kick / Twitch connection that should be up (a channel set, an account connected) has been
-// down for over 30 s, counted from when this panel saw it go (or opened). A click opens where it's set up.
-const DOWN_MS = 30000, downSince = {};
+// down for over 30 s, counted from when this panel saw it go (or opened). A click opens where it's set up. On Home,
+// instead, a card once it's over a minute and for a reason a VPN can help with (not a channel that isn't there), with
+// Fix it: the VPN popup (core/vpn.js look).
+const DOWN_MS = 30000, CARD_MS = 60000, downSince = {};
+const NOT_NETWORK = ['not_found', 'refused'];
+const outOfReach = (st) => st.state === 'connecting' || (st.state === 'error' && !NOT_NETWORK.includes(st.detail));
 const secs = new Intl.NumberFormat(FA ? 'fa' : 'en', { style: 'unit', unit: 'second', unitDisplay: 'short' });
 const mins = new Intl.NumberFormat(FA ? 'fa' : 'en', { style: 'unit', unit: 'minute', unitDisplay: 'short' });
 function renderConnWarn() {
-  const now = Date.now(), long = [];
+  const now = Date.now(), long = [], card = [];
   const conns = [
-    ['kickChat', 'kick', 'chat', !['off', 'connected'].includes(chatStatus.kick.state)],
-    ['twitchChat', 'twitch', 'chat', !['off', 'connected'].includes(chatStatus.twitch.state)],
-    ['kickAccount', 'kick', 'connections', kick?.state === 'connecting'],
-    ['twitchAccount', 'twitch', 'connections', twitch?.state === 'connecting'],
+    ['kickChat', 'kick', 'chat', !['off', 'connected'].includes(chatStatus.kick.state), outOfReach(chatStatus.kick)],
+    ['twitchChat', 'twitch', 'chat', !['off', 'connected'].includes(chatStatus.twitch.state), outOfReach(chatStatus.twitch)],
+    ['kickAccount', 'kick', 'connections', kick?.state === 'connecting', kick?.state === 'connecting'],
+    ['twitchAccount', 'twitch', 'connections', twitch?.state === 'connecting', twitch?.state === 'connecting'],
   ];
-  for (const [id, platform, page, down] of conns) {
+  for (const [id, platform, page, down, net] of conns) {
     if (!down) delete downSince[id];
     else if (now - (downSince[id] ??= now) > DOWN_MS) long.push({ platform, page, since: downSince[id] });
+    if (down && net && now - downSince[id] > CARD_MS) card.push({ platform, since: downSince[id] });
   }
+  const said = (list, text) => {
+    const s = Math.floor((now - Math.min(...list.map((c) => c.since))) / 1000);
+    return tpl(text, { platforms: [...new Set(list.map((c) => S.platforms[c.platform]))].join(FA ? '، ' : ', '), time: s < 60 ? secs.format(s) : mins.format(Math.floor(s / 60)) });
+  };
+  $('#connCard').hidden = !card.length;
+  if (card.length) $('#connCardTitle').textContent = said(card, S.panel.connCardTitle);
   const w = $('#connWarn');
-  w.hidden = !long.length || help.state === 'broken'; // the proxy's own warning says why
+  w.hidden = !long.length || help.state === 'broken' || (view === 'home' && card.length > 0); // the proxy's own warning says why; Home's card
   if (w.hidden) return;
-  const s = Math.floor((now - Math.min(...long.map((c) => c.since))) / 1000);
   w.dataset.page = long[0].page;
   w.title = S.panel.connDownHint;
-  $('span', w).textContent = tpl(S.panel.connDown, {
-    platforms: [...new Set(long.map((c) => S.platforms[c.platform]))].join(FA ? '، ' : ', '),
-    time: s < 60 ? secs.format(s) : mins.format(Math.floor(s / 60)),
-  });
+  $('span', w).textContent = said(long, S.panel.connDown);
 }
 
 async function api(method, url, body, headers = {}) {
@@ -576,6 +583,7 @@ function select(v, key) {
     renderGuide();
   }
   $$('main .view').forEach((s) => (s.hidden = !s.dataset.view.split(' ').includes(v)));
+  renderConnWarn(); // Home has its own card instead of the top bar's warning
   const page = v === 'theme' ? 'alert' : v; // the theme page is part of Alerts; What's new has no sidebar item
   $$('.nav-item').forEach((b) => b.setAttribute('aria-current', b.dataset.view === page ? 'page' : 'false'));
   $('#pageTitle').textContent = v === 'news' ? S.panel.updateNotes : $(`.nav-item[data-view="${page}"] [data-i18n]`).textContent;
@@ -1055,8 +1063,10 @@ function renderProxy() {
   $('#proxyState').textContent = { off: S.panel.proxyUntested, connecting: S.panel.netTesting, connected: S.panel.proxyWorks, error: S.panel.proxyFails }[dot];
 }
 
-// core/vpn.js's state: the popup (offer: Yes / No; none: how to type the port in Manual, or, with a system-wide VPN
-// app running, that it may be leaving Jarchi out; looking) and the top bar's warning (broken: a click looks again).
+// core/vpn.js's state: the popup in the middle of the app (looking; offer: "VPN found: <app>. Use it for Jarchi?" Yes /
+// No; checking: Yes is trying Kick and the relay through it; failed: they didn't answer, Try again; none: how to let
+// Jarchi through the VPN app, with Jarchi's own path to copy, Try again and the proxy setting) and the top bar's warning
+// (broken: a click looks again).
 const lookForVpn = () => api('POST', '/api/proxy/look').then((h) => { help = h; renderProxyHelp(); }, (err) => toast(err.message, true));
 function renderProxyHelp() {
   const d = $('#proxyHelp'), h = help, P = S.panel, w = $('#proxyWarn');
@@ -1067,17 +1077,24 @@ function renderProxyHelp() {
   }
   renderConnWarn(); // hidden while this one shows
   renderProxy();
-  if (!['offer', 'none', 'looking'].includes(h.state)) return d.open && d.close();
-  const service = h.service && P.proxyServices[h.service];
-  $('#proxyHelpTitle').textContent = h.state === 'looking' ? P.proxyLookingTitle
-    : service ? tpl(P.proxyCantReach, { service }) : h.state === 'offer' ? P.proxyFoundTitle : P.proxyNoneTitle;
-  const split = h.state === 'none' && h.system; // Split Tunneling: the VPN app's own settings, not Jarchi's proxy
-  $('#proxyHelpText').textContent = { offer: h.found && tpl(P.proxyFoundAsk, { app: proxyName(h.found) }), none: split ? P.proxySplitTunnel : P.proxyNoneText, looking: P.proxyLookingText }[h.state];
-  $('#proxyHelpSteps').replaceChildren(...(h.state === 'none' && !split ? P.proxySteps.map((s) => el('li', { textContent: s })) : []));
+  if (!['offer', 'none', 'looking', 'checking', 'failed'].includes(h.state)) return d.open && d.close();
+  const app = h.found && proxyName(h.found), service = h.service && P.proxyServices[h.service];
+  $('#proxyHelpTitle').textContent = {
+    looking: P.proxyLookingTitle, offer: tpl(P.proxyFoundTitle, { app }), checking: tpl(P.proxyChecking, { app }), failed: tpl(P.proxyFailedTitle, { app }),
+    none: service ? tpl(P.proxyCantReach, { service }) : P.proxyNoneTitle,
+  }[h.state];
+  $('#proxyHelpText').textContent = {
+    looking: P.proxyLookingText, offer: P.proxyFoundAsk, checking: P.proxyCheckingText, failed: P.proxyFailedText,
+    none: `${h.system ? `${tpl(P.proxySplitTunnel, { app: h.system })} ` : ''}${P.proxyNoneText}`,
+  }[h.state];
+  // The guide: Jarchi on the VPN app's own list (its path, to copy), TUN mode, or the proxy typed in.
+  $('#proxyHelpSteps').replaceChildren(...(h.state === 'none' ? P.proxySteps.map((s, i) => el('li', {}, s, i || !h.exe ? '' : el('div', { className: 'copy-row' },
+    el('code', { dir: 'ltr', textContent: h.exe, title: h.exe }), el('button', { className: 'primary', textContent: S.panel.copy, onclick: () => copyLink(h.exe, P.proxyExeCopied) })))) : []));
   $('#proxyHelpNote').hidden = h.state !== 'offer';
+  $('#proxyNo').hidden = h.state === 'checking';
   $('#proxyNo').textContent = h.state === 'offer' ? P.proxyNo : P.updateClose;
-  $('#proxyAgain').hidden = h.state !== 'none';
-  $('#proxyYes').hidden = h.state === 'looking' || split;
+  $('#proxyAgain').hidden = !['none', 'failed'].includes(h.state);
+  $('#proxyYes').hidden = !['offer', 'none'].includes(h.state);
   $('#proxyYes').textContent = h.state === 'offer' ? P.proxyYes : P.proxyOpenSettings;
   if (!d.open) d.showModal();
 }
@@ -1101,12 +1118,15 @@ function wireProxy() {
       select('connections');
       return $('#proxyNow').closest('.box').scrollIntoView({ block: 'center' });
     }
-    api('POST', '/api/proxy/accept').then((s) => { // the server closes the popup ('proxyHelp' idle)
+    // Kick and the relay are tried through it first ('proxyHelp' checking, then idle, or failed with Try again).
+    api('POST', '/api/proxy/accept').then(({ settings: s }) => {
+      if (!s) return;
       settings = s;
       render();
       showProxyNow();
       testNet();
-    }, () => {}); // already answered in another window
+      toast(tpl(S.panel.proxyConnected, { app: proxyName(s.proxyFound) }));
+    }, () => {});
   };
 }
 
@@ -1756,6 +1776,7 @@ function build() {
   setInterval(() => view === 'home' && loadHome(), 30000); // "2 min ago", uptime, and today's numbers from 0 after midnight
 
   $('#connWarn').onclick = (e) => select(e.currentTarget.dataset.page);
+  $('#connFix').onclick = lookForVpn;
   setInterval(renderConnWarn, 5000); // over 30 s now, and the time in it
   // Top bar: Kick / Twitch status opens Connections. Language (also on Appearance).
   $$('.plat').forEach((b) => (b.onclick = () => select('connections')));
@@ -2829,7 +2850,7 @@ function drawBanner() {
   const seq = ++bannerSeq, live = $('#bannerCanvas');
   $('.banner-maker').dataset.shape = bannerShape;
   $$('#bannerColors button').forEach((s, i) => s.setAttribute('aria-checked', String(i === bannerColor)));
-  $('.banner-link code').textContent = pay.page;
+  $('.banner-maker .copy-row code').textContent = pay.page;
   bannerCanvas(2).then((c) => {
     if (seq !== bannerSeq) return; // a newer pick meanwhile
     Object.assign(live, { width: c.width, height: c.height });
@@ -2844,7 +2865,7 @@ function wireBanner() {
   }));
   $$('[name=bannerShape]').forEach((r) => (r.onchange = () => ((bannerShape = r.value), drawBanner())));
   $('#bannerSteps').append(...S.panel.bannerSteps.map((t) => el('li', {}, ...marked(t, 'b'))));
-  $('#bannerSteps li:last-child').append(el('div', { className: 'banner-link' }, el('code', { dir: 'ltr' }),
+  $('#bannerSteps li:last-child').append(el('div', { className: 'copy-row' }, el('code', { dir: 'ltr' }),
     el('button', { className: 'primary', textContent: S.panel.copy, onclick: () => copyLink(pay.page, S.panel.cryptoLinkCopied) })));
   $('#bannerDownload').onclick = () => bannerCanvas(3).then((c) => c.toBlob((blob) => {
     const a = el('a', { href: URL.createObjectURL(blob), download: `jarchi-donate-${bannerShape}.png` });

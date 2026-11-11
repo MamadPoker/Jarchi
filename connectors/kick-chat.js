@@ -38,8 +38,8 @@ const HISTORY_RETRY_MS = 60 * 1000;
 const fill = (tpl, v) => tpl.replace(/\{(\w+)\}/g, (m, k) => v[k] ?? m);
 
 // GET a kick.com API path over HTTP/2 (through the proxy setting) -> { status, json }. With `body`: POST it as JSON.
-async function kickGet(path, { host = 'kick.com', body: payload } = {}) {
-  const sock = await net.secure(host, 443, ['h2']);
+async function kickGet(path, { host = 'kick.com', body: payload, via } = {}) { // via: a proxy to try (core/vpn.js), else the setting's
+  const sock = await net.secure(host, 443, ['h2'], via);
   return new Promise((resolve, reject) => {
     const client = http2.connect(`https://${host}`, { createConnection: () => sock });
     const finish = (fn, v) => { client.close(); fn(v); };
