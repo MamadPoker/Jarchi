@@ -824,3 +824,79 @@ body { font-family: "Segoe UI", system-ui, sans-serif; }
 .alert.nreg .hl[data-k="user"], .kick-alert.nreg [data-k="user"] { font-weight: 400; }
 .alert.flat .w:not([data-k="user"]), .alert.flat .msg, .kick-alert.flat .w:not([data-k="user"]), .kick-alert.flat .msg { text-shadow: none; }
 .alert.nflat .hl[data-k="user"], .kick-alert.nflat [data-k="user"] { text-shadow: none; }
+/* ---------- Crypto alerts (Jarchi Pay): design 1 coin and card, design 2 cipher hologram, the streamer's own ---------- */
+@font-face { font-family: "Bangers"; src: url("/assets/fonts/bangers/Bangers-Regular.ttf") format("truetype"); font-display: swap; }
+.crypto-scope { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; perspective: 1100px; color: #fff; font-family: "Vazirmatn", Tahoma, sans-serif; --g1: #fff2b8; --g2: #e8bd55; --tl: #4fd1bf; }
+.crypto-alert { position: relative; transform-style: preserve-3d; }
+.crypto-alert.out { animation: crypto-out 0.6s ease-in forwards !important; }
+@keyframes crypto-out { to { opacity: 0; transform: scale(0.85) translateY(30px); } }
+@keyframes crypto-up { from { opacity: 0; transform: translateY(12px); } }
+.coin3 { position: relative; width: 100%; height: 100%; transform-style: preserve-3d; }
+.coin3 i { position: absolute; inset: 0; border-radius: 50%; }
+.coin3 .e { background: repeating-conic-gradient(#6b4a08 0 2deg, #e2b746 2deg 4deg); }
+.coin3 .f { background: url("/assets/brand/jarchi-pay-coin.webp") center / cover; backface-visibility: hidden; }
+.crypto-alert .nm { color: #fff; font-size: 32px; font-weight: 800; line-height: 1.3; }
+.crypto-alert .nm span { color: var(--g2); }
+.crypto-alert .am { display: flex; align-items: center; justify-content: flex-end; gap: 10px; margin-top: 4px; direction: ltr; }
+.crypto-alert .am b { font: 900 40px/1 Poppins, Arial, sans-serif; background: linear-gradient(180deg, #fff6cf, #e8bd55 55%, #a87a12); -webkit-background-clip: text; background-clip: text; color: transparent; filter: drop-shadow(0 2px 0 rgba(0, 0, 0, 0.35)); }
+.crypto-alert .am i { padding: 3px 9px; border-radius: 999px; background: var(--tl); color: #0c1514; font-size: 12px; font-style: normal; font-weight: 800; }
+.crypto-alert .cmsg { max-width: 380px; margin-top: 10px; color: #e8f1ef; font-size: 17px; line-height: 1.7; overflow-wrap: anywhere; }
+
+/* Design 1: coin and card */
+.d1 { display: flex; align-items: center; direction: rtl; }
+.d1 .cw { position: relative; z-index: 2; width: 150px; height: 150px; transform-style: preserve-3d; }
+.d1 .coin3 { animation: c1-in 1.2s cubic-bezier(0.2, 1.2, 0.4, 1) both, c1-spin 3s linear 1.2s infinite; }
+@keyframes c1-in { 0% { transform: translateY(-420px) rotateY(0) rotateX(20deg); } 100% { transform: translateY(0) rotateY(1080deg) rotateX(0); } }
+@keyframes c1-spin { 0%, 70% { transform: rotateY(0); } 100% { transform: rotateY(360deg); } }
+.d1 .card { position: relative; overflow: hidden; min-width: 330px; margin-inline-start: -40px; padding: 18px 26px 18px 34px; padding-inline-start: 58px; border: 2px solid rgba(232, 189, 85, 0.7); border-radius: 20px;
+  background: linear-gradient(135deg, rgba(29, 50, 46, 0.96), rgba(14, 24, 23, 0.96)); box-shadow: 0 20px 50px rgba(0, 0, 0, 0.55), 0 0 40px rgba(232, 189, 85, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  transform-origin: right center; animation: c1-card 0.7s cubic-bezier(0.2, 1.3, 0.4, 1) 1.05s both; }
+@keyframes c1-card { from { transform: rotateY(-95deg); opacity: 0; } to { transform: rotateY(0); opacity: 1; } }
+.d1 .sh { position: absolute; inset: 0; background: linear-gradient(110deg, transparent 35%, rgba(255, 240, 190, 0.35) 50%, transparent 65%); transform: translateX(-120%); animation: c1-shine 2.6s ease-in-out 1.7s infinite; }
+@keyframes c1-shine { 0% { transform: translateX(120%); } 60%, 100% { transform: translateX(-120%); } }
+.d1 .nm, .d1 .am, .d1 .cmsg { animation: crypto-up 0.5s ease-out both; }
+.d1 .nm { animation-delay: 1.45s; }
+.d1 .am { animation-delay: 1.6s; }
+.d1 .cmsg { animation-delay: 1.8s; }
+.spark { position: absolute; top: 50%; left: 50%; width: 6px; height: 6px; margin: -3px; border-radius: 50%; background: var(--g1); box-shadow: 0 0 10px var(--g2); pointer-events: none; animation: c1-spark 1.6s ease-out forwards; }
+@keyframes c1-spark { to { transform: translate(var(--x), var(--y)) scale(0); opacity: 0; } }
+
+/* Design 2: cipher hologram */
+.d3 { display: flex; align-items: center; direction: rtl; transform: rotateY(-10deg) rotateX(6deg); }
+.d3 .hc { position: relative; overflow: hidden; min-width: 380px; padding: 20px 28px 20px 30px; padding-inline-start: 78px; border: 1.5px solid rgba(79, 209, 191, 0.75); border-radius: 16px;
+  background: linear-gradient(135deg, rgba(10, 30, 28, 0.92), rgba(6, 16, 15, 0.94)); box-shadow: 0 0 0 1px rgba(79, 209, 191, 0.15), 0 0 40px rgba(79, 209, 191, 0.35), 0 25px 60px rgba(0, 0, 0, 0.6);
+  animation: c2-glitch 0.9s steps(1) both; }
+@keyframes c2-glitch { 0% { opacity: 0; clip-path: inset(0 0 100% 0); } 10% { opacity: 1; clip-path: inset(40% 0 45% 0); transform: translateX(-14px); } 20% { clip-path: inset(10% 0 70% 0); transform: translateX(10px); }
+  30% { clip-path: inset(60% 0 10% 0); transform: translateX(-6px); } 40% { clip-path: inset(0 0 30% 0); transform: none; } 55%, 100% { clip-path: inset(0 0 0 0); } }
+.d3 .hc::before { content: ''; position: absolute; inset: 0; background: repeating-linear-gradient(0deg, rgba(79, 209, 191, 0.07) 0 2px, transparent 2px 4px); pointer-events: none; }
+.d3 .hc::after { content: ''; position: absolute; left: 0; right: 0; top: -40%; height: 40%; background: linear-gradient(180deg, transparent, rgba(79, 209, 191, 0.18), transparent); animation: c2-scan 2.4s linear 0.9s infinite; }
+@keyframes c2-scan { to { top: 110%; } }
+.d3 .crn { position: absolute; width: 14px; height: 14px; border: 2px solid #e8bd55; }
+.d3 .crn.a { top: 6px; right: 6px; border-bottom: 0; border-left: 0; }
+.d3 .crn.b { bottom: 6px; left: 6px; border-top: 0; border-right: 0; }
+.d3 .hx { min-height: 11px; color: var(--tl); font: 700 11px/1 ui-monospace, Consolas, monospace; letter-spacing: 0.12em; text-align: right; direction: ltr; opacity: 0.8; }
+.d3 .nm { margin-top: 6px; font-size: 34px; }
+.d3 .nm span { color: var(--tl); text-shadow: 0 0 18px rgba(79, 209, 191, 0.6); }
+.d3 .am b { font-size: 46px; }
+.d3 .cw { position: relative; z-index: 3; width: 120px; height: 120px; margin-inline-end: -56px; transform-style: preserve-3d; animation: c2-fly 1s cubic-bezier(0.2, 1.3, 0.4, 1) 0.7s both; }
+@keyframes c2-fly { from { transform: translateX(-500px) rotateY(-900deg); opacity: 0; } to { transform: none; opacity: 1; } }
+.d3 .cw .coin3 { animation: c2-flip 2.8s ease-in-out 1.7s infinite; }
+@keyframes c2-flip { 0%, 65% { transform: rotateY(0); } 100% { transform: rotateY(360deg); } }
+.d3 .cw::after { content: ''; position: absolute; inset: -18px; border: 1.5px dashed rgba(79, 209, 191, 0.55); border-radius: 50%; animation: c2-turn 6s linear infinite; }
+@keyframes c2-turn { to { transform: rotate(360deg); } }
+.d3 .glow3 { position: absolute; inset: -40px; z-index: -1; background: radial-gradient(ellipse at 70% 50%, rgba(79, 209, 191, 0.18), transparent 60%); }
+
+/* The streamer's own (Your own alert, amount alerts): their picture with the text above, below or beside it */
+.crypto-alert.own { display: flex; align-items: center; justify-content: center; gap: 12px; animation: own-in 1.2s ease-out both; }
+.own.pos-top { flex-direction: column-reverse; }
+.own.pos-bottom { flex-direction: column; }
+.own.pos-side { flex-direction: row; }
+.own .img { display: grid; place-items: center; width: 240px; height: 240px; }
+.own .img img, .own .img video { max-width: 100%; max-height: 100%; object-fit: contain; }
+.own .tx { max-width: 620px; line-height: 1.25; text-align: center; }
+.own.pos-side .tx { text-align: start; }
+.own .t1 { color: #fff; font-size: 46px; text-shadow: 0 3px 0 rgba(0, 0, 0, 0.5); }
+.own .t1 span { color: var(--g2); }
+.own .t2 { color: #f6dc8e; font-size: 56px; direction: ltr; text-shadow: 0 3px 0 rgba(0, 0, 0, 0.5); }
+.own .t3 { max-width: 460px; margin: 4px auto 0; color: #e7f1ef; font-size: 22px; overflow-wrap: anywhere; }
+@keyframes own-in { 0% { opacity: 0; transform: scale(0.6); } 30% { opacity: 1; transform: scale(1.06); } 45% { transform: scale(1); } }

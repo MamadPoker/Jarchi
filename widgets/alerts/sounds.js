@@ -164,5 +164,39 @@ window.JarchiSounds = (() => {
     return { pause: () => out.disconnect() };
   }
 
-  return { play };
+  // Crypto alerts (Jarchi Pay): every one opens with Jarchi's signature, then at +0.75 s the design's own sound
+  // ('coin' | 'hologram'; null: none, an uploaded file plays then). Their own path, not the themes' soft one: one
+  // compressor straight to the speakers.
+  function beep(out, at, f, len, type, gain, attack = 0.004) {
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = type;
+    o.frequency.setValueAtTime(f, at);
+    g.gain.setValueAtTime(0, at);
+    g.gain.linearRampToValueAtTime(gain, at + attack);
+    g.gain.exponentialRampToValueAtTime(0.0001, at + len);
+    o.connect(g).connect(out);
+    o.start(at);
+    o.stop(at + len + 0.05);
+  }
+  const bell = (out, at, f, gain, len) => [1, 2.76, 5.4].forEach((m, i) => beep(out, at, f * m, len / (i + 1), 'sine', gain / (i + 1.4)));
+  function crypto(design) {
+    if (!ctx) setup();
+    ctx.resume().catch(() => {});
+    const out = ctx.createDynamicsCompressor();
+    out.connect(ctx.destination);
+    const at = ctx.currentTime + 0.05, step = 0.031;
+    // The signature: 22 steps of 31 ms rising by 1.13, every third a fifth up, sawtooth and square in turn (about 0.7 s).
+    for (let i = 0; i < 22; i++) beep(out, at + i * step, 300 * 1.13 ** i * (i % 3 ? 1 : 1.5), step * 1.25, i % 2 ? 'square' : 'sawtooth', 0.085, 0.003);
+    const t = at + 0.75;
+    if (design === 'coin') [1046.5, 1318.5, 1568, 2093].forEach((f, i) => bell(out, t + i * 0.09, f, 0.2, 1.1));
+    if (design === 'hologram') {
+      beep(out, t, 55, 0.9, 'sine', 0.5);
+      beep(out, t, 110, 0.6, 'triangle', 0.2);
+      [523.25, 659.25, 783.99, 1046.5, 1318.5, 1568, 2093].forEach((f, i) => bell(out, t + 0.05 + i * 0.07, f, 0.18, 1.4));
+      [392, 523.25, 659.25].forEach((f) => beep(out, t + 0.6, f, 1.6, 'sawtooth', 0.035));
+    }
+    return { pause: () => out.disconnect() };
+  }
+
+  return { play, crypto };
 })();

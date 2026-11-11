@@ -234,7 +234,7 @@
         </div>
         <div id="cryptoActive" class="crypto-active" hidden>
           <div class="page-head">
-            <div class="crypto-tabs"><span class="on" data-i18n="cryptoTabDonations"></span></div>
+            <div class="crypto-tabs" role="tablist"><button role="tab" data-tab="donations" data-i18n="cryptoTabDonations"></button><button role="tab" data-tab="alerts" data-i18n="cryptoTabAlerts"></button></div>
             <button id="cryptoPop" class="ghost crypto-pop"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M20 4l-8 8M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg><span data-i18n="cryptoPopOut"></span></button>
           </div>
           <p id="cryptoError" class="crypto-warn bad" role="alert" hidden></p>
@@ -250,6 +250,7 @@
             <code id="cryptoChangeTo" dir="ltr"></code>
             <div><button id="cryptoChangeCancel" class="danger" data-i18n="cryptoChangeCancel"></button></div>
           </div>
+          <div id="cryptoDonations" class="crypto-active">
           <div class="crypto-stats">
             <div class="crypto-stat link"><small data-i18n="cryptoLink"></small><div class="row"><code id="cryptoUrl" dir="ltr"></code><button id="cryptoCopy" class="primary" data-i18n="copy"></button></div></div>
             <div class="crypto-stat" data-total="today"><small data-i18n="cryptoToday"></small><b></b><em></em></div>
@@ -258,6 +259,39 @@
           </div>
           <ol id="cryptoList" class="donations"></ol>
           <button id="cryptoMore" class="ghost crypto-more" data-i18n="cryptoMore" hidden></button>
+          </div>
+          <!-- Alert settings (renderCryptoAlerts): the card that plays (Jarchi's two designs, shown live, or the streamer's
+               own: #cryptoLook), the two designs' sound and duration, a test, and the amount alerts. -->
+          <div id="cryptoAlertsTab" class="crypto-alerts" hidden>
+            <div class="crypto-cards" role="radiogroup" data-aria="cryptoTabAlerts">
+              <label class="crypto-card"><span class="crypto-mini"><iframe data-look="coin" tabindex="-1" aria-hidden="true"></iframe></span>
+                <span class="crypto-card-name"><input type="radio" name="cryptoDesign" value="coin"><b data-i18n="cryptoDesignCoin"></b><span class="chk" data-i18n="cryptoChosen"></span></span>
+                <small data-i18n="cryptoDesignCoinHint"></small></label>
+              <label class="crypto-card"><span class="crypto-mini"><iframe data-look="hologram" tabindex="-1" aria-hidden="true"></iframe></span>
+                <span class="crypto-card-name"><input type="radio" name="cryptoDesign" value="hologram"><b data-i18n="cryptoDesignHologram"></b><span class="chk" data-i18n="cryptoChosen"></span></span>
+                <small data-i18n="cryptoDesignHologramHint"></small></label>
+              <label id="cryptoOwnCard" class="crypto-card"><span class="crypto-mini plus"><span aria-hidden="true">＋</span><span data-i18n="cryptoOwn"></span></span>
+                <span class="crypto-card-name"><input type="radio" name="cryptoDesign" value="custom"><b data-i18n="cryptoOwn"></b><span class="chk" data-i18n="cryptoChosen"></span></span>
+                <small data-i18n="cryptoOwnHint"></small></label>
+            </div>
+            <div class="box crypto-sec">
+              <h2 data-i18n="cryptoSoundDisplay"></h2>
+              <div id="cryptoSoundRow" class="file crypto-li" data-only="design">
+                <span class="stack"><span data-i18n="cryptoSound"></span><span class="fname"></span></span>
+                <div class="row"><button class="upload" data-i18n="upload"></button><button class="ghost remove" data-i18n="remove"></button></div>
+                <input type="file" hidden>
+              </div>
+              <label class="crypto-li" data-only="design"><span data-i18n="cryptoDuration"></span><select id="cryptoDur"></select></label>
+              <p class="crypto-li" data-only="own"><small data-i18n="cryptoOwnHere"></small><button id="cryptoOwnEdit" class="ghost" data-i18n="cryptoEdit"></button></p>
+              <div class="crypto-li"><span data-i18n="cryptoTest"></span><button id="cryptoTestBtn" class="primary" data-i18n="testObs"></button></div>
+            </div>
+            <div class="box crypto-sec">
+              <h2><span data-i18n="cryptoTiersTitle"></span> <span class="pill" data-i18n="cryptoOptional"></span></h2>
+              <small data-i18n="cryptoTiersHint"></small>
+              <ul id="cryptoTiers" class="crypto-tiers"></ul>
+              <div><button id="cryptoTierAdd" class="ghost" data-i18n="cryptoTierAdd"></button></div>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -1359,6 +1393,41 @@
       <h2 data-i18n="cryptoSentTitle"></h2>
       <small data-i18n="cryptoSentText"></small>
       <div class="profile-actions"><button id="cryptoOpenAgain" class="ghost" data-i18n="cryptoOpenAgain"></button><button class="primary" data-close data-i18n="updateClose"></button></div>
+    </div>
+  </dialog>
+  <!-- A crypto look's editor (openLook): Your own alert, or one amount alert. A live preview (the real overlay) and every
+       change saved at once, like everywhere in Jarchi. -->
+  <dialog id="cryptoLook" class="profile-dialog crypto-look" aria-labelledby="cryptoLookTitle">
+    <h2 id="cryptoLookTitle"></h2>
+    <div class="crypto-look-body">
+      <div class="crypto-look-view">
+        <div class="crypto-stage"><span class="lbl" data-i18n="cryptoLivePreview"></span><iframe id="cryptoLookPreview" tabindex="-1" aria-hidden="true"></iframe></div>
+        <div class="row"><button id="cryptoLookPlay" class="primary" data-i18n="cryptoPlayPreview"></button><button id="cryptoLookTest" class="ghost" data-i18n="testObs"></button></div>
+      </div>
+      <div class="crypto-ctrl">
+        <label data-only="tier"><span class="crypto-lbl" data-i18n="cryptoMin"></span><span class="row"><input type="number" id="cryptoLookMin" class="num" min="0.01" step="0.01" dir="ltr"><span>USDT</span></span></label>
+        <div class="file" data-kind="image"><span class="crypto-lbl" data-i18n="cryptoImage"></span><span class="fname"></span>
+          <div class="row"><button class="upload" data-i18n="upload"></button><button class="ghost remove" data-i18n="remove"></button></div><input type="file" hidden></div>
+        <div class="file" data-kind="sound"><span class="crypto-lbl" data-i18n="cryptoSound"></span><span class="fname"></span>
+          <div class="row"><button class="upload" data-i18n="upload"></button><button class="ghost remove" data-i18n="remove"></button></div><input type="file" hidden></div>
+        <div><span class="crypto-lbl" data-i18n="cryptoPos"></span>
+          <div class="seg" role="radiogroup" data-aria="cryptoPos">
+            <label><input type="radio" name="cryptoPos" value="top"><span data-i18n="cryptoPosTop"></span></label>
+            <label><input type="radio" name="cryptoPos" value="bottom"><span data-i18n="cryptoPosBottom"></span></label>
+            <label><input type="radio" name="cryptoPos" value="side"><span data-i18n="cryptoPosSide"></span></label>
+          </div></div>
+        <div><span class="crypto-lbl" data-i18n="cryptoFont"></span>
+          <div class="seg crypto-fonts" role="radiogroup" data-aria="cryptoFont">
+            <label><input type="radio" name="cryptoFont" value="Lalezar"><span style="font-family: Lalezar, Vazirmatn" title="Lalezar">جارچی</span></label>
+            <label><input type="radio" name="cryptoFont" value="Vazirmatn"><span style="font-family: Vazirmatn" title="Vazirmatn">جارچی</span></label>
+            <label><input type="radio" name="cryptoFont" value="Bangers"><span style="font-family: Bangers, Impact" title="Bangers">Abc</span></label>
+          </div></div>
+        <label><span class="crypto-lbl" data-i18n="cryptoDuration"></span><select id="cryptoLookDur"></select></label>
+      </div>
+    </div>
+    <div class="profile-actions crypto-look-acts">
+      <button id="cryptoLookDelete" class="danger" data-only="tier" data-i18n="cryptoTierDelete"></button>
+      <button id="cryptoLookDone" class="primary" data-i18n="cryptoDone"></button>
     </div>
   </dialog>
   <dialog id="teamMsg" class="profile-dialog team-msg" aria-labelledby="teamTitle"><div id="teamBody"></div></dialog>

@@ -3,7 +3,7 @@
 //   no token: POST /api/app/request (a one-time /connect link: the streamer opens it in the browser and signs in with
 //   Kick or Twitch there, which says whose channel it is) and POST /api/app/status (none | pending | rejected |
 //   approved; an approved request hands out its token once);
-//   with the token: GET donations, GET wallets, POST wallets/link, POST wallets/cancel.
+//   with the token: GET donations, GET donations/new (the crypto alerts), GET wallets, POST wallets/link, POST wallets/cancel.
 // The token is this install's key to its streamer's donations: sealed in data/pay.json with the installed app's key
 // (core/secrets.js: Electron safeStorage), never written plain and never sent to the panel. A dev run has no key, so it
 // keeps a new token only while it runs. Jarchi Pay learns this install's id, and nothing at all before the Privacy
@@ -12,6 +12,7 @@
 // wallets (a 401 = the token was stopped: deactivated, or a newer one for that channel) -> back to the status.
 const path = require('node:path');
 const { EventEmitter } = require('node:events');
+const { randomUUID } = require('node:crypto');
 const { DATA_DIR } = require('./config');
 const store = require('./store');
 const secrets = require('./secrets');
@@ -25,9 +26,9 @@ const FILE = path.join(DATA_DIR, 'pay.json');
 // Jarchi Pay's errors the panel has words for (i18n errors.crypto_<code>); any other is crypto_failed.
 const ERRORS = ['pending', 'cooldown', 'disabled', 'rate', 'token', 'none'];
 const failed = (status, code) => Object.assign(new Error(code), { status, code: `crypto_${code}` });
-const events = new EventEmitter(); // 'state' -> the panel
+const events = new EventEmitter(); // 'state' -> the panel; 'donation' (an alert's event) -> the alert queue
 
-let saved = store.load(FILE); // { channel, token: sealed }
+let saved = store.load(FILE); // { channel, token: sealed, cursor (the alert queue's, below) }
 let token = (typeof saved.token === 'string' && secrets.open('payToken', saved.token)) || null;
 let state = { state: 'none' };
 
@@ -118,9 +119,48 @@ function donations(q) {
 const walletLink = async () => link(await call('POST', 'wallets/link'));
 const cancelChange = async () => (await call('POST', 'wallets/cancel'), refresh());
 
+// ---------- Crypto alerts: new donations ----------
+// A donation -> its alert's event (core/alerts.js push, widgets/alerts): name ('' = anonymous: the donor hid it), the
+// amount as Jarchi Pay wrote it, network, message (never a private one: it's for the streamer only, never on stream),
+// the transaction, and from = the platform the donor signed in with. test: the Crypto page's tests; look: the one to
+// play (tests), else the settings pick it when it starts.
+const alertOf = (d, test = false, look = undefined) => ({
+  id: `crypto-${randomUUID()}`, type: 'crypto', platform: 'crypto', time: Date.now(), received: Date.now(), test,
+  from: ['kick', 'twitch'].includes(d?.platform) ? d.platform : null,
+  user: typeof d?.name === 'string' ? d.name.slice(0, 64) : '',
+  amount: /^\d{1,9}(\.\d{1,4})?$/.test(d?.amount) ? d.amount : '0',
+  network: d?.network === 'trc20' ? 'trc20' : 'bep20',
+  message: d?.private || typeof d?.message !== 'string' ? '' : d.message.slice(0, 500),
+  txHash: typeof d?.txHash === 'string' && /^\w{1,100}$/.test(d.txHash) ? d.txHash : null,
+  ...(typeof look === 'string' && /^[\w-]{1,16}$/.test(look) && { look }),
+});
+
+// While the gateway is active: every 4 s, the donations paid after the cursor (Jarchi Pay's /donations/new, in the order
+// it found them), each one an alert. The cursor is kept in pay.json, so a restart never plays one again; the first ask
+// (no cursor yet) only takes the cursor, so nothing from before plays. One paid over 10 minutes ago (Jarchi was closed
+// then) is skipped, as Jarchi Pay's own overlay does.
+const NEW_MS = 4000, LATE_MS = 10 * 60 * 1000;
+let polling = false;
+async function pollNew() {
+  if (!token || polling || !stats.accepted()) return;
+  polling = true;
+  try {
+    const r = await call('GET', `donations/new${Number.isInteger(saved.cursor) ? `?since=${saved.cursor}` : ''}`);
+    if (!token || !Number.isInteger(r?.cursor)) return;
+    saved = { ...saved, cursor: r.cursor };
+    store.save(FILE, saved);
+    for (const d of r.donations ?? []) if (Date.now() - d.paidAt < LATE_MS) events.emit('donation', alertOf(d));
+  } catch (err) {
+    if (err.code === 'crypto_token') refresh(); // stopped: the page goes back to not active now
+  } finally {
+    polling = false;
+  }
+}
+
 function start() {
   refresh();
   setInterval(refresh, EVERY_MS).unref();
+  setInterval(pollNew, NEW_MS).unref();
 }
 
-module.exports = { start, refresh, now: () => state, request, donations, walletLink, cancelChange, events, PAY };
+module.exports = { start, refresh, pollNew, alertOf, now: () => state, request, donations, walletLink, cancelChange, events, PAY };

@@ -211,6 +211,27 @@ app.post('/api/crypto/request', async (req, res) => res.json(await pay.request(r
 app.get('/api/crypto/donations', async (req, res) => res.json(await pay.donations(req.query)));
 app.post('/api/crypto/wallets/link', async (req, res) => res.json(await pay.walletLink()));
 app.post('/api/crypto/wallets/cancel', async (req, res) => res.json(await pay.cancelChange()));
+// Crypto alerts: new donations (core/pay.js) play in the same queue as every other alert, on the main OBS link. Test:
+// a sample donation with the look to play ({ look }); Replay: one of the Crypto page's donations as it was paid.
+pay.events.on('donation', alertQueue.push);
+app.post('/api/crypto/test', (req, res) => {
+  alertQueue.push(pay.alertOf({ name: 'Jarchi', amount: '10.0000', network: 'bep20', message: strings.test.message, txHash: `0x${'8f3a'.repeat(15)}c21d` }, true, req.body?.look));
+  res.json(alertQueue.state());
+});
+app.post('/api/crypto/replay', (req, res) => {
+  alertQueue.push(pay.alertOf(req.body));
+  res.json(alertQueue.state());
+});
+// Their settings: the card and the two designs' duration are regular settings (crypto); a look (custom, or an amount
+// alert's id) has its own fields and files; 'main' is the two designs' sound.
+app.post('/api/crypto/tiers', (req, res) => {
+  const { settings: s, id } = settings.addCryptoTier(req.body?.min);
+  res.json({ settings: changed(s), id });
+});
+app.delete('/api/crypto/tiers/:id', (req, res) => res.json(changed(settings.removeCryptoTier(req.params.id))));
+app.patch('/api/crypto/looks/:look', (req, res) => res.json(changed(settings.setCryptoLook(req.params.look, req.body))));
+app.post('/api/crypto/files/:look/:kind', ...upload((p, buf, name) => settings.saveCryptoFile(p.look, p.kind, buf, name)));
+app.delete('/api/crypto/files/:look/:kind', (req, res) => res.json(changed(settings.removeCryptoFile(req.params.look, req.params.kind))));
 
 // Team messages (Home's cards, core/messages.js): a card shown = seen, its ✕ = closed. The list itself goes by socket, to
 // the panel only.

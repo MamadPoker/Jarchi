@@ -51,6 +51,7 @@ function applySettings(s) {
     fit();
   }
   for (const a of Object.values(s.alerts)) for (const f of [a.nameFont, a.textFont]) if (fontOf(f)) document.fonts.load(`16px "${f}"`); // ready before an alert needs it
+  for (const f of s.crypto ? ['Vazirmatn', s.crypto.custom.font, ...s.crypto.tiers.map((t) => t.font)] : []) document.fonts.load(`16px "${f}"`); // and the crypto alerts' fonts
 }
 
 // The alert's Custom CSS while it's on screen (none: no alert).
@@ -167,6 +168,7 @@ function mediaFor(cfg, ev) {
 
 // opts: muted, hold (preview: stay until the next post), ms (on-screen time, from the server), id.
 async function show(ev, { muted = false, hold = false, ms, id } = {}) {
+  if (ev.type === 'crypto') return showCrypto(ev, { muted, hold, ms, id });
   const my = gen;
   const cfg = settings.alerts[ev.type];
   const theme = cfg.theme || settings.theme; // an alert can override the main theme
@@ -320,6 +322,124 @@ function text(tpl, v) {
     }
     else el.append(h('span', { className: 'w', textContent: part, style: `--i:${i++}` }));
   }
+  return el;
+}
+
+// ---------- Crypto alerts (Jarchi Pay donations; settings.crypto = the Crypto page's Alert settings) ----------
+// ev: { user ('' = anonymous: the donor hid the name), amount (USDT, as paid), network, message (never a private one:
+// the server leaves those out), txHash, look }. look: 'coin' | 'hologram' (Jarchi's two designs), 'custom' or an amount
+// alert's id (the streamer's own: an image and the text by it); one that's gone meanwhile: the card picked. Each one
+// opens with Jarchi's signature sound (sounds.js crypto), then the alert's own sound.
+const NETWORK = { bep20: 'BEP20', trc20: 'TRC20' };
+const CRYPTO_FONT = { Lalezar: '"Lalezar", "Vazirmatn", Tahoma, sans-serif', Vazirmatn: '"Vazirmatn", Tahoma, sans-serif', Bangers: '"Bangers", Impact, Arial, sans-serif' };
+
+async function showCrypto(ev, { muted, hold, ms, id }) {
+  const my = gen, c = settings.crypto;
+  const own = ev.look === 'custom' ? c.custom : c.tiers.find((t) => t.id === ev.look);
+  const design = own ? null : ['coin', 'hologram'].includes(ev.look) ? ev.look : c.design === 'custom' ? null : c.design;
+  const look = own ?? (design ? null : c.custom);
+  const name = ev.user || S.crypto.anonymous, amount = `${ev.amount} USDT`, net = NETWORK[ev.network] ?? '';
+  const el = design === 'coin' ? coinCard(ev, name, amount, net) : design === 'hologram' ? hologram(ev, name, amount, net) : ownAlert(look, ev, name, amount);
+  const scope = h('div', { className: 'crypto-scope' }, el);
+  stage.append(scope);
+  fit();
+  // The two designs: their own sound, or the one uploaded for them. The streamer's own: its sound, else the hologram's.
+  const file = design ? c.sound : look.sound;
+  const sound = muted ? null : cryptoSound(file ? null : design ?? 'hologram', file);
+  el.querySelector('video')?.play().catch(() => {});
+  if (hold) return; // a preview: stays until the next one
+
+  await new Promise((done) => {
+    const t = setTimeout(done, ms ?? (look ? look.duration : c.duration) * 1000);
+    onNow = { id, end: () => { clearTimeout(t); done(); } };
+  });
+  if (my !== gen) return;
+  onNow = null;
+  el.classList.add('out');
+  await sleep(600);
+  if (my !== gen) return;
+  sound?.pause();
+  sounds.delete(sound);
+  scope.remove();
+}
+
+// The signature now, then (at +0.75 s) the design's sound or the uploaded file.
+function cryptoSound(design, file) {
+  const synth = JarchiSounds.crypto(design);
+  let audio;
+  const later = file && setTimeout(() => {
+    audio = new Audio('/uploads/' + encodeURIComponent(file.file));
+    audio.volume = 0.7;
+    audio.play().catch(() => {});
+  }, 750);
+  const handle = { pause: () => { clearTimeout(later); audio?.pause(); synth.pause(); } };
+  sounds.add(handle);
+  return handle;
+}
+
+// A 3D coin: Jarchi Pay's face on both sides of a reeded edge (stacked discs).
+function coin3() {
+  const c = h('div', { className: 'coin3' });
+  for (let z = -6; z <= 6; z++) c.append(h('i', { className: 'e', style: `transform:translateZ(${z}px) scale(.985)` }));
+  c.append(h('i', { className: 'f', style: 'transform:translateZ(7px)' }), h('i', { className: 'f', style: 'transform:rotateY(180deg) translateZ(7px)' }));
+  return c;
+}
+
+// Design 1, coin and card: the coin drops in spinning, sparks fly, the card swings open beside it.
+function coinCard(ev, name, amount, net) {
+  const my = gen, cw = h('div', { className: 'cw' }, coin3());
+  const el = h('div', { className: 'crypto-alert d1' }, cw,
+    h('div', { className: 'card' }, h('i', { className: 'sh' }),
+      h('div', { className: 'nm' }, h('span', { textContent: name })),
+      h('div', { className: 'am' }, net ? h('i', { textContent: net }) : '', h('b', { textContent: amount })),
+      ev.message ? h('div', { className: 'cmsg', textContent: ev.message }) : ''));
+  setTimeout(() => {
+    if (my !== gen) return;
+    for (let i = 0; i < 26; i++) {
+      const a = Math.random() * Math.PI * 2, r = 80 + Math.random() * 120;
+      const s = h('i', { className: 'spark', style: `--x:${Math.cos(a) * r}px;--y:${Math.sin(a) * r}px` });
+      cw.append(s);
+      setTimeout(() => s.remove(), 1700);
+    }
+  }, 1150);
+  return el;
+}
+
+// Design 2, cipher hologram: a glitching card, the coin flying in, and the transaction, name and amount decoding.
+function hologram(ev, name, amount, net) {
+  const hx = h('div', { className: 'hx' }), nm = h('span'), am = h('b');
+  const el = h('div', { className: 'crypto-alert d3' }, h('div', { className: 'glow3' }), h('div', { className: 'cw' }, coin3()),
+    h('div', { className: 'hc' }, h('i', { className: 'crn a' }), h('i', { className: 'crn b' }), hx,
+      h('div', { className: 'nm' }, nm),
+      h('div', { className: 'am' }, net ? h('i', { textContent: net }) : '', am),
+      ev.message ? h('div', { className: 'cmsg', textContent: ev.message }) : ''));
+  const tx = ev.txHash ? `${ev.txHash.slice(0, 6)}…${ev.txHash.slice(-4)}` : 'TEST';
+  decode(hx, `TX ${tx} · CONFIRMED`, 500, 700);
+  decode(nm, name, 800, 500);
+  decode(am, amount, 1000, 700);
+  return el;
+}
+// Text that comes out of random signs, letter by letter, after `wait` ms, over `ms`.
+function decode(el, txt, wait, ms) {
+  const signs = '0123456789ABCDEF#@$%&*', letters = [...txt], t0 = performance.now() + wait, my = gen;
+  (function frame(now) {
+    if (my !== gen) return;
+    const k = (now - t0) / ms;
+    el.textContent = k < 0 ? '' : k >= 1 ? txt : letters.map((ch, i) => (ch === ' ' || i / letters.length < k ? ch : signs[(Math.random() * signs.length) | 0])).join('');
+    if (k < 1) requestAnimationFrame(frame);
+  })(performance.now());
+}
+
+// The streamer's own: their image, GIF or video (none: Jarchi Pay's coin) with the name, amount and message above,
+// below or beside it, in their font.
+function ownAlert(look, ev, name, amount) {
+  const f = look.image, src = f && '/uploads/' + encodeURIComponent(f.file);
+  const pic = !f ? h('img', { src: '/assets/brand/jarchi-pay-coin.webp', alt: '' })
+    : isVideo(f.file) ? h('video', { muted: true, loop: true, playsInline: true, src }) : h('img', { src, alt: '' });
+  const el = h('div', { className: `crypto-alert own pos-${look.pos}` }, h('div', { className: 'img' }, pic),
+    h('div', { className: 'tx' }, h('div', { className: 't1' }, h('span', { textContent: name })), h('div', { className: 't2', textContent: amount }),
+      ev.message ? h('div', { className: 't3', textContent: ev.message }) : ''));
+  el.style.fontFamily = CRYPTO_FONT[look.font] ?? CRYPTO_FONT.Lalezar;
   return el;
 }
 

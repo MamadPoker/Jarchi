@@ -597,6 +597,7 @@ const TYPE_ICON = {
   kicks: 'M13 2L4 14h7l-1 8 9-12h-7z',
   bits: 'M12 2l8 5v10l-8 5-8-5V7z',
   raid: 'M17 19v-1a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v1M10 10a3 3 0 1 0 0-6 3 3 0 0 0 0 6M21 19v-1a4 4 0 0 0-3-3.9M16 4.1a3 3 0 0 1 0 5.8',
+  crypto: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18M14.8 9.2a2.8 2.8 0 0 0-2.8-1.7c-1.6 0-2.8.9-2.8 2.1 0 2.9 5.6 1.5 5.6 4.5 0 1.2-1.2 2.2-2.8 2.2a2.9 2.9 0 0 1-2.8-1.8M12 6v1.5M12 16.3v1.7',
 };
 function typeIcon(type) {
   const i = el('span', { className: 'q-icon', title: S.types[type] });
@@ -611,9 +612,10 @@ const platMarks = (type) => el('span', { className: 'plat-marks' }, ...(ALERT_PL
 }));
 // "Rich · Gifted subs · 10": icon, name, type, and the amount (or a resub's months).
 function alertRow(a, action) {
-  const amount = a.type === 'resub' && a.months ? tpl(S.panel.qMonths, { n: fmt(a.months) }) : a.amount ? fmt(a.amount) : '';
+  const amount = a.type === 'crypto' ? `${a.amount} USDT` : a.type === 'resub' && a.months ? tpl(S.panel.qMonths, { n: fmt(a.months) }) : a.amount ? fmt(a.amount) : '';
+  const who = a.user || S.panel.cryptoAnon; // only a crypto donation has none: the donor hid it
   return el('li', { className: 'q-item' }, typeIcon(a.type),
-    el('span', { className: 'q-who' }, el('b', { textContent: a.user, title: a.user, dir: 'auto' }), el('small', { textContent: S.types[a.type] })),
+    el('span', { className: 'q-who' }, el('b', { textContent: who, title: who, dir: 'auto' }), el('small', { textContent: S.types[a.type] })),
     el('span', { className: 'q-amt', textContent: amount }), action ?? '');
 }
 
@@ -2144,6 +2146,7 @@ function render() {
   if (view === 'chat') renderChat();
   if (view === 'home') renderHome();
   if (view === 'events') renderHistory();
+  if (view === 'donations' && cryptoTab === 'alerts') renderCryptoAlerts();
   renderSupport(); // also the sidebar's dot
 }
 
@@ -2424,6 +2427,7 @@ function renderCrypto() {
     $('#cryptoChangeTo').textContent = [['BEP20', w.pending.bep20], ['TRC20', w.pending.trc20]].filter(([, a]) => a).map(([n, a]) => `${n}: ${a}`).join('\n');
   }
   renderDonations();
+  showCryptoTab(cryptoTab);
 }
 
 function renderDonations() {
@@ -2437,7 +2441,8 @@ function renderDonations() {
   $('#cryptoMore').hidden = !donations.next;
 }
 // One donation: who (or Anonymous) with the platform they signed in with, when, how much on which network, the message
-// (a private one: for the streamer only, never read on stream), the transaction, and Replay (once crypto alerts exist).
+// (a private one: for the streamer only, never read on stream), the transaction, and Replay (its alert again, in the
+// queue; the server leaves a private message out).
 function donationRow(d) {
   const [net, explorer] = TX[d.network] ?? [d.network ?? '', null];
   const isNew = Date.now() - d.paidAt < NEW_MS;
@@ -2453,7 +2458,7 @@ function donationRow(d) {
     d.message ? el('div', { className: 'don-msg', dir: 'auto' }, d.private ? el('span', { className: 'don-private', textContent: `🔒 ${S.panel.cryptoPrivate}` }) : '', d.message) : '',
     el('div', { className: 'don-foot' },
       d.txHash && explorer ? el('a', { href: explorer + encodeURIComponent(d.txHash), target: '_blank', rel: 'noopener', title: S.panel.cryptoTx, dir: 'ltr', textContent: `${d.txHash.slice(0, 6)}…${d.txHash.slice(-4)} ↗` }) : el('span'),
-      el('button', { className: 'ghost', textContent: `↻ ${S.panel.cryptoReplay}`, disabled: true })));
+      el('button', { className: 'ghost', textContent: `↻ ${S.panel.cryptoReplay}`, onclick: () => api('POST', '/api/crypto/replay', d).then(() => toast(S.panel.qReplayed), (err) => toast(err.message, true)) })));
 }
 
 // The coin: it turns by itself (not with Reduce animations: then it rests face on), a drag turns it, and a quick drag
@@ -2554,6 +2559,130 @@ function wireCrypto() {
   }, (err) => (toast(err.message, true), loadCrypto()));
   addEventListener('focus', () => view === 'donations' && loadCrypto()); // back from the browser: the request sent, the wallets set
   $('#aboutInstallCopy').onclick = () => copyLink($('#aboutInstall').textContent, S.panel.installIdCopied);
+  wireCryptoAlerts();
+}
+
+// ---------- Crypto alerts (the Crypto page's Alert settings tab) ----------
+// The card that plays (Jarchi's two designs, drawn by the real overlay in each card, or Your own alert), the two
+// designs' sound (theirs or an upload) and duration, a test, and the amount alerts (the highest a donation reaches plays
+// instead). Your own alert and each amount alert are looks, edited in #cryptoLook with a live preview. Every change is
+// saved at once (send()), files like the other alerts' (wireFile).
+const CRYPTO_SECONDS = [6, 8, 10, 15];
+let cryptoTab = remember.get('jarchi.cryptoTab') === 'alerts' ? 'alerts' : 'donations', lookOpen = null; // lookOpen: 'custom' | an amount alert's id
+const cryptoEvent = (look, amount = '25.0000') => ({ type: 'crypto', id: 'preview', user: 'Jarchi', amount, network: 'bep20', message: EN.test.message, txHash: `0x${'8f3a'.repeat(15)}c21d`, look });
+const cryptoTest = (look) => api('POST', '/api/crypto/test', { look }).then(() => toast(S.panel.testSent), (err) => toast(err.message, true));
+const lookOf = (id) => (id === 'custom' ? settings.crypto.custom : settings.crypto.tiers.find((t) => t.id === id));
+const upFile = (f) => `/uploads/${encodeURIComponent(f.file)}`;
+function fileRow(row, f, none) {
+  const name = $('.fname', row);
+  name.textContent = f ? f.name : none;
+  name.classList.toggle('default', !f);
+  $('.remove', row).hidden = !f;
+}
+const seconds = (sel, v) => sel.replaceChildren(...[...new Set([...CRYPTO_SECONDS, v])].sort((a, b) => a - b).map((n) => new Option(fd(tpl(S.panel.seconds, { n })), n, false, n === v)));
+
+function showCryptoTab(tab) {
+  cryptoTab = tab;
+  remember.set('jarchi.cryptoTab', tab);
+  $$('.crypto-tabs button').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.tab === tab)));
+  $('#cryptoDonations').hidden = tab !== 'donations';
+  $('#cryptoPop').hidden = tab !== 'donations';
+  $('#cryptoAlertsTab').hidden = tab !== 'alerts';
+  if (tab !== 'alerts') return;
+  $$('.crypto-mini iframe').forEach((f) => f.src || (f.src = '/widgets/alerts/?preview=tile')); // loaded once: onload draws the design
+  renderCryptoAlerts();
+}
+
+function renderCryptoAlerts() {
+  const c = settings.crypto, own = c.design === 'custom';
+  $$('[name=cryptoDesign]').forEach((r) => (r.checked = r.value === c.design));
+  $$('#cryptoAlertsTab [data-only]').forEach((e) => (e.hidden = (e.dataset.only === 'own') !== own));
+  fileRow($('#cryptoSoundRow'), c.sound, S.panel.cryptoSoundDesign);
+  seconds($('#cryptoDur'), c.duration);
+  $('#cryptoTiers').replaceChildren(...c.tiers.map((t) => el('li', { className: 'crypto-tier' }, lookThumb(t),
+    el('span', { className: 'stack' }, el('b', { textContent: tpl(S.panel.cryptoTierFrom, { amount: t.min }) }), el('small', { textContent: lookSummary(t) })),
+    el('button', { className: 'ghost', textContent: '▶', title: S.panel.testObs, ariaLabel: S.panel.testObs, onclick: () => cryptoTest(t.id) }),
+    el('button', { className: 'ghost', textContent: S.panel.cryptoEdit, onclick: () => openLook(t.id) }))));
+  if (lookOpen) renderLook();
+}
+const lookSummary = (l) => [l.image ? S.panel.cryptoImageYours : S.panel.cryptoImageCoin, l.sound ? S.panel.cryptoSoundYours : S.panel.cryptoSoundDefault,
+  tpl(S.panel.cryptoFontIs, { font: l.font })].join(' · ');
+const lookThumb = (l) => el('span', { className: 'crypto-thumb' }, !l.image ? el('img', { src: '/assets/brand/jarchi-pay-coin.webp', alt: '' })
+  : isVideo(l.image.file) ? el('video', { muted: true, src: upFile(l.image) }) : el('img', { src: upFile(l.image), alt: '' }));
+
+// The editor: a look's fields and files, and its preview (the real overlay, held on screen; Play preview with sound).
+function openLook(id) {
+  lookOpen = id;
+  const d = $('#cryptoLook');
+  if (!d.open) d.showModal();
+  renderLook();
+}
+function renderLook() {
+  const l = lookOf(lookOpen);
+  if (!l) return $('#cryptoLook').close(); // deleted (an undo, another window)
+  const tier = lookOpen !== 'custom';
+  $('#cryptoLookTitle').textContent = tier ? tpl(S.panel.cryptoEditTier, { amount: l.min }) : S.panel.cryptoEditOwn;
+  $$('#cryptoLook [data-only=tier]').forEach((e) => (e.hidden = !tier));
+  if ($('#cryptoLookMin') !== document.activeElement) $('#cryptoLookMin').value = l.min ?? '';
+  fileRow($('#cryptoLook .file[data-kind=image]'), l.image, S.panel.cryptoImageCoin);
+  fileRow($('#cryptoLook .file[data-kind=sound]'), l.sound, S.panel.cryptoSoundDefault);
+  $$('[name=cryptoPos]').forEach((r) => (r.checked = r.value === l.pos));
+  $$('[name=cryptoFont]').forEach((r) => (r.checked = r.value === l.font));
+  seconds($('#cryptoLookDur'), l.duration);
+  playLook(true);
+}
+function playLook(muted) {
+  const f = $('#cryptoLookPreview'), go = () => post(f, settings, cryptoEvent(lookOpen, String(lookOf(lookOpen)?.min ?? '25.0000')), muted, true);
+  if (f.src) go();
+  else {
+    f.onload = go;
+    f.src = '/widgets/alerts/?preview';
+  }
+}
+const patchLook = (fields) => send('PATCH', `/api/crypto/looks/${lookOpen}`, fields);
+
+function wireCryptoAlerts() {
+  $$('.crypto-tabs button').forEach((b) => (b.onclick = () => showCryptoTab(b.dataset.tab)));
+  $$('.crypto-mini iframe').forEach((f) => (f.onload = () => post(f, settings, cryptoEvent(f.dataset.look), true, true)));
+  $$('[name=cryptoDesign]').forEach((r) => (r.onchange = () => send('PATCH', '/api/settings', { crypto: { design: r.value } })));
+  $('#cryptoOwnCard').onclick = () => openLook('custom'); // picking Your own alert opens it, and so does a click once it's picked
+  $('#cryptoOwnEdit').onclick = () => openLook('custom');
+  $('#cryptoDur').onchange = (e) => send('PATCH', '/api/settings', { crypto: { duration: Number(e.target.value) } });
+  $('#cryptoTestBtn').onclick = () => cryptoTest(settings.crypto.design);
+  $('#cryptoTierAdd').onclick = () => api('POST', '/api/crypto/tiers', { min: (settings.crypto.tiers.at(-1)?.min ?? 25) * 2 }).then(({ settings: s, id }) => {
+    settings = s;
+    render();
+    openLook(id);
+  }, (err) => toast(err.message, true));
+  $('#cryptoSoundRow input[type=file]').accept = ACCEPT.sound;
+  wireFile($('#cryptoSoundRow'), () => '/api/crypto/files/main/sound', () => '/api/crypto/files/main/sound');
+
+  const d = $('#cryptoLook');
+  for (const row of $$('.file', d)) {
+    $('input[type=file]', row).accept = ACCEPT[row.dataset.kind];
+    wireFile(row, () => `/api/crypto/files/${lookOpen}/${row.dataset.kind}`, () => `/api/crypto/files/${lookOpen}/${row.dataset.kind}`);
+  }
+  $('#cryptoLookMin').onchange = (e) => {
+    const min = Math.round(Number(e.target.value) * 100) / 100;
+    if (min >= 0.01) patchLook({ min });
+    else renderLook();
+  };
+  $$('[name=cryptoPos]').forEach((r) => (r.onchange = () => patchLook({ pos: r.value })));
+  $$('[name=cryptoFont]').forEach((r) => (r.onchange = () => patchLook({ font: r.value })));
+  $('#cryptoLookDur').onchange = (e) => patchLook({ duration: Number(e.target.value) });
+  $('#cryptoLookPlay').onclick = () => playLook(false);
+  $('#cryptoLookTest').onclick = () => cryptoTest(lookOpen);
+  twoClick($('#cryptoLookDelete'), $('#cryptoLookDelete'), S.panel.cryptoTierDelete, S.panel.confirmResetAll, () => {
+    const id = lookOpen;
+    d.close();
+    send('DELETE', `/api/crypto/tiers/${id}`);
+  });
+  $('#cryptoLookDone').onclick = () => d.close();
+  d.addEventListener('close', () => {
+    lookOpen = null;
+    const f = $('#cryptoLookPreview');
+    if (f.src) f.src = f.src; // a long sound of the last preview stops
+  });
 }
 
 // Settings > Uninstall Jarchi: only in the installed app (electron/main.js says whether its uninstaller is there; not

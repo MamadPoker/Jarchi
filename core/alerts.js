@@ -30,12 +30,13 @@ const savedFeed = store.load(FEED_FILE);
 const feed = (Array.isArray(savedFeed) ? savedFeed : []).filter((e) => TYPES.includes(e?.type) && PLATFORMS.includes(e.platform)).slice(0, FEED);
 // A lane per link. playing: { id, ev, ms, started }; busy: an alert is playing, or it's the gap after one.
 const lanes = Object.fromEntries(['all', ...TYPES].map((l) => [l, { playing: null, busy: false, overlays: 0, goneAt: 0, timer: null }]));
-const laneOf = (ev) => (lanes[ev.type].overlays ? ev.type : 'all');
+const laneOf = (ev) => (lanes[ev.type]?.overlays ? ev.type : 'all'); // crypto: always the main link
 const showing = () => Object.values(lanes).find((l) => l.playing); // the one the panel shows (and skips): the main link's first
 let paused = false;
 
 // How long an alert stays on screen (ms), before its exit animation.
 function onScreenMs(ev) {
+  if (ev.type === 'crypto') return settings.cryptoDuration(ev.look) * 1000;
   const steps = STEPS[ev.type];
   const tier = steps ? 1 + steps.filter((n) => ev.amount >= n).length : 0;
   return (settings.get().alerts[ev.type].duration + (steps ? (tier - 1) * 1.5 : 0)) * 1000;
@@ -62,6 +63,14 @@ const played = ({ id, ev }) => {
   history.length = Math.min(history.length, HISTORY);
 };
 
+// A crypto donation's alert (core/pay.js; the Crypto page's tests and Replay): the same queue, on the main link. It
+// isn't an event of Kick / Twitch: no feed, no goals, no Home numbers.
+function push(ev) {
+  queue.push({ id: ev.id, ev });
+  if (queue.length > MAX_WAITING) queue.shift();
+  next();
+}
+
 bus.on('event', (ev) => {
   feed.unshift(ev);
   feed.length = Math.min(feed.length, FEED);
@@ -80,6 +89,8 @@ function next() {
     if (i < 0) continue;
     lane.busy = true;
     lane.playing = { ...queue.splice(i, 1)[0], started: Date.now() };
+    const { ev } = lane.playing;
+    if (ev.type === 'crypto' && !ev.look) lane.playing.ev = { ...ev, look: settings.cryptoPick(Number(ev.amount)) }; // the look it plays with: by the settings now
     lane.playing.ms = onScreenMs(lane.playing.ev);
     alerts.emit('play', current(lane), name);
     lane.timer = setTimeout(() => ended(lane), lane.playing.ms + OUT_MS);
@@ -166,4 +177,4 @@ function shown(r, transport) {
   return line;
 }
 
-module.exports = { join, leave, skip, clear, remove, replay, pause, shown, state, feed: () => feed, events: alerts };
+module.exports = { join, leave, push, skip, clear, remove, replay, pause, shown, state, feed: () => feed, events: alerts };

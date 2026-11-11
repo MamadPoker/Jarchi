@@ -1443,8 +1443,9 @@ button.crypto-big { padding: 12px 22px; border-radius: 12px; font-size: 15px; bo
 
 .crypto-active { display: grid; gap: 16px; }
 .crypto-tabs { display: flex; gap: 6px; padding: 4px; border: 1px solid var(--border); border-radius: 12px; background: var(--card); }
-.crypto-tabs span { padding: 7px 16px; border-radius: 9px; color: var(--muted); font-size: 14px; }
-.crypto-tabs .on { background: color-mix(in srgb, var(--gold) 16%, transparent); color: var(--gold-text); font-weight: 700; }
+.crypto-tabs button { padding: 7px 16px; border: 0; border-radius: 9px; background: none; color: var(--muted); font-size: 14px; }
+.crypto-tabs button:hover { color: var(--text); }
+.crypto-tabs button[aria-selected="true"] { background: color-mix(in srgb, var(--gold) 16%, transparent); color: var(--gold-text); font-weight: 700; }
 .crypto-pop { margin-inline-start: auto; }
 .crypto-warn { display: grid; justify-items: start; gap: 8px; margin: 0; padding: 10px 12px; border: 1px solid var(--warn-line); border-radius: 10px; background: var(--warn-soft); font-size: 13px; line-height: 1.8; }
 .crypto-warn code { font-size: 12px; white-space: pre-wrap; overflow-wrap: anywhere; }
@@ -1501,3 +1502,48 @@ button.crypto-big { padding: 12px 22px; border-radius: 12px; font-size: 15px; bo
 .crypto-ic.gold { border-color: var(--gold); background: var(--gold-soft); color: var(--gold-text); }
 .install-id { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px; margin-top: 6px; }
 .install-id code { padding: 2px 8px; border: 1px solid var(--border); border-radius: 7px; background: var(--card); color: var(--text); font: 600 12px ui-monospace, Consolas, monospace; user-select: all; }
+
+/* Crypto alerts: the Alert settings tab (the cards show the real overlay) and a look's editor */
+.crypto-alerts { display: grid; gap: 12px; }
+.crypto-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+@container (max-width: 720px) { .crypto-cards { grid-template-columns: 1fr; } }
+.crypto-card { display: grid; gap: 4px; padding: 12px; border: 2px solid var(--border); border-radius: 14px; background: var(--card); cursor: pointer; }
+.crypto-card:hover { border-color: var(--border-hi); }
+.crypto-card:has(input:checked) { border-color: var(--gold); }
+.crypto-card:has(input:focus-visible) { outline: 2px solid var(--focus); outline-offset: 2px; }
+.crypto-mini, .crypto-thumb, .crypto-stage { background: repeating-conic-gradient(var(--checker-a) 0 25%, var(--checker-b) 0 50%) 0 0 / 20px 20px; }
+.crypto-mini { display: grid; place-items: center; height: 120px; overflow: hidden; border-radius: 10px; }
+.crypto-mini iframe { width: 100%; height: 100%; border: 0; pointer-events: none; color-scheme: light; } /* the overlay's scheme, or Chrome paints the iframe opaque white */
+.crypto-mini.plus { align-content: center; gap: 4px; border: 1.5px dashed var(--border-hi); color: var(--teal); font-size: 13px; }
+.crypto-mini.plus span:first-child { font-size: 30px; line-height: 1; }
+.crypto-card-name { display: flex; align-items: center; gap: 8px; margin-top: 6px; font-size: 15px; }
+.crypto-card-name input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.crypto-card .chk { margin-inline-start: auto; padding: 1px 8px; border-radius: 99px; background: var(--gold); color: var(--on-gold); font-size: 11px; font-weight: 800; visibility: hidden; }
+.crypto-card:has(input:checked) .chk { visibility: visible; }
+.crypto-card small { font-size: 12px; }
+.crypto-sec { gap: 0; }
+.crypto-sec > h2, .crypto-sec > small { margin-bottom: 8px; }
+.crypto-li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin: 0; padding: 9px 0; border-top: 1px solid var(--border); font-size: 14px; }
+.crypto-li .fname { display: block; color: var(--muted); font-size: 12px; }
+.crypto-li .link-row { flex-basis: 100%; }
+.crypto-tiers { display: grid; gap: 8px; margin: 4px 0 10px; padding: 0; list-style: none; }
+.crypto-tier { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--card2); font-size: 13px; }
+.crypto-tier .stack { display: grid; flex: 1; min-width: 0; }
+.crypto-tier button { padding: 5px 10px; font-size: 12px; }
+.crypto-thumb { display: grid; place-items: center; width: 64px; height: 40px; flex: none; overflow: hidden; border-radius: 8px; background-size: 10px 10px; }
+.crypto-thumb img, .crypto-thumb video { max-width: 100%; max-height: 100%; object-fit: contain; }
+.crypto-look { width: min(900px, calc(100vw - 32px)); }
+.crypto-look-body { display: grid; grid-template-columns: 1.25fr 1fr; gap: 18px; }
+@media (max-width: 760px) { .crypto-look-body { grid-template-columns: 1fr; } }
+.crypto-look-view { display: grid; align-content: start; gap: 10px; }
+.crypto-stage { position: relative; aspect-ratio: 16 / 9; overflow: hidden; border: 1px solid var(--border); border-radius: 12px; background-size: 24px 24px; }
+.crypto-stage iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; color-scheme: light; }
+.crypto-stage .lbl { position: absolute; top: 8px; inset-inline-start: 10px; z-index: 1; padding: 2px 9px; border-radius: 99px; background: rgb(0 0 0 / 0.45); color: #cfe2e0; font-size: 11px; }
+.crypto-ctrl { display: grid; align-content: start; gap: 12px; }
+.crypto-ctrl > label, .crypto-ctrl > div { display: grid; gap: 6px; }
+.crypto-ctrl .fname { color: var(--muted); font-size: 13px; }
+.crypto-lbl { color: var(--muted); font-size: 13px; }
+.crypto-fonts span { font-size: 16px; font-weight: 400; }
+.crypto-look-acts { justify-content: space-between; padding-top: 12px; border-top: 1px solid var(--border); }
+#cryptoLookDone { margin-inline-start: auto; }
+[data-key="crypto"] { --dot: var(--gold); }

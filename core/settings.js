@@ -339,6 +339,19 @@ const PROFILE_RULES = {
   pictureFrom: oneOf('kick', 'twitch', 'upload'),
 };
 
+// ---------- Crypto alerts (the Crypto page's Alert settings; core/pay.js brings the donations) ----------
+// design: the card that plays ('coin' | 'hologram', Jarchi's two, or 'custom' = Your own alert). sound: an uploaded sound
+// for the two designs instead of their own; duration (s): theirs. custom and each amount alert (tiers: { id, min USDT })
+// = a look: { image, sound, pos (text top / bottom / side of the image), font, duration }. The highest tier a donation
+// reaches plays instead of the card (cryptoPick).
+const CRYPTO_DESIGNS = ['coin', 'hologram', 'custom'];
+const CRYPTO_FONTS = ['Lalezar', 'Vazirmatn', 'Bangers'];
+const CRYPTO_LOOK = { image: null, sound: null, pos: 'bottom', font: 'Lalezar', duration: 8 };
+const CRYPTO_TIERS = 20;
+const cryptoSeconds = num(3, 60);
+const CRYPTO_RULES = { design: oneOf(...CRYPTO_DESIGNS), duration: cryptoSeconds };
+const LOOK_RULES = { pos: oneOf('top', 'bottom', 'side'), font: oneOf(...CRYPTO_FONTS), duration: cryptoSeconds, min: num(0.01, 1e6) };
+
 const ALLOWED = { image: ['png', 'jpg', 'gif', 'webp', 'webm', 'mp4'], sound: ['mp3', 'wav', 'ogg'], picture: ['png', 'jpg', 'webp'] };
 
 const bad = (code = 'bad_request') => Object.assign(new Error(code), { status: 400, code });
@@ -486,7 +499,32 @@ function get() {
     chat2: saved.chat2 ? chat('chat2') : null,
     viewers: viewers(),
     profile: { ...PROFILE, ...saved.profile },
+    crypto: cryptoAlerts(),
   };
+}
+
+// The crypto alerts = their defaults + the user's changes; amount alerts lowest first.
+function cryptoAlerts() {
+  const o = saved.crypto ?? {};
+  return {
+    design: CRYPTO_DESIGNS.includes(o.design) ? o.design : 'hologram',
+    sound: o.sound ?? null,
+    duration: o.duration ?? 8,
+    custom: { ...CRYPTO_LOOK, ...o.custom },
+    tiers: (o.tiers ?? []).map((t) => ({ ...CRYPTO_LOOK, ...t })).sort((a, b) => a.min - b.min),
+  };
+}
+// Which crypto alert plays for a donation of this many USDT: the highest amount alert it reaches, else the card picked
+// ('coin' | 'hologram' | 'custom' | a tier's id).
+function cryptoPick(amount) {
+  const c = cryptoAlerts();
+  return [...c.tiers].reverse().find((t) => t.min <= amount)?.id ?? c.design;
+}
+// How long one look stays on screen (s). A tier that's gone meanwhile: the card's.
+function cryptoDuration(look) {
+  const c = cryptoAlerts();
+  const own = look === 'custom' ? c.custom : c.tiers.find((t) => t.id === look);
+  return own?.duration ?? (c.design === 'custom' && !['coin', 'hologram'].includes(look) ? c.custom.duration : c.duration);
 }
 
 // The viewers widget = its style's look + its defaults + the user's changes. Jarchi gold keeps Jarchi's own colors.
@@ -557,6 +595,11 @@ function update(patch, undoable = true) {
     if (!view || typeof view !== 'object') throw bad();
     for (const [k, v] of Object.entries(view)) if (!VIEWER_RULES[k] || !VIEWER_RULES[k](v)) throw bad();
   }
+  const cryptoPatch = patch.crypto;
+  if (cryptoPatch !== undefined) {
+    if (!cryptoPatch || typeof cryptoPatch !== 'object') throw bad();
+    for (const [k, v] of Object.entries(cryptoPatch)) if (!CRYPTO_RULES[k] || !CRYPTO_RULES[k](v)) throw bad();
+  }
   const profile = patch.profile;
   if (profile !== undefined) {
     if (!profile || typeof profile !== 'object') throw bad();
@@ -565,6 +608,7 @@ function update(patch, undoable = true) {
   if (patch.privacyAccepted > (saved.privacyAccepted ?? 0)) saved.privacyAcceptedAt = new Date().toISOString(); // when (a newer one)
   for (const k in GLOBAL) if (k in patch) saved[k] = patch[k];
   if (profile) Object.assign((saved.profile ??= {}), profile);
+  if (cryptoPatch) Object.assign((saved.crypto ??= {}), cryptoPatch);
   if (view) {
     const o = (saved.viewers ??= {});
     if ('style' in view) for (const k of VIEWER_LOOK) delete o[k]; // a new style starts from its own look
@@ -692,6 +736,53 @@ function removeTierFile(type, amount, kind) {
   return dropUpload(tierOf(type, amount), kind);
 }
 
+// ---------- Crypto alerts: looks and their files ----------
+// look: 'main' (the two designs: only their sound), 'custom' (Your own alert) or an amount alert's id.
+function cryptoSlot(look) {
+  const o = (saved.crypto ??= {});
+  if (look === 'main') return o;
+  if (look === 'custom') return (o.custom ??= {});
+  const t = o.tiers?.find((x) => x.id === look);
+  if (!t) throw bad();
+  return t;
+}
+// fields: pos, font, duration; an amount alert's min (USDT) too.
+function setCryptoLook(look, fields) {
+  const o = cryptoSlot(look);
+  if (look === 'main' || !fields || typeof fields !== 'object') throw bad();
+  for (const [k, v] of Object.entries(fields)) if (!LOOK_RULES[k]?.(v) || (k === 'min' && look === 'custom')) throw bad();
+  Object.assign(o, fields);
+  persist();
+  return get();
+}
+// A new amount alert -> { settings, id }.
+function addCryptoTier(min) {
+  const tiers = ((saved.crypto ??= {}).tiers ??= []);
+  if (!LOOK_RULES.min(min) || tiers.length >= CRYPTO_TIERS) throw bad();
+  const id = crypto.randomUUID().slice(0, 8);
+  tiers.push({ id, min });
+  persist();
+  return { settings: get(), id };
+}
+function removeCryptoTier(id) {
+  const tiers = saved.crypto?.tiers ?? [], i = tiers.findIndex((t) => t.id === id);
+  if (i < 0) throw bad();
+  removeFile(tiers[i].image);
+  removeFile(tiers[i].sound);
+  tiers.splice(i, 1);
+  persist();
+  return get();
+}
+// The two designs take only a sound; the other looks an image (or GIF, or video) and a sound.
+function saveCryptoFile(look, kind, buf, name) {
+  if (!ALLOWED[kind] || kind === 'picture' || (look === 'main' && kind !== 'sound')) throw bad();
+  return keepUpload(cryptoSlot(look), `crypto-${look}-${kind}`, kind, buf, name);
+}
+function removeCryptoFile(look, kind) {
+  if (!ALLOWED[kind]) throw bad();
+  return dropUpload(cryptoSlot(look), kind);
+}
+
 // Back to the selected style's look; title, target, count and celebration settings stay.
 function resetGoalStyle(id) {
   if (!GOAL_IDS.includes(id)) throw bad();
@@ -789,6 +880,8 @@ function reset(type) {
   if (!type) {
     for (const id of GOAL_IDS) removeFile(saved.goals?.[id]?.sound);
     removeFile(saved.profile?.picture);
+    const c = saved.crypto ?? {};
+    [c.sound, c.custom?.image, c.custom?.sound, ...(c.tiers ?? []).flatMap((t) => [t.image, t.sound])].forEach(removeFile);
     saved = { version: VERSION, installId: saved.installId, supportToken: saved.supportToken, obsSize: saved.obsSize, connect: saved.connect }; // still the same install and OBS (none yet: left out)
   }
   persist(!!type); // Reset everything can't be undone
@@ -799,5 +892,6 @@ module.exports = {
   get, update, saveUpload, removeUpload, reset, saveGoalSound, removeGoalSound, saveProfilePicture, resetGoalStyle, resetChatStyle, addChat, removeChat,
   resetAlertText, setTier, saveTierFile, removeTierFile, sniff, installId, privacyAcceptedAt, supportToken, obsSize, setObsSize,
   connectState, setConnectState, undo, redo, canUndo, forget,
+  cryptoPick, cryptoDuration, setCryptoLook, addCryptoTier, removeCryptoTier, saveCryptoFile, removeCryptoFile, CRYPTO_FONTS,
   GOAL_IDS, GOAL_STYLES, CHAT_DESIGNS, CHAT_FONTS, FONTS, KICK_GIFTS, VIEWER_STYLES,
 };
