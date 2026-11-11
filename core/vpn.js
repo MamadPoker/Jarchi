@@ -1,11 +1,11 @@
 // Help for filtered networks, with the user's own VPN app only (Jarchi never ships or picks a public proxy). Many
 // streamers run their VPN app per app (split tunneling) without Jarchi on its list; most such apps still have a local
-// proxy (HTTP or SOCKS5 on 127.0.0.1), and Jarchi can use it without being on that list. In Auto, when Kick, Twitch or
-// Jarchi's relay has been out of reach for WAIT_MS (status(): any network trouble, Kick refusing this network (403), or
+// proxy (HTTP or SOCKS5 on 127.0.0.1), and Jarchi can use it without being on that list. Jarchi never turns a proxy on by
+// itself: it only offers. When Kick, Twitch or Jarchi's relay has been out of reach for WAIT_MS (status(): any network trouble, Kick refusing this network (403), or
 // still connecting), Jarchi checks the service for real (CHECKS) and, if it fails, looks on this PC for those proxies
 // and tests each one by reaching Kick through it. A working one is only offered (the panel's popup: "VPN found: <app>.
-// Use it for Jarchi?"); Yes checks Kick and the relay through it, then saves it as the auto proxy (core/net.js), which
-// carries only Jarchi's own connections. No: never asked by itself again (settings.proxyAsk) until the streamer looks
+// Use it for Jarchi?"); Yes checks Kick and the relay through it, then sets Jarchi's proxy to Manual with it (core/net.js),
+// which carries only Jarchi's own connections. No: never asked by itself again (settings.proxyAsk) until the streamer looks
 // ("Look for VPN apps", Home's "Fix it").
 // A candidate's test sends nothing but a TLS hello for kick.com; Yes's check asks Kick's public API with no login: no
 // logins or tokens ever go to a candidate. Afterwards they go only to Kick, Twitch and the relay, inside TLS, as before.
@@ -126,9 +126,8 @@ async function find(test = false) {
   if (!test) lastLook = !!found;
   return { found, system: systemVpn(tasks) };
 }
-// The usage ping's (core/stats.js): did the last look find a proxy; with none since Jarchi started, true if one was
-// said Yes to before (only a look finds one), else null.
-const looked = () => lastLook ?? (settings.get().proxyFound ? true : null);
+// The usage ping's (core/stats.js): did the last look find a proxy; null: no look since Jarchi started.
+const looked = () => lastLook;
 
 let st = { state: 'idle' }, busy = false, toldNone = false;
 const lastAuto = {}; // service -> when its failure was last checked
@@ -156,17 +155,17 @@ function status(service, up, out) {
   }, WAIT_MS).unref();
 }
 
-// A service out of reach for WAIT_MS. Off: nothing. Manual: if the streamer's proxy is what fails, the small warning.
-// Auto: checked for real first (it gets there after all: not the network); then look, and offer a working VPN proxy (not
-// the one that already fails), or, once per run, say none was found and how to let Jarchi through (else, with a proxy in
-// use, the small warning). Only while the streamer hasn't said No (settings.proxyAsk). test (Settings' dev-only "Test as
+// A service out of reach for WAIT_MS, in any mode: checked for real first (it gets there after all: not the network);
+// then look, and offer a working VPN proxy (not the one that already fails), or, once per run, say none was found and
+// how to let Jarchi through (else, with a proxy in use, the small warning). After a No (settings.proxyAsk false): only
+// that small warning. Nothing changes before a Yes. test (Settings' dev-only "Test as
 // if Kick were blocked"): as if it can't be reached, in any mode, straight to the look and its popup (offer or none,
 // marked test), every time. It leaves nothing behind: no wait before the next real check, the once-per-run "nothing
 // found" still to come, no look for the usage ping, a No to its offer not remembered (dismiss). Its popup's Yes is real.
 async function trouble(service, test = false) {
   const s = settings.get();
   if (!CHECKS[service] || busy || st.state !== 'idle') return;
-  if (!test && (s.proxyMode === 'off' || (s.proxyMode === 'auto' && !s.proxyAsk) || Date.now() - (lastAuto[service] ?? 0) < AUTO_MS)) return;
+  if (!test && Date.now() - (lastAuto[service] ?? 0) < AUTO_MS) return;
   if (!test) lastAuto[service] = Date.now();
   busy = true;
   try {
@@ -176,7 +175,7 @@ async function trouble(service, test = false) {
     }
     if (await ok(service)) return;
     const proxy = await net.current();
-    if (s.proxyMode === 'manual') return proxy && set({ state: 'broken', service, proxy });
+    if (!s.proxyAsk) return proxy && set({ state: 'broken', service, proxy }); // said No: no popups by itself
     const { found, system } = await vpn.find();
     if (found && !(proxy && key(proxy) === key(found))) set({ state: 'offer', service, found });
     else if (!toldNone) {
@@ -203,8 +202,8 @@ function look() {
   return st;
 }
 
-// Yes: Kick and the relay (and the service that failed) are tried through the found proxy; when they answer it becomes
-// the auto proxy. -> the new settings, or null (nothing to say Yes to, or they didn't answer: state failed).
+// Yes: Kick and the relay (and the service that failed) are tried through the found proxy; when they answer, Jarchi's
+// proxy becomes Manual with it. -> the new settings, or null (nothing to say Yes to, or they didn't answer: state failed).
 async function accept() {
   if (st.state !== 'offer') return null;
   const { found, service } = st, via = { type: found.type, host: found.host, port: found.port };
@@ -215,7 +214,7 @@ async function accept() {
     set({ state: 'failed', service, found });
     return null;
   }
-  const s = settings.update({ proxyMode: 'auto', proxyFound: { app: found.app, ...via }, proxyAsk: true }, false); // its own popup: not a Ctrl+Z step
+  const s = settings.update({ proxyMode: 'manual', proxyType: via.type, proxyHost: via.host, proxyPort: via.port, proxyAsk: true }, false); // its own popup: not a Ctrl+Z step
   fine();
   set({ state: 'idle' }); // the popup closes
   return s;

@@ -1013,9 +1013,9 @@ function testTier(amount) {
 let netState = 'off', help = { state: 'idle' };
 const proxyLabel = (p) => ltr(`${p.host}:${p.port} (${p.type === 'socks5' ? 'SOCKS5' : 'HTTP'})`);
 const proxyName = (p) => p.app ?? tpl(S.panel.proxyAt, { proxy: proxyLabel(p) }); // the VPN app, or its address
-function showProxyNow() { // Auto: what it uses right now
-  api('GET', '/api/net/proxy').then(({ proxy }) => {
-    $('#proxyNow').textContent = !proxy ? S.net.autoNone : tpl(proxy.app ? S.net.autoUsing : S.net.autoWindows, { app: proxy.app, proxy: proxyLabel(proxy) });
+function showProxyNow() { // what Off means; the Windows proxy: what it is right now (Manual: its fields say it)
+  api('GET', '/api/net/proxy').then(({ mode, proxy }) => {
+    $('#proxyNow').textContent = mode === 'off' ? S.net.offNow : mode === 'manual' ? '' : proxy ? tpl(S.net.autoWindows, { proxy: proxyLabel(proxy) }) : S.net.autoNone;
   }, () => {});
 }
 function renderNet({ proxy, results }) {
@@ -1118,14 +1118,16 @@ function wireProxy() {
       select('connections');
       return $('#proxyNow').closest('.box').scrollIntoView({ block: 'center' });
     }
-    // Kick and the relay are tried through it first ('proxyHelp' checking, then idle, or failed with Try again).
+    // Kick and the relay are tried through it first ('proxyHelp' checking, then idle, or failed with Try again); then
+    // Jarchi's proxy is Manual with it.
+    const app = proxyName(help.found);
     api('POST', '/api/proxy/accept').then(({ settings: s }) => {
       if (!s) return;
       settings = s;
       render();
       showProxyNow();
       testNet();
-      toast(tpl(S.panel.proxyConnected, { app: proxyName(s.proxyFound) }));
+      toast(tpl(S.panel.proxyConnected, { app }));
     }, () => {});
   };
 }
@@ -1776,7 +1778,7 @@ function build() {
   setInterval(() => view === 'home' && loadHome(), 30000); // "2 min ago", uptime, and today's numbers from 0 after midnight
 
   $('#connWarn').onclick = (e) => select(e.currentTarget.dataset.page);
-  $('#connFix').onclick = lookForVpn;
+  $('#connFix').onclick = $('#kcFix button').onclick = $('#twFix button').onclick = lookForVpn;
   setInterval(renderConnWarn, 5000); // over 30 s now, and the time in it
   // Top bar: Kick / Twitch status opens Connections. Language (also on Appearance).
   $$('.plat').forEach((b) => (b.onclick = () => select('connections')));
@@ -2288,6 +2290,13 @@ function renderAlert() {
   });
 }
 
+// A card's "why it can't connect" (the account's why) with Fix it (the VPN help): only for network trouble or Kick refusing
+// this network, not a refused login or an ended one.
+function renderAccFix(box, a) {
+  const show = !!a.why && ['network', 'blocked'].includes(a.error);
+  box.hidden = !show;
+  if (show) $('code', box).textContent = a.why;
+}
 // The Connections page's Twitch card.
 function renderTwitch() {
   const t = twitch, on = t.state !== 'off';
@@ -2298,6 +2307,7 @@ function renderTwitch() {
   $('#twDisconnect').hidden = !on;
   $('#twDisconnect').textContent = S.panel[t.state === 'waiting' ? 'twCancel' : 'twDisconnect'];
   $('#twWait').hidden = t.state !== 'waiting';
+  renderAccFix($('#twFix'), t);
   renderConnWarn();
 }
 
@@ -2311,6 +2321,7 @@ function renderKick() {
   $('#kcDisconnect').hidden = !on;
   $('#kcDisconnect').textContent = S.panel[k.state === 'waiting' ? 'twCancel' : 'twDisconnect'];
   $('#kcWait').hidden = k.state !== 'waiting';
+  renderAccFix($('#kcFix'), k);
   renderConnWarn();
 }
 

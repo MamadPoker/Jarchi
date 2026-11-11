@@ -68,7 +68,7 @@ test('usage ping: only after the Privacy Policy, only its fields, silent when th
 
   // Connection diagnostics (policy version 1 names them), codes only.
   const last = async () => (await stats.ping(), JSON.parse(pings().at(-1).body));
-  assert.deepEqual(sent.diag, { kick: 'never', kickReason: null, twitch: 'never', twitchReason: null, proxy: 'auto', vpn: null });
+  assert.deepEqual(sent.diag, { kick: 'never', kickReason: null, twitch: 'never', twitchReason: null, proxy: 'off', vpn: null });
   const kickSays = (state, error = '') => require('../connectors/kick-account').events.emit('status', { state, error, uri: 'https://relay.test/login?state=x' });
   const twitchSays = (state, error = '') => require('../connectors/twitch-account').events.emit('status', { state, error, code: 'ABCD' });
   kickSays('waiting');
@@ -86,9 +86,9 @@ test('usage ping: only after the Privacy Policy, only its fields, silent when th
     assert.equal(settings.connectState('twitch'), why, error);
   }
   twitchSays('connecting', 'network');
-  settings.update({ proxyMode: 'auto', proxyFound: { app: 'v2rayN', type: 'socks5', host: '127.0.0.1', port: 10808 } });
+  settings.update({ proxyMode: 'manual', proxyType: 'socks5', proxyHost: '127.0.0.1', proxyPort: 10808 });
   const withDiag = await last();
-  assert.deepEqual(withDiag.diag, { kick: 'ok', kickReason: null, twitch: 'failed', twitchReason: 'network', proxy: 'auto', vpn: true });
+  assert.deepEqual(withDiag.diag, { kick: 'ok', kickReason: null, twitch: 'failed', twitchReason: 'network', proxy: 'manual', vpn: null });
   assert.doesNotMatch(JSON.stringify(withDiag.diag), /relay\.test|ABCD|127\.0\.0\.1|v2rayN/, 'no links, codes, addresses or app names');
   sentDiag = withDiag;
   kickSays('off');
@@ -116,7 +116,7 @@ test('relay POST /ping: one row per install, UTC times, refusals, rate limit', a
     id: sent.id, first_seen: '2026-10-23T09:00:00.000Z', last_seen: '2026-10-23T09:00:00.000Z', version: sent.version, installed: 0, is_open: 1,
     kick_name: 'Mamad_Poker', kick_picture: sent.kick.picture, kick_live: 0, twitch_name: 'mamadpoker', twitch_picture: sent.twitch.picture, twitch_live: 1,
     privacy_version: 1, privacy_accepted_at: sent.privacy.acceptedAt, window_start: Date.parse('2026-10-23T09:00:00.000Z'), window_pings: 1,
-    kick_connect: 'never', kick_reason: null, twitch_connect: 'never', twitch_reason: null, proxy_mode: 'auto', vpn_found: null,
+    kick_connect: 'never', kick_reason: null, twitch_connect: 'never', twitch_reason: null, proxy_mode: 'off', vpn_found: null,
   });
 
   // 5 minutes later, quitting, Kick no longer connected: first_seen stays.
@@ -128,7 +128,7 @@ test('relay POST /ping: one row per install, UTC times, refusals, rate limit', a
   // diag's codes kept; a ping from Jarchi 1.0.1 (no diag at all) still taken, its columns NULL.
   assert.equal((await post(sentDiag)).status, 200);
   const diagOf = () => { const x = row(sent.id); return [x.kick_connect, x.kick_reason, x.twitch_connect, x.twitch_reason, x.proxy_mode, x.vpn_found]; };
-  assert.deepEqual(diagOf(), ['ok', null, 'failed', 'network', 'auto', 1]);
+  assert.deepEqual(diagOf(), ['ok', null, 'failed', 'network', 'manual', null]);
   const legacy = { ...sent, version: '1.0.1' };
   delete legacy.diag;
   assert.equal((await post(legacy)).status, 200, 'a 1.0.1 ping is taken');

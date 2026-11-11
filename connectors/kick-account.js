@@ -28,15 +28,23 @@ const QUIET_MS = 90 * 1000; // we ping every 30 s; no pong for this long means t
 const account = new EventEmitter(); // 'status'
 let saved = store.load(FILE, SECRET); // { access, refresh, expires, userId, login }
 // state: off | waiting (Kick's login page is open) | connecting | connected.
-// error: why it's off or reconnecting (expired | denied | timeout | network | relay), '' when fine.
-let st = { state: saved.refresh && RELAY ? 'connecting' : 'off', error: '', uri: '' };
+// error: why it's off or reconnecting (expired | denied | timeout | network | blocked (Kick refused this network: 403) |
+// relay), '' when fine. why: what failed, for the streamer (and the "Fix it" VPN help): "<host>: <reason>", '' when fine.
+// Every request here (the relay's token swap, Kick's API, the relay's socket) goes the way the proxy setting says
+// (core/net.js); only the browser's own steps (Kick's page, the way back to /api/kick/callback) don't.
+let st = { state: saved.refresh && RELAY ? 'connecting' : 'off', error: '', why: '', uri: '' };
 // picture: the account's, for the profile chip (Edit profile; Kick's login is already the name as written).
 const status = () => ({ ...st, login: saved.refresh ? saved.login ?? '' : '', picture: saved.refresh ? saved.picture ?? '' : '' });
 function set(next) {
-  st = { ...st, uri: '', ...next };
+  st = { ...st, uri: '', why: '', ...next };
   account.emit('status', status());
 }
 const fail = (code) => Object.assign(new Error(code), { code });
+const RELAY_HOST = URL.canParse(RELAY) ? new URL(RELAY).host : '';
+// A failed request -> { error, why }: an HTTP answer (403: Kick refusing this network) or no answer at all (net.why()).
+const reason = (err, host) => (err.status
+  ? { error: err.status === 403 ? 'blocked' : 'network', why: `${err.host ?? host}: HTTP ${err.status}` }
+  : { error: 'network', why: `${err.host ?? host}: ${err.why ?? net.why(err)}` });
 const post = (url, body) => fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body), signal: AbortSignal.timeout(10000) });
 // ponytail: a Kick channel's slug is its account name made lowercase, _ as -, like kick.com does; if one ever doesn't
 // match, ask Kick for it (GET /public/v1/channels).
@@ -75,23 +83,32 @@ async function login() {
 }
 
 // Kick (by way of the relay) sends the browser back here: ?code&state, or ?error when the streamer said no. A state
-// that isn't the login waiting now (an old tab, another login, a forged link) changes nothing.
+// that isn't the login waiting now (an old tab, another login, a forged link) changes nothing. -> { ok } or { error, why }
+// for the page the browser shows (server/index.js): the token swap through the relay, then who this is on Kick's API.
 async function callback({ code, state }) {
   const p = pending;
-  if (!p || p.my !== run || typeof state !== 'string' || state !== p.state) return;
+  if (!p || p.my !== run || typeof state !== 'string' || state !== p.state) return { error: 'stale', why: '' };
   pending = null;
   clearTimeout(timer);
-  if (!code) return set({ state: 'off', error: 'denied' });
+  if (!code) {
+    set({ state: 'off', error: 'denied' });
+    return { error: 'denied', why: '' };
+  }
   set({ state: 'connecting', error: '' });
+  let r = null;
   try {
     const res = await post(`${RELAY}/token`, { code: String(code), code_verifier: p.verifier });
-    if (p.my !== run) return;
-    if (!res.ok) return set({ state: 'off', error: res.status >= 500 ? 'network' : 'denied' });
-    keepTokens(await res.json());
-  } catch {
-    return p.my === run && set({ state: 'off', error: 'network' });
+    if (p.my !== run) return { error: 'stale', why: '' };
+    if (res.ok) keepTokens(await res.json());
+    else r = { error: res.status >= 500 ? 'network' : 'denied', why: `${RELAY_HOST}: HTTP ${res.status}` };
+  } catch (err) {
+    r = reason(err, RELAY_HOST);
   }
-  if (p.my === run) start();
+  if (r) {
+    if (p.my === run) set({ state: 'off', ...r });
+    return r;
+  }
+  return p.my === run ? ((await start()) ?? { ok: true }) : { error: 'stale', why: '' };
 }
 
 // Logged out (Disconnect, or Kick no longer takes the login): the tokens go.
@@ -124,12 +141,12 @@ async function disconnect() {
 let refreshing = null;
 const refresh = () => (refreshing ??= (async () => {
   try {
-    const res = await post(`${RELAY}/token`, { refresh_token: saved.refresh });
+    const res = await post(`${RELAY}/token`, { refresh_token: saved.refresh }).catch((err) => { throw Object.assign(err, { host: RELAY_HOST }); });
     if (res.status === 400 || res.status === 401) {
       forget('expired');
       throw fail('expired');
     }
-    if (!res.ok) throw fail('network');
+    if (!res.ok) throw Object.assign(fail('network'), { status: res.status, host: RELAY_HOST });
     keepTokens(await res.json());
   } finally {
     refreshing = null;
@@ -144,7 +161,7 @@ async function authed(url, init = {}, again = true) {
     return authed(url, init, false);
   }
   const body = await res.text().catch(() => '');
-  if (!res.ok) throw new Error(`Kick ${new URL(url).pathname} ${res.status} ${body.slice(0, 200)}`);
+  if (!res.ok) throw Object.assign(new Error(`Kick ${new URL(url).pathname} ${res.status} ${body.slice(0, 200)}`), { status: res.status, host: new URL(url).host });
   return body ? JSON.parse(body) : null;
 }
 
@@ -158,27 +175,31 @@ async function subscribe() {
 }
 
 // ---------- The relay's WebSocket ----------
-// Connect (at start, after the login, after the proxy setting changed); whatever ran before stops.
+// Connect (at start, after the login, after the proxy setting changed); whatever ran before stops. -> null, or
+// { error, why } when Kick's API couldn't be asked (it tries again by itself).
 async function start() {
-  if (!saved.refresh || !RELAY) return;
+  if (!saved.refresh || !RELAY) return null;
   stop();
   const my = run;
-  set({ state: 'connecting', error: st.error === 'network' ? 'network' : '' });
+  set({ state: 'connecting', error: ['network', 'blocked'].includes(st.error) ? st.error : '', why: st.why });
   try {
     const me = (await authed(`${API}/users`)).data[0]; // whose channel this is
     keep({ userId: me.user_id, login: me.name, picture: me.profile_picture || '' });
     await subscribe();
   } catch (err) {
-    if (my === run && err.code !== 'expired') later(my);
-    return;
+    if (err.code === 'expired') return { error: 'expired', why: '' };
+    const r = reason(err, new URL(API).host);
+    if (my === run) later(my, r);
+    return r;
   }
   if (my === run) open(my);
+  return null;
 }
 
-// Lost: try again in 2 s, 4 s, ... up to a minute.
-function later(my) {
+// Lost: try again in 2 s, 4 s, ... up to a minute. r: why ({ error, why }), else the relay's socket closed.
+function later(my, r = { error: 'network', why: `${RELAY_HOST}: no connection` }) {
   setConnected('kick', false);
-  set({ state: 'connecting', error: 'network' });
+  set({ state: 'connecting', ...r });
   timer = setTimeout(() => my === run && start(), Math.min(60000, 2000 * 2 ** retry++));
 }
 

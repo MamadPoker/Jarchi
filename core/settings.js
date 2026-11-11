@@ -8,13 +8,14 @@ const secrets = require('./secrets');
 const strings = require('../i18n/en.json');
 
 const FILE = path.join(DATA_DIR, 'settings.json');
-const VERSION = 9;
+const VERSION = 10;
 // 'none': no box, background or effects, just the picture and outlined text.
 const THEMES = ['neon', 'minimal', 'fun', 'retro', 'glass', 'fire', 'ice', 'galaxy', 'comic', 'simple', 'none'];
 // App-wide settings (not per alert). showBadge: platform badge on alerts; it still needs both Kick and Twitch connected.
 // alertGap: seconds between two alerts. proxy*: how Jarchi reaches Kick, Twitch, 7TV and its relay (core/net.js);
-// proxyFound: the VPN app's proxy the user said Yes to (core/vpn.js), used in auto mode. A 'system' mode saved before
-// auto replaced it reads as the default (get() keeps only valid values), so it needs no migration.
+// proxyMode: off (the default: Jarchi never turns a proxy on by itself) | auto (the Windows proxy, only when chosen) |
+// manual (proxyType / Host / Port; also what Yes to a found VPN app sets, core/vpn.js). Only Jarchi's own connections use
+// it (core/net.js); Windows' own proxy setting is never changed. An older saved value ('system') reads as the default.
 // kickGoalSync / twitchGoalSync: goals set on the Kick / Twitch channel show that platform's numbers (core/goals.js).
 // welcomed: the panel's welcome tour was shown (it opens by itself once, on the first run).
 // privacyAccepted: the version of the Privacy Policy (i18n/privacy.json) the user accepted, 0 = none yet.
@@ -22,7 +23,7 @@ const THEMES = ['neon', 'minimal', 'fun', 'retro', 'glass', 'fire', 'ice', 'gala
 // seenNew: the sidebar pages marked NEW (panel.js NEW_PAGES) the streamer has opened: never marked again.
 // eyesSeen: the panel showed where its hidden 👀 is (the first Ctrl+Shift+E): never again.
 // proxyAsk: Auto may offer the VPN app it finds by itself (core/vpn.js); false after a No, true again when the streamer looks.
-const GLOBAL = { theme: 'neon', showBadge: true, alertGap: 0.5, proxyMode: 'auto', proxyType: 'http', proxyHost: '', proxyPort: 0, proxyFound: null, kickGoalSync: true, twitchGoalSync: true, welcomed: false, privacyAccepted: 0, lang: 'en', seenNew: [], eyesSeen: false, proxyAsk: true };
+const GLOBAL = { theme: 'neon', showBadge: true, alertGap: 0.5, proxyMode: 'off', proxyType: 'http', proxyHost: '', proxyPort: 0, kickGoalSync: true, twitchGoalSync: true, welcomed: false, privacyAccepted: 0, lang: 'en', seenNew: [], eyesSeen: false, proxyAsk: true };
 const PROXY_HOST = /^[a-z0-9.:[\]_-]{0,253}$/i;
 const proxyPort = (v) => Number.isInteger(v) && v >= 0 && v <= 65535;
 const GLOBAL_RULES = {
@@ -41,10 +42,6 @@ const GLOBAL_RULES = {
   proxyType: (v) => ['http', 'socks5'].includes(v),
   proxyHost: (v) => typeof v === 'string' && PROXY_HOST.test(v),
   proxyPort,
-  // { app: its name or null (the Windows proxy), type, host, port } | null
-  proxyFound: (v) => v === null || (typeof v === 'object' && Object.keys(v).sort().join() === 'app,host,port,type'
-    && (v.app === null || (typeof v.app === 'string' && v.app.length <= 40)) && ['http', 'socks5'].includes(v.type)
-    && typeof v.host === 'string' && v.host && PROXY_HOST.test(v.host) && proxyPort(v.port) && v.port > 0),
 };
 // Follow is small and quick, raid is the big one. minAmount only where an amount makes sense.
 // Media by amount (tiersOn + tiers): fixed, ready-made tiers. Saved as tiers: { [amount]: { on, image, sound } };
@@ -449,6 +446,15 @@ if (from < 9) {
   // starts with the old one; a size over 1 (from before the alerts filled the source) was read as 1.
   if (saved.alertSize < 1) for (const t of TYPES) ((saved.alerts ??= {})[t] ??= {}).size ??= Math.max(saved.alertSize, 0.5);
   delete saved.alertSize;
+}
+if (from < 10) {
+  // v9 -> v10: the default proxy mode is Off (was Auto), so an install that never chose one is Off now. Auto with the
+  // VPN app the streamer said Yes to (proxyFound) is Manual with that proxy: what Yes sets from now on.
+  const f = saved.proxyFound;
+  if (saved.proxyMode === 'auto' && f && proxyPort(f.port) && f.port > 0 && typeof f.host === 'string' && PROXY_HOST.test(f.host) && ['http', 'socks5'].includes(f.type)) {
+    Object.assign(saved, { proxyMode: 'manual', proxyType: f.type, proxyHost: f.host, proxyPort: f.port });
+  }
+  delete saved.proxyFound;
 }
 if (from < VERSION) {
   saved.version = VERSION;

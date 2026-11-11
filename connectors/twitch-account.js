@@ -26,8 +26,10 @@ const account = new EventEmitter(); // 'status'
 let saved = store.load(FILE, SECRET); // { clientId (own app, else none), access, refresh, expires, userId, login }
 const clientId = () => saved.clientId || CLIENT_ID;
 // state: off | waiting (Twitch's code is on screen) | connecting | connected.
-// error: why it's off or reconnecting (expired | denied | timeout | client | network), '' when fine.
-let st = { state: saved.refresh ? 'connecting' : 'off', error: '', code: '', uri: '' };
+// error: why it's off or reconnecting (expired | denied | timeout | client | network), '' when fine. why: what failed,
+// for the streamer (and the "Fix it" VPN help): "<host>: <reason>". Every request here goes the way the proxy setting
+// says (core/net.js); only the browser's own step (Twitch's page) doesn't.
+let st = { state: saved.refresh ? 'connecting' : 'off', error: '', why: '', code: '', uri: '' };
 const goals = new Map(); // Twitch goal id -> { id, type, description, current, target }
 // name / picture: the account's display name and picture, for the profile chip (Edit profile).
 const status = () => ({
@@ -35,10 +37,11 @@ const status = () => ({
   name: saved.refresh ? saved.name || saved.login || '' : '', picture: saved.refresh ? saved.picture ?? '' : '',
 });
 function set(next) {
-  st = { ...st, code: '', uri: '', ...next };
+  st = { ...st, code: '', uri: '', why: '', ...next };
   account.emit('status', status());
 }
 const fail = (code) => Object.assign(new Error(code), { code });
+const whyOf = (err, host) => `${host}: ${err.status ? `HTTP ${err.status}` : net.why(err)}`;
 const form = (url, fields) => fetch(url, { method: 'POST', body: new URLSearchParams(fields), signal: AbortSignal.timeout(10000) });
 function keep(fields) {
   saved = { ...saved, ...fields };
@@ -65,8 +68,8 @@ async function login() {
   let res;
   try {
     res = await form(`${ID}/device`, { client_id: client, scopes: SCOPES });
-  } catch {
-    set({ state: 'off', error: 'network' });
+  } catch (err) {
+    set({ state: 'off', error: 'network', why: whyOf(err, 'id.twitch.tv') });
     return status();
   }
   if (!res.ok) { // an unknown Client ID
@@ -75,15 +78,23 @@ async function login() {
   }
   const d = await res.json();
   const until = Date.now() + d.expires_in * 1000;
+  let misses = 0; // asks in a row that got no answer: from the second one on, the panel says Twitch can't be reached
   const poll = async () => {
     if (my !== run) return;
-    if (Date.now() > until) return set({ state: 'off', error: 'timeout' });
-    let ok = false, j = { message: 'authorization_pending' };
+    if (Date.now() > until) return set({ state: 'off', error: misses ? 'network' : 'timeout', why: st.why });
+    let ok = false, j = { message: 'authorization_pending' }, lost = '';
     try {
       const r = await form(`${ID}/token`, { client_id: client, scopes: SCOPES, device_code: d.device_code, grant_type: 'urn:ietf:params:oauth:grant-type:device_code' });
       [ok, j] = [r.ok, await r.json()];
-    } catch {} // a network hiccup: ask again
+    } catch (err) {
+      lost = whyOf(err, 'id.twitch.tv'); // asked again in a moment
+    }
     if (my !== run) return;
+    if (lost && ++misses >= 2) set({ state: 'waiting', error: 'network', why: lost, code: st.code, uri: st.uri });
+    else if (!lost && misses) {
+      misses = 0; // back: the note goes
+      set({ state: 'waiting', error: '', code: st.code, uri: st.uri });
+    }
     if (ok) {
       keepTokens(j);
       return start();
@@ -156,21 +167,21 @@ async function start() {
   if (!saved.refresh) return;
   stop();
   const my = run;
-  set({ state: 'connecting', error: st.error === 'network' ? 'network' : '' });
+  set({ state: 'connecting', error: st.error === 'network' ? 'network' : '', why: st.why });
   try {
     const me = await authed(`${ID}/validate`); // whose channel this is
     keep({ userId: me.user_id, login: me.login });
   } catch (err) {
-    if (my === run && err.code !== 'expired') later(my);
+    if (my === run && err.code !== 'expired') later(my, whyOf(err, 'id.twitch.tv'));
     return;
   }
   if (my === run) open(EVENTSUB, my);
 }
 
-// Lost: try again in 2 s, 4 s, ... up to a minute.
-function later(my) {
+// Lost: try again in 2 s, 4 s, ... up to a minute. why: what failed (else Twitch's EventSub socket closed).
+function later(my, why = 'eventsub.wss.twitch.tv: no connection') {
   setConnected('twitch', false);
-  set({ state: 'connecting', error: 'network' });
+  set({ state: 'connecting', error: 'network', why });
   timer = setTimeout(() => my === run && start(), Math.min(60000, 2000 * 2 ** retry++));
 }
 

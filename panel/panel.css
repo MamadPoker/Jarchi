@@ -1598,6 +1598,10 @@ button.crypto-big { padding: 12px 22px; border-radius: 12px; font-size: 15px; bo
 .crypto-pfx input:focus-visible { outline: none; }
 .crypto-pfx:has([aria-invalid="true"]), #cryptoBio[aria-invalid="true"] { border-color: var(--danger); }
 .crypto-save { display: flex; justify-content: flex-end; margin-top: 14px; }
+/* Connections: why Kick / Twitch can't connect, and Fix it (renderAccFix) */
+.acc-fix { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 8px 12px; border: 1px solid var(--warn-line); border-radius: 10px; background: var(--warn-soft); }
+.acc-fix[hidden] { display: none; }
+.acc-fix code { flex: 1 1 200px; min-width: 0; color: var(--muted); font: 12px ui-monospace, Consolas, monospace; overflow-wrap: anywhere; }
 /* Home: Kick / Twitch out of reach for over a minute, and Fix it (panel.js renderConnWarn) */
 .conn-card { grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 14px; margin-bottom: 16px; border-color: var(--warn-line); background: var(--warn-soft); }
 .conn-card[hidden] { display: none; }

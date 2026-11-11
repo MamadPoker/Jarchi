@@ -1,10 +1,12 @@
 // Every outgoing connection of the server (Kick, Twitch, 7TV, Jarchi's relay, and the emote / badge / avatar images
 // widgets load through /remote) goes through tunnel() here, so the proxy setting covers all of them, and nothing else on
 // the PC (Jarchi never changes the system's proxy):
-//   off     direct
-//   auto    the VPN app's proxy found on this PC that the user said Yes to (core/vpn.js), else the Windows proxy
-//           (Settings > Network > Proxy, what VPN apps set), read from the registry; neither: direct
-//   manual  an HTTP or SOCKS5 proxy at host:port
+//   off     direct (the default)
+//   auto    the Windows proxy (Settings > Network > Proxy, what VPN apps set), only read from the registry; none: direct
+//   manual  an HTTP or SOCKS5 proxy at host:port (also what Yes to a found VPN app sets, core/vpn.js)
+// Jarchi never writes the Windows proxy (nor netsh, WinHTTP or the system's settings): its proxy is only for its own
+// connections. A change of the setting takes a new connection pool (resetPool), so nothing opened through the old proxy
+// is used again: Off is direct at once.
 // fetch() and WebSocket use it through the global undici dispatcher set below; Kick's HTTP/2 lookups call secure().
 // The desktop app's update checks ask the server for it too (electron/main.js).
 const net = require('node:net');
@@ -53,7 +55,7 @@ function windowsProxy() {
 async function current() {
   const s = settings.get();
   if (s.proxyMode === 'manual') return s.proxyHost && s.proxyPort ? { type: s.proxyType, host: s.proxyHost, port: s.proxyPort } : null;
-  return s.proxyMode === 'auto' ? s.proxyFound ?? windowsProxy() : null;
+  return s.proxyMode === 'auto' ? windowsProxy() : null;
 }
 
 const fail = (code, message) => Object.assign(new Error(message ?? code), { code });
@@ -139,14 +141,23 @@ async function secure(host, port, alpn, via) {
   });
 }
 
-// fetch() and WebSocket everywhere in the app connect through tunnel().
-setGlobalDispatcher(new Agent({
+// fetch() and WebSocket everywhere in the app connect through tunnel(), in one pool of kept-open connections.
+const pool = () => new Agent({
   connect(opts, cb) {
     const https = opts.protocol === 'https:' || opts.protocol === 'wss:';
     const port = Number(opts.port) || (https ? 443 : 80);
     (https ? secure(opts.hostname, port, ['http/1.1']) : tunnel(opts.hostname, port)).then((s) => cb(null, s), (err) => cb(err, null));
   },
-}));
+});
+let agent = pool();
+setGlobalDispatcher(agent);
+// The proxy setting changed: new requests take a new pool (the new setting); the old pool closes its kept-open connections
+// (made through the old setting) and ends once what's already under way is done.
+function resetPool() {
+  const old = agent;
+  setGlobalDispatcher((agent = pool()));
+  old.close().catch(() => {});
+}
 
 // Can we reach host:443 (TCP + TLS, through the proxy, or via that one)? Throws like secure().
 const reach = (host, via) => secure(host, 443, ['http/1.1'], via).then((s) => s.destroy());
@@ -178,4 +189,4 @@ function why(err) {
   return 'network'; // reset, refused, TLS failure: usually a filtered network
 }
 
-module.exports = { tunnel, secure, reach, hangUp, why, fail, current, windowsProxy, parseWindows, LOCAL };
+module.exports = { tunnel, secure, reach, hangUp, why, fail, current, windowsProxy, parseWindows, resetPool, LOCAL };

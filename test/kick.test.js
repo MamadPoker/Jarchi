@@ -15,7 +15,7 @@ const file = () => JSON.parse(fs.readFileSync(path.join(dataDir, 'kick.json'), '
 
 // Fake relay + Kick. Access token A1 is refused by Kick's API (401), so the first call refreshes it.
 const calls = [];
-let issued = 0, challenge = '';
+let issued = 0, challenge = '', relayDown = false, kickBlocked = false; // Jarchi can't reach the relay / Kick refuses this network
 const subs = [];
 globalThis.fetch = async (url, init = {}) => {
   const u = new URL(url);
@@ -23,6 +23,8 @@ globalThis.fetch = async (url, init = {}) => {
   const auth = init.headers?.authorization;
   calls.push({ host: u.host, path: u.pathname, query: u.search, method: init.method ?? 'GET', body, auth });
   const json = (status, j) => new Response(JSON.stringify(j), { status });
+  if (relayDown && u.host === 'relay.test') throw new TypeError('fetch failed');
+  if (kickBlocked && u.host === 'api.kick.com') return json(403, { message: 'Forbidden' });
   if (u.host === 'api.kick.com' && auth === 'Bearer A1') return json(401, { message: 'Unauthorized' });
   switch (`${init.method ?? 'GET'} ${u.host}${u.pathname}`) {
     case 'POST relay.test/token':
@@ -83,12 +85,12 @@ test('Kick account: login through the relay, follows subscribed, follow alerts, 
   assert.match(challenge, /^[\w-]{43}$/);
 
   // Not this login's state (an old tab, a forged link): nothing happens.
-  await account.callback({ code: 'C', state: `${PORT}.someoneelse` });
+  assert.deepEqual(await account.callback({ code: 'C', state: `${PORT}.someoneelse` }), { error: 'stale', why: '' });
   assert.equal(account.status().state, 'waiting');
   assert.equal(calls.length, 0);
 
   // Kick's code -> the relay swaps it (with the verifier) -> who this is (A1 refused: refreshed) -> subscribed -> socket.
-  await account.callback({ code: 'C', state });
+  assert.deepEqual(await account.callback({ code: 'C', state }), { ok: true });
   assert.equal(calls[0].body.code, 'C');
   await waitFor(() => sockets.length === 1, 'socket');
   assert.equal(sockets[0].url, 'wss://relay.test/ws');
@@ -147,4 +149,21 @@ test('Kick account: login through the relay, follows subscribed, follow alerts, 
   const before = calls.length;
   await account.callback({ code: 'C', state: late });
   assert.deepEqual([account.status().state, calls.length], ['off', before]);
+
+  // Approved on Kick, but Jarchi itself can't reach the relay to swap the code: the real reason, not silence.
+  relayDown = true;
+  const s = new URL((await account.login()).uri).searchParams.get('state');
+  challenge = '';
+  assert.deepEqual(await account.callback({ code: 'C', state: s }), { error: 'network', why: 'relay.test: network' });
+  assert.deepEqual([account.status().state, account.status().error, account.status().why], ['off', 'network', 'relay.test: network']);
+  relayDown = false;
+
+  // The code is swapped, but Kick's API refuses this network (403): said so; the login is kept and tried again.
+  kickBlocked = true;
+  const blocked = new URL((await account.login()).uri);
+  challenge = blocked.searchParams.get('challenge');
+  assert.deepEqual(await account.callback({ code: 'C', state: blocked.searchParams.get('state') }), { error: 'blocked', why: 'api.kick.com: HTTP 403' });
+  assert.deepEqual([account.status().state, account.status().error, account.status().why], ['connecting', 'blocked', 'api.kick.com: HTTP 403']);
+  kickBlocked = false;
+  await account.disconnect();
 });

@@ -56,13 +56,13 @@ test('migration, settings, uploads, reset, events', async () => {
   // Background art: no channels set, no profile pictures (and no lookups).
   assert.deepEqual(await (await call('GET', '/api/streamer')).json(), { kick: null, twitch: null });
   // Twitch account: not connected, nothing runs. Its Client ID isn't shown or set from the panel.
-  assert.deepEqual(await (await call('GET', '/api/twitch')).json(), { state: 'off', error: '', code: '', uri: '', login: '', goals: [], name: '', picture: '' });
+  assert.deepEqual(await (await call('GET', '/api/twitch')).json(), { state: 'off', error: '', why: '', code: '', uri: '', login: '', goals: [], name: '', picture: '' });
   assert.equal((await call('PATCH', '/api/twitch', { clientId: 'abc123' })).status, 404);
   assert.equal(s.theme, 'fun');
   assert.equal(s.alerts.sub.soundMode, 'custom');
   assert.equal(s.alerts.sub.volume, 0.4);
   assert.equal(s.alerts.follow.soundMode, 'theme');
-  assert.equal(JSON.parse(fs.readFileSync(path.join(dataDir, 'settings.json'))).version, 9);
+  assert.equal(JSON.parse(fs.readFileSync(path.join(dataDir, 'settings.json'))).version, 10);
   // v7 -> v8: one font and one outline switch became the name's and the message's own; both keep the old choice.
   const raid = s.alerts.raid;
   assert.deepEqual([raid.nameFont, raid.textFont, raid.nameShadow, raid.textShadow, 'font' in raid], ['Lalezar', 'Lalezar', false, false, false]);

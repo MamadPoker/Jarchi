@@ -444,6 +444,8 @@
             <button id="kcDisconnect" class="danger"></button>
           </div>
           <small data-i18n="kcWhat"></small>
+          <!-- Why it couldn't connect (the account's why: "<host>: <reason>"), and Fix it: the VPN help (core/vpn.js). -->
+          <div id="kcFix" class="acc-fix" hidden><code dir="ltr"></code><button class="primary" data-i18n="connFix"></button></div>
           <!-- While Kick's login page is open (in another tab). -->
           <div id="kcWait" class="tw-wait" hidden>
             <span data-i18n="kcWaiting"></span>
@@ -458,6 +460,7 @@
             <button id="twDisconnect" class="danger"></button>
           </div>
           <small data-i18n="twWhat"></small>
+          <div id="twFix" class="acc-fix" hidden><code dir="ltr"></code><button class="primary" data-i18n="connFix"></button></div>
           <!-- While Twitch waits for the streamer to approve: Connect opened Twitch's page (its link has the code in it);
                Open again, if the browser blocked it or it was closed. -->
           <div id="twWait" class="tw-wait" hidden>
@@ -478,7 +481,7 @@
             <label><input type="radio" name="proxyMode" value="auto"><span data-i18n="proxyAuto"></span></label>
             <label><input type="radio" name="proxyMode" value="manual"><span data-i18n="proxyManual"></span></label>
           </div>
-          <div class="row between" data-only="proxyAuto">
+          <div class="row between">
             <small id="proxyNow"></small>
             <button id="proxyLook" data-i18n="proxyLook"></button>
           </div>

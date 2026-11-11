@@ -16,13 +16,14 @@ fs.writeFileSync(path.join(dataDir, 'twitch.json'), JSON.stringify({ clientId: '
 // Fake Twitch. Access token A1 is refused by the Helix API (401), so the first subscriptions refresh it; a refresh token
 // works once, like a Public app's.
 const calls = [];
-let pending = 1, issued = 0, verifyAt = 'https://www.twitch.tv/activate?public=true&device-code=ABCDEFGH'; // what /oauth2/device says
+let tokenDown = false, pending = 1, issued = 0, verifyAt = 'https://www.twitch.tv/activate?public=true&device-code=ABCDEFGH'; // what /oauth2/device says
 globalThis.fetch = async (url, init = {}) => {
   const u = new URL(url);
   const body = init.body instanceof URLSearchParams ? Object.fromEntries(init.body) : init.body ? JSON.parse(init.body) : null;
   const auth = init.headers?.authorization;
   calls.push({ path: u.pathname, body, auth });
   const json = (status, j) => new Response(JSON.stringify(j), { status });
+  if (tokenDown && u.pathname === '/oauth2/token') throw new TypeError('fetch failed'); // Twitch out of reach for Jarchi
   if (u.pathname.startsWith('/helix/') && auth === 'Bearer A1') return json(401, { message: 'Invalid OAuth token' });
   switch (u.pathname) {
     case '/oauth2/device': return json(200, { device_code: 'DEV', user_code: 'ABCD-EFGH', verification_uri: verifyAt, expires_in: 1800, interval: 0.01 });
@@ -138,5 +139,14 @@ test('Twitch account: code login, refresh, follows, goals, reconnect, disconnect
   verifyAt = 'https://evil.example/activate';
   pending = Infinity;
   assert.equal((await account.login()).uri, 'https://www.twitch.tv/activate?public=true&device-code=ABCD-EFGH');
+
+  // Approved in the browser, but Jarchi itself can't reach Twitch to pick it up: said so while it keeps asking (the
+  // code stays on screen), and gone once Twitch answers again.
+  tokenDown = true;
+  await waitFor(() => account.status().error === 'network', 'cant reach Twitch');
+  assert.deepEqual([account.status().state, account.status().code, account.status().why], ['waiting', 'ABCD-EFGH', 'id.twitch.tv: network']);
+  tokenDown = false;
+  await waitFor(() => account.status().error === '', 'back');
+  assert.equal(account.status().state, 'waiting');
   assert.equal((await account.disconnect()).state, 'off');
 });

@@ -51,7 +51,7 @@ test("media by amount: fixed tiers (Kick's gift amounts), on/off and files; old 
 
   // Migration (v2 -> v3): the old free Kicks tiers moved to the fixed tier at or below their minimum, turned on;
   // a second file in one tier went. Raid's old tiers are ignored (and their file left alone).
-  assert.equal(JSON.parse(fs.readFileSync(path.join(dataDir, 'settings.json'))).version, 9);
+  assert.equal(JSON.parse(fs.readFileSync(path.join(dataDir, 'settings.json'))).version, 10);
   const k = s.alerts.kicks;
   assert.deepEqual(k.tiers.map((t) => t.amount), [1, 10, 50, 100, 500, 1000, 2000, 5000, 10000, 50000], "Kick's own gift amounts");
   assert.deepEqual(k.tiers.map((t) => t.gift.id).slice(0, 4), ['hell_yeah', 'hype', 'skull_emoji', 'full_send']);
@@ -122,7 +122,7 @@ test("media by amount: fixed tiers (Kick's gift amounts), on/off and files; old 
   assert.ok(![first, kept].some((f) => fs.existsSync(file(f))));
 });
 
-test('proxy: HTTP CONNECT and SOCKS5 tunnels, auto, finding a VPN app, Windows proxy strings, plain-word errors, /remote only for the platforms', async () => {
+test('proxy: HTTP CONNECT and SOCKS5 tunnels, Off at once, finding a VPN app, Windows proxy strings, plain-word errors, /remote only for the platforms', async () => {
   const echo = tcp.createServer((s) => s.pipe(s)).listen(0, '127.0.0.1');
   const used = { http: 0, socks5: 0 };
   // Fake proxies: every host name means this PC (names like echo.test only exist here).
@@ -180,18 +180,19 @@ test('proxy: HTTP CONNECT and SOCKS5 tunnels, auto, finding a VPN app, Windows p
   await call('PATCH', '/api/settings', { proxyPort: deadPort });
   await assert.rejects(roundTrip(), (err) => net.why(err) === 'proxy_down');
 
-  // Auto: the VPN app's proxy the user said Yes to.
-  const found = { app: 'v2rayN', type: 'socks5', host: '127.0.0.1', port: socksProxy.address().port };
-  assert.deepEqual((await (await call('PATCH', '/api/settings', { proxyMode: 'auto', proxyFound: found })).json()).proxyFound, found);
-  assert.equal(await roundTrip(), 'hello');
-  assert.equal(used.socks5, 3, 'auto went through the found proxy');
+  // Off is off at once: a connection kept open through the proxy is never used again (web.test only exists through the
+  // fake proxy, so directly it can't be found).
+  await call('PATCH', '/api/settings', { proxyType: 'socks5', proxyPort: socksProxy.address().port });
+  assert.equal(await (await fetch(`http://web.test:${web.address().port}/`)).text(), 'ok');
+  const before = used.socks5;
+  await call('PATCH', '/api/settings', { proxyMode: 'off' });
+  await assert.rejects(fetch(`http://web.test:${web.address().port}/`));
+  assert.equal(used.socks5, before, 'nothing through the old proxy');
 
-  const proxyFound = (o) => ({ proxyFound: { ...found, ...o } });
-  for (const bad of [{ proxyMode: 'vpn' }, { proxyMode: 'system' }, { proxyType: 'socks4' }, { proxyPort: 70000 }, { proxyHost: 'a b' }, { alertGap: -1 },
-    proxyFound({ type: 'socks4' }), proxyFound({ port: 0 }), proxyFound({ host: '' }), proxyFound({ app: 'x'.repeat(41) }), proxyFound({ extra: 1 })]) {
+  for (const bad of [{ proxyMode: 'vpn' }, { proxyMode: 'system' }, { proxyType: 'socks4' }, { proxyPort: 70000 }, { proxyHost: 'a b' }, { alertGap: -1 }]) {
     assert.equal((await call('PATCH', '/api/settings', bad)).status, 400, JSON.stringify(bad));
   }
-  await call('PATCH', '/api/settings', { proxyMode: 'off', proxyHost: '', proxyPort: 0, proxyFound: null });
+  await call('PATCH', '/api/settings', { proxyMode: 'off', proxyHost: '', proxyPort: 0 });
 
   // Finding the user's VPN app (core/vpn.js): what netstat + tasklist say listens here, the Windows proxy first, then
   // known VPN programs on any port (a core is named after the app running it), then the usual ports.
