@@ -597,6 +597,14 @@ button.link:hover, button.link:focus-visible { color: var(--gold-text); }
 .nav-item[aria-current="page"] { background: var(--main-soft); color: var(--text); }
 .nav-item svg { width: 18px; height: 18px; }
 .nav-item .q-count { margin-inline-start: auto; background: var(--gold); color: var(--on-gold); }
+/* A page new in this version (panel.js renderNew): a soft gold frame that glows, and a small NEW tag that wiggles every
+   few seconds. Reduce animations: both still. */
+.nav-item.is-new { box-shadow: inset 0 0 0 1px var(--gold-line); animation: nav-new-glow 2.4s ease-in-out infinite; }
+@keyframes nav-new-glow { 50% { box-shadow: inset 0 0 0 1px var(--gold-line), 0 0 7px color-mix(in srgb, var(--gold) 28%, transparent); } }
+.nav-new { margin-inline-start: auto; padding: 1px 6px; border: 1px solid var(--gold-line); border-radius: 999px; background: color-mix(in srgb, var(--gold) 12%, transparent); color: var(--gold-text); font-size: 10px; font-weight: 800; line-height: 1.5; letter-spacing: 0.06em; animation: nav-new-wiggle 4s ease-in-out infinite; }
+:lang(fa) .nav-new { letter-spacing: 0; } /* Persian letters join */
+@keyframes nav-new-wiggle { 0%, 80%, 100% { transform: rotate(0); } 84% { transform: rotate(-6deg); } 88% { transform: rotate(5deg); } 92% { transform: rotate(-3deg); } }
+@media (prefers-reduced-motion: reduce) { .nav-item.is-new, .nav-new { animation: none; } }
 [dir="rtl"] .flip { transform: scaleX(-1); } /* list bullets, and the Persian question mark, on the other side */
 
 .page { min-width: 0; }
@@ -1441,7 +1449,7 @@ button.crypto-big { padding: 12px 22px; border-radius: 12px; font-size: 15px; bo
 .coin .edge { background: repeating-conic-gradient(#6b4a08 0 2deg, #e2b746 2deg 4deg); }
 .coin .face { background: url("/assets/brand/jarchi-pay-coin.webp") center / cover; backface-visibility: hidden; }
 
-.crypto-active { display: grid; gap: 16px; }
+.crypto-active { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; } /* never wider than the page: the link card's long link */
 .crypto-tabs { display: flex; gap: 6px; padding: 4px; border: 1px solid var(--border); border-radius: 12px; background: var(--card); }
 .crypto-tabs button { padding: 7px 16px; border: 0; border-radius: 9px; background: none; color: var(--muted); font-size: 14px; }
 .crypto-tabs button:hover { color: var(--text); }
@@ -1456,13 +1464,13 @@ button.crypto-big { padding: 12px 22px; border-radius: 12px; font-size: 15px; bo
   .crypto-stats { grid-template-columns: repeat(3, 1fr); }
   .crypto-stat.link { grid-column: 1 / -1; }
 }
-.crypto-stat { display: grid; align-content: space-between; gap: 2px; min-width: 0; padding: 12px 14px; border: 1px solid var(--border); border-radius: 14px; background: var(--card); }
+.crypto-stat { display: grid; grid-template-columns: minmax(0, 1fr); align-content: space-between; gap: 2px; min-width: 0; padding: 12px 14px; border: 1px solid var(--border); border-radius: 14px; background: var(--card); }
 .crypto-stat small { font-size: 12px; }
 .crypto-stat b { color: var(--gold-text); font-size: 22px; font-weight: 800; }
 .crypto-stat em { color: var(--muted); font-size: 11px; font-style: normal; }
 .crypto-stat .row { flex-wrap: nowrap; gap: 6px; margin-top: 6px; }
 .crypto-stat code { flex: 1; min-width: 0; overflow: hidden; color: var(--teal); font: 600 12px ui-monospace, Consolas, monospace; white-space: nowrap; text-overflow: ellipsis; }
-.crypto-stat button { padding: 5px 10px; font-size: 12px; }
+.crypto-stat button { flex: none; padding: 5px 10px; font-size: 12px; } /* Copy: always all of it; the link gets the "…" */
 .crypto-more { justify-self: center; }
 
 .donations { display: grid; gap: 9px; margin: 0; padding: 0; list-style: none; }
@@ -1500,8 +1508,6 @@ button.crypto-big { padding: 12px 22px; border-radius: 12px; font-size: 15px; bo
 .crypto-done .profile-actions { justify-content: center; }
 .crypto-ic { display: grid; place-items: center; width: 70px; height: 70px; border: 2px solid var(--teal); border-radius: 50%; background: color-mix(in srgb, var(--teal) 12%, transparent); color: var(--teal); font-size: 30px; }
 .crypto-ic.gold { border-color: var(--gold); background: var(--gold-soft); color: var(--gold-text); }
-.install-id { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px; margin-top: 6px; }
-.install-id code { padding: 2px 8px; border: 1px solid var(--border); border-radius: 7px; background: var(--card); color: var(--text); font: 600 12px ui-monospace, Consolas, monospace; user-select: all; }
 
 /* Crypto alerts: the Alert settings tab (the cards show the real overlay) and a look's editor */
 .crypto-alerts { display: grid; gap: 12px; }
@@ -1543,6 +1549,31 @@ button.crypto-big { padding: 12px 22px; border-radius: 12px; font-size: 15px; bo
 .crypto-ctrl > label, .crypto-ctrl > div { display: grid; gap: 6px; }
 .crypto-ctrl .fname { color: var(--muted); font-size: 13px; }
 .crypto-lbl { color: var(--muted); font-size: 13px; }
+/* The Donation page tab: the wallets (read only), the banner with the picture over its lower edge, the line and the links */
+.crypto-page { display: grid; gap: 16px; }
+.crypto-page .crypto-li code { justify-self: start; padding: 0; background: none; color: var(--muted); font: 12px ui-monospace, Consolas, monospace; }
+.crypto-ok { padding: 2px 10px; border-radius: 999px; background: color-mix(in srgb, var(--teal) 12%, transparent); color: var(--teal); font-size: 12px; font-weight: 700; }
+.crypto-ok.off { background: var(--warn-soft); color: var(--muted); }
+.crypto-change { justify-content: flex-start; }
+.crypto-change small { flex: 1 1 240px; color: var(--muted); font-size: 12px; line-height: 1.7; }
+.crypto-pg { position: relative; margin-bottom: 40px; }
+.crypto-pg button { padding: 5px 10px; font-size: 12px; }
+.crypto-banner { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 8px; min-height: 110px; padding: 10px; border-radius: 12px; background: linear-gradient(120deg, #1d4a43, #3a2f12 60%, #2a1d3d) center / cover no-repeat; }
+.crypto-chip { padding: 3px 9px; border-radius: 8px; background: rgb(0 0 0 / 0.5); color: #fff; font-size: 12px; } /* readable on any banner */
+.crypto-banner button.ghost { border-color: rgb(255 255 255 / 0.3); background: rgb(0 0 0 / 0.5); color: #fff; }
+.crypto-avatar { position: absolute; bottom: -34px; inset-inline-start: 16px; display: flex; align-items: flex-end; gap: 10px; }
+.crypto-avatar .pic { display: grid; place-items: center; flex: none; width: 64px; height: 64px; border: 3px solid var(--card); border-radius: 50%; background: var(--gold) center / cover no-repeat; color: var(--on-gold); font-size: 24px; font-weight: 800; }
+.crypto-avatar small { color: var(--muted); font-size: 12px; }
+.crypto-field { display: grid; gap: 6px; margin-top: 12px; }
+.crypto-links { display: grid; gap: 6px; }
+.crypto-link { display: grid; grid-template-columns: 90px minmax(0, 1fr); align-items: center; gap: 8px; font-size: 13px; }
+.crypto-pfx { display: flex; direction: ltr; overflow: hidden; border: 1px solid var(--border); border-radius: 10px; background: var(--card2); }
+.crypto-pfx:focus-within { border-color: var(--focus); } /* the box shows the focus, not the field in it */
+.crypto-pfx em { padding: 8px 10px; border-right: 1px solid var(--border); background: var(--card); color: var(--muted); font: 13px ui-monospace, Consolas, monospace; white-space: nowrap; }
+.crypto-pfx input[type="text"] { flex: 1; min-width: 0; padding: 8px 10px; border: 0; border-radius: 0; background: none; font: 600 13px ui-monospace, Consolas, monospace; }
+.crypto-pfx input:focus-visible { outline: none; }
+.crypto-pfx:has([aria-invalid="true"]), #cryptoBio[aria-invalid="true"] { border-color: var(--danger); }
+.crypto-save { display: flex; justify-content: flex-end; margin-top: 14px; }
 .crypto-fonts span { font-size: 16px; font-weight: 400; }
 .crypto-look-acts { justify-content: space-between; padding-top: 12px; border-top: 1px solid var(--border); }
 #cryptoLookDone { margin-inline-start: auto; }

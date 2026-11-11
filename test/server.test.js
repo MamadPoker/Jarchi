@@ -73,6 +73,10 @@ test('migration, settings, uploads, reset, events', async () => {
   assert.equal(s.privacyAccepted, 0);
   assert.equal((await (await call('PATCH', '/api/settings', { privacyAccepted: 1 })).json()).privacyAccepted, 1);
   assert.equal((await call('PATCH', '/api/settings', { privacyAccepted: 1.5 })).status, 400);
+  // The sidebar pages marked NEW that were opened: page ids only; Reset everything keeps them (never NEW again).
+  assert.deepEqual(s.seenNew, []);
+  assert.deepEqual((await (await call('PATCH', '/api/settings', { seenNew: ['donations'] })).json()).seenNew, ['donations']);
+  assert.equal((await call('PATCH', '/api/settings', { seenNew: ['../x'] })).status, 400);
   // v5 -> v6: the Sub and Followers goals stay (as Kick's), without "Also count Twitch subs" and Source.
   assert.deepEqual([s.goals.subs.title, 'countTwitch' in s.goals.subs, 'source' in s.goals.subs, 'source' in s.goals.followers], ['Road to 50', false, false, false]);
   assert.equal(s.chat.style, 'classic', 'an earlier user who never picked a chat style keeps Classic (Kick default is for new users)');
@@ -179,7 +183,7 @@ test('migration, settings, uploads, reset, events', async () => {
   assert.equal((await fetch(`${base}/uploads/${pic}`)).status, 200);
   s = await (await call('PATCH', '/api/settings', { profile: { nameFrom: 'custom', name: 'Mamad' } })).json();
   assert.deepStrictEqual([s.profile.nameFrom, s.profile.name, s.profile.pictureFrom, s.profile.picture.file], ['custom', 'Mamad', 'upload', pic]);
-  assert.deepEqual(await (await call('GET', '/api/version')).json(), { version: require('../package.json').version, dev: true, installId: settings.installId() }); // About; a dev run (not installed, no app.asar)
+  assert.deepEqual(await (await call('GET', '/api/version')).json(), { version: require('../package.json').version, dev: true }); // About; a dev run (not installed, no app.asar)
 
   s = await (await call('POST', '/api/reset/follow')).json();
   assert.equal(s.alerts.follow.image, null);
@@ -204,6 +208,7 @@ test('migration, settings, uploads, reset, events', async () => {
   assert.ok(!fs.existsSync(path.join(dataDir, 'uploads', pic)));
   assert.equal(s.profile.pictureFrom, 'kick');
   assert.equal(s.welcomed, false, 'Reset everything: like a first run');
+  assert.deepEqual(s.seenNew, ['donations']);
   assert.equal(s.privacyAccepted, 0);
 
   const samples = await (await call('GET', '/api/samples')).json();

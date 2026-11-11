@@ -27,7 +27,7 @@ const jp = { status: { status: 'none' }, live: true, down: false, asked: [], fre
 globalThis.fetch = async (url, init = {}) => {
   const u = new URL(url), at = `${init.method ?? 'GET'} ${u.pathname}`;
   assert.equal(u.origin, PAY);
-  jp.asked.push({ at, auth: init.headers?.authorization ?? null, body: init.body && JSON.parse(init.body) });
+  jp.asked.push({ at, auth: init.headers?.authorization ?? null, body: init.body && (Buffer.isBuffer(init.body) ? init.body : JSON.parse(init.body)) });
   if (jp.down) throw new TypeError('fetch failed');
   const json = (b, status = 200) => Response.json(b, { status });
   if (at === 'POST /api/app/request') return json({ url: `${PAY}/connect/abc`, expiresAt: 1 }, 201);
@@ -42,6 +42,10 @@ globalThis.fetch = async (url, init = {}) => {
   if (at === 'GET /api/app/donations/new') jp.since.push(u.search);
   if (at === 'GET /api/app/donations/new') return json(u.searchParams.has('since') ? { donations: jp.fresh.splice(0), cursor: jp.cursor += 2 } : { donations: [], cursor: jp.cursor });
   if (at === 'POST /api/app/wallets/link') return json({ url: 'https://elsewhere.test/wallet/1' }, 201);
+  if (at === 'PUT /api/app/page' && JSON.parse(init.body).socials?.kick === 'no/pe') return json({ error: 'bad', field: 'socials.kick' }, 400);
+  if (at.startsWith('PUT /api/app/page/') && jp.uploads >= 10) return json({ error: 'rate' }, 429);
+  if (at.startsWith('PUT /api/app/page/')) jp.uploads = (jp.uploads ?? 0) + 1;
+  if (/^(GET|PUT|DELETE) \/api\/app\/page(\/(avatar|banner))?$/.test(at)) return json({ bio: 'hi', socials: {}, links: {}, avatar: { url: null, custom: false }, banner: { url: null, custom: false } });
   return json({ error: 'not_found' }, 404);
 };
 
@@ -140,6 +144,7 @@ test('crypto alerts: cursor, once each, hidden names and private messages, the l
   pay = start(KEY);
   got = [];
   pay.events.on('donation', (ev) => got.push(ev));
+  await pay.pollNew(); // not active (yet): nothing asked
   await pay.refresh();
   await pay.pollNew();
   assert.deepEqual(jp.since, ['', '?since=7', `?since=${cursor}`]);
@@ -166,4 +171,32 @@ test('crypto alerts: cursor, once each, hidden names and private messages, the l
   assert.equal(pay.alertOf({ name: 'Ali', amount: '1.0000' }, true, 'hologram').look, 'hologram'); // a test plays the look it names
   settings.removeCryptoTier(id);
   assert.deepEqual(settings.get().crypto.tiers, []);
+});
+
+// The donation page's look: the line and links as given, a wrong one named (field); a picture is looked at here first
+// (PNG / JPG / WebP, 2 MB, avatar or banner only: none of those reach Jarchi Pay) and sent as it is; 10 an hour; Reset.
+test('donation page: looks, a wrong field named, pictures looked at first', async () => {
+  settingsFile({ privacyAccepted: 1 });
+  jp.live = true;
+  jp.status = { status: 'approved', channel: 'mamadpoker', token: TOKEN };
+  const pay = start(KEY);
+  assert.equal((await pay.refresh()).state, 'active');
+  assert.equal((await pay.page()).bio, 'hi');
+  await pay.savePage({ bio: 'Thanks', socials: { kick: 'mamadpoker' }, wallets: { bep20: '0x1' } });
+  assert.deepEqual(jp.asked.at(-1), { at: 'PUT /api/app/page', auth: `Bearer ${TOKEN}`, body: { bio: 'Thanks', socials: { kick: 'mamadpoker' } } });
+  await assert.rejects(pay.savePage({ socials: { kick: 'no/pe' } }), { code: 'crypto_bad', field: 'socials.kick' });
+
+  const png = Buffer.concat([Buffer.from('89504e470d0a1a0a', 'hex'), Buffer.alloc(16)]);
+  const asked = jp.asked.length;
+  await assert.rejects(pay.setPicture('banner', Buffer.from('GIF89a')), { code: 'crypto_type' });
+  await assert.rejects(pay.setPicture('banner', Buffer.concat([png, Buffer.alloc(2 * 1024 * 1024)])), { code: 'crypto_size' });
+  await assert.rejects(pay.setPicture('../wallets', png), { code: 'crypto_failed' });
+  await assert.rejects(pay.resetPicture('../wallets'), { code: 'crypto_failed' });
+  assert.equal(jp.asked.length, asked);
+  jp.uploads = 9;
+  await pay.setPicture('avatar', png);
+  assert.deepEqual([jp.asked.at(-1).at, jp.asked.at(-1).body], ['PUT /api/app/page/avatar', png]);
+  await assert.rejects(pay.setPicture('avatar', png), { code: 'crypto_uploads' }); // the 11th this hour
+  await pay.resetPicture('banner');
+  assert.equal(jp.asked.at(-1).at, 'DELETE /api/app/page/banner');
 });

@@ -234,8 +234,9 @@
         </div>
         <div id="cryptoActive" class="crypto-active" hidden>
           <div class="page-head">
-            <div class="crypto-tabs" role="tablist"><button role="tab" data-tab="donations" data-i18n="cryptoTabDonations"></button><button role="tab" data-tab="alerts" data-i18n="cryptoTabAlerts"></button></div>
+            <div class="crypto-tabs" role="tablist"><button role="tab" data-tab="donations" data-i18n="cryptoTabDonations"></button><button role="tab" data-tab="alerts" data-i18n="cryptoTabAlerts"></button><button role="tab" data-tab="page" data-i18n="cryptoTabPage"></button></div>
             <button id="cryptoPop" class="ghost crypto-pop"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M20 4l-8 8M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg><span data-i18n="cryptoPopOut"></span></button>
+            <button id="cryptoView" class="primary crypto-pop"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M20 4l-8 8M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg><span data-i18n="cryptoViewPage"></span></button>
           </div>
           <p id="cryptoError" class="crypto-warn bad" role="alert" hidden></p>
           <!-- Until both wallet addresses are set: they're set on Jarchi Pay's site (a one-time link), never here. -->
@@ -292,6 +293,36 @@
               <div><button id="cryptoTierAdd" class="ghost" data-i18n="cryptoTierAdd"></button></div>
             </div>
           </div>
+          <!-- Donation page (renderCryptoPage, Jarchi Pay's /api/app/page): the wallets, read only (changed on Jarchi Pay's
+               site, after signing in again), the banner and picture (an upload, or back to the channel's own), the line
+               under the name and the links: a fixed start (the platform's own site) and the id. Save sends both. -->
+          <div id="cryptoPageTab" class="crypto-page" hidden>
+            <div class="box crypto-sec">
+              <h2 data-i18n="cryptoWallets"></h2>
+              <div class="crypto-li" data-net="bep20"><span class="stack"><span>BEP20 · BNB Smart Chain</span><code dir="ltr"></code></span><span class="crypto-ok"></span></div>
+              <div class="crypto-li" data-net="trc20"><span class="stack"><span>TRC20 · Tron</span><code dir="ltr"></code></span><span class="crypto-ok"></span></div>
+              <div class="crypto-li crypto-change"><button id="cryptoWalletChange" class="ghost"></button><small data-i18n="cryptoWalletChangeHint"></small></div>
+            </div>
+            <div class="box crypto-sec">
+              <h2 data-i18n="cryptoLooks"></h2>
+              <div class="crypto-pg">
+                <div id="cryptoBanner" class="crypto-banner" data-kind="banner">
+                  <span class="crypto-chip"><b data-i18n="cryptoBanner"></b> · <span class="from"></span></span>
+                  <div class="row"><button class="upload" data-i18n="upload"></button><button class="ghost remove" data-i18n="cryptoPicReset"></button></div>
+                <input type="file" accept="image/png,image/jpeg,image/webp" hidden>
+                </div>
+                <div id="cryptoAvatar" class="crypto-avatar" data-kind="avatar">
+                  <span class="pic" aria-hidden="true"></span>
+                  <span class="stack"><small><span data-i18n="cryptoAvatar"></span> · <span class="from"></span></small>
+                  <div class="row"><button class="upload" data-i18n="upload"></button><button class="ghost remove" data-i18n="cryptoPicReset"></button></div>
+                <input type="file" accept="image/png,image/jpeg,image/webp" hidden></span>
+                </div>
+              </div>
+              <label class="crypto-field"><span class="crypto-lbl" data-i18n="cryptoBio"></span><input type="text" id="cryptoBio" maxlength="120" dir="auto"></label>
+              <div class="crypto-field"><span class="crypto-lbl" data-i18n="cryptoLinks"></span><div id="cryptoLinks" class="crypto-links"></div></div>
+              <div class="crypto-save"><button id="cryptoPageSave" class="primary" data-i18n="cryptoSave"></button></div>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -302,8 +333,6 @@
         <p data-i18n="aboutText"></p>
         <!-- "Made with ♥ by MamadPoker" (filled in panel.js); hover: a gold-bordered box. Privacy: the policy's popup. -->
         <small class="about-links"><a class="made-by" id="madeWith" href="https://mamadpoker.netlify.app/" target="_blank" rel="noopener"></a><span aria-hidden="true">·</span><button id="aboutPrivacy" class="link" data-i18n="privacyLink"></button></small>
-        <!-- This install's id (settings.installId): Support may ask for it, and Jarchi Pay knows this Jarchi by it. -->
-        <small class="install-id"><span data-i18n="installId"></span><code id="aboutInstall" dir="ltr"></code><button id="aboutInstallCopy" class="link" data-i18n="copy"></button></small>
       </section>
 
       <!-- ===== What's new (the profile menu, the update banner; by itself once after an update): each version's changes,

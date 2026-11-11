@@ -127,7 +127,7 @@ app.post('/api/alerts/:type/reset-text', (req, res) => res.json(changed(settings
 const STARTED = Date.now();
 app.get('/api/home', (req, res) => res.json({ today: today(), started: STARTED, kickGoals: goals.kickList() }));
 app.get('/api/history', (req, res) => res.json(alertQueue.feed()));
-app.get('/api/version', (req, res) => res.json({ version: require('../package.json').version, dev: DEV, installId: settings.installId() })); // About; dev: Settings' dev tools
+app.get('/api/version', (req, res) => res.json({ version: require('../package.json').version, dev: DEV })); // About; dev: Settings' dev tools
 
 // Proxy: "Test connection" (Kick, Twitch, 7TV), and which proxy is in use right now.
 app.post('/api/net/test', async (req, res) => res.json(await chat.check()));
@@ -212,6 +212,11 @@ app.post('/api/crypto/request', async (req, res) => res.json(await pay.request(r
 app.get('/api/crypto/donations', async (req, res) => res.json(await pay.donations(req.query)));
 app.post('/api/crypto/wallets/link', async (req, res) => res.json(await pay.walletLink()));
 app.post('/api/crypto/wallets/cancel', async (req, res) => res.json(await pay.cancelChange()));
+// The donation page's look (the Crypto page's Donation page tab): the line and the links, the picture and the banner.
+app.get('/api/crypto/page', async (req, res) => res.json(await pay.page()));
+app.put('/api/crypto/page', async (req, res) => res.json(await pay.savePage(req.body)));
+app.put('/api/crypto/page/:kind', raw, async (req, res) => res.json(await pay.setPicture(req.params.kind, req.body)));
+app.delete('/api/crypto/page/:kind', async (req, res) => res.json(await pay.resetPicture(req.params.kind)));
 // Crypto alerts: new donations (core/pay.js) play in the same queue as every other alert, on the main OBS link. Test:
 // a sample donation with the look to play ({ look }); Replay: one of the Crypto page's donations as it was paid.
 pay.events.on('donation', alertQueue.push);
@@ -274,13 +279,14 @@ app.post('/api/test/:type', (req, res) => {
 });
 
 // Emotes, badges and profile pictures for widgets, fetched here so they go through the proxy setting too.
-// Only images (by their real bytes: Kick's CDN says "binary/octet-stream"), only from the platforms' own sites.
-const REMOTE_HOSTS = /(^|\.)(kick\.com|jtvnw\.net|7tv\.app|7tv\.io)$/;
+// Only images (by their real bytes: Kick's CDN says "binary/octet-stream"), only from the platforms' own sites (and
+// Jarchi Pay's: the donation page's pictures).
+const REMOTE_HOSTS = /(^|\.)(kick\.com|jtvnw\.net|7tv\.app|7tv\.io)$/, PAY_HOST = new URL(pay.PAY).hostname;
 const IMAGE = { png: 'image/png', jpg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp' };
 app.get('/remote', async (req, res) => {
   let url;
   try { url = new URL(String(req.query.u)); } catch {}
-  if (url?.protocol !== 'https:' || !REMOTE_HOSTS.test(url.hostname)) return res.status(400).end();
+  if (url?.protocol !== 'https:' || !(REMOTE_HOSTS.test(url.hostname) || url.hostname === PAY_HOST)) return res.status(400).end();
   try {
     const r = await fetch(url, { headers: { 'user-agent': 'Mozilla/5.0 Jarchi' }, signal: AbortSignal.timeout(15000) });
     const body = Buffer.from(await r.arrayBuffer());
@@ -318,7 +324,7 @@ app.use('/', express.static(path.join(ROOT, 'panel')));
 app.use((err, req, res, next) => {
   if (!err.status) console.error(err);
   const code = err.status === 413 ? 'too_large' : err.status ? err.code || 'bad_request' : 'server_error';
-  res.status(err.status || 500).json({ error: code });
+  res.status(err.status || 500).json({ error: code, ...(err.status && err.field && { field: err.field }) }); // field: core/pay.js
 });
 
 // Widget pages open right now, in OBS or a browser (the panel's previews don't count): the Home page's green dots.

@@ -3,12 +3,13 @@
 //   no token: POST /api/app/request (a one-time /connect link: the streamer opens it in the browser and signs in with
 //   Kick or Twitch there, which says whose channel it is) and POST /api/app/status (none | pending | rejected |
 //   approved; an approved request hands out its token once);
-//   with the token: GET donations, GET donations/new (the crypto alerts), GET wallets, POST wallets/link, POST wallets/cancel.
+//   with the token: GET donations, GET donations/new (the crypto alerts), GET wallets, POST wallets/link, POST wallets/cancel,
+//   GET / PUT page (the donation page's look), PUT / DELETE page/avatar | page/banner.
 // The token is this install's key to its streamer's donations: sealed in data/pay.json with the installed app's key
 // (core/secrets.js: Electron safeStorage), never written plain and never sent to the panel. A dev run has no key, so it
 // keeps a new token only while it runs. Jarchi Pay learns this install's id, and nothing at all before the Privacy
 // Policy is accepted (the policy covers that id).
-// refresh(): at start, every 3 minutes and when the Crypto page opens. No token: the request's status. A token: the
+// refresh(): at start, every 10 minutes and when the Crypto page opens. No token: the request's status. A token: the
 // wallets (a 401 = the token was stopped: deactivated, or a newer one for that channel) -> back to the status.
 const path = require('node:path');
 const { EventEmitter } = require('node:events');
@@ -21,10 +22,11 @@ const stats = require('./stats');
 
 const PAY = process.env.JARCHI_PAY_URL || 'https://donate.jarchi.app';
 const TERMS = '1'; // the request's terms (i18n panel.cryptoTerms): bump this when they change
-const EVERY_MS = 3 * 60 * 1000;
+const EVERY_MS = 10 * 60 * 1000;
 const FILE = path.join(DATA_DIR, 'pay.json');
 // Jarchi Pay's errors the panel has words for (i18n errors.crypto_<code>); any other is crypto_failed.
-const ERRORS = ['pending', 'cooldown', 'disabled', 'rate', 'token', 'none'];
+// bad: a page field that isn't right (field: which one, for the panel to mark); size / type: a picture's.
+const ERRORS = ['pending', 'cooldown', 'disabled', 'rate', 'token', 'none', 'bad', 'size', 'type'];
 const failed = (status, code) => Object.assign(new Error(code), { status, code: `crypto_${code}` });
 const events = new EventEmitter(); // 'state' -> the panel; 'donation' (an alert's event) -> the alert queue
 
@@ -45,16 +47,18 @@ function drop() {
   store.save(FILE, saved);
 }
 
-// One call to Jarchi Pay -> its JSON (null for "204 done"). Throws { status, code } for the panel.
+// One call to Jarchi Pay -> its JSON (null for "204 done"). body: JSON, or a Buffer (a picture) as it is. Throws
+// { status, code, field? } for the panel.
 async function call(method, p, body) {
   if (!stats.accepted()) throw failed(403, 'privacy');
   const auth = p !== 'request' && p !== 'status';
   if (auth && !token) throw failed(401, 'token');
+  const bytes = Buffer.isBuffer(body);
   let r;
   try {
     r = await fetch(`${PAY}/api/app/${p}`, {
-      method, body: body && JSON.stringify(body), signal: AbortSignal.timeout(15000),
-      headers: { ...(body && { 'content-type': 'application/json' }), ...(auth && { authorization: `Bearer ${token}` }) },
+      method, body: bytes ? body : body && JSON.stringify(body), signal: AbortSignal.timeout(bytes ? 60000 : 15000),
+      headers: { ...(body && { 'content-type': bytes ? 'application/octet-stream' : 'application/json' }), ...(auth && { authorization: `Bearer ${token}` }) },
     });
   } catch {
     throw failed(502, 'offline');
@@ -63,7 +67,8 @@ async function call(method, p, body) {
   const data = await r.json().catch(() => ({}));
   if (r.ok) return data;
   if (r.status === 401 && auth) drop();
-  throw failed(r.status >= 500 ? 502 : 400, r.status === 401 ? 'token' : ERRORS.includes(data.error) ? data.error : 'failed');
+  const err = failed(r.status >= 500 ? 502 : 400, r.status === 401 ? 'token' : ERRORS.includes(data.error) ? data.error : 'failed');
+  throw Object.assign(err, typeof data.field === 'string' && /^[\w.]{1,30}$/.test(data.field) && { field: data.field });
 }
 // A one-time link from Jarchi Pay, opened in the streamer's browser: only ever one on Jarchi Pay's own site.
 const link = (r) => {
@@ -119,6 +124,27 @@ function donations(q) {
 const walletLink = async () => link(await call('POST', 'wallets/link'));
 const cancelChange = async () => (await call('POST', 'wallets/cancel'), refresh());
 
+// The donation page's look: { bio, socials, links, avatar, banner: { url, custom } }. bio: one line for both languages
+// ('' = Jarchi Pay's own); socials: an id each (Jarchi Pay makes the link on the platform's own site; website: a full
+// https URL). savePage: what it's given replaces what's there. A picture: PNG, JPG or WebP up to 2 MB (looked at here
+// first, then by Jarchi Pay; 10 an hour); reset: the channel's own picture again.
+const PICTURES = ['avatar', 'banner'], PICTURE_MAX = 2 * 1024 * 1024;
+const page = () => call('GET', 'page');
+const savePage = (b) => call('PUT', 'page', { bio: b?.bio, socials: b?.socials });
+const picture = (kind) => {
+  if (!PICTURES.includes(kind)) throw failed(400, 'failed');
+  return `page/${kind}`;
+};
+async function setPicture(kind, buf) {
+  const p = picture(kind);
+  if (!Buffer.isBuffer(buf) || !['png', 'jpg', 'webp'].includes(settings.sniff(buf))) throw failed(400, 'type');
+  if (buf.length > PICTURE_MAX) throw failed(400, 'size');
+  return call('PUT', p, buf).catch((err) => {
+    throw err.code === 'crypto_rate' ? failed(429, 'uploads') : err; // 10 an hour
+  });
+}
+const resetPicture = async (kind) => call('DELETE', picture(kind));
+
 // ---------- Crypto alerts: new donations ----------
 // A donation -> its alert's event (core/alerts.js push, widgets/alerts): name ('' = anonymous: the donor hid it), the
 // amount as Jarchi Pay wrote it, network, message (never a private one: it's for the streamer only, never on stream),
@@ -135,14 +161,14 @@ const alertOf = (d, test = false, look = undefined) => ({
   ...(typeof look === 'string' && /^[\w-]{1,16}$/.test(look) && { look }),
 });
 
-// While the gateway is active: every 4 s, the donations paid after the cursor (Jarchi Pay's /donations/new, in the order
-// it found them), each one an alert. The cursor is kept in pay.json, so a restart never plays one again; the first ask
-// (no cursor yet) only takes the cursor, so nothing from before plays. One paid over 10 minutes ago (Jarchi was closed
-// then) is skipped, as Jarchi Pay's own overlay does.
-const NEW_MS = 4000, LATE_MS = 10 * 60 * 1000;
+// While the gateway is active: every 20 s (Jarchi Pay looks at the chains once a minute), the donations paid after the
+// cursor (Jarchi Pay's /donations/new, in the order it found them), each one an alert. The cursor is kept in pay.json,
+// so a restart never plays one again; the first ask (no cursor yet) only takes the cursor, so nothing from before
+// plays. One paid over 10 minutes ago (Jarchi was closed then) is skipped, as Jarchi Pay's own overlay does.
+const NEW_MS = 20 * 1000, LATE_MS = 10 * 60 * 1000;
 let polling = false;
 async function pollNew() {
-  if (!token || polling || !stats.accepted()) return;
+  if (!token || state.state !== 'active' || polling || !stats.accepted()) return;
   polling = true;
   try {
     const r = await call('GET', `donations/new${Number.isInteger(saved.cursor) ? `?since=${saved.cursor}` : ''}`);
@@ -163,4 +189,4 @@ function start() {
   setInterval(pollNew, NEW_MS).unref();
 }
 
-module.exports = { start, refresh, pollNew, alertOf, now: () => state, request, donations, walletLink, cancelChange, events, PAY };
+module.exports = { start, refresh, pollNew, alertOf, now: () => state, request, donations, walletLink, cancelChange, page, savePage, setPicture, resetPicture, events, PAY };

@@ -371,7 +371,7 @@ async function api(method, url, body, headers = {}) {
     throw new Error(S.errors.offline);
   }
   const data = await res.json().catch(() => ({ error: 'server_error' }));
-  if (!res.ok) throw new Error(S.errors[data.error] || S.errors.server_error);
+  if (!res.ok) throw Object.assign(new Error(S.errors[data.error] || S.errors.server_error), { field: data.field }); // field: which one is wrong
   return data;
 }
 
@@ -486,9 +486,27 @@ function fitPreview() {
   if (box.clientWidth) box.style.setProperty('--k', Math.min((box.clientWidth - 2 * PREVIEW_MARGIN) / w, (box.clientHeight - 2 * PREVIEW_MARGIN) / h));
 }
 
+// Sidebar pages new in a version: a soft gold frame and a NEW tag until the streamer opens the page once, then never
+// again (settings.seenNew). Add a version's new pages here; one already opened stays plain.
+const NEW_PAGES = { '1.0.7': ['donations'] };
+const newPages = () => Object.values(NEW_PAGES).flat();
+function renderNew() {
+  for (const p of newPages()) {
+    const b = $(`.nav-item[data-view="${p}"]`), on = !settings.seenNew.includes(p);
+    b.classList.toggle('is-new', on);
+    if (on !== !!$('.nav-new', b)) on ? b.append(el('span', { className: 'nav-new', textContent: S.panel.navNew })) : $('.nav-new', b).remove();
+  }
+}
+function seenPage(v) {
+  if (!newPages().includes(v) || settings.seenNew.includes(v)) return;
+  settings.seenNew = [...settings.seenNew, v]; // plain at once (render below), saved for good
+  api('PATCH', '/api/settings', { seenNew: settings.seenNew }).then((s) => (settings = s), () => {});
+}
+
 // Open a page (and in Alerts / Goals / Guide, an item of it: without `key`, the one selected before).
 function select(v, key) {
   view = v;
+  seenPage(v);
   if (v === 'alert') {
     cur = key ?? cur;
     $('#previewAmount').value = samples[cur].amount;
@@ -512,11 +530,9 @@ function select(v, key) {
   if (v === 'events') loadHistory();
   if (v === 'support') loadTickets();
   if (v === 'connections') showProxyNow();
-  if (v === 'about') api('GET', '/api/version').then(({ version, installId }) => {
-    $('#aboutVersion').textContent = S.panel.version.replace('{version}', version);
-    $('#aboutInstall').textContent = installId;
-  }, () => {});
+  if (v === 'about') api('GET', '/api/version').then(({ version }) => ($('#aboutVersion').textContent = S.panel.version.replace('{version}', version)), () => {});
   if (v === 'donations') {
+    cryptoPage = null; // the Donation page tab asks again
     renderCrypto();
     loadCrypto();
     refreshDonations();
@@ -2095,6 +2111,7 @@ function fill(root, cfg) {
 
 // ---------- Sync UI from settings ----------
 function render() {
+  renderNew();
   for (const [list, all, selected] of [['#alertList', settings.alerts, cur], ['#goalList', settings.goals, curGoal]]) {
     $$(`${list} .nav-row`).forEach((row) => {
       const cfg = all[row.dataset.key];
@@ -2560,14 +2577,121 @@ function wireCrypto() {
   $('#cryptoPop').title = S.panel.cryptoPopOutHint;
   $('#cryptoPop').onclick = () => window.open('/crypto-popout.html', 'jarchiDonations', 'popup,width=380,height=600');
   $('#cryptoMore').onclick = () => loadDonations(true);
-  $('#cryptoWalletSet').onclick = () => api('POST', '/api/crypto/wallets/link').then(({ url }) => window.open(url, '_blank', 'noopener'), (err) => toast(err.message, true));
+  $('#cryptoWalletSet').onclick = $('#cryptoWalletChange').onclick = () => api('POST', '/api/crypto/wallets/link').then(({ url }) => window.open(url, '_blank', 'noopener'), (err) => toast(err.message, true));
   $('#cryptoChangeCancel').onclick = () => api('POST', '/api/crypto/wallets/cancel').then((st) => {
     gotCrypto(st);
     toast(S.panel.cryptoChangeCancelled);
   }, (err) => (toast(err.message, true), loadCrypto()));
   addEventListener('focus', () => view === 'donations' && loadCrypto()); // back from the browser: the request sent, the wallets set
-  $('#aboutInstallCopy').onclick = () => copyLink($('#aboutInstall').textContent, S.panel.installIdCopied);
   wireCryptoAlerts();
+  wireCryptoPage();
+}
+
+// ---------- The donation page (the Crypto page's Donation page tab) ----------
+// The wallets, read only (pay.wallets: they're changed on Jarchi Pay's site), the banner and picture, the line under the
+// name and the links. Asked from Jarchi Pay when the tab opens (once each time the Crypto page does), so what's typed
+// stays while the state changes; Save sends the line and every link, and Jarchi Pay's answer fills them in again.
+// Each link: the start that stays (the platform's own site, or https:// for Website), then the id or the address.
+const PAGE_LINKS = {
+  kick: ['kick.com/'], twitch: ['twitch.tv/'], youtube: ['youtube.com/@'], instagram: ['instagram.com/'],
+  telegram: ['t.me/', 'telegram.me/'], discord: ['discord.gg/', 'discord.com/invite/', 'discordapp.com/invite/'], website: ['https://'],
+};
+const LINK_NAMES = { kick: 'Kick', twitch: 'Twitch', youtube: 'YouTube', instagram: 'Instagram', telegram: 'Telegram', discord: 'Discord' };
+let cryptoPage = null, pageAsk = null; // Jarchi Pay's { bio, socials, links, avatar, banner }; null: not here (yet)
+// What a link's field keeps: a link pasted from the platform's own site (www. or m. in front is fine) gives its id, an
+// @ in front goes; Website keeps the address without https://. Jarchi Pay checks them all again.
+function linkId(k, v) {
+  const bare = v.trim().replace(/^https?:\/\//i, '');
+  if (k === 'website') return bare.replace(/^([^/?#]+)\/$/, '$1');
+  const at = bare.replace(/^(www|m)\./i, ''), from = PAGE_LINKS[k].find((f) => at.toLowerCase().startsWith(f));
+  if (!from) return v.trim().replace(/^@/, '');
+  try {
+    return decodeURIComponent(at.slice(from.length).split(/[/?#]/)[0]);
+  } catch {
+    return v.trim();
+  }
+}
+const loadCryptoPage = () => (pageAsk ??= api('GET', '/api/crypto/page').then((r) => {
+  cryptoPage = r;
+  fillCryptoPage();
+}, (err) => toast(err.message, true)).finally(() => {
+  pageAsk = null;
+  renderCryptoPage();
+}));
+function fillCryptoPage() {
+  $('#cryptoBio').value = cryptoPage.bio ?? '';
+  for (const inp of $$('#cryptoLinks input')) inp.value = linkId(inp.dataset.link, cryptoPage.socials[inp.dataset.link] ?? '');
+  $$('#cryptoPageTab [aria-invalid]').forEach((i) => i.removeAttribute('aria-invalid'));
+}
+function renderCryptoPage() {
+  const w = pay.wallets, p = cryptoPage;
+  for (const net of ['bep20', 'trc20']) {
+    const row = $(`#cryptoPageTab [data-net="${net}"]`), a = w?.[net];
+    Object.assign($('code', row), { textContent: a ? `${a.slice(0, 6)}…${a.slice(-4)}` : '', title: a ?? '' });
+    Object.assign($('.crypto-ok', row), { textContent: a ? `✓ ${S.panel.cryptoWalletOn}` : S.panel.cryptoWalletOff, className: `crypto-ok${a ? '' : ' off'}` });
+  }
+  $('#cryptoWalletChange').textContent = w?.bep20 && w?.trc20 ? S.panel.cryptoWalletChange : S.panel.cryptoWalletSet;
+  $('#cryptoPageSave').disabled = !p;
+  for (const box of $$('#cryptoPageTab [data-kind]')) {
+    const pic = p?.[box.dataset.kind];
+    (box.dataset.kind === 'banner' ? box : $('.pic', box)).style.backgroundImage = pic?.url ? `url("/remote?u=${encodeURIComponent(pic.url)}")` : '';
+    $('.from', box).textContent = !p ? '…' : pic.custom ? S.panel.cryptoPicYours : pic.url ? S.panel.cryptoPicChannel : S.panel.cryptoPicNone;
+    $('.upload', box).disabled = !p;
+    $('.remove', box).hidden = !pic?.custom;
+  }
+  $('#cryptoAvatar .pic').textContent = p?.avatar.url ? '' : (pay.channel || '?')[0].toUpperCase();
+}
+async function saveCryptoPage() {
+  const socials = {};
+  for (const inp of $$('#cryptoLinks input')) {
+    const k = inp.dataset.link, v = (inp.value = linkId(k, inp.value));
+    if (v) socials[k] = k === 'website' ? `https://${v}` : v;
+  }
+  $('#cryptoPageSave').disabled = true;
+  try {
+    cryptoPage = await api('PUT', '/api/crypto/page', { bio: $('#cryptoBio').value.trim(), socials });
+    fillCryptoPage();
+    toast(S.panel.cryptoPageSaved);
+  } catch (err) {
+    const bad = err.field === 'bio' ? $('#cryptoBio') : $$('#cryptoLinks input').find((i) => err.field === `socials.${i.dataset.link}`);
+    bad?.setAttribute('aria-invalid', 'true');
+    bad?.focus();
+    toast(bad?.dataset.link ? tpl(S.panel.cryptoBadLink, { name: bad.getAttribute('aria-label') }) : err.message, true);
+  } finally {
+    renderCryptoPage();
+  }
+}
+function wireCryptoPage() {
+  $('#cryptoView').onclick = () => window.open(pay.page, '_blank', 'noopener');
+  $('#cryptoPageSave').onclick = saveCryptoPage;
+  $('#cryptoBio').placeholder = S.panel.cryptoBioDefault; // Jarchi Pay's own line, without one
+  $('#cryptoBio').oninput = () => $('#cryptoBio').removeAttribute('aria-invalid');
+  $('#cryptoLinks').replaceChildren(...Object.entries(PAGE_LINKS).map(([k, [start]]) => {
+    const name = LINK_NAMES[k] ?? S.panel.cryptoWebsite;
+    const inp = el('input', { type: 'text', dir: 'ltr', spellcheck: false, autocomplete: 'off', maxLength: 300 });
+    inp.dataset.link = k;
+    inp.setAttribute('aria-label', name);
+    inp.oninput = (e) => {
+      inp.removeAttribute('aria-invalid');
+      if (e.inputType === 'insertFromPaste') inp.value = linkId(k, inp.value); // a whole link pasted: its id
+    };
+    inp.onchange = () => (inp.value = linkId(k, inp.value));
+    return el('label', { className: 'crypto-link' }, el('span', { textContent: name }), el('span', { className: 'crypto-pfx' }, el('em', { textContent: start }), inp));
+  }));
+  // A picture: an upload (Jarchi Pay checks it), or Reset = the channel's own again. Either answer is the whole page.
+  for (const box of $$('#cryptoPageTab [data-kind]')) {
+    const kind = box.dataset.kind, file = $('input[type=file]', box), up = $('.upload', box);
+    const after = (ask) => ask.then((r) => (cryptoPage = r), (err) => toast(err.message, true)).finally(renderCryptoPage);
+    up.onclick = () => file.click();
+    file.onchange = () => {
+      const f = file.files[0];
+      file.value = '';
+      if (!f) return;
+      up.disabled = true;
+      after(api('PUT', `/api/crypto/page/${kind}`, f));
+    };
+    $('.remove', box).onclick = () => after(api('DELETE', `/api/crypto/page/${kind}`));
+  }
 }
 
 // ---------- Crypto alerts (the Crypto page's Alert settings tab) ----------
@@ -2576,7 +2700,7 @@ function wireCrypto() {
 // instead). Your own alert and each amount alert are looks, edited in #cryptoLook with a live preview. Every change is
 // saved at once (send()), files like the other alerts' (wireFile).
 const CRYPTO_SECONDS = [6, 8, 10, 15];
-let cryptoTab = remember.get('jarchi.cryptoTab') === 'alerts' ? 'alerts' : 'donations', lookOpen = null; // lookOpen: 'custom' | an amount alert's id
+let cryptoTab = ['alerts', 'page'].includes(remember.get('jarchi.cryptoTab')) ? remember.get('jarchi.cryptoTab') : 'donations', lookOpen = null; // lookOpen: 'custom' | an amount alert's id
 const cryptoEvent = (look, amount = '25.0000') => ({ type: 'crypto', id: 'preview', user: 'Jarchi', amount, network: 'bep20', message: EN.test.message, txHash: `0x${'8f3a'.repeat(15)}c21d`, look });
 const cryptoTest = (look) => api('POST', '/api/crypto/test', { look }).then(() => toast(S.panel.testSent), (err) => toast(err.message, true));
 const lookOf = (id) => (id === 'custom' ? settings.crypto.custom : settings.crypto.tiers.find((t) => t.id === id));
@@ -2595,7 +2719,13 @@ function showCryptoTab(tab) {
   $$('.crypto-tabs button').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.tab === tab)));
   $('#cryptoDonations').hidden = tab !== 'donations';
   $('#cryptoPop').hidden = tab !== 'donations';
+  $('#cryptoView').hidden = tab !== 'page';
   $('#cryptoAlertsTab').hidden = tab !== 'alerts';
+  $('#cryptoPageTab').hidden = tab !== 'page';
+  if (tab === 'page') {
+    if (!cryptoPage) loadCryptoPage();
+    renderCryptoPage();
+  }
   if (tab !== 'alerts') return;
   $$('.crypto-mini iframe').forEach((f) => f.src || (f.src = '/widgets/alerts/?preview=tile')); // loaded once: onload draws the design
   renderCryptoAlerts();

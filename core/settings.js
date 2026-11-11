@@ -19,7 +19,8 @@ const THEMES = ['neon', 'minimal', 'fun', 'retro', 'glass', 'fire', 'ice', 'gala
 // welcomed: the panel's welcome tour was shown (it opens by itself once, on the first run).
 // privacyAccepted: the version of the Privacy Policy (i18n/privacy.json) the user accepted, 0 = none yet.
 // lang: the panel's language (it says so when it starts): what a crypto alert calls a donor who hid the name.
-const GLOBAL = { theme: 'neon', showBadge: true, alertGap: 0.5, proxyMode: 'auto', proxyType: 'http', proxyHost: '', proxyPort: 0, proxyFound: null, kickGoalSync: true, twitchGoalSync: true, welcomed: false, privacyAccepted: 0, lang: 'en' };
+// seenNew: the sidebar pages marked NEW (panel.js NEW_PAGES) the streamer has opened: never marked again.
+const GLOBAL = { theme: 'neon', showBadge: true, alertGap: 0.5, proxyMode: 'auto', proxyType: 'http', proxyHost: '', proxyPort: 0, proxyFound: null, kickGoalSync: true, twitchGoalSync: true, welcomed: false, privacyAccepted: 0, lang: 'en', seenNew: [] };
 const PROXY_HOST = /^[a-z0-9.:[\]_-]{0,253}$/i;
 const proxyPort = (v) => Number.isInteger(v) && v >= 0 && v <= 65535;
 const GLOBAL_RULES = {
@@ -27,6 +28,7 @@ const GLOBAL_RULES = {
   showBadge: (v) => typeof v === 'boolean',
   welcomed: (v) => typeof v === 'boolean',
   lang: (v) => v === 'en' || v === 'fa',
+  seenNew: (v) => Array.isArray(v) && v.length <= 50 && v.every((p) => typeof p === 'string' && /^[a-z]{1,20}$/.test(p)),
   privacyAccepted: (v) => Number.isInteger(v) && v >= 0,
   kickGoalSync: (v) => typeof v === 'boolean',
   twitchGoalSync: (v) => typeof v === 'boolean',
@@ -362,7 +364,7 @@ const bad = (code = 'bad_request') => Object.assign(new Error(code), { status: 4
 // the ones undone since (future), only while Jarchi runs. Each is JSON without what isn't a setting (KEEP: those stay as
 // they are). A file a change replaced or removed stays in uploads until no step has it any more (gone, sweep()).
 const UNDO_MAX = 5;
-const KEEP = ['version', 'installId', 'supportToken', 'obsSize', 'connect', 'welcomed', 'privacyAccepted', 'privacyAcceptedAt', 'lang'];
+const KEEP = ['version', 'installId', 'supportToken', 'obsSize', 'connect', 'welcomed', 'privacyAccepted', 'privacyAcceptedAt', 'lang', 'seenNew'];
 let past = [], future = [], last; // last: the settings now, as JSON (once loaded)
 const gone = new Set();
 const plain = () => JSON.stringify({ ...saved, ...Object.fromEntries(KEEP.map((k) => [k])) }); // undefined: left out
@@ -884,7 +886,7 @@ function reset(type) {
     removeFile(saved.profile?.picture);
     const c = saved.crypto ?? {};
     [c.sound, c.custom?.image, c.custom?.sound, ...(c.tiers ?? []).flatMap((t) => [t.image, t.sound])].forEach(removeFile);
-    saved = { version: VERSION, installId: saved.installId, supportToken: saved.supportToken, obsSize: saved.obsSize, connect: saved.connect, lang: saved.lang }; // still the same install, OBS and panel (none yet: left out)
+    saved = { version: VERSION, installId: saved.installId, supportToken: saved.supportToken, obsSize: saved.obsSize, connect: saved.connect, lang: saved.lang, seenNew: saved.seenNew }; // still the same install, OBS and panel (none yet: left out)
   }
   persist(!!type); // Reset everything can't be undone
   return get();
