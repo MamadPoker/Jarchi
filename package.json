@@ -49,6 +49,7 @@
       "assets/**",
       "i18n/**",
       "!{data,relay,test,dist,build,.claude,.wrangler,.git}{,/**}",
+      "!assets/Claude outputs{,/**}",
       "!**/.env",
       "!**/.env.*",
       "!**/wrangler.toml",
