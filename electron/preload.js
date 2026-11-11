@@ -1,6 +1,7 @@
 // The panel's one door into the desktop app (window.jarchiApp). Updates: main.js sends their state on every page load
 // and on every change; the panel shows it and asks for the restart. The last state is kept here, so the panel gets it
-// whenever it starts listening. Uninstall: whether this is an installed Jarchi, and starting its uninstaller.
+// whenever it starts listening. Uninstall: whether this is an installed Jarchi, and starting its uninstaller. onTop: the
+// window stays above the others.
 const { contextBridge, ipcRenderer } = require('electron');
 
 let state, listener;
@@ -17,4 +18,5 @@ contextBridge.exposeInMainWorld('jarchiApp', {
   seen: () => ipcRenderer.send('update:seen'),
   installed: () => ipcRenderer.invoke('app:installed'),
   uninstall: (keep) => ipcRenderer.send('app:uninstall', keep),
+  onTop: (on) => ipcRenderer.send('window:onTop', on), // this window above all others, or not (Crypto's pop-out)
 });

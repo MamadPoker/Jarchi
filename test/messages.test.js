@@ -14,6 +14,7 @@ const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'jarchi-messages-'));
 process.env.JARCHI_DATA_DIR = dataDir;
 process.env.JARCHI_PORT = '3995';
 process.env.KICK_RELAY_URL = 'https://relay.test';
+process.env.JARCHI_PAY_URL = 'http://127.0.0.1:9'; // nothing there: the server's crypto checks reach no real Jarchi Pay
 const KEY = 'k'.repeat(96);
 const ctx = { waitUntil() {} };
 

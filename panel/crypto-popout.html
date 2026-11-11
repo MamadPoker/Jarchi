@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Jarchi</title>
+  <link rel="icon" href="/assets/brand/icons/jarchi.ico">
+  <link rel="stylesheet" href="panel.css">
+  <!-- The panel's look (index.html keeps the same), before the first paint. -->
+  <script>try {
+    const de = document.documentElement, ls = localStorage, accent = JSON.parse(ls.getItem('jarchi.accent'));
+    de.dataset.theme = ls.getItem('jarchi.theme') || 'dark';
+    de.dataset.palette = ls.getItem('jarchi.palette') || 'jarchi';
+    if (accent) for (const k in accent) de.style.setProperty(k, accent[k]);
+    else if (de.dataset.palette === 'system') de.dataset.palette = 'jarchi';
+  } catch {}</script>
+  <style>
+    body { display: flex; flex-direction: column; height: 100vh; }
+    .pop-bar { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 10px 6px 12px; border-bottom: 1px solid var(--border); background: var(--sidebar); color: var(--muted); font-size: 12px; font-weight: 600; }
+    .pop-bar button { padding: 4px 6px; }
+    .pop-bar button[aria-pressed="true"] { border-color: var(--gold); color: var(--gold-text); }
+    main.pop { flex: 1; overflow: auto; padding: 10px; }
+    .pop .donation { padding: 9px 11px; }
+    .pop .don-logo { width: 28px; height: 28px; padding: 5px; }
+    .pop .don-msg { margin-top: 6px; font-size: 13px; }
+  </style>
+</head>
+<body>
+  <!-- Crypto's pop-out (the Crypto page's "Pop out"): the donations alone, newest first, for a second monitor. In the
+       desktop app its pin keeps the window above the others (remembered). -->
+  <header class="pop-bar"><span id="popTitle"></span><button id="pin" class="ghost" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16v6M8 3h8l-1 6 4 4v3H5v-3l4-4z"/></svg></button></header>
+  <main class="pop"><p id="popNote" class="crypto-empty" hidden></p><ol id="list" class="donations"></ol></main>
+  <script>
+    const remember = {
+      get: (k) => { try { return localStorage.getItem(k); } catch { return null; } },
+      set: (k, v) => { try { localStorage.setItem(k, v); } catch {} },
+    };
+    const FA = remember.get('jarchi.lang') === 'fa';
+    Object.assign(document.documentElement, { lang: FA ? 'fa' : 'en', dir: FA ? 'rtl' : 'ltr' });
+    const $ = (sel) => document.querySelector(sel);
+    const el = (tag, props = {}, ...kids) => {
+      const e = Object.assign(document.createElement(tag), props);
+      e.append(...kids);
+      return e;
+    };
+    const since = new Intl.RelativeTimeFormat(FA ? 'fa' : 'en', { numeric: 'auto', style: 'short' });
+    const ago = (t) => {
+      const s = (Date.now() - t) / 1000;
+      return s < 60 ? since.format(0, 'second') : s < 3600 ? since.format(-Math.floor(s / 60), 'minute')
+        : s < 86400 ? since.format(-Math.floor(s / 3600), 'hour') : since.format(-Math.floor(s / 86400), 'day');
+    };
+    const NEW_MS = 15 * 60 * 1000; // as on the Crypto page
+    let S;
+
+    const row = (d) => {
+      const isNew = Date.now() - d.paidAt < NEW_MS;
+      return el('li', { className: `donation${isNew ? ' new' : ''}` },
+        el('div', { className: 'don-top' },
+          ['kick', 'twitch'].includes(d.platform) ? el('img', { className: 'don-logo', src: `/assets/platform-logos/${d.platform}.svg`, alt: S.platforms[d.platform] }) : el('span', { className: 'don-logo' }),
+          el('span', { className: 'don-who' },
+            el('b', {}, el('bdi', { textContent: d.name ?? S.panel.cryptoAnon }), isNew ? el('span', { className: 'don-new', textContent: S.panel.cryptoNew }) : ''),
+            el('small', { textContent: ago(d.paidAt) })),
+          el('span', { className: 'don-amt' }, el('b', {}, el('bdi', { textContent: `${d.amount} USDT` })))),
+        d.message ? el('div', { className: 'don-msg', dir: 'auto' }, d.private ? el('span', { className: 'don-private', textContent: `🔒 ${S.panel.cryptoPrivate}` }) : '', d.message) : '');
+    };
+    async function load() {
+      let r, error;
+      try {
+        const res = await fetch('/api/crypto/donations');
+        r = await res.json();
+        if (!res.ok) error = S.errors[r.error] ?? S.errors.server_error;
+      } catch {
+        error = S.errors.offline; // Jarchi closed
+      }
+      if (!error) $('#list').replaceChildren(...r.donations.map(row));
+      const note = error ?? (!r.donations.length && S.panel.cryptoEmpty);
+      Object.assign($('#popNote'), { textContent: note || '', hidden: !note });
+    }
+
+    (async () => {
+      S = await (await fetch(`/i18n/${FA ? 'fa' : 'en'}.json`)).json();
+      document.title = `Jarchi · ${S.panel.cryptoTitle}`;
+      $('#popTitle').textContent = S.panel.cryptoTitle;
+      const app = window.jarchiApp, pin = $('#pin');
+      if (app?.onTop) {
+        const draw = (on) => {
+          pin.setAttribute('aria-pressed', on);
+          app.onTop(on);
+          remember.set('jarchi.popTop', on);
+        };
+        Object.assign(pin, { hidden: false, title: S.panel.cryptoPin, onclick: () => draw(pin.getAttribute('aria-pressed') !== 'true') });
+        pin.setAttribute('aria-label', S.panel.cryptoPin);
+        draw(remember.get('jarchi.popTop') === 'true');
+      }
+      load();
+      setInterval(() => !document.hidden && load(), 20000);
+      document.addEventListener('visibilitychange', () => !document.hidden && load());
+    })();
+  </script>
+</body>
+</html>

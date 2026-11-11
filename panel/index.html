@@ -218,12 +218,47 @@
         <small data-i18n="giveawaySoon"></small>
       </section>
 
-      <!-- ===== Crypto donations: not built yet. Its gateway is asked for on Support (a "crypto" ticket, wireSupport) ===== -->
-      <section class="view soon" data-view="donations" hidden>
-        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M14.8 9.2a2.8 2.8 0 0 0-2.8-1.7c-1.6 0-2.8.9-2.8 2.1 0 2.9 5.6 1.5 5.6 4.5 0 1.2-1.2 2.2-2.8 2.2a2.9 2.9 0 0 1-2.8-1.8M12 6v1.5M12 16.3v1.7"/></svg>
-        <h2 data-i18n="cryptoTitle"></h2>
-        <small data-i18n="cryptoSoon"></small>
-        <button id="cryptoRequest" class="primary crypto-request" data-i18n="cryptoRequest"></button>
+      <!-- ===== Crypto (Jarchi Pay, core/pay.js; renderCrypto). Not active: the coin (it spins, and the mouse can spin it),
+           what the gateway is, and Request (#cryptoAsk); pending / rejected say why it's off. Active: the donations. ===== -->
+      <section class="view crypto" data-view="donations" hidden>
+        <div id="cryptoHero" class="crypto-hero">
+          <div class="coin-stage"><div id="coin" class="coin"></div></div>
+          <h2 data-i18n="cryptoHeroTitle"></h2>
+          <p id="cryptoHeroText"></p>
+          <ul class="crypto-feat">
+            <li><span aria-hidden="true">🪙</span><span data-i18n="cryptoFeatPage"></span></li>
+            <li><span aria-hidden="true">🔒</span><span data-i18n="cryptoFeatWallet"></span></li>
+          </ul>
+          <button id="cryptoRequest" class="primary crypto-big" data-i18n="cryptoRequest"></button>
+          <p id="cryptoWhy" class="crypto-why" hidden></p>
+        </div>
+        <div id="cryptoActive" class="crypto-active" hidden>
+          <div class="page-head">
+            <div class="crypto-tabs"><span class="on" data-i18n="cryptoTabDonations"></span></div>
+            <button id="cryptoPop" class="ghost crypto-pop"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M20 4l-8 8M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg><span data-i18n="cryptoPopOut"></span></button>
+          </div>
+          <p id="cryptoError" class="crypto-warn bad" role="alert" hidden></p>
+          <!-- Until both wallet addresses are set: they're set on Jarchi Pay's site (a one-time link), never here. -->
+          <div id="cryptoWallet" class="box crypto-step" hidden>
+            <h2 data-i18n="cryptoWalletTitle"></h2>
+            <small data-i18n="cryptoWalletText"></small>
+            <div><button id="cryptoWalletSet" class="primary" data-i18n="cryptoWalletSet"></button></div>
+          </div>
+          <!-- A wallet change waiting its 24 hours: the new addresses, and Cancel. -->
+          <div id="cryptoChange" class="crypto-warn" role="alert" hidden>
+            <span id="cryptoChangeText"></span>
+            <code id="cryptoChangeTo" dir="ltr"></code>
+            <div><button id="cryptoChangeCancel" class="danger" data-i18n="cryptoChangeCancel"></button></div>
+          </div>
+          <div class="crypto-stats">
+            <div class="crypto-stat link"><small data-i18n="cryptoLink"></small><div class="row"><code id="cryptoUrl" dir="ltr"></code><button id="cryptoCopy" class="primary" data-i18n="copy"></button></div></div>
+            <div class="crypto-stat" data-total="today"><small data-i18n="cryptoToday"></small><b></b><em></em></div>
+            <div class="crypto-stat" data-total="week"><small data-i18n="cryptoWeek"></small><b></b><em></em></div>
+            <div class="crypto-stat" data-total="all"><small data-i18n="cryptoAll"></small><b></b><em></em></div>
+          </div>
+          <ol id="cryptoList" class="donations"></ol>
+          <button id="cryptoMore" class="ghost crypto-more" data-i18n="cryptoMore" hidden></button>
+        </div>
       </section>
 
       <!-- ===== About: the logo, the version (GET /api/version), who made it ===== -->
@@ -233,6 +268,8 @@
         <p data-i18n="aboutText"></p>
         <!-- "Made with ♥ by MamadPoker" (filled in panel.js); hover: a gold-bordered box. Privacy: the policy's popup. -->
         <small class="about-links"><a class="made-by" id="madeWith" href="https://mamadpoker.netlify.app/" target="_blank" rel="noopener"></a><span aria-hidden="true">·</span><button id="aboutPrivacy" class="link" data-i18n="privacyLink"></button></small>
+        <!-- This install's id (settings.installId): Support may ask for it, and Jarchi Pay knows this Jarchi by it. -->
+        <small class="install-id"><span data-i18n="installId"></span><code id="aboutInstall" dir="ltr"></code><button id="aboutInstallCopy" class="link" data-i18n="copy"></button></small>
       </section>
 
       <!-- ===== What's new (the profile menu, the update banner; by itself once after an update): each version's changes,
@@ -1297,6 +1334,33 @@
 
   <!-- A message from Jarchi's team (renderTeam, teamShow in panel.js; core/messages.js): one at a time, a gift's box first.
        The confetti goes beside #teamBody, so it keeps flying while the message comes in. -->
+  <!-- Crypto's Request (wireCrypto): the connected channels, the terms, "I accept", Send -> Jarchi Pay's one-time link in
+       the browser (#cryptoSent). No Kick / Twitch account connected: Connections first (#cryptoNoChannel). -->
+  <dialog id="cryptoAsk" class="profile-dialog crypto-ask" aria-labelledby="cryptoAskTitle">
+    <div id="cryptoForm" class="crypto-pane">
+      <h2 id="cryptoAskTitle" data-i18n="cryptoRequest"></h2>
+      <small data-i18n="cryptoAskSub"></small>
+      <div id="cryptoChannels" class="crypto-channels"></div>
+      <div class="crypto-terms"><b data-i18n="cryptoTermsTitle"></b><ol id="cryptoTerms"></ol></div>
+      <label class="row crypto-agree"><input type="checkbox" id="cryptoAgree"><span data-i18n="cryptoAgree"></span></label>
+      <div class="profile-actions">
+        <button class="ghost" data-close data-i18n="twCancel"></button>
+        <button id="cryptoSend" class="primary" data-i18n="cryptoSend" disabled></button>
+      </div>
+    </div>
+    <div id="cryptoNoChannel" class="crypto-pane crypto-done" hidden>
+      <span class="crypto-ic gold" aria-hidden="true">🔗</span>
+      <h2 data-i18n="cryptoNoChannelTitle"></h2>
+      <small data-i18n="cryptoNoChannelText"></small>
+      <div class="profile-actions"><button class="ghost" data-close data-i18n="updateClose"></button><button id="cryptoGoConn" class="primary" data-i18n="cryptoGoConnections"></button></div>
+    </div>
+    <div id="cryptoSent" class="crypto-pane crypto-done" hidden>
+      <span class="crypto-ic" aria-hidden="true">✓</span>
+      <h2 data-i18n="cryptoSentTitle"></h2>
+      <small data-i18n="cryptoSentText"></small>
+      <div class="profile-actions"><button id="cryptoOpenAgain" class="ghost" data-i18n="cryptoOpenAgain"></button><button class="primary" data-close data-i18n="updateClose"></button></div>
+    </div>
+  </dialog>
   <dialog id="teamMsg" class="profile-dialog team-msg" aria-labelledby="teamTitle"><div id="teamBody"></div></dialog>
 
   <div id="tip" role="tooltip" hidden></div>

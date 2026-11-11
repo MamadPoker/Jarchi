@@ -56,6 +56,11 @@ function tintBar(e, color) {
   win.setTitleBarOverlay({ color, symbolColor: 0.299 * r + 0.587 * g + 0.114 * b > 150 ? '#000000' : '#ffffff' });
 }
 
+// Crypto's pop-out (panel/crypto-popout.html): the donations list alone, small, for a second monitor. Its pin keeps it
+// on top of other windows (preload.js onTop).
+const POPOUT = { width: 380, height: 600, minWidth: 300, minHeight: 300, autoHideMenuBar: true, icon: path.join(ROOT, 'assets/brand/icons', process.platform === 'win32' ? 'jarchi.ico' : 'jarchi-256.png'), webPreferences: { preload: path.join(__dirname, 'preload.js') } };
+ipcMain.on('window:onTop', (e, on) => BrowserWindow.fromWebContents(e.sender)?.setAlwaysOnTop(on === true));
+
 function open() {
   const { maximized, ...bounds } = savedBounds();
   win = new BrowserWindow({
@@ -79,7 +84,7 @@ function open() {
     win.hide();
   });
   win.webContents.setWindowOpenHandler(({ url }) => {
-    if (own(url)) return { action: 'allow' };
+    if (own(url)) return { action: 'allow', ...(new URL(url).pathname === '/crypto-popout.html' && { overrideBrowserWindowOptions: POPOUT }) };
     outside(url);
     return { action: 'deny' };
   });

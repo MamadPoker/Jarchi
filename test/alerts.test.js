@@ -26,6 +26,7 @@ fs.writeFileSync(path.join(dataDir, 'settings.json'), JSON.stringify({
   },
 }));
 process.env.JARCHI_PORT = '3997';
+process.env.JARCHI_PAY_URL = 'http://127.0.0.1:9'; // nothing there: the server's crypto checks reach no real Jarchi Pay
 const { server, io } = require('../server');
 const { bus, emitEvent, emitChat, logIncoming } = require('../core/events');
 const kick = require('../connectors/kick-chat');

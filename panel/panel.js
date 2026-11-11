@@ -512,7 +512,15 @@ function select(v, key) {
   if (v === 'events') loadHistory();
   if (v === 'support') loadTickets();
   if (v === 'connections') showProxyNow();
-  if (v === 'about') api('GET', '/api/version').then(({ version }) => ($('#aboutVersion').textContent = S.panel.version.replace('{version}', version)), () => {});
+  if (v === 'about') api('GET', '/api/version').then(({ version, installId }) => {
+    $('#aboutVersion').textContent = S.panel.version.replace('{version}', version);
+    $('#aboutInstall').textContent = installId;
+  }, () => {});
+  if (v === 'donations') {
+    renderCrypto();
+    loadCrypto();
+    refreshDonations();
+  }
   if (v === 'news') renderNews(S.lang);
   if (v === 'guide') {
     if (S.guide.topics[key]) topic = key;
@@ -1444,13 +1452,6 @@ function wireSupport() {
   const catHint = () => ($('#ticketCatHint').textContent = S.panel.ticketCatHints[form.category.value]);
   $('#ticketCats').onchange = catHint;
   catHint();
-  // Crypto's "Request crypto gateway": a new ticket of that category.
-  $('#cryptoRequest').onclick = () => {
-    form.category.value = 'crypto';
-    catHint();
-    select('support');
-    showSupport('new');
-  };
   // The sound for a new reply: on unless switched off here.
   const sound = $('#ticketSound'), drawSound = () => {
     const on = remember.get(SOUND) !== 'off';
@@ -1890,6 +1891,7 @@ function build() {
   $('#kcConnect').onclick = () => kickCall('POST', '/api/kick/connect').then((k) => k?.uri && window.open(k.uri, '_blank', 'noopener'));
   $('#kcDisconnect').onclick = () => kickCall('POST', '/api/kick/disconnect');
   $('#kcOpen').onclick = () => window.open(kick.uri, '_blank', 'noopener');
+  socket.on('crypto', gotCrypto);
   socket.on('kickAccount', (k) => {
     kick = k;
     renderKick();
@@ -2024,6 +2026,7 @@ function build() {
   wireDev();
   wireDevUpdate();
   wireSupport();
+  wireCrypto();
 
   $$('[data-i18n]').forEach((e) => (e.textContent = S.panel[e.dataset.i18n]));
   const [madeA, madeB] = S.panel.madeWith.split('{heart}'); // About's "Made with ♥ by MamadPoker", the heart in gold
@@ -2344,6 +2347,213 @@ async function renderNews(lang = newsLang) {
   box.replaceChildren(...list.map((c) => el('article', { className: 'box news-item' },
     el('div', { className: 'row' }, el('h2', { textContent: `v${c.version}` }), c.ready ? el('span', { className: 'pill news-ready', textContent: P.updateInstall }) : ''),
     el('ul', {}, ...c[lang].map((s, i) => el('li', {}, newsIcon(c.types?.[i], P), el('span', { textContent: s })))))));
+}
+
+// ---------- Crypto (Jarchi Pay, core/pay.js) ----------
+// Not active: the coin, what the gateway is, and Request (pending: waiting for Jarchi; rejected: until when). Active: the
+// donation page's link, the totals and the donations, newest first; a wallet step until both addresses are set, and a
+// warning with Cancel while a wallet change waits. The state: GET /api/crypto when the page opens or the window comes
+// back (from the browser, where the request and the wallets are done), and by socket when it changes (an approval opens
+// the active page by itself). The list again every 30 s while the page is in view.
+let pay = { state: 'none' }, donations = { list: [], next: null, totals: null, pages: 0 }, payLink;
+const DAY_MS = 86400000, NEW_MS = 15 * 60 * 1000;
+const days = new Intl.NumberFormat(FA ? 'fa' : 'en', { style: 'unit', unit: 'day', unitDisplay: 'long' });
+const TX = { bep20: ['BEP20', 'https://bscscan.com/tx/'], trc20: ['TRC20', 'https://tronscan.org/#/transaction/'] };
+const marked = (s, tag) => s.split('*').map((part, i) => (i % 2 ? el(tag, { textContent: part }) : part)); // *these words* in <tag>
+const usdt = (a) => el('bdi', { textContent: `${a} USDT` });
+const loadCrypto = () => api('GET', '/api/crypto').then(gotCrypto, () => {});
+function gotCrypto(st) {
+  const was = pay.state;
+  pay = st;
+  if (st.state === 'active' && was !== 'active') {
+    if (was === 'pending' && view !== 'donations') toast(S.panel.cryptoApproved);
+    donations = { list: [], next: null, totals: null, pages: 0 };
+    loadDonations();
+  }
+  if (view === 'donations') renderCrypto();
+}
+
+// Start of today and of this week (from Saturday, as Jarchi Pay counts it) on this PC's clock: the totals.
+function bounds() {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const week = new Date(today);
+  week.setDate(today.getDate() - ((today.getDay() + 1) % 7));
+  return { today: today.getTime(), week: week.getTime() };
+}
+let listSeq = 0;
+function loadDonations(more) {
+  const seq = ++listSeq;
+  const q = new URLSearchParams({ ...bounds(), ...(more && { cursor: donations.next }) });
+  return api('GET', `/api/crypto/donations?${q}`).then((r) => {
+    if (seq !== listSeq) return;
+    donations = { totals: r.totals, next: r.next, list: more ? [...donations.list, ...r.donations] : r.donations, pages: more ? donations.pages + 1 : 1 };
+    if (view === 'donations') renderDonations();
+  }, (err) => more && toast(err.message, true));
+}
+// ponytail: the 30 s refresh skips a list with more pages open (it would drop them); merge by id if that's missed.
+const refreshDonations = () => pay.state === 'active' && donations.pages <= 1 && loadDonations(); // pages 0: the last load failed
+setInterval(() => view === 'donations' && !document.hidden && refreshDonations(), 30000);
+
+function renderCrypto() {
+  const active = pay.state === 'active';
+  $('#cryptoHero').hidden = active;
+  $('#cryptoActive').hidden = !active;
+  if (!active) {
+    const wait = pay.state === 'rejected' && pay.retryAt > Date.now();
+    $('#cryptoRequest').disabled = pay.state === 'pending' || wait;
+    const why = [
+      pay.state === 'pending' && S.panel.cryptoPending,
+      wait && tpl(S.panel.cryptoRejected, { time: days.format(Math.ceil((pay.retryAt - Date.now()) / DAY_MS)) }),
+      wait && pay.reason && tpl(S.panel.cryptoReason, { reason: pay.reason }),
+      pay.lost && S.panel.cryptoLost,
+      pay.error && (S.errors[pay.error] ?? S.errors.crypto_failed),
+    ].filter(Boolean);
+    $('#cryptoWhy').replaceChildren(...why.flatMap((t, i) => (i ? [el('br'), t] : [t])));
+    $('#cryptoWhy').hidden = !why.length;
+    coinRun();
+    return;
+  }
+  $('#cryptoUrl').textContent = pay.page.replace(/^https?:\/\//, '');
+  hint('#cryptoError', pay.error && (S.errors[pay.error] ?? S.errors.crypto_failed));
+  const w = pay.wallets; // null: not asked yet (offline)
+  $('#cryptoWallet').hidden = !w || !!(w.bep20 && w.trc20);
+  $('#cryptoChange').hidden = !w?.pending;
+  if (w?.pending) {
+    $('#cryptoChangeText').textContent = tpl(S.panel.cryptoChange, { date: dateTime(w.pending.effectiveAt) });
+    $('#cryptoChangeTo').textContent = [['BEP20', w.pending.bep20], ['TRC20', w.pending.trc20]].filter(([, a]) => a).map(([n, a]) => `${n}: ${a}`).join('\n');
+  }
+  renderDonations();
+}
+
+function renderDonations() {
+  const t = donations.totals;
+  for (const k of ['today', 'week', 'all']) {
+    const box = $(`[data-total="${k}"]`), n = t?.[k].count;
+    $('b', box).textContent = t ? Number(t[k].amount).toLocaleString('en', { maximumFractionDigits: 2 }) : '–';
+    $('em', box).textContent = t ? (n === 1 ? S.panel.cryptoCountOne : tpl(S.panel.cryptoCount, { n: fmt(n) })) : '';
+  }
+  $('#cryptoList').replaceChildren(...(!t ? [] : donations.list.length ? donations.list.map(donationRow) : [el('li', { className: 'crypto-empty', textContent: S.panel.cryptoEmpty })]));
+  $('#cryptoMore').hidden = !donations.next;
+}
+// One donation: who (or Anonymous) with the platform they signed in with, when, how much on which network, the message
+// (a private one: for the streamer only, never read on stream), the transaction, and Replay (once crypto alerts exist).
+function donationRow(d) {
+  const [net, explorer] = TX[d.network] ?? [d.network ?? '', null];
+  const isNew = Date.now() - d.paidAt < NEW_MS;
+  const logo = ['kick', 'twitch'].includes(d.platform)
+    ? el('img', { className: 'don-logo', src: `/assets/platform-logos/${d.platform}.svg`, alt: S.platforms[d.platform], title: S.platforms[d.platform] })
+    : el('span', { className: 'don-logo' });
+  return el('li', { className: `donation${isNew ? ' new' : ''}` },
+    el('div', { className: 'don-top' }, logo,
+      el('span', { className: 'don-who' },
+        el('b', {}, el('bdi', { textContent: d.name ?? S.panel.cryptoAnon }), isNew ? el('span', { className: 'don-new', textContent: S.panel.cryptoNew }) : ''),
+        el('small', { textContent: ago(d.paidAt), title: dateTime(d.paidAt) })),
+      el('span', { className: 'don-amt' }, el('b', {}, usdt(d.amount)), el('small', { className: 'don-net', textContent: net }))),
+    d.message ? el('div', { className: 'don-msg', dir: 'auto' }, d.private ? el('span', { className: 'don-private', textContent: `🔒 ${S.panel.cryptoPrivate}` }) : '', d.message) : '',
+    el('div', { className: 'don-foot' },
+      d.txHash && explorer ? el('a', { href: explorer + encodeURIComponent(d.txHash), target: '_blank', rel: 'noopener', title: S.panel.cryptoTx, dir: 'ltr', textContent: `${d.txHash.slice(0, 6)}…${d.txHash.slice(-4)} ↗` }) : el('span'),
+      el('button', { className: 'ghost', textContent: `↻ ${S.panel.cryptoReplay}`, disabled: true })));
+}
+
+// The coin: it turns by itself (not with Reduce animations: then it rests face on), a drag turns it, and a quick drag
+// sets it spinning, slowing down to its own pace. Drawn only while it's in view.
+const coin = { ay: 0, ax: -6, vel: 60, drag: false, lx: 0, ly: 0, lt: 0, sv: 0, last: 0, raf: 0 };
+const coinOn = () => view === 'donations' && !$('#cryptoHero').hidden && !document.hidden;
+function coinFrame(t) {
+  const dt = coin.last ? Math.min(0.05, (t - coin.last) / 1000) : 0;
+  coin.last = t;
+  if (!coin.drag) {
+    const pace = calm() ? 0 : 60;
+    coin.vel += (pace - coin.vel) * Math.min(1, dt * (Math.abs(coin.vel) > 90 ? 0.9 : 2.5));
+    coin.ay += coin.vel * dt;
+    if (calm() && Math.abs(coin.vel) < 5) coin.ay += (Math.round(coin.ay / 180) * 180 - coin.ay) * Math.min(1, dt * 3);
+    coin.ax += (-6 - coin.ax) * Math.min(1, dt * 3);
+  }
+  $('#coin').style.transform = `rotateX(${coin.ax}deg) rotateY(${coin.ay}deg)`;
+  coin.raf = coinOn() ? requestAnimationFrame(coinFrame) : 0;
+}
+function coinRun() {
+  if (!coinOn() || coin.raf) return;
+  coin.last = 0;
+  coin.raf = requestAnimationFrame(coinFrame);
+}
+function wireCoin() {
+  const c = $('#coin');
+  for (let z = -8; z <= 8; z++) c.append(el('i', { className: 'edge', style: `transform: translateZ(${z}px) scale(.985)` }));
+  c.append(el('i', { className: 'face', style: 'transform: translateZ(9px)' }), el('i', { className: 'face', style: 'transform: rotateY(180deg) translateZ(9px)' }));
+  c.onpointerdown = (e) => {
+    Object.assign(coin, { drag: true, lx: e.clientX, ly: e.clientY, lt: performance.now(), sv: 0 });
+    c.classList.add('grab');
+    c.setPointerCapture(e.pointerId);
+  };
+  c.onpointermove = (e) => {
+    if (!coin.drag) return;
+    const t = performance.now(), dx = e.clientX - coin.lx, dy = e.clientY - coin.ly, ms = Math.max(1, t - coin.lt);
+    coin.ay += dx * 0.6;
+    coin.ax = Math.max(-35, Math.min(35, coin.ax - dy * 0.4));
+    coin.sv = coin.sv * 0.5 + ((dx * 0.6) / ms) * 1000 * 0.5;
+    Object.assign(coin, { lx: e.clientX, ly: e.clientY, lt: t });
+  };
+  c.onpointerup = c.onpointercancel = () => {
+    if (!coin.drag) return;
+    coin.drag = false;
+    c.classList.remove('grab');
+    coin.vel = performance.now() - coin.lt > 120 ? 0 : Math.max(-2500, Math.min(2500, coin.sv)); // held still before letting go: no spin
+  };
+  document.addEventListener('visibilitychange', coinRun);
+}
+
+// Request: the connected Kick / Twitch accounts (none: Connections first), the terms and "I accept", then Send: Jarchi
+// Pay's one-time link opens in the browser, where signing in with the channel sends the request.
+function openCryptoAsk() {
+  const accounts = [['kick', kick], ['twitch', twitch]].filter(([, a]) => a?.state === 'connected' && a.login);
+  $('#cryptoForm').hidden = !accounts.length;
+  $('#cryptoNoChannel').hidden = !!accounts.length;
+  $('#cryptoSent').hidden = true;
+  $('#cryptoChannels').replaceChildren(...accounts.map(([p, a]) => el('div', { className: 'crypto-channel' },
+    el('img', { src: `/assets/platform-logos/${p}.svg`, alt: '' }), el('b', {}, el('bdi', { textContent: a.login })),
+    el('small', { textContent: tpl(S.panel.cryptoConnected, { platform: S.platforms[p] }) }))));
+  $('#cryptoAgree').checked = false;
+  $('#cryptoSend').disabled = true;
+  $('#cryptoAsk').showModal();
+}
+function wireCrypto() {
+  wireCoin();
+  $('#cryptoHeroText').append(...marked(S.panel.cryptoHeroText, 'b'));
+  $('#cryptoTerms').append(...S.panel.cryptoTerms.map((t) => el('li', {}, ...marked(t, 'u'))));
+  $('#cryptoRequest').onclick = openCryptoAsk;
+  $('#cryptoAgree').onchange = (e) => ($('#cryptoSend').disabled = !e.target.checked);
+  $$('#cryptoAsk [data-close]').forEach((b) => (b.onclick = () => $('#cryptoAsk').close()));
+  $('#cryptoGoConn').onclick = () => {
+    $('#cryptoAsk').close();
+    select('connections');
+  };
+  $('#cryptoSend').onclick = async () => {
+    $('#cryptoSend').disabled = true;
+    try {
+      ({ url: payLink } = await api('POST', '/api/crypto/request', { accept: $('#cryptoAgree').checked }));
+    } catch (err) {
+      toast(err.message, true);
+      $('#cryptoSend').disabled = !$('#cryptoAgree').checked;
+      return loadCrypto(); // already pending, or waiting after a rejection: the page says so
+    }
+    window.open(payLink, '_blank', 'noopener');
+    $('#cryptoForm').hidden = true;
+    $('#cryptoSent').hidden = false;
+  };
+  $('#cryptoOpenAgain').onclick = () => window.open(payLink, '_blank', 'noopener');
+  $('#cryptoCopy').onclick = () => copyLink(pay.page, S.panel.cryptoLinkCopied);
+  $('#cryptoPop').title = S.panel.cryptoPopOutHint;
+  $('#cryptoPop').onclick = () => window.open('/crypto-popout.html', 'jarchiDonations', 'popup,width=380,height=600');
+  $('#cryptoMore').onclick = () => loadDonations(true);
+  $('#cryptoWalletSet').onclick = () => api('POST', '/api/crypto/wallets/link').then(({ url }) => window.open(url, '_blank', 'noopener'), (err) => toast(err.message, true));
+  $('#cryptoChangeCancel').onclick = () => api('POST', '/api/crypto/wallets/cancel').then((st) => {
+    gotCrypto(st);
+    toast(S.panel.cryptoChangeCancelled);
+  }, (err) => (toast(err.message, true), loadCrypto()));
+  addEventListener('focus', () => view === 'donations' && loadCrypto()); // back from the browser: the request sent, the wallets set
+  $('#aboutInstallCopy').onclick = () => copyLink($('#aboutInstall').textContent, S.panel.installIdCopied);
 }
 
 // Settings > Uninstall Jarchi: only in the installed app (electron/main.js says whether its uninstaller is there; not

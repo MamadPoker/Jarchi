@@ -24,6 +24,7 @@ fs.writeFileSync(path.join(dataDir, 'today.json'), JSON.stringify({ date: new Da
 process.env.JARCHI_DATA_DIR = dataDir;
 process.env.JARCHI_PORT = '3999';
 process.env.KICK_RELAY_URL = 'http://127.0.0.1:9'; // nothing there: accepting the Privacy Policy below pings no real relay
+process.env.JARCHI_PAY_URL = 'http://127.0.0.1:9'; // nothing there: the server's crypto checks reach no real Jarchi Pay
 const { server, io } = require('../server');
 const { bus, setConnected, emitEvent } = require('../core/events');
 const goals = require('../core/goals');
@@ -178,7 +179,7 @@ test('migration, settings, uploads, reset, events', async () => {
   assert.equal((await fetch(`${base}/uploads/${pic}`)).status, 200);
   s = await (await call('PATCH', '/api/settings', { profile: { nameFrom: 'custom', name: 'Mamad' } })).json();
   assert.deepStrictEqual([s.profile.nameFrom, s.profile.name, s.profile.pictureFrom, s.profile.picture.file], ['custom', 'Mamad', 'upload', pic]);
-  assert.deepEqual(await (await call('GET', '/api/version')).json(), { version: require('../package.json').version, dev: true }); // About; a dev run (not installed, no app.asar)
+  assert.deepEqual(await (await call('GET', '/api/version')).json(), { version: require('../package.json').version, dev: true, installId: settings.installId() }); // About; a dev run (not installed, no app.asar)
 
   s = await (await call('POST', '/api/reset/follow')).json();
   assert.equal(s.alerts.follow.image, null);

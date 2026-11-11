@@ -17,6 +17,7 @@ const kickAccount = require('../connectors/kick-account');
 const stats = require('../core/stats');
 const support = require('../core/support');
 const messages = require('../core/messages');
+const pay = require('../core/pay');
 const viewers = require('../core/viewers');
 const vpn = require('../core/vpn');
 const release = require('../core/release');
@@ -74,7 +75,10 @@ function follow(patch) {
 }
 app.patch('/api/settings', (req, res) => {
   const s = settings.update(req.body);
-  if ('privacyAccepted' in req.body) stats.ping().then(messages.load); // the Privacy Policy accepted just now: the first usage ping, then the team's messages
+  if ('privacyAccepted' in req.body) {
+    stats.ping().then(messages.load); // the Privacy Policy accepted just now: the first usage ping, then the team's messages
+    pay.refresh(); // and the crypto gateway's state
+  }
   follow(req.body);
   res.json(changed(s));
 });
@@ -122,7 +126,7 @@ app.post('/api/alerts/:type/reset-text', (req, res) => res.json(changed(settings
 const STARTED = Date.now();
 app.get('/api/home', (req, res) => res.json({ today: today(), started: STARTED, kickGoals: goals.kickList() }));
 app.get('/api/history', (req, res) => res.json(alertQueue.feed()));
-app.get('/api/version', (req, res) => res.json({ version: require('../package.json').version, dev: DEV })); // About; dev: Settings' dev tools
+app.get('/api/version', (req, res) => res.json({ version: require('../package.json').version, dev: DEV, installId: settings.installId() })); // About; dev: Settings' dev tools
 
 // Proxy: "Test connection" (Kick, Twitch, 7TV), and which proxy is in use right now.
 app.post('/api/net/test', async (req, res) => res.json(await chat.check()));
@@ -199,6 +203,14 @@ app.use('/api/support', raw, async (req, res) => {
   if (!type) return res.status(502).json({ error: 'support_failed' });
   res.set({ 'content-type': type, 'x-content-type-options': 'nosniff', 'cache-control': 'private, max-age=86400' }).send(body);
 });
+
+// Crypto (the Crypto page, core/pay.js): Jarchi Pay's gateway and donations. Its token stays in core/pay.js; the panel
+// gets the state (also by socket when it changes), the donations and the one-time links it opens in the browser.
+app.get('/api/crypto', async (req, res) => res.json(await pay.refresh()));
+app.post('/api/crypto/request', async (req, res) => res.json(await pay.request(req.body?.accept)));
+app.get('/api/crypto/donations', async (req, res) => res.json(await pay.donations(req.query)));
+app.post('/api/crypto/wallets/link', async (req, res) => res.json(await pay.walletLink()));
+app.post('/api/crypto/wallets/cancel', async (req, res) => res.json(await pay.cancelChange()));
 
 // Team messages (Home's cards, core/messages.js): a card shown = seen, its ✕ = closed. The list itself goes by socket, to
 // the panel only.
@@ -315,6 +327,7 @@ io.on('connection', (socket) => {
   socket.once('panelJoin', () => {
     socket.join('panel');
     socket.emit('teamMessages', messages.list());
+    socket.emit('crypto', pay.now());
   });
   if (DEV && release.latest()) socket.emit('devUpdate', release.latest()); // a newer Jarchi than this source copy (core/release.js)
   // The alerts overlay joins to get alerts from the queue (the panel's previews don't): the main link, or one type's own
@@ -368,6 +381,7 @@ chat.events.on('status', (st) => {
 });
 vpn.events.on('state', (st) => io.emit('proxyHelp', st));
 messages.events.on('change', (list) => io.to('panel').emit('teamMessages', list));
+pay.events.on('state', (st) => io.to('panel').emit('crypto', st));
 release.events.on('found', (r) => io.emit('devUpdate', r));
 // A Kick / Twitch account connected on the Connections page fills that platform's channel on the Chat page, only when
 // it's empty there (a name typed there always stays), so its chat, alerts and the panel's background art start at once.
@@ -415,6 +429,7 @@ server.listen(PORT, HOST, () => {
   kickAccount.start();
   media.shrinkOld().catch(console.error); // uploads from before the 512 px rule, once
   stats.start().then(messages.start); // usage pings, once the Privacy Policy is accepted; then the team's messages (the relay knows this install by its ping)
+  pay.start(); // the crypto gateway's state (Jarchi Pay), the same
   if (DEV) release.start(); // a dev run doesn't update itself: it hears of new versions (core/release.js)
 });
 // The desktop app (electron/main.js) asks: 'quit' -> the last usage ping, then goodbye (`npm start` gets Ctrl+C);

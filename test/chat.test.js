@@ -7,6 +7,7 @@ const path = require('node:path');
 
 process.env.JARCHI_DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'jarchi-chat-'));
 process.env.JARCHI_PORT = '3998';
+process.env.JARCHI_PAY_URL = 'http://127.0.0.1:9'; // nothing there: the server's crypto checks reach no real Jarchi Pay
 const { server, io } = require('../server');
 const { bus, chatMessage } = require('../core/events');
 const twitch = require('../connectors/twitch-chat');
