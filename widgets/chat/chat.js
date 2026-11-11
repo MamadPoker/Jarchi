@@ -40,6 +40,14 @@ const GEMS = [10000, 5000, 1000, 100, 1]; // Twitch's cheer gems, by amount (ass
 // The user's Custom CSS (Advanced box), after the page's own CSS so it wins. Set as text, so nothing in it is ever HTML
 // (a "</style>" can't end it).
 const userCss = document.head.appendChild(document.createElement('style'));
+// An exclusive design's CSS (x-<name>: core/designs.js checked it; never a script), before the user's CSS so theirs wins.
+const designCss = document.head.insertBefore(document.createElement('style'), userCss);
+const designs = new Map(); // id -> its CSS (a promise; '' when it can't be had)
+const designOf = (id) => {
+  if (!id.startsWith('x-')) return Promise.resolve('');
+  if (!designs.has(id)) designs.set(id, fetch(`/widgets/chat/designs/${id}.css`).then((r) => (r.ok ? r.text() : ''), () => ''));
+  return designs.get(id);
+};
 let S, cfg, mainSettings, look = '', f = {};
 const recent = []; // known messages, newest last (to rebuild when the look changes)
 let rows = []; // on screen: { el, msg, timer, exiting, combo, count, at }
@@ -168,10 +176,14 @@ function apply(still = false) {
   // then measured in the font the text is drawn in, never in a stand-in font that's swapped out later.
   fontsIn = false;
   const mine = ++lookSeq;
-  lookFonts().then(() => {
+  designOf(cfg.style).then((css) => {
     if (mine !== lookSeq) return; // the look changed meanwhile
-    fontsIn = true;
-    rebuild(still);
+    designCss.textContent = css;
+    return lookFonts().then(() => {
+      if (mine !== lookSeq) return;
+      fontsIn = true;
+      rebuild(still);
+    });
   });
 }
 
@@ -597,6 +609,7 @@ function msgEl(m) {
   if (cfg.border && cfg.borderColorMode === 'user' && m.user.color) el.style.setProperty('--mbd', m.user.color); // its border: the sender's color (chat.css)
   el.style.setProperty('--tilt', `${(hash(m.id) % 61) / 10 - 3}deg`);
   el.dataset.dir = dirOf(m.text);
+  el.dataset.turn = m.seq % 24; // its order, for a design's CSS to take turns with (by 2, 3, 4, 6, 8 or 12)
   return el;
 }
 

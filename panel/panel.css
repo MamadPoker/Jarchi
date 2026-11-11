@@ -494,6 +494,28 @@ body { padding-top: var(--tb); }
 .avatar { position: relative; display: grid; place-items: center; flex: none; width: 32px; height: 32px; border-radius: 50%; overflow: hidden; background: var(--card2); color: var(--muted); }
 .avatar img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .profile-name { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+/* The hidden 👀 on the profile chip (Ctrl+Shift+E, panel.js wireEyes): the eyes look around now and then. Its popover,
+   and the first time's spotlight: everything dimmed but the eyes, in a softly pulsing gold frame. */
+.eyes { position: absolute; top: 50%; inset-inline-end: 8px; justify-content: center; width: 38px; height: 32px; padding: 0; border-color: transparent; background: none; transform: translateY(-50%); animation: eyes-in 0.5s ease-out; }
+.eyes:hover { border-color: var(--gold-line); background: var(--gold-soft); }
+.eyes svg { width: 26px; height: 19px; overflow: visible; stroke: none; }
+.eyes .pupils { animation: eyes-look 4s ease-in-out infinite; }
+.profile-menu:has(.eyes:not([hidden])) #profileChip { padding-inline-end: 50px; }
+@keyframes eyes-in { 0% { opacity: 0; transform: translateY(-50%) scale(0.4); } 60% { opacity: 1; transform: translateY(-50%) scale(1.2); } }
+@keyframes eyes-look { 0%, 22%, 78%, 100% { transform: none; } 30%, 48% { transform: translate(-4.6px, 0); } 56%, 70% { transform: translate(-2px, -2px); } }
+.redeem-pop { position: fixed; z-index: 40; display: grid; gap: 8px; width: min(300px, calc(100vw - 16px)); padding: 14px; border: 1px solid var(--gold-line); border-radius: 14px; background: var(--card); box-shadow: 0 16px 40px var(--shadow), 0 0 24px color-mix(in srgb, var(--gold) 12%, transparent); animation: redeem-in 0.2s ease-out; }
+.redeem-pop[hidden] { display: none; }
+.redeem-pop h2 { margin: 0; color: var(--gold-text); font-size: 15px; }
+.redeem-pop small { color: var(--muted); font-size: 12px; line-height: 1.7; }
+#redeemCode { font: 600 14px ui-monospace, Consolas, monospace; letter-spacing: 0.08em; text-align: center; text-transform: uppercase; }
+.redeem-msg { min-height: 18px; margin: 0; color: var(--teal); font-size: 13px; text-align: center; }
+.redeem-msg.bad { color: var(--danger); }
+@keyframes redeem-in { from { opacity: 0; transform: translateY(6px); } }
+.eyes-spot { position: fixed; inset: 0; z-index: 60; cursor: pointer; }
+.eyes-spot[hidden] { display: none; }
+.eyes-spot span { position: fixed; border-radius: 12px; box-shadow: 0 0 0 100vmax rgb(2 6 5 / 0.82); outline: 2px solid color-mix(in srgb, var(--gold) 90%, transparent); outline-offset: 3px; animation: eyes-pulse 1.4s ease-in-out infinite; pointer-events: none; }
+@keyframes eyes-pulse { 50% { outline-color: color-mix(in srgb, var(--gold) 20%, transparent); outline-offset: 9px; } }
+@media (prefers-reduced-motion: reduce) { .eyes, .eyes .pupils, .eyes-spot span, .redeem-pop { animation: none; } }
 
 /* Its menu opens above it, over the sidebar, as wide as the chip (under it when the sidebar is on top). */
 .profile-menu .menu-pop { top: auto; bottom: calc(100% + 6px); inset-inline: 0; min-width: 0; }
@@ -1129,6 +1151,7 @@ textarea { resize: vertical; line-height: 1.5; }
 .style-tile .preview { width: 100%; border-radius: 8px; }
 .style-tile .tile-name { font-size: 13px; }
 .style-tile.selected { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold); }
+.tile-name .exclusive { margin-inline-start: 6px; padding: 1px 8px; border-color: var(--gold-line); background: var(--gold-soft); color: var(--gold-text); font-size: 11px; font-weight: 700; } /* an exclusive design (core/designs.js) */
 /* A Chat setting saved for each style: a small gold palette before its label (panel.js ownMark); the note says so. */
 .own-mark { display: inline-block; margin-inline-end: 5px; color: var(--gold); vertical-align: -2px; line-height: 0; }
 .own-mark svg { width: 13px; height: 13px; }
@@ -1574,6 +1597,24 @@ button.crypto-big { padding: 12px 22px; border-radius: 12px; font-size: 15px; bo
 .crypto-pfx input:focus-visible { outline: none; }
 .crypto-pfx:has([aria-invalid="true"]), #cryptoBio[aria-invalid="true"] { border-color: var(--danger); }
 .crypto-save { display: flex; justify-content: flex-end; margin-top: 14px; }
+/* Panel banner maker: the colors, wide or square, the banner itself (a canvas, as wide as there's room for), Download,
+   and how to put it on a channel's panels */
+.banner-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 6px 0 12px; }
+.banner-colors { display: flex; flex-wrap: wrap; gap: 8px; margin-inline-end: auto; }
+.banner-colors button { width: 32px; height: 32px; padding: 0; border: 3px solid transparent; border-radius: 50%; box-shadow: 0 0 0 1px var(--border); }
+.banner-colors button[aria-checked="true"] { border-color: var(--text); }
+.banner-stage { display: flex; justify-content: center; padding: 16px; border: 1px solid var(--border); border-radius: 14px; background: var(--bg); }
+.banner-stage canvas { display: block; max-width: 100%; height: auto; }
+.banner-maker[data-shape="square"] .banner-stage canvas { max-width: min(100%, 420px); }
+.banner-dl { display: flex; justify-content: center; margin-top: 12px; }
+.banner-dl button { padding: 10px 22px; font-size: 15px; box-shadow: 0 0 20px color-mix(in srgb, var(--gold) 35%, transparent); }
+.banner-how { margin-top: 14px; padding: 12px 16px; border: 1px solid var(--border); border-radius: 12px; background: var(--card2); font-size: 14px; line-height: 1.9; }
+.banner-how > b { color: var(--gold-text); }
+.banner-how ol { margin: 6px 0 0; padding-inline-start: 20px; }
+.banner-how p { margin: 8px 0 0; color: var(--muted); font-size: 13px; }
+.banner-link { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+.banner-link code { flex: 1; min-width: 0; overflow: hidden; padding: 5px 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--gold-text); font: 600 13px ui-monospace, Consolas, monospace; text-overflow: ellipsis; white-space: nowrap; }
+.banner-link button { flex: none; padding: 5px 12px; font-size: 12px; }
 .crypto-fonts span { font-size: 16px; font-weight: 400; }
 .crypto-look-acts { justify-content: space-between; padding-top: 12px; border-top: 1px solid var(--border); }
 #cryptoLookDone { margin-inline-start: auto; }

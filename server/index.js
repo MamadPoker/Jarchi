@@ -18,6 +18,7 @@ const kickAccount = require('../connectors/kick-account');
 const stats = require('../core/stats');
 const support = require('../core/support');
 const messages = require('../core/messages');
+const designs = require('../core/designs');
 const pay = require('../core/pay');
 const viewers = require('../core/viewers');
 const vpn = require('../core/vpn');
@@ -164,7 +165,14 @@ app.post('/api/reset{/:type}', (req, res) => {
 // is Chat 2, else Chat 1. "+" adds Chat 2, remove deletes it.
 const chatOf = (body) => (body?.chat === 'chat2' ? 'chat2' : 'chat');
 app.get('/api/chat/status', (req, res) => res.json(chat.status()));
-app.get('/api/chat/styles', (req, res) => res.json({ styles: settings.CHAT_DESIGNS, fonts: settings.CHAT_FONTS }));
+app.get('/api/chat/styles', (req, res) => res.json({ styles: settings.CHAT_DESIGNS, fonts: settings.CHAT_FONTS, exclusive: designs.names() }));
+// Exclusive chat designs (core/designs.js): a code from the panel's hidden 👀; a design's CSS for the chat widget.
+app.post('/api/designs/redeem', async (req, res) => res.json(await designs.redeem(req.body?.code)));
+app.get('/widgets/chat/designs/:file', (req, res, next) => {
+  const css = /^(x-[a-z0-9-]{1,30})\.css$/.test(req.params.file) && designs.css(req.params.file.slice(0, -4));
+  if (!css) return next();
+  res.set({ 'content-type': 'text/css; charset=utf-8', 'x-content-type-options': 'nosniff', 'cache-control': 'no-store' }).send(css);
+});
 app.post('/api/chat/test', (req, res) => {
   const key = chatOf(req.body);
   if (!settings.get()[key]) return res.status(400).json({ error: 'bad_request' }); // Chat 2 is gone (another window)
@@ -413,6 +421,7 @@ chat.events.on('status', (st) => {
 });
 vpn.events.on('state', (st) => io.emit('proxyHelp', st));
 messages.events.on('change', (list) => io.to('panel').emit('teamMessages', list));
+designs.events.on('change', () => io.to('panel').emit('chatStyles')); // a design unlocked or downloaded again: Chat styles asks again
 pay.events.on('state', (st) => io.to('panel').emit('crypto', st));
 release.events.on('found', (r) => io.emit('devUpdate', r));
 // A Kick / Twitch account connected on the Connections page fills that platform's channel on the Chat page, only when
@@ -460,7 +469,7 @@ server.listen(PORT, HOST, () => {
   twitchAccount.start(); // and the Twitch and Kick accounts, when they're connected
   kickAccount.start();
   media.shrinkOld().catch(console.error); // uploads from before the 512 px rule, once
-  stats.start().then(messages.start); // usage pings, once the Privacy Policy is accepted; then the team's messages (the relay knows this install by its ping)
+  stats.start().then(() => (messages.start(), designs.sync())); // usage pings, once the Privacy Policy is accepted; then the team's messages (the relay knows this install by its ping)
   pay.start(); // the crypto gateway's state (Jarchi Pay), the same
   if (DEV) release.start(); // a dev run doesn't update itself: it hears of new versions (core/release.js)
 });

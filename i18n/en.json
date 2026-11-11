@@ -191,6 +191,36 @@
     "cryptoSave": "Save",
     "cryptoPageSaved": "Donation page saved!",
     "cryptoBadLink": "{name}: that doesn't look right. Check it and save again.",
+    "redeemTitle": "Do you have a code?",
+    "redeemText": "Enter the code Jarchi's team sent you.",
+    "redeemGo": "Activate",
+    "redeemDone": "The \"{name}\" design is unlocked. It's in Chat styles now.",
+    "chatExclusive": "Exclusive",
+    "bannerTitle": "Panel banner",
+    "bannerSub": "A picture for your Kick or Twitch channel panels that leads to your donation page. Pick a color, look at it, download it.",
+    "bannerColor": "Color",
+    "bannerColors": [
+      "Jarchi gold",
+      "Kick green",
+      "Twitch purple",
+      "Red",
+      "Blue",
+      "Pink",
+      "Orange",
+      "White"
+    ],
+    "bannerShape": "Shape",
+    "bannerWide": "Wide",
+    "bannerSquare": "Square",
+    "bannerDownload": "Download PNG",
+    "bannerHowTitle": "How to put it on your channel",
+    "bannerSteps": [
+      "Pick a color and a shape, then press Download PNG.",
+      "On *Kick*: Settings → Channel → About, add a new panel. On *Twitch*: your channel page → About → Edit Panels.",
+      "Upload the picture you downloaded as the panel's image.",
+      "In the panel's link, put this address, so a click on the picture goes straight to your donation page:"
+    ],
+    "bannerTip": "Wide fits a column of panels best; square, when your other panels are square too.",
     "cryptoTabAlerts": "Alert settings",
     "cryptoDesignCoin": "Coin and card",
     "cryptoDesignCoinHint": "The coin drops, the card opens",
@@ -903,7 +933,12 @@
     "crypto_bad": "Something there isn't right. Check it and save again.",
     "crypto_size": "That picture is over 2 MB. Pick a smaller one.",
     "crypto_type": "The picture has to be PNG, JPG or WebP.",
-    "crypto_uploads": "That's 10 pictures in an hour, the most there can be. Try again later."
+    "crypto_uploads": "That's 10 pictures in an hour, the most there can be. Try again later.",
+    "designs_privacy": "This needs the Privacy Policy accepted first (About → Privacy).",
+    "designs_bad_code": "That code doesn't work.",
+    "designs_rate": "Too many tries. Try again in an hour.",
+    "designs_offline": "Can't reach Jarchi right now. Check your internet and the proxy (Connections), then try again.",
+    "designs_failed": "That didn't work. Please try again in a few minutes."
   },
   "help": {
     "groups": {

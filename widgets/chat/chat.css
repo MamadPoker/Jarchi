@@ -7,6 +7,7 @@
 @font-face { font-family: "Fredoka"; src: url("/assets/fonts/fredoka/Fredoka-Variable.ttf") format("truetype"); font-weight: 300 700; font-display: swap; }
 @font-face { font-family: "Vazirmatn"; src: url("/assets/fonts/vazirmatn/Vazirmatn-Variable.ttf") format("truetype"); font-weight: 100 900; font-display: swap; }
 @font-face { font-family: "Inter"; src: url("/assets/fonts/inter/Inter-Variable.ttf") format("truetype"); font-weight: 100 900; font-display: swap; }
+@font-face { font-family: "Manrope"; src: url("/assets/fonts/manrope/Manrope-Variable.ttf") format("truetype"); font-weight: 200 800; font-display: swap; }
 html, body { margin: 0; height: 100%; overflow: hidden; background: transparent; }
 body.preview, body.thumb { display: grid; place-items: center; }
 

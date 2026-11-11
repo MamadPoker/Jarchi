@@ -59,6 +59,8 @@
            A click opens its menu: Jarchi's version, Restart into that update, What's new, Edit profile. -->
       <div class="menu profile-menu">
         <button id="profileChip" class="profile-chip" aria-haspopup="true" aria-expanded="false" aria-controls="profileMenu"><span class="avatar"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="9" r="4"/><path d="M4.5 20a7.5 7.5 0 0 1 15 0"/></svg><img alt="" hidden></span><span class="profile-name"></span><i id="updateDot" class="update-dot" hidden></i></button>
+        <!-- Hidden: Ctrl+Shift+E shows it and hides it again (wireEyes). "Do you have a code?" (#redeemPop). -->
+        <button id="eyes" class="eyes" data-aria="redeemTitle" hidden><svg viewBox="0 0 30 22" aria-hidden="true"><ellipse cx="9" cy="11" rx="7.2" ry="9.5" fill="#fff" stroke="#c9d3d2" stroke-width="1"/><ellipse cx="21" cy="11" rx="7.2" ry="9.5" fill="#fff" stroke="#c9d3d2" stroke-width="1"/><g class="pupils"><ellipse cx="11.5" cy="11.5" rx="3.6" ry="4.6" fill="#1a1a1a"/><ellipse cx="23.5" cy="11.5" rx="3.6" ry="4.6" fill="#1a1a1a"/><circle cx="12.6" cy="9.8" r="1.1" fill="#fff"/><circle cx="24.6" cy="9.8" r="1.1" fill="#fff"/></g></svg></button>
         <div id="profileMenu" class="menu-pop" hidden>
           <small id="menuVersion" class="menu-version"></small>
           <button id="menuUpdate" class="menu-update" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg><span></span></button>
@@ -321,6 +323,26 @@
               <label class="crypto-field"><span class="crypto-lbl" data-i18n="cryptoBio"></span><input type="text" id="cryptoBio" maxlength="120" dir="auto"></label>
               <div class="crypto-field"><span class="crypto-lbl" data-i18n="cryptoLinks"></span><div id="cryptoLinks" class="crypto-links"></div></div>
               <div class="crypto-save"><button id="cryptoPageSave" class="primary" data-i18n="cryptoSave"></button></div>
+            </div>
+            <!-- Panel banner (drawBanner, on a canvas): a picture for the streamer's Kick / Twitch channel panels with their own
+                 donation link on it. 8 colors, wide or square; Download PNG is 3 times the preview's size. -->
+            <div class="box crypto-sec banner-maker">
+              <h2 data-i18n="bannerTitle"></h2>
+              <small data-i18n="bannerSub"></small>
+              <div class="banner-bar">
+                <div id="bannerColors" class="banner-colors" role="radiogroup" data-aria="bannerColor"></div>
+                <div class="seg" role="radiogroup" data-aria="bannerShape">
+                  <label><input type="radio" name="bannerShape" value="wide" checked><span data-i18n="bannerWide"></span></label>
+                  <label><input type="radio" name="bannerShape" value="square"><span data-i18n="bannerSquare"></span></label>
+                </div>
+              </div>
+              <div class="banner-stage"><canvas id="bannerCanvas" role="img" data-aria="bannerTitle"></canvas></div>
+              <div class="banner-dl"><button id="bannerDownload" class="primary"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg><span data-i18n="bannerDownload"></span></button></div>
+              <div class="banner-how">
+                <b data-i18n="bannerHowTitle"></b>
+                <ol id="bannerSteps"></ol>
+                <p>💡 <span data-i18n="bannerTip"></span></p>
+              </div>
             </div>
           </div>
         </div>
@@ -1397,6 +1419,17 @@
 
   <!-- A message from Jarchi's team (renderTeam, teamShow in panel.js; core/messages.js): one at a time, a gift's box first.
        The confetti goes beside #teamBody, so it keeps flying while the message comes in. -->
+  <!-- The hidden 👀's popover (wireEyes): a code from Jarchi's team unlocks an exclusive chat design (core/designs.js).
+       And the first Ctrl+Shift+E's spotlight: everything dimmed but the eyes; a click anywhere ends it. -->
+  <div id="redeemPop" class="redeem-pop" role="dialog" aria-labelledby="redeemTitle" hidden>
+    <h2 id="redeemTitle" data-i18n="redeemTitle"></h2>
+    <small data-i18n="redeemText"></small>
+    <input type="text" id="redeemCode" placeholder="XXXX-XXXX" maxlength="20" dir="ltr" autocomplete="off" spellcheck="false">
+    <button id="redeemGo" class="primary" data-i18n="redeemGo"></button>
+    <p id="redeemMsg" class="redeem-msg" role="status"></p>
+  </div>
+  <div id="eyesSpot" class="eyes-spot" hidden><span></span></div>
+
   <!-- Crypto's Request (wireCrypto): the connected channels, the terms, "I accept", Send -> Jarchi Pay's one-time link in
        the browser (#cryptoSent). No Kick / Twitch account connected: Connections first (#cryptoNoChannel). -->
   <dialog id="cryptoAsk" class="profile-dialog crypto-ask" aria-labelledby="cryptoAskTitle">

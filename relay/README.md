@@ -57,6 +57,8 @@ For Jarchi's admin app (also its support tickets). Every request needs `Authoriz
 | `POST /admin/messages` | A new team message, JSON: `title: { en, fa }`, `body: { en, fa }`, `style` (`info`, `update`, `warning`, `gift`), `target` (`"all"`, `"dev"`, `{ "version": "1.0.4" }` or `{ "install": "<install id>" }`), and optionally `link: { label: { en, fa }, url: "https://..." }`, `code` (one line, the same in both languages, e.g. a gift's activation code) and `expiresAt` (ISO 8601, UTC). Plain text only: `<`, `>` and control characters (but line ends in a body) are refused (`bad_request`). Title up to 120 characters, body 2,000, link label 40, code 64. |
 | `PATCH /admin/messages/<id>` | `{ "active": false }` deactivates it (`true` turns it back on). |
 | `DELETE /admin/messages/<id>` | The message and its seen / closed records. |
+| `GET /admin/codes` | Every exclusive design code (below), newest first: `{ id, design, note, createdAt, install, redeemedAt }`. `id` is the first 12 digits of the code's hash: the code itself is never kept. `install` / `redeemedAt`: `null` until it's redeemed. |
+| `POST /admin/codes` | A new code for a design, JSON: `{ "design": "x-<name>", "note": "who it's for" }` (`note` optional, one line of plain text, up to 80 characters). The answer is the same as above plus `code` (`XXXX-XXXX`): **the only time it's shown**. An unknown design is `bad_request`. |
 
 ## Team messages (`/messages...`)
 
@@ -68,7 +70,21 @@ Messages from Jarchi's team, written in the admin app (above) and shown in Jarch
 | `POST /messages/<id>/seen` | I saw it. |
 | `POST /messages/<id>/closed` | I closed it (seen too): never on my list again. |
 
-A message not meant for that install is `not_found`, like one that isn't there. Errors are JSON `{ "error": "..." }`: `bad_request`, `not_found`, `method`. Kept in the D1 tables `team_messages` and `team_message_views` (install id, when it saw / closed each message), from `migrations/` (`0001_team_messages.sql`, then `0002_team_message_code.sql` for `code`). Apply new ones from this folder **before** deploying the worker that uses them (without them `DELETE /admin/installs/<id>` and `POST /admin/messages` fail): `npx wrangler d1 migrations apply jarchi-stats --remote` (it runs only the ones not applied yet).
+A message not meant for that install is `not_found`, like one that isn't there. Errors are JSON `{ "error": "..." }`: `bad_request`, `not_found`, `method`. Kept in the D1 tables `team_messages` and `team_message_views` (install id, when it saw / closed each message), from `migrations/` (`0001_team_messages.sql`, then `0002_team_message_code.sql` for `code`; `0003_chat_designs.sql` is the exclusive designs'). Apply new ones from this folder **before** deploying the worker that uses them (without them `DELETE /admin/installs/<id>` and `POST /admin/messages` fail): `npx wrangler d1 migrations apply jarchi-stats --remote` (it runs only the ones not applied yet).
+
+## Exclusive chat designs (`/designs...`)
+
+Chat looks only some streamers get. A code from Jarchi's team (`POST /admin/codes` above) unlocks one design for the one install that redeems it, for good: the same code fails on any other install. Jarchi asks for the code in its panel (`core/designs.js`). Each request sends `X-Jarchi-Install: <its install id>`; only installs that have pinged (an accepted Privacy Policy) are answered.
+
+| | |
+|---|---|
+| `POST /designs/redeem` | `{ "code": "XXXX-XXXX" }` (`-`, spaces and case don't matter) → `{ id, name: { en, fa } }`. A wrong code, or one another install redeemed: `bad_code`. 10 tries an hour per install, right or wrong (`rate`). |
+| `GET /designs` | My designs: `[{ id, name }]`. |
+| `GET /designs/<id>` | One of mine, whole: `{ id, name, look, css }` (`look`: Jarchi's chat options the design sets; `css`: its CSS, which Jarchi checks again before it uses it: no `@import`, no escapes, `url()` only to Jarchi's own `/assets` or a `data:` image or font). Not mine: `not_found`. |
+
+Errors are JSON `{ "error": "..." }`: `bad_request`, `unknown_install`, `bad_code`, `rate`, `not_found`, `method`. Tables (`migrations/0003_chat_designs.sql`): `designs` (the designs themselves), `design_codes` (each code's SHA-256, its design, the admin's note, and the install that redeemed it, when) and `redeem_tries`.
+
+A design's files are **never in this repo** (it's public): a design is added straight to D1 from a file kept elsewhere, e.g. `npx wrangler d1 execute jarchi-stats --remote --file "<its .sql>"` with `INSERT INTO designs (id, name_en, name_fa, data, created_at) VALUES ('x-<name>', ..., '{"look": {...}, "css": "..."}', ...)` (`ON CONFLICT (id) DO UPDATE` to change one; Jarchi downloads its designs again at every start). The id is `x-` and up to 30 of `a-z 0-9 -`; its CSS styles `.style-x-<name>` in the chat widget (`widgets/chat`), whose rows also carry `data-turn` (0-23, the message's order) for a design to take turns with.
 
 ## Support tickets (`/support/...`)
 

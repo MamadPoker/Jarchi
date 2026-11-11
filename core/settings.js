@@ -20,7 +20,8 @@ const THEMES = ['neon', 'minimal', 'fun', 'retro', 'glass', 'fire', 'ice', 'gala
 // privacyAccepted: the version of the Privacy Policy (i18n/privacy.json) the user accepted, 0 = none yet.
 // lang: the panel's language (it says so when it starts): what a crypto alert calls a donor who hid the name.
 // seenNew: the sidebar pages marked NEW (panel.js NEW_PAGES) the streamer has opened: never marked again.
-const GLOBAL = { theme: 'neon', showBadge: true, alertGap: 0.5, proxyMode: 'auto', proxyType: 'http', proxyHost: '', proxyPort: 0, proxyFound: null, kickGoalSync: true, twitchGoalSync: true, welcomed: false, privacyAccepted: 0, lang: 'en', seenNew: [] };
+// eyesSeen: the panel showed where its hidden 👀 is (the first Ctrl+Shift+E): never again.
+const GLOBAL = { theme: 'neon', showBadge: true, alertGap: 0.5, proxyMode: 'auto', proxyType: 'http', proxyHost: '', proxyPort: 0, proxyFound: null, kickGoalSync: true, twitchGoalSync: true, welcomed: false, privacyAccepted: 0, lang: 'en', seenNew: [], eyesSeen: false };
 const PROXY_HOST = /^[a-z0-9.:[\]_-]{0,253}$/i;
 const proxyPort = (v) => Number.isInteger(v) && v >= 0 && v <= 65535;
 const GLOBAL_RULES = {
@@ -28,6 +29,7 @@ const GLOBAL_RULES = {
   showBadge: (v) => typeof v === 'boolean',
   welcomed: (v) => typeof v === 'boolean',
   lang: (v) => v === 'en' || v === 'fa',
+  eyesSeen: (v) => typeof v === 'boolean',
   seenNew: (v) => Array.isArray(v) && v.length <= 50 && v.every((p) => typeof p === 'string' && /^[a-z]{1,20}$/.test(p)),
   privacyAccepted: (v) => Number.isInteger(v) && v >= 0,
   kickGoalSync: (v) => typeof v === 'boolean',
@@ -244,7 +246,7 @@ const CHAT_STYLES = Object.fromEntries(Object.entries({
   persian: { bgColor: '#0d1b3d', bgOpacity: 0.92, border: true, borderColor: '#d4af37', borderWidth: 8, radius: 6, padding: 20, font: 'Vazirmatn', fontSize: 18, nameSize: 17, textColor: '#f3ead3' },
 }).map(([id, change]) => [id, { ...CHAT_BASE, ...change }]));
 // The chat can also use these bundled fonts (assets/fonts).
-const CHAT_FONTS = [...FONTS, 'Press Start 2P', 'Bangers', 'Fredoka', 'Vazirmatn', 'Inter'];
+const CHAT_FONTS = [...FONTS, 'Press Start 2P', 'Bangers', 'Fredoka', 'Vazirmatn', 'Inter', 'Manrope'];
 const CHAT_LOOK = Object.keys(CHAT_BASE); // the fields a style sets
 // What makes a design itself (font, colors, box, its size, motion): each design remembers the user's own changes to
 // these (saved.chat.looks holds the designs not picked), so switching away and back brings them back. The rest of the
@@ -308,6 +310,15 @@ const CHAT_RULES = {
   eventLook: oneOf('card', 'glow', 'line'), eventLonger: bool,
   customCss: css,
 };
+// An exclusive design (core/designs.js) becomes a chat style like the others: its look is only a design's own values
+// (CHAT_OWN), each one valid. false: not taken.
+function addChatDesign(id, look) {
+  if (!/^x-[a-z0-9-]{1,30}$/.test(id) || !look || typeof look !== 'object' || Array.isArray(look)
+    || !Object.entries(look).every(([k, v]) => CHAT_OWN.includes(k) && CHAT_RULES[k](v))) return false;
+  CHAT_STYLES[id] = { ...CHAT_BASE, ...look };
+  CHAT_DESIGNS[id] = pick(CHAT_STYLES[id], CHAT_OWN);
+  return true;
+}
 
 // ---------- Viewers ----------
 // One look for its three OBS links (/widgets/viewers/kick, /twitch, /total). Each style is a complete set of look values,
@@ -364,7 +375,7 @@ const bad = (code = 'bad_request') => Object.assign(new Error(code), { status: 4
 // the ones undone since (future), only while Jarchi runs. Each is JSON without what isn't a setting (KEEP: those stay as
 // they are). A file a change replaced or removed stays in uploads until no step has it any more (gone, sweep()).
 const UNDO_MAX = 5;
-const KEEP = ['version', 'installId', 'supportToken', 'obsSize', 'connect', 'welcomed', 'privacyAccepted', 'privacyAcceptedAt', 'lang', 'seenNew'];
+const KEEP = ['version', 'installId', 'supportToken', 'obsSize', 'connect', 'welcomed', 'privacyAccepted', 'privacyAcceptedAt', 'lang', 'seenNew', 'eyesSeen'];
 let past = [], future = [], last; // last: the settings now, as JSON (once loaded)
 const gone = new Set();
 const plain = () => JSON.stringify({ ...saved, ...Object.fromEntries(KEEP.map((k) => [k])) }); // undefined: left out
@@ -886,7 +897,7 @@ function reset(type) {
     removeFile(saved.profile?.picture);
     const c = saved.crypto ?? {};
     [c.sound, c.custom?.image, c.custom?.sound, ...(c.tiers ?? []).flatMap((t) => [t.image, t.sound])].forEach(removeFile);
-    saved = { version: VERSION, installId: saved.installId, supportToken: saved.supportToken, obsSize: saved.obsSize, connect: saved.connect, lang: saved.lang, seenNew: saved.seenNew }; // still the same install, OBS and panel (none yet: left out)
+    saved = { version: VERSION, installId: saved.installId, supportToken: saved.supportToken, obsSize: saved.obsSize, connect: saved.connect, lang: saved.lang, seenNew: saved.seenNew, eyesSeen: saved.eyesSeen }; // still the same install, OBS and panel (none yet: left out)
   }
   persist(!!type); // Reset everything can't be undone
   return get();
@@ -897,5 +908,5 @@ module.exports = {
   resetAlertText, setTier, saveTierFile, removeTierFile, sniff, installId, privacyAcceptedAt, supportToken, obsSize, setObsSize,
   connectState, setConnectState, undo, redo, canUndo, forget,
   cryptoPick, cryptoDuration, setCryptoLook, addCryptoTier, removeCryptoTier, saveCryptoFile, removeCryptoFile, CRYPTO_FONTS,
-  GOAL_IDS, GOAL_STYLES, CHAT_DESIGNS, CHAT_FONTS, FONTS, KICK_GIFTS, VIEWER_STYLES,
+  GOAL_IDS, GOAL_STYLES, CHAT_DESIGNS, CHAT_FONTS, FONTS, KICK_GIFTS, VIEWER_STYLES, addChatDesign,
 };
