@@ -1,5 +1,5 @@
 # Weekly, one grouped PR per ecosystem for minor / patch. Titles are conventional commits (CI's PR rule) and don't
-# make a release by themselves (build / ci). Electron majors are left out: those are a deliberate upgrade.
+# make a release by themselves (build / ci). Electron majors are left out (a deliberate upgrade), and one release tool (below).
 version: 2
 updates:
   - package-ecosystem: npm
@@ -14,6 +14,10 @@ updates:
         update-types: [minor, patch]
     ignore:
       - dependency-name: electron
+        update-types: ['version-update:semver-major']
+      # 10 needs conventional-changelog-writer 9; @semantic-release/release-notes-generator 14 still uses 8, so the
+      # Release run fails. Take it out once a release-notes-generator with writer 9 is out (CI's "release text" test).
+      - dependency-name: conventional-changelog-conventionalcommits
         update-types: ['version-update:semver-major']
 
   - package-ecosystem: github-actions
