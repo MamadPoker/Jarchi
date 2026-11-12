@@ -19,12 +19,23 @@
 // Every request is counted per day (UTC) in DB, so the admin app can show it against Cloudflare's free limit; the same
 // row counts the installs active that day (see ping).
 // Settings (secrets): KICK_CLIENT_ID, KICK_CLIENT_SECRET, ADMIN_KEY. Deploy: see README.md here.
+/**
+ * wrangler.toml's bindings, and the secrets set with wrangler secret put.
+ * @typedef {object} Env
+ * @property {DurableObjectNamespace} ROOMS
+ * @property {D1Database} DB
+ * @property {KVNamespace} SHOTS
+ * @property {string} KICK_CLIENT_ID
+ * @property {string} KICK_CLIENT_SECRET
+ * @property {string} ADMIN_KEY
+ */
 const KICK_ID = 'https://id.kick.com';
 const KICK_API = 'https://api.kick.com/public/v1';
 const SCOPES = 'user:read events:subscribe';
 const STALE_MS = 10 * 60 * 1000; // an older event (Kick trying again much later) is dropped: a late alert is no alert
 
 const text = (body, status = 200) => new Response(body, { status, headers: { 'content-type': 'text/plain; charset=utf-8' } });
+/** @param {Env} env */
 const room = (env, userId) => env.ROOMS.get(env.ROOMS.idFromName(String(userId)));
 const STATE = /^(\d{2,5})\.[\w-]{16,128}$/; // "<Jarchi's port>.<random>"
 
@@ -33,6 +44,7 @@ const STATE = /^(\d{2,5})\.[\w-]{16,128}$/; // "<Jarchi's port>.<random>"
 const COUNT = 'INSERT INTO requests (day, count, active_installed, active_dev) VALUES (?1, 1, 0, 0) ON CONFLICT (day) DO UPDATE SET count = count + 1';
 
 export default {
+  /** @param {Request} req @param {Env} env @param {ExecutionContext} ctx */
   async fetch(req, env, ctx) {
     ctx.waitUntil(
       env.DB.prepare(COUNT)
@@ -65,6 +77,7 @@ export default {
   },
 };
 
+/** @param {Env} env */
 function login(url, env) {
   const state = url.searchParams.get('state') ?? '',
     challenge = url.searchParams.get('challenge') ?? '';
@@ -90,6 +103,7 @@ function callback(url) {
   return Response.redirect(`http://127.0.0.1:${port}/api/kick/callback${url.search}`, 302);
 }
 
+/** @param {Env} env */
 async function token(req, url, env) {
   const b = await req.json().catch(() => ({}));
   const grant = b.refresh_token
@@ -134,6 +148,7 @@ async function signed(h, body) {
   return false;
 }
 
+/** @param {Env} env */
 async function webhook(req, env) {
   const body = await req.text(),
     h = req.headers;
@@ -161,6 +176,7 @@ async function webhook(req, env) {
 }
 
 // Whose channel: Kick's answer for the token Jarchi sends (Authorization header), so a Jarchi gets its own channel only.
+/** @param {Env} env */
 async function socket(req, env) {
   if (req.headers.get('upgrade') !== 'websocket') return text('WebSocket only', 426);
   const r = await fetch(`${KICK_API}/users`, { headers: { authorization: req.headers.get('authorization') ?? '' } });
@@ -269,6 +285,7 @@ async function capped(req, max) {
   return out;
 }
 
+/** @param {Env} env */
 async function ping(req, env) {
   if (!/^application\/json\b/i.test(req.headers.get('content-type') ?? '')) return text('JSON only', 415);
   const body = await capped(req, PING_BYTES);
@@ -383,10 +400,13 @@ ON CONFLICT (source) DO UPDATE SET
   window_start = CASE WHEN ?2 - window_start >= ?3 THEN ?2 ELSE window_start END,
   fails = CASE WHEN ?2 - window_start >= ?3 THEN 1 ELSE fails + 1 END`;
 
+/** @param {Env} env */
 async function admin(req, url, env) {
   const now = Date.now();
   const source = hex(await sha256(`${env.ADMIN_KEY}\n${req.headers.get('cf-connecting-ip') ?? ''}`));
-  const seen = await env.DB.prepare('SELECT blocked_until FROM admin_fails WHERE source = ?1').bind(source).first();
+  const seen = /** @type {{ blocked_until: number } | null} */ (
+    await env.DB.prepare('SELECT blocked_until FROM admin_fails WHERE source = ?1').bind(source).first()
+  );
   if (seen?.blocked_until > now) return text('Too many wrong keys, try again later', 429);
   const given = /^Bearer (.+)$/.exec(req.headers.get('authorization') ?? '')?.[1];
   if (!env.ADMIN_KEY || !given || !(await sameKey(given, env.ADMIN_KEY))) {
@@ -423,6 +443,7 @@ const COUNTS = `SELECT COUNT(*) AS installs,
   COUNT(*) FILTER (WHERE is_open = 1 AND last_seen > ?1 AND (kick_live = 1 OR twitch_live = 1)) AS live
 FROM installs`;
 
+/** @param {Env} env */
 async function stats(url, env, now) {
   const tz = Number(url.searchParams.get('tz') ?? 0);
   if (!Number.isInteger(tz) || Math.abs(tz) > 14 * 60) return text('Bad tz', 400);
@@ -437,6 +458,7 @@ async function stats(url, env, now) {
   return json({ ...counts, versions: versions.results, requests: { limit: FREE_REQUESTS, days: days.results } });
 }
 
+/** @param {Env} env */
 async function history(env, now) {
   const days = Array.from({ length: 30 }, (_, i) => iso(now - (29 - i) * DAY_MS).slice(0, 10));
   const { results } = await env.DB.prepare('SELECT * FROM requests WHERE day >= ?1').bind(days[0]).all();
@@ -465,6 +487,7 @@ const diag = (r) =>
       };
 const LIST = `SELECT * FROM installs WHERE ?1 = '' OR kick_name LIKE ?2 ESCAPE '\\' OR twitch_name LIKE ?2 ESCAPE '\\'`;
 
+/** @param {Env} env */
 async function installs(url, env, now) {
   const q = (url.searchParams.get('q') ?? '').trim().slice(0, 50),
     like = `%${q.replace(/[\\%_]/g, '\\$&')}%`;
@@ -531,6 +554,7 @@ async function downloads() {
   return json({ fetchedAt: iso(releases.at), downloads: releases.value.reduce((n, rel) => n + rel.downloads, 0), releases: releases.value });
 }
 
+/** @param {Env} env */
 async function remove(env, id) {
   const [, { meta }] = await env.DB.batch([
     env.DB.prepare('DELETE FROM team_message_views WHERE install_id = ?1').bind(id),
@@ -583,6 +607,7 @@ const shotType = (b) => Object.keys(MAGIC).find((t) => b.length > MAGIC[t].lengt
 const fail = (error, status = 400) => json({ error }, status);
 const random = (bytes) => hex(crypto.getRandomValues(new Uint8Array(bytes)));
 
+/** @param {Env} env */
 async function support(req, url, env) {
   const install = req.headers.get('x-jarchi-install') ?? '',
     token = /^Bearer ([0-9a-f]{64})$/.exec(req.headers.get('authorization') ?? '')?.[1];
@@ -591,6 +616,7 @@ async function support(req, url, env) {
 }
 
 // Both sides' addresses. me: the asking install { install, token (its SHA-256) }, or null: the admin.
+/** @param {Env} env */
 async function tickets(req, url, env, me) {
   const m = TICKET_PATH.exec(url.pathname),
     side = me ? 'user' : 'admin',
@@ -640,6 +666,7 @@ const ticketOf = (r, side) => ({
   ...(side === 'user' && { teamSeenAt: r.admin_read_at }),
 });
 
+/** @param {Env} env */
 async function mine(env, me) {
   const { results } = await env.DB.prepare(
     `${TICKET_LIST('user')} WHERE t.install_id = ?1 AND t.token_hash = ?2 AND t.hidden_by_user_at IS NULL ORDER BY t.updated_at DESC, t.id`,
@@ -650,6 +677,7 @@ async function mine(env, me) {
 }
 
 // ponytail: every ticket in one answer; page it (?limit, ?offset like /admin/installs) if there are ever thousands.
+/** @param {Env} env */
 async function all(url, env) {
   const status = url.searchParams.get('status') || null,
     category = url.searchParams.get('category') || null;
@@ -668,15 +696,19 @@ const LIMITS = `SELECT EXISTS (SELECT 1 FROM installs WHERE id = ?1) AS known,
   EXISTS (SELECT 1 FROM tickets WHERE install_id = ?1 AND token_hash != ?2) AS taken,
   (SELECT COUNT(*) FROM tickets WHERE install_id = ?1 AND created_at > ?3) AS tickets,
   (SELECT COUNT(*) FROM ticket_messages m JOIN tickets t ON t.id = m.ticket_id WHERE t.install_id = ?1 AND m.author = 'user' AND m.created_at > ?4) AS messages`;
+/** @param {Env} env */
 const limits = (env, install, token, now) =>
-  env.DB.prepare(LIMITS)
-    .bind(install, token, iso(now - DAY_MS), iso(now - HOUR_MS))
-    .first();
+  /** @type {Promise<{ known: number, taken: number, tickets: number, messages: number }>} */ (
+    env.DB.prepare(LIMITS)
+      .bind(install, token, iso(now - DAY_MS), iso(now - HOUR_MS))
+      .first()
+  );
 // A new ticket, with the install's channels from its last ping.
 const NEW_TICKET = `INSERT INTO tickets (id, install_id, token_hash, kick_name, twitch_name, category, subject, status, created_at, updated_at)
 SELECT ?1, id, ?3, kick_name, twitch_name, ?4, ?5, 'open', ?6, ?6 FROM installs WHERE id = ?2`;
 const NEW_MESSAGE = 'INSERT INTO ticket_messages (ticket_id, author, body, images, created_at) VALUES (?1, ?2, ?3, ?4, ?5)';
 
+/** @param {Env} env */
 async function create(req, env, me) {
   const now = Date.now(),
     l = await limits(env, me.install, me.token, now);
@@ -693,6 +725,7 @@ async function create(req, env, me) {
   return (await save(env, id, 'user', f.message, f.shots, [first])) ?? thread(env, id, 'user');
 }
 
+/** @param {Env} env */
 async function reply(req, env, t, side) {
   if (side === 'user') {
     if (t.status === 'closed') return fail('closed', 409);
@@ -735,6 +768,7 @@ async function form(req, names) {
 // A message: its screenshots into KV first ("<ticket>/<random>.<ext>"), so a message never names one that isn't there,
 // then `first` (a new ticket's row) and the message together. Nothing is kept when either fails. -> null, or the
 // error's Response.
+/** @param {Env} env */
 async function save(env, id, author, body, shots, first = []) {
   const names = shots.map((s) => `${random(16)}.${s.ext}`),
     at = iso(Date.now());
@@ -754,18 +788,24 @@ async function save(env, id, author, body, shots, first = []) {
   });
   return null;
 }
+/** @param {Env} env */
 const dropShots = (env, id, names) => Promise.all(names.map((n) => env.SHOTS.delete(`${id}/${n}`).catch(() => {})));
 
 // One ticket and its messages (oldest first), for one side; opening it marks the other side's messages read.
+/** @param {Env} env */
 async function thread(env, id, side) {
   await env.DB.prepare(`UPDATE tickets SET ${side}_read_at = ?2 WHERE id = ?1`).bind(id, iso(Date.now())).run();
   const [t, { results }] = await Promise.all([
     env.DB.prepare('SELECT * FROM tickets WHERE id = ?1').bind(id).first(),
     env.DB.prepare('SELECT author, body, images, created_at FROM ticket_messages WHERE ticket_id = ?1 ORDER BY id').bind(id).all(),
   ]);
-  return json({ ...ticketOf(t, side), messages: results.map((m) => ({ author: m.author, text: m.body, images: JSON.parse(m.images), at: m.created_at })) });
+  return json({
+    ...ticketOf(t, side),
+    messages: results.map((m) => ({ author: m.author, text: m.body, images: JSON.parse(/** @type {string} */ (m.images)), at: m.created_at })),
+  });
 }
 
+/** @param {Env} env */
 async function image(env, id, name) {
   const body = await env.SHOTS.get(`${id}/${name}`, 'arrayBuffer');
   if (!body) return fail('not_found', 404);
@@ -778,6 +818,7 @@ async function image(env, id, name) {
   });
 }
 
+/** @param {Env} env */
 async function setStatus(req, env, id) {
   const b = await req.json().catch(() => null);
   if (!exactly(b, ['status']) || !STATUSES.includes(b.status)) return fail('bad_request');
@@ -789,6 +830,7 @@ async function setStatus(req, env, id) {
 }
 
 // The install takes a closed ticket off its list (first time kept). Nothing is deleted: the admin still sees it.
+/** @param {Env} env */
 async function hide(req, env, t) {
   const b = await req.json().catch(() => null);
   if (!exactly(b, ['hidden']) || b.hidden !== true) return fail('bad_request');
@@ -797,12 +839,13 @@ async function hide(req, env, t) {
   return json({ hidden: t.id });
 }
 
+/** @param {Env} env */
 async function deleteTicket(env, id) {
   const { results } = await env.DB.prepare('SELECT images FROM ticket_messages WHERE ticket_id = ?1').bind(id).all();
   await dropShots(
     env,
     id,
-    results.flatMap((m) => JSON.parse(m.images)),
+    results.flatMap((m) => JSON.parse(/** @type {string} */ (m.images))),
   );
   await env.DB.batch([
     env.DB.prepare('DELETE FROM ticket_messages WHERE ticket_id = ?1').bind(id),
@@ -910,8 +953,10 @@ const VIEWS = `SELECT m.*, COUNT(v.install_id) AS seen_by, COUNT(v.closed_at) AS
 const NEW_TEAM_MESSAGE = `INSERT INTO team_messages (title_en, title_fa, body_en, body_fa, link_label_en, link_label_fa, link_url,
   style, target, target_value, expires_at, code, created_at, active) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, 1)
   RETURNING id`;
+/** @param {Env} env */
 const teamMessage = async (env, id) => json(teamAdminOf(await env.DB.prepare(`${VIEWS} WHERE m.id = ?1 GROUP BY m.id`).bind(id).first()));
 
+/** @param {Env} env */
 async function teamAdmin(req, url, env) {
   const m = ADMIN_MESSAGE.exec(url.pathname),
     method = req.method;
@@ -955,6 +1000,7 @@ const MARK = `INSERT INTO team_message_views (message_id, install_id, seen_at, c
 SELECT m.id, ?1, ?4, ?6 FROM team_messages m WHERE m.id = ?5 AND ${FOR_ME}
 ON CONFLICT (message_id, install_id) DO UPDATE SET closed_at = COALESCE(closed_at, excluded.closed_at)`;
 
+/** @param {Env} env */
 async function teamMessages(req, url, env) {
   const m = MY_MESSAGE.exec(url.pathname);
   if (!m) return fail('not_found', 404);
@@ -1035,6 +1081,7 @@ RETURNING tries`;
 const REDEEM = `UPDATE design_codes SET install_id = ?1, redeemed_at = COALESCE(redeemed_at, ?3)
 WHERE code_hash = ?2 AND (install_id IS NULL OR install_id = ?1) AND revoked_at IS NULL RETURNING design_id`;
 
+/** @param {Env} env */
 async function designs(req, url, env) {
   const m = DESIGN_PATH.exec(url.pathname),
     install = req.headers.get('x-jarchi-install') ?? '';
@@ -1044,7 +1091,7 @@ async function designs(req, url, env) {
   if (!(await env.DB.prepare('SELECT 1 FROM installs WHERE id = ?1').bind(install).first())) return fail('unknown_install', 403);
   if (m[1] === 'redeem') {
     const now = Date.now(),
-      { tries } = await env.DB.prepare(TRY).bind(install, now, HOUR_MS).first();
+      { tries } = /** @type {{ tries: number }} */ (await env.DB.prepare(TRY).bind(install, now, HOUR_MS).first());
     if (tries > REDEEM_MAX) return fail('rate', 429);
     const code = codeOf((await req.json().catch(() => null))?.code);
     if (!codeOk(code)) return fail('bad_code', 404);
@@ -1063,10 +1110,11 @@ async function designs(req, url, env) {
     );
   const d = await env.DB.prepare(`SELECT d.* FROM designs d WHERE d.id = ?2 AND ${MINE_DESIGN}`).bind(install, m[1]).first();
   if (!d) return fail('not_found', 404);
-  const { look, css } = JSON.parse(d.data);
+  const { look, css } = JSON.parse(/** @type {string} */ (d.data));
   return json({ id: d.id, name: nameOf(d), look, css });
 }
 
+/** @param {Env} env */
 async function codesAdmin(req, url, env) {
   const id = ADMIN_CODE.exec(url.pathname);
   if (!id) return fail('not_found', 404);
@@ -1102,6 +1150,7 @@ async function codesAdmin(req, url, env) {
   });
 }
 
+/** @param {Env} env */
 const designsAdmin = async (env) =>
   json(
     (await env.DB.prepare('SELECT id, name_en, name_fa, created_at FROM designs ORDER BY created_at DESC, id').all()).results.map((d) => ({
@@ -1114,6 +1163,7 @@ const designsAdmin = async (env) =>
 // One channel: the Jarchi sockets open for it (usually one), handed each of its events. Hibernates between them; the
 // keepalive ("ping" -> "pong") is answered without waking it.
 export class Room {
+  /** @param {DurableObjectState} ctx */
   constructor(ctx) {
     this.ctx = ctx;
     ctx.setWebSocketAutoResponse(new WebSocketRequestResponsePair('ping', 'pong'));

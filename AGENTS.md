@@ -4,7 +4,7 @@ The rules every AI coding agent follows on this repo. Claude Code reads them thr
 
 ## The code
 
-- Plain Node.js, CommonJS, no build step. Types are JSDoc in the `.js` files, checked by `npm run typecheck` (`tsc`, nothing emitted; `docs/adr/0002-type-check-js-with-jsdoc.md`). A `.ts` file only where the runtime strips types itself, never a bundler. Express + socket.io server (`server/`), shared logic (`core/`), platform connectors (`connectors/`), OBS widgets (`widgets/`), panel (`panel/`), Electron shell (`electron/`), Cloudflare Worker relay (`relay/`). `README.md` → Project layout has the map.
+- Plain Node.js, CommonJS, no build step. Types are JSDoc in the `.js` files, checked by `npm run typecheck` (`tsc`, nothing emitted; `docs/adr/0002-type-check-js-with-jsdoc.md`). The relay has its own `relay/tsconfig.json` (Workers' types). No `.ts` files: the ADR says why and when that changes. Express + socket.io server (`server/`), shared logic (`core/`), platform connectors (`connectors/`), OBS widgets (`widgets/`), panel (`panel/`), Electron shell (`electron/`), Cloudflare Worker relay (`relay/`). `README.md` → Project layout has the map.
 - Use the Node standard library and what `package.json` already has before adding a dependency. Runtime dependencies end up in the installer.
 - Comments are plain sentences that explain *why*, like the ones already in the code. Every UI string is in `i18n/en.json` and `i18n/fa.json`, with the same keys in both.
 - Tests: `npm test` (`node --test`, `test/*.test.js`). A behaviour change comes with its test. `npm run check` runs Prettier's check, ESLint, `tsc` and the tests, as CI and the pre-push hook do; `npm run format` fixes the formatting.

@@ -12,7 +12,7 @@
     "start": "node server/index.js",
     "app": "electron .",
     "test": "node --test",
-    "typecheck": "tsc -p .",
+    "typecheck": "tsc -p . && tsc -p relay",
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
@@ -36,6 +36,7 @@
     "undici": "^8.12.4"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261112.1",
     "@eslint/js": "^10.0.1",
     "@semantic-release/git": "11.0.1",
     "@semantic-release/release-notes-generator": "14.1.1",
