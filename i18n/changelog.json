@@ -1,18 +1,14 @@
 [
   {
     "version": "1.0.8",
-    "types": ["feature", "feature", "improve", "fix"],
+    "types": ["feature", "improve"],
     "en": [
       "Right-click in any text field: Cut, Copy, Paste and Select all",
-      "Messages from Jarchi's team can bring a code you use with one click",
-      "Copy buttons in messages show \"Copied\", and say so if copying is blocked",
-      "Typing and pasting in the code field works again"
+      "Copy buttons in messages show \"Copied\", and say so if copying is blocked"
     ],
     "fa": [
       "کلیک راست در هر خانهٔ متن: برش، کپی، چسباندن و انتخاب همه",
-      "پیام‌های تیم جارچی می‌توانند کدی بیاورند که با یک کلیک استفاده می‌شود",
-      "دکمه‌های کپی در پیام‌ها «کپی شد» نشان می‌دهند، و اگر کپی ممکن نباشد می‌گویند",
-      "تایپ و چسباندن در خانهٔ کد دوباره کار می‌کند"
+      "دکمه‌های کپی در پیام‌ها «کپی شد» نشان می‌دهند، و اگر کپی ممکن نباشد می‌گویند"
     ]
   },
   {
