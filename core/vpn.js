@@ -190,7 +190,7 @@ function set(next) {
   events.emit('state', st);
 }
 
-// Each service's connection as it changes (server/index.js). up: connected. out: not, for a reason a VPN can help with
+// Each service's connection as it changes (server/sockets.js and server/index.js). up: connected. out: not, for a reason a VPN can help with
 // (network trouble, Kick refusing this network, or still connecting). Neither (off, a channel that isn't there): nothing.
 // Out of reach for WAIT_MS on end: trouble().
 function status(service, up, out) {

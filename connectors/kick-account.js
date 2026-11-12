@@ -94,7 +94,7 @@ async function login() {
 
 // Kick (by way of the relay) sends the browser back here: ?code&state, or ?error when the streamer said no. A state
 // that isn't the login waiting now (an old tab, another login, a forged link) changes nothing. -> { ok } or { error, why }
-// for the page the browser shows (server/index.js): the token swap through the relay, then who this is on Kick's API.
+// for the page the browser shows (server/routes/accounts.js): the token swap through the relay, then who this is on Kick's API.
 async function callback({ code, state }) {
   const p = pending;
   if (!p || p.my !== run || typeof state !== 'string' || state !== p.state) return { error: 'stale', why: '' };

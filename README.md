@@ -183,7 +183,9 @@ How it reads chat, and what needs a key:
 ## Project layout
 
 ```
-server/index.js      HTTP + Socket.IO server, API routes
+server/index.js      HTTP server setup, the API guard, what the routes share, accounts filling the chat channels, start and stop
+server/routes/       the API routes, one file per area (settings, home, alerts, net, chat, accounts, support, crypto, goals), then widgets.js: what OBS loads
+server/sockets.js    Socket.IO: open widget pages, what each one gets when it joins, every change that goes out
 core/config.js       port and data folder (the one place to change them)
 core/events.js       event bus + the normalized event shape
 core/settings.js     defaults, user changes, uploads (alerts, tiers and goal looks)
