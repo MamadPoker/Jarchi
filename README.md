@@ -1,5 +1,11 @@
 # Jarchi
 
+[![CI](https://github.com/MamadPoker/Jarchi/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/MamadPoker/Jarchi/actions/workflows/ci.yml)
+[![Security](https://github.com/MamadPoker/Jarchi/actions/workflows/security.yml/badge.svg?branch=main)](https://github.com/MamadPoker/Jarchi/actions/workflows/security.yml)
+[![Release](https://github.com/MamadPoker/Jarchi/actions/workflows/release.yml/badge.svg)](https://github.com/MamadPoker/Jarchi/actions/workflows/release.yml)
+[![Deploy relay](https://github.com/MamadPoker/Jarchi/actions/workflows/relay.yml/badge.svg)](https://github.com/MamadPoker/Jarchi/actions/workflows/relay.yml)
+[![Latest release](https://img.shields.io/github/v/release/MamadPoker/Jarchi)](https://github.com/MamadPoker/Jarchi/releases/latest)
+
 Stream alerts for OBS that run locally on your own PC. No account, no central server. Real Kick and Twitch alerts come from your channels' public chat (just the channel names, no login). Every alert can also be fired with the **Test** buttons.
 
 ## Setup
