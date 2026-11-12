@@ -1,0 +1,2 @@
+# Git hooks run in sh, which keeps a CRLF line's carriage return: "npm run check" would ask npm for a script named "check" + CR
+.husky/** text eol=lf
