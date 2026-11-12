@@ -235,3 +235,16 @@ test('donation page: looks, a wrong field named, pictures looked at first', asyn
   await pay.resetPicture('banner');
   assert.equal(jp.asked.at(-1).at, 'DELETE /api/app/page/banner');
 });
+
+test('a waiting wallet change: the new address, adding a network not used now, removing one (null)', () => {
+  // The panel's code (panel/js/crypto.js changeLines), run here as it is.
+  const src = fs.readFileSync(path.join(__dirname, '..', 'panel', 'js', 'crypto.js'), 'utf8');
+  const code = src.slice(src.indexOf('function changeLines('), src.indexOf('function renderDonations('));
+  const S = { panel: { cryptoChangeAdding: 'adding', cryptoChangeRemoving: 'removing' } };
+  const changeLines = require('node:vm').runInNewContext(`${code}; changeLines`, { S });
+  const lines = (bep20, trc20, pending) => changeLines({ bep20, trc20, pending });
+  assert.equal(lines('0xa', 'Tb', { bep20: '0xc', trc20: 'Tb' }), 'BEP20: 0xc\nTRC20: Tb');
+  assert.equal(lines('0xa', null, { bep20: '0xa', trc20: 'Td' }), 'BEP20: 0xa\nTRC20: adding Td');
+  assert.equal(lines('0xa', 'Tb', { bep20: null, trc20: 'Tb' }), 'BEP20: removing\nTRC20: Tb');
+  assert.equal(lines('0xa', null, { bep20: '0xc', trc20: null }), 'BEP20: 0xc', 'not used now or after: no line');
+});

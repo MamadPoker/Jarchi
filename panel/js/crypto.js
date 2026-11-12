@@ -1,7 +1,7 @@
 // ---------- Crypto (Jarchi Pay, core/pay.js) ----------
 // Not active: the coin, what the gateway is, and Request (pending: waiting for Jarchi; rejected: until when). Active: the
-// donation page's link, the totals and the donations, newest first; a wallet step until both addresses are set, and a
-// warning with Cancel while a wallet change waits. The state: GET /api/crypto when the page opens or the window comes
+// donation page's link, the totals and the donations, newest first; a wallet step until an address is set (BEP20, TRC20
+// or both: null = that network isn't used), and a warning with Cancel while a wallet change waits. The state: GET /api/crypto when the page opens or the window comes
 // back (from the browser, where the request and the wallets are done), and by socket when it changes (an approval opens
 // the active page by itself). The list again every 30 s while the page is in view. The first time it's active: the
 // welcome and the page's tour (cryptoHello, below).
@@ -74,20 +74,26 @@ function renderCrypto() {
   $('#cryptoUrl').textContent = pay.page.replace(/^https?:\/\//, '');
   hint('#cryptoError', pay.error && (S.errors[pay.error] ?? S.errors.crypto_failed));
   const w = pay.wallets; // null: not asked yet (offline)
-  $('#cryptoWallet').hidden = !w || !!(w.bep20 && w.trc20);
+  $('#cryptoWallet').hidden = !w || !!(w.bep20 || w.trc20);
   $('#cryptoChange').hidden = !w?.pending;
   if (w?.pending) {
     $('#cryptoChangeText').textContent = tpl(S.panel.cryptoChange, { date: dateTime(w.pending.effectiveAt) });
-    $('#cryptoChangeTo').textContent = [
-      ['BEP20', w.pending.bep20],
-      ['TRC20', w.pending.trc20],
-    ]
-      .filter(([, a]) => a)
-      .map(([n, a]) => `${n}: ${a}`)
-      .join('\n');
+    $('#cryptoChangeTo').textContent = changeLines(w);
   }
   renderDonations();
   showCryptoTab(cryptoTab);
+}
+// A waiting wallet change, a line per network: its new address, "adding" one where that network isn't used now, or
+// "removing" where the change leaves it out (null). Not used now or after: no line.
+function changeLines(w) {
+  return ['bep20', 'trc20']
+    .flatMap((n) => {
+      const now = w[n],
+        next = w.pending[n],
+        what = next === null ? now && S.panel.cryptoChangeRemoving : next && (now ? next : `${S.panel.cryptoChangeAdding} ${next}`);
+      return what ? [`${n.toUpperCase()}: ${what}`] : [];
+    })
+    .join('\n');
 }
 
 function renderDonations() {
@@ -505,14 +511,18 @@ function fillCryptoPage() {
 }
 function renderCryptoPage() {
   const w = pay.wallets,
-    p = cryptoPage;
+    p = cryptoPage,
+    set = w?.bep20 || w?.trc20; // one is enough: the other is then "not used"
   for (const net of ['bep20', 'trc20']) {
     const row = $(`#cryptoPageTab [data-net="${net}"]`),
       a = w?.[net];
     Object.assign($('code', row), { textContent: a ? `${a.slice(0, 6)}…${a.slice(-4)}` : '', title: a ?? '' });
-    Object.assign($('.crypto-ok', row), { textContent: a ? `✓ ${S.panel.cryptoWalletOn}` : S.panel.cryptoWalletOff, className: `crypto-ok${a ? '' : ' off'}` });
+    Object.assign($('.crypto-ok', row), {
+      textContent: a ? `✓ ${S.panel.cryptoWalletOn}` : set ? S.panel.cryptoWalletUnused : S.panel.cryptoWalletOff,
+      className: `crypto-ok${a ? '' : ' off'}`,
+    });
   }
-  $('#cryptoWalletChange').textContent = w?.bep20 && w?.trc20 ? S.panel.cryptoWalletChange : S.panel.cryptoWalletSet;
+  $('#cryptoWalletChange').textContent = set ? S.panel.cryptoWalletChange : S.panel.cryptoWalletSet;
   $('#cryptoPageSave').disabled = !p;
   for (const box of $$('#cryptoPageTab [data-kind]')) {
     const pic = p?.[box.dataset.kind];

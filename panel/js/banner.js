@@ -1,6 +1,6 @@
 // ---------- Panel banner maker (the Donation page tab) ----------
 // A picture for the streamer's Kick / Twitch channel panels, linking to the donation page: the coin, "دونیت کریپتو" /
-// CRYPTO DONATE / WALLET TO WALLET, USDT on BEP20 and TRC20, and the streamer's own link. Drawn on a canvas in CSS
+// CRYPTO DONATE / WALLET TO WALLET, USDT on the networks the streamer uses, and the streamer's own link. Drawn on a canvas in CSS
 // pixels times k (the preview 2, Download PNG 3: 1920 wide). 8 colors: [accent, light accent, second color, two backgrounds].
 const BANNER_COLORS = [
   ['#e8bd55', '#fff2b8', '#4fd1bf', '#173a33', '#0c1514'],
@@ -29,7 +29,7 @@ const coinImage = () =>
     img.src = '/assets/brand/jarchi-pay-coin.webp';
   }));
 // Draws one banner on ctx (already scaled by k; shadows aren't, so they get k themselves).
-function paintBanner(x, k, shape, [a, a2, b, bg1, bg2], coin, page) {
+function paintBanner(x, k, shape, [a, a2, b, bg1, bg2], coin, page, nets) {
   const [W, H] = BANNER_SIZE[shape],
     wide = shape === 'wide';
   const shadow = (ox, oy, blur, color) => Object.assign(x, { shadowOffsetX: ox * k, shadowOffsetY: oy * k, shadowBlur: blur * k, shadowColor: color });
@@ -141,13 +141,13 @@ function paintBanner(x, k, shape, [a, a2, b, bg1, bg2], coin, page) {
   g.addColorStop(1, a);
   text('CRYPTO DONATE', tx, en[1], `800 ${en[0]}px ${L}`, g, { spacing: en[0] * (wide ? 0.22 : 0.26) });
   text('WALLET TO WALLET', tx, wt[1], `800 ${wt[0]}px ${L}`, b, { spacing: wt[0] * 0.3 });
-  // USDT · BEP20 · TRC20, in pills
+  // USDT · BEP20 · TRC20, in pills: only the networks with an address (none yet: both)
   x.font = `700 ${chips[0]}px ${L}`;
   const padX = wide ? 12 : 16,
     ph = chips[0] * 1.36 + (wide ? 8 : 10),
-    names = ['USDT', 'BEP20', 'TRC20'];
+    names = ['USDT', ...(nets.length ? nets : ['bep20', 'trc20']).map((n) => n.toUpperCase())];
   const widths = names.map((n) => x.measureText(n).width + 2 * padX),
-    all = widths.reduce((s, w) => s + w, 0) + 8 * 2;
+    all = widths.reduce((s, w) => s + w, 0) + 8 * (names.length - 1);
   let px = wide ? tx - all : tx - all / 2;
   names.forEach((n, i) => {
     x.fillStyle = i ? b : a;
@@ -177,7 +177,15 @@ async function bannerCanvas(k, canvas = document.createElement('canvas')) {
   Object.assign(canvas, { width: W * k, height: H * k });
   const x = canvas.getContext('2d');
   x.scale(k, k);
-  paintBanner(x, k, bannerShape, BANNER_COLORS[bannerColor], coin, pay.page);
+  paintBanner(
+    x,
+    k,
+    bannerShape,
+    BANNER_COLORS[bannerColor],
+    coin,
+    pay.page,
+    ['bep20', 'trc20'].filter((n) => pay.wallets?.[n]),
+  );
   return canvas;
 }
 // The preview (only while its tab is on screen, the gateway active).
