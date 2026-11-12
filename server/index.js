@@ -75,7 +75,7 @@ const upload = (save) => [
 
 const ctx = { io, view, changed, raw, upload, fileName, reconnect, DEV, ROOT };
 // The same order as ever: every /api route, then what OBS loads (widgets.js ends with the panel's static files).
-for (const routes of ['settings', 'home', 'alerts', 'net', 'chat', 'accounts', 'support', 'crypto', 'goals', 'widgets'])
+for (const routes of ['settings', 'home', 'alerts', 'net', 'chat', 'accounts', 'support', 'crypto', 'luck', 'goals', 'widgets'])
   require(`./routes/${routes}`)(app, ctx);
 
 app.use((err, req, res, next) => {

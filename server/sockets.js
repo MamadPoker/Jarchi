@@ -14,6 +14,7 @@ const messages = require('../core/messages');
 const designs = require('../core/designs');
 const pay = require('../core/pay');
 const viewers = require('../core/viewers');
+const luck = require('../core/luck');
 const vpn = require('../core/vpn');
 const release = require('../core/release');
 const strings = require('../i18n/en.json');
@@ -75,6 +76,12 @@ module.exports = function sockets({ io, view, changed, DEV }) {
       socket.once('disconnect', () => viewers.watch(-1));
     });
 
+    // The Luck page (the panel, or its pop-out window): the giveaway as it is now, then every change.
+    socket.once('luckJoin', () => {
+      socket.join('luck');
+      socket.emit('giveaway', luck.state());
+    });
+
     // "Show chat timing": a chat widget says when it drew a live message; core/chat prints how long each step took.
     socket.on('chatShown', (r) => chat.timing(r, socket.conn.transport.name));
   });
@@ -85,6 +92,8 @@ module.exports = function sockets({ io, view, changed, DEV }) {
   goals.events.on('change', (reached) => io.emit('goals', goals.all(), reached));
   goals.events.on('kick', (list) => io.emit('kickGoals', list)); // Home's Kick tab
   viewers.events.on('change', (st) => io.to('viewers').emit('viewers', st));
+  luck.events.on('state', (st) => io.to('luck').emit('giveaway', st));
+  luck.events.on('join', (e) => io.to('luck').emit('giveawayJoin', e));
   bus.on('event', (ev) => io.emit('event', ev));
   bus.on('connections', () => changed());
   bus.on('chat', (m) => {

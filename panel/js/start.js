@@ -55,6 +55,7 @@
         ? key in settings.goals
         : v === 'theme' || v === 'news' || $$('.nav-item').some((b) => b.dataset.view === v);
   select(ok ? v : 'home', ok ? key : undefined);
+  if (POP) return; // the Luck pop-out: no What's new, tour or Privacy Policy of its own (the panel has them)
   followUpdates(); // after that first page: What's new by itself after an update
   // The welcome tour: the first run, or back from its language pick (at that step). Else a newer Privacy Policy than
   // the one accepted (also for those who had the tour before there was one).
