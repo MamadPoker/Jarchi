@@ -624,13 +624,22 @@ async function deleteTicket(env, id) {
 //   POST /messages/<id>/closed  I closed it (seen too): off my list for good
 // One not meant for the install is not_found, like one that isn't there. Errors are JSON { error }: bad_request,
 // not_found, method.
-// A new message (POST /admin/messages, JSON): { title: { en, fa }, body: { en, fa }, style: info | update | warning | gift,
+// A new message (POST /admin/messages, JSON): { title: { en, fa }, body: { en, fa }, style: info | update | warning | gift | design,
 // target: "all" | "dev" | { version: "1.0.4" } | { install: "<install id>" }, link?: { label: { en, fa }, url:
 // "https://..." } | null, code?: "<one line, CODE_MAX at most>" | null (e.g. a gift's activation code, the same in both
-// languages; migrations/0002_team_message_code.sql), expiresAt?: ISO 8601 UTC | null }. Plain text only: < > and control characters (but a body's
+// languages; migrations/0002_team_message_code.sql), expiresAt?: ISO 8601 UTC | null }. design: an exclusive chat design's code
+// (see "Exclusive chat designs" below) for one install: target { install } and a code, both required, so only that install
+// ever gets it. A Jarchi older than DESIGN_FROM gets it as a gift (its code and Copy), the style it knows. Plain text only: < > and control characters (but a body's
 // line ends) are refused, so no HTML is ever stored or sent; trimmed, line ends \n, a title or label on one line.
 // ponytail: every message in one admin answer, no paging; page it like /admin/installs if there are ever hundreds.
-const STYLES = ['info', 'update', 'warning', 'gift'], MESSAGE_KEYS = ['title', 'body', 'style', 'target', 'link', 'code', 'expiresAt'];
+const STYLES = ['info', 'update', 'warning', 'gift', 'design'], MESSAGE_KEYS = ['title', 'body', 'style', 'target', 'link', 'code', 'expiresAt'];
+const DESIGN_FROM = [1, 0, 8]; // the first Jarchi that knows a design message
+// "1.0.7" (or "1.0.8-beta") is older than [1, 0, 8]?
+const older = (v, than) => {
+  const n = v.split('-')[0].split('.').map(Number);
+  const i = n.findIndex((x, k) => x !== than[k]);
+  return i >= 0 && n[i] < than[i];
+};
 const TITLE_MAX = 120, BODY_MAX = 2000, LABEL_MAX = 40, CODE_MAX = 64;
 const HTTPS = /^https:\/\/[^\s<>"]{1,490}$/;
 const ADMIN_MESSAGE = /^\/admin\/messages(?:\/(\d{1,15}))?$/, MY_MESSAGE = /^\/messages(?:\/(\d{1,15})\/(seen|closed))?$/;
@@ -656,6 +665,7 @@ function messageIn(b) {
   const title = both(b.title, TITLE_MAX, true), body = both(b.body, BODY_MAX, false), label = l ? both(l.label, LABEL_MAX, true) : [null, null];
   const kept = code === null ? null : plain(code, CODE_MAX, true);
   if ([...title, ...body, ...(l ? label : [])].includes(null) || (code !== null && kept === null)) return null;
+  if (b.style === 'design' && (target[0] !== 'install' || kept === null)) return null; // one install's, with its code
   return [...title, ...body, ...label, l?.url ?? null, b.style, ...target, expires, kept];
 }
 
@@ -714,7 +724,8 @@ async function teamMessages(req, url, env) {
   const install = req.headers.get('x-jarchi-install') ?? '', version = url.searchParams.get('version') ?? '', installed = url.searchParams.get('installed');
   if (!UUID.test(install) || !VERSION.test(version) || !['0', '1'].includes(installed)) return fail('bad_request');
   const me = [install, version, Number(installed), iso(Date.now())];
-  if (!m[1]) return json((await env.DB.prepare(MINE).bind(...me).all()).results.map((r) => ({ ...teamMessageOf(r), seen: r.seen_at !== null })));
+  const style = (s) => (s === 'design' && older(version, DESIGN_FROM) ? 'gift' : s);
+  if (!m[1]) return json((await env.DB.prepare(MINE).bind(...me).all()).results.map((r) => ({ ...teamMessageOf(r), style: style(r.style), seen: r.seen_at !== null })));
   const { meta } = await env.DB.prepare(MARK).bind(...me, Number(m[1]), m[2] === 'closed' ? me[3] : null).run();
   return meta.changes ? json({ [m[2]]: Number(m[1]) }) : fail('not_found', 404);
 }

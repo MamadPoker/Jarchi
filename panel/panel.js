@@ -733,7 +733,46 @@ const goalIcon = (id) => svgIn('goal-icon', GOAL_ICON[id] ?? ''); // a goal type
 
 // ---------- Home ----------
 const COPY_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h8"/></svg>';
-const copyLink = (url, msg = S.panel.copied) => navigator.clipboard.writeText(url).then(() => toast(msg));
+// Copy text: the clipboard API, else the older way (a hidden field: inside an open window, the only place a modal one lets
+// focus go), else false. copyLink: a toast either way (blocked: how to copy by hand).
+async function copyText(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {}
+  const t = el('textarea', { value: text, readOnly: true });
+  t.style.cssText = 'position: fixed; top: 0; opacity: 0';
+  ($('dialog[open]') ?? document.body).append(t);
+  t.select();
+  let ok = false;
+  try {
+    ok = document.execCommand('copy');
+  } catch {}
+  t.remove();
+  return ok;
+}
+const copyLink = (url, msg = S.panel.copied) => copyText(url).then((ok) => toast(ok ? msg : S.panel.copyFailed, !ok));
+// A Copy button for a code shown beside it (box): a click copies it, and the button is a check with "Copied" for 2 s.
+// Blocked: says so, and selects the code, for Ctrl+C.
+function copyButton(text, box) {
+  const b = el('button', { className: 'copy-btn', textContent: S.panel.teamCopy });
+  let back;
+  b.onclick = async () => {
+    if (!(await copyText(text))) {
+      getSelection().selectAllChildren(box);
+      return toast(S.panel.copyFailed, true);
+    }
+    clearTimeout(back);
+    b.classList.add('copied');
+    b.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+    b.append(S.panel.copiedShort);
+    back = setTimeout(() => {
+      b.classList.remove('copied');
+      b.textContent = S.panel.teamCopy;
+    }, 2000);
+  };
+  return b;
+}
 const copyBtn = (name, url) => { // a widget's copy icon (Home's Widgets card, the welcome tour)
   const b = el('button', { className: 'icon-btn', title: S.panel.copyObs, ariaLabel: `${S.panel.copyObs}: ${name}`, onclick: () => copyLink(url) });
   b.innerHTML = COPY_ICON; // fixed markup
@@ -875,8 +914,10 @@ function homeGoal(id, name, current, target, marks = [], under = '') {
 // ---------- Team messages ----------
 // From Jarchi's team (core/messages.js, by socket, to the panel only; never in OBS): a window in the middle of Jarchi
 // (#teamMsg, the page behind blurred and dimmed), one message at a time ("1 of 3", Next), in the panel's language and its
-// style's colour and icon (info | update | warning | gift). A gift is a gently shaking box first; Open it: a little
-// confetti, then the message. A link (https only) is a strong button that opens in the browser; a code has Copy. Shown =
+// style's colour and icon (info | update | warning | gift | design: a design code, its icon the 👀). A gift is a gently shaking box first; Open it: a little
+// confetti, then the message. A link (https only) is a strong button that opens in the browser; a code has Copy (a check
+// with "Copied" for 2 s); a design code also has Use code: the 👀 popover with it filled in (the message closes for good
+// once the code works; until then it comes back next start). Shown =
 // seen (told once); Next, OK, ✕ or Esc = that one closed for good, and ✕ before the last leaves the rest for Jarchi's
 // next start. It waits for the window to be in front and for any other dialog (the tour, the Privacy Policy) to close.
 let teamMsgs = [], teamQueue = [], teamAt = 0;
@@ -886,6 +927,7 @@ const TEAM_ICON = {
   update: '<path d="M4.5 16.5c-1.5 1.3-2 5-2 5s3.7-.5 5-2c.7-.8.7-2.1-.1-2.9a2.2 2.2 0 0 0-2.9-.1zM12 15l-3-3a22 22 0 0 1 2-4A12.9 12.9 0 0 1 22 2c0 2.7-.8 7.5-6 11a22.4 22.4 0 0 1-4 2zM9 12H4s.6-3 2-4c1.6-1.1 5 0 5 0M12 15v5s3-.6 4-2c1.1-1.6 0-5 0-5"/>', // rocket
   warning: '<path d="M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0zM12 9v4M12 17h.01"/>',
   gift: `<path d="${TYPE_ICON.gift_sub}"/>`,
+  design: '', // the 👀 itself (the profile chip's), teamShow()
 };
 // The gift's box: the lid (with its bow) lifts off when it's opened.
 const GIFT_BOX = `<svg viewBox="0 0 120 120" aria-hidden="true"><ellipse class="gift-shade" cx="60" cy="112" rx="40" ry="4"/><g class="gift-all">
@@ -933,15 +975,24 @@ function teamShow(i, opened) {
   }
   const link = m.link && /^https:\/\//i.test(m.link.url)
     ? el('button', { className: 'team-link', textContent: m.link.label[lang], dir: 'auto', onclick: () => window.open(m.link.url, '_blank', 'noopener') }) : '';
-  const code = m.code ? el('div', { className: 'team-code' }, el('code', { textContent: m.code, dir: 'ltr' }),
-    el('button', { textContent: S.panel.teamCopy, onclick: () => copyLink(m.code, S.panel.teamCopied) })) : '';
-  const go = el('button', { className: link ? '' : 'primary', autofocus: true, textContent: last ? S.panel.teamOk : S.panel.next,
+  const shown = m.code && el('code', { textContent: m.code, dir: 'ltr' });
+  const code = m.code ? el('div', { className: 'team-code' }, shown, copyButton(m.code, shown)) : '';
+  const use = style === 'design' && m.code ? el('button', { className: 'primary team-use', textContent: S.panel.teamUseCode, onclick: (e) => {
+    e.stopPropagation(); // the page's "a click elsewhere closes the popover" would close it again at once
+    codeMsg = m; // not closed for good until its code works (the close handler)
+    d.close();
+    eyesUi.show();
+    eyesUi.open(m.code);
+  } }) : '';
+  if (use) use.autofocus = true; // the window opening focuses it (showModal), not OK
+  const go = el('button', { className: link || use ? '' : 'primary', autofocus: !use, textContent: last ? S.panel.teamOk : S.panel.next,
     onclick: () => (last ? d.close() : (teamDone(m), teamShow(i + 1))) });
   const count = teamQueue.length > 1 ? tpl(S.panel.teamOf, { n: fmt(i + 1), total: fmt(teamQueue.length) }) : '';
-  $('#teamBody').replaceChildren(x, svgIn('team-icon', `<svg viewBox="0 0 24 24" aria-hidden="true">${TEAM_ICON[style]}</svg>`),
+  const icon = style === 'design' ? $('#eyes svg').outerHTML : `<svg viewBox="0 0 24 24" aria-hidden="true">${TEAM_ICON[style]}</svg>`;
+  $('#teamBody').replaceChildren(x, svgIn('team-icon', icon),
     el('h2', { id: 'teamTitle', textContent: m.title[lang], dir: 'auto' }), el('p', { className: 'team-text', textContent: m.body[lang], dir: 'auto' }),
-    code, link, el('div', { className: 'team-foot' }, el('small', { textContent: count }), go));
-  go.focus();
+    code, use, link, el('div', { className: 'team-foot' }, el('small', { textContent: count }), go));
+  (use || go).focus();
 }
 
 // Two clicks instead of confirm(): no blocking dialog. The first click arms the button for 3 seconds.
@@ -1110,7 +1161,9 @@ function wireProxy() {
   $('#netTest').onclick = testNet;
   $('#proxyLook').onclick = $('#proxyWarn').onclick = $('#proxyAgain').onclick = lookForVpn;
   const d = $('#proxyHelp');
-  d.onclose = () => ['offer', 'none'].includes(help.state) && api('POST', '/api/proxy/dismiss').catch(() => {}); // No, Close, Escape
+  d.onclose = () => { // No, Close, Escape
+    if (['offer', 'none'].includes(help.state)) api('POST', '/api/proxy/dismiss').catch(() => {});
+  };
   $('#proxyNo').onclick = () => d.close();
   $('#proxyYes').onclick = () => {
     if (help.state !== 'offer') { // nothing found: to the setting, to type it in
@@ -1914,10 +1967,13 @@ function build() {
   socket.on('teamMessages', (list) => {
     teamMsgs = list;
     renderTeam();
+    if (list.some((m) => m.style === 'design' && m.code)) eyesUi.show(); // a design code: the 👀 by itself
   });
   document.addEventListener('visibilitychange', renderTeam); // shown once the window is in front
   $('#teamMsg').addEventListener('close', () => { // OK, ✕ or Esc: this one closed for good, the ones after it for the next start
-    teamDone(teamQueue[teamAt]);
+    const m = teamQueue[teamAt];
+    if (m && m === codeMsg) teamSkip.add(m.id); // Use code: closed for good only once its code works
+    else teamDone(m);
     teamQueue.slice(teamAt + 1).forEach((m) => teamSkip.add(m.id));
     renderTeam(); // any new one that came meanwhile
   });
@@ -2920,22 +2976,54 @@ function wireCryptoPage() {
 }
 
 // ---------- Exclusive chat designs: the hidden 👀 ----------
-// Ctrl+Shift+E (by the key's place, so a Persian keyboard works too) shows a small 👀 on the profile chip; again, it hides.
-// The very first time, everything but the eyes is dimmed and they get a softly pulsing gold frame (no words); a click
-// anywhere ends it, and it never comes again (settings.eyesSeen). The eyes open "Do you have a code?": a code from
-// Jarchi's team unlocks an exclusive chat design (core/designs.js), which then shows in Chat styles.
+// The 👀 on the profile chip shows with Ctrl+Shift+E (by the key's place, so a Persian keyboard works too; again, it hides)
+// or by itself when a Design code message comes (socket 'teamMessages'). The very first time, once no other window (a
+// message) is open, everything but the eyes is dimmed and they get a softly pulsing gold frame (no words); a click anywhere
+// ends it (on the eyes: it opens them), and it never comes again (settings.eyesSeen). The eyes open "Do you have a code?"
+// (a message's Use code: with its code in it, ready to send): a code from Jarchi's team unlocks an exclusive chat design
+// (core/designs.js), which then shows in Chat styles.
+const eyesUi = {}; // wireEyes: show() the eyes, open(code) the popover
+let codeMsg = null; // the Design code message whose Use code filled the popover: closed for good once its code works
+const plainCode = (c) => String(c).toUpperCase().replace(/[\s-]/g, '');
 function wireEyes() {
   const eyes = $('#eyes'), pop = $('#redeemPop'), spot = $('#eyesSpot'), msg = $('#redeemMsg'), code = $('#redeemCode');
+  let spotWaits = false; // the first time's frame, until the eyes are full size and no other window is open
   const say = (text, bad = false) => Object.assign(msg, { textContent: text, className: `redeem-msg${bad ? ' bad' : ''}` });
   const close = () => (pop.hidden = true);
   // Beside the eyes (the sidebar's other side), its bottom at theirs; below them if there's no room above.
-  const open = () => {
+  const open = (given) => {
+    spotWaits = false;
+    spot.hidden = true;
     say('');
+    if (given) code.value = given;
     pop.hidden = false;
+    eyes.scrollIntoView({ block: 'nearest' }); // a short window: the chip may be scrolled out of sight
     const r = eyes.getBoundingClientRect(), w = pop.offsetWidth, h = pop.offsetHeight;
-    const x = document.dir === 'rtl' ? r.left - 12 - w : r.right + 12, y = r.bottom - h;
-    Object.assign(pop.style, { left: `${Math.max(8, Math.min(x, innerWidth - w - 8))}px`, top: `${y >= 8 ? y : r.bottom + 8}px` });
+    const x = document.dir === 'rtl' ? r.left - 12 - w : r.right + 12, above = r.bottom - h >= 8;
+    // Held by its bottom when it's above: a longer answer (the message line) grows it upward, never off the window.
+    Object.assign(pop.style, { left: `${Math.max(8, Math.min(x, innerWidth - w - 8))}px`,
+      top: above ? 'auto' : `${r.bottom + 8}px`, bottom: above ? `${Math.max(8, innerHeight - r.bottom)}px` : 'auto' });
     code.focus();
+    code.setSelectionRange(code.value.length, code.value.length);
+  };
+  const place = () => {
+    if (!spotWaits || eyes.hidden) return;
+    const other = $('dialog[open]');
+    if (other) return other.addEventListener('close', place, { once: true });
+    spotWaits = false;
+    const r = eyes.getBoundingClientRect();
+    Object.assign($('span', spot).style, { left: `${r.left - 6}px`, top: `${r.top - 6}px`, width: `${r.width + 12}px`, height: `${r.height + 12}px` });
+    spot.hidden = false;
+  };
+  const show = () => {
+    eyes.hidden = false;
+    eyes.scrollIntoView({ block: 'nearest' }); // a short window: the sidebar scrolls to it
+    if (settings.eyesSeen) return;
+    settings.eyesSeen = true; // once, for good
+    api('PATCH', '/api/settings', { eyesSeen: true }).then((s) => (settings = s), () => {});
+    spotWaits = true;
+    if (getComputedStyle(eyes).animationName === 'none') place(); // Reduce animations
+    else eyes.addEventListener('animationend', (ev) => ev.animationName === 'eyes-in' && place(), { once: true });
   };
   eyes.onclick = (e) => {
     e.stopPropagation();
@@ -2946,32 +3034,28 @@ function wireEyes() {
   spot.onclick = (e) => {
     e.stopPropagation();
     spot.hidden = true;
+    const r = eyes.getBoundingClientRect();
+    if (e.clientX >= r.left - 6 && e.clientX <= r.right + 6 && e.clientY >= r.top - 6 && e.clientY <= r.bottom + 6) open(); // on the eyes
   };
   addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && !pop.hidden) return close();
     if (!e.ctrlKey || !e.shiftKey || e.altKey || e.metaKey || e.code !== 'KeyE') return;
     e.preventDefault();
-    eyes.hidden = !eyes.hidden;
-    if (eyes.hidden) return (close(), (spot.hidden = true));
-    eyes.scrollIntoView({ block: 'nearest' }); // a short window: the sidebar scrolls to it
-    if (settings.eyesSeen || $('dialog[open]')) return;
-    settings.eyesSeen = true; // once, for good
-    api('PATCH', '/api/settings', { eyesSeen: true }).then((s) => (settings = s), () => {});
-    const place = () => { // once the eyes are their full size
-      const r = eyes.getBoundingClientRect();
-      Object.assign($('span', spot).style, { left: `${r.left - 6}px`, top: `${r.top - 6}px`, width: `${r.width + 12}px`, height: `${r.height + 12}px` });
-      spot.hidden = eyes.hidden;
-    };
-    if (getComputedStyle(eyes).animationName === 'none') place(); // Reduce animations
-    else eyes.addEventListener('animationend', (ev) => ev.animationName === 'eyes-in' && place(), { once: true });
+    if (eyes.hidden) return show();
+    eyes.hidden = spot.hidden = true;
+    spotWaits = false;
+    close();
   });
   const go = async () => {
-    if (!code.value.trim()) return code.focus();
+    const typed = code.value.trim();
+    if (!typed) return code.focus();
     $('#redeemGo').disabled = true;
     try {
-      const { name } = await api('POST', '/api/designs/redeem', { code: code.value });
+      const { name } = await api('POST', '/api/designs/redeem', { code: typed });
       say(`✓ ${tpl(S.panel.redeemDone, { name: name[S.lang] ?? name.en })}`);
       code.value = '';
+      if (codeMsg && plainCode(codeMsg.code) === plainCode(typed)) teamDone(codeMsg); // its message: used, closed for good
+      codeMsg = null;
       reloadChatStyles();
     } catch (err) {
       say(err.message, true);
@@ -2980,7 +3064,12 @@ function wireEyes() {
     }
   };
   $('#redeemGo').onclick = go;
-  code.onkeydown = (e) => e.key === 'Enter' && go();
+  // Enter sends. A block, not "e.key === 'Enter' && go()": an on-handler that returns false cancels the key (1.0.7: nothing
+  // could be typed).
+  code.onkeydown = (e) => {
+    if (e.key === 'Enter') go();
+  };
+  Object.assign(eyesUi, { show, open });
 }
 
 // ---------- Crypto alerts (the Crypto page's Alert settings tab) ----------

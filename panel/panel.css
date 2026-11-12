@@ -923,6 +923,16 @@ main { padding: 24px 28px 64px; container-type: inline-size; } /* editor rules b
 .team-link, .team-link:hover { justify-content: center; width: 100%; padding: 11px 16px; border-color: transparent; background: var(--c); color: var(--on-tint); font-weight: 700; }
 .team-link:hover { filter: brightness(1.08); }
 .team-msg.gift .team-link { color: var(--on-gold); }
+/* A design code (style design): gold, the 👀 looking around in its icon, and Use code */
+.team-msg.design { --c: var(--gold); border-color: color-mix(in srgb, var(--gold) 60%, transparent); }
+.team-msg.design .team-icon svg { width: 34px; height: 25px; overflow: visible; stroke: none; }
+.team-msg.design .pupils { animation: eyes-look 4s ease-in-out infinite; }
+.team-use { justify-content: center; width: 100%; padding: 11px 16px; font-weight: 700; }
+/* Copy beside a code: a check with "Copied" for 2 s (panel.js copyButton); as wide either way */
+.copy-btn { flex: none; justify-content: center; min-width: 6.5em; }
+.copy-btn.copied { border-color: color-mix(in srgb, var(--ok) 60%, transparent); color: var(--ok); }
+.copy-btn svg { width: 15px; height: 15px; }
+@media (prefers-reduced-motion: reduce) { .team-msg.design .pupils { animation: none; } }
 .team-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; margin-top: 4px; }
 .team-foot small { color: var(--muted); }
 .team-foot button { justify-content: center; min-width: 100px; }

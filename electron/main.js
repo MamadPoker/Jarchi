@@ -61,6 +61,26 @@ function tintBar(e, color) {
 const POPOUT = { width: 380, height: 600, minWidth: 300, minHeight: 300, autoHideMenuBar: true, icon: path.join(ROOT, 'assets/brand/icons', process.platform === 'win32' ? 'jarchi.ico' : 'jarchi-256.png'), webPreferences: { preload: path.join(__dirname, 'preload.js') } };
 ipcMain.on('window:onTop', (e, on) => BrowserWindow.fromWebContents(e.sender)?.setAlwaysOnTop(on === true));
 
+// Right-click, in every window (the panel, Crypto's pop-out): Electron has none of its own. In a text field: Cut, Copy,
+// Paste, Select all (Cut and Copy only with text selected, Paste only with something to paste); on selected text
+// elsewhere: Copy. In the panel's language (i18n panel.editMenu). The keys (Ctrl+X / C / V / A) work as they always do.
+const editWords = {};
+const wordsOf = (lang) => (editWords[lang] ??= JSON.parse(fs.readFileSync(path.join(ROOT, 'i18n', `${lang}.json`), 'utf8')).panel.editMenu);
+app.on('web-contents-created', (e, wc) => wc.on('context-menu', async (ev, p) => {
+  const selected = p.selectionText.trim() !== '';
+  if (!p.isEditable && !selected) return;
+  const lang = await wc.executeJavaScript("localStorage.getItem('jarchi.lang')").catch(() => null);
+  const W = wordsOf(lang === 'fa' ? 'fa' : 'en'), f = p.editFlags;
+  const items = p.isEditable ? [
+    { role: 'cut', label: W.cut, enabled: selected && f.canCut },
+    { role: 'copy', label: W.copy, enabled: selected && f.canCopy },
+    { role: 'paste', label: W.paste, enabled: f.canPaste },
+    { type: 'separator' },
+    { role: 'selectAll', label: W.selectAll, enabled: f.canSelectAll },
+  ] : [{ role: 'copy', label: W.copy }];
+  if (!wc.isDestroyed()) Menu.buildFromTemplate(items).popup({ window: BrowserWindow.fromWebContents(wc) ?? undefined });
+}));
+
 function open() {
   const { maximized, ...bounds } = savedBounds();
   win = new BrowserWindow({

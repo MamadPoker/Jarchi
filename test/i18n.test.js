@@ -84,6 +84,22 @@ test('npm run release makes the one draft itself, before electron-builder (which
   assert.equal(r.calls.length, 1); // nothing changed on GitHub
 });
 
+// An on-handler property (el.onkeydown = ...) that returns false cancels its event: "e.key === 'Enter' && go()" did
+// for every other key, and nothing could be typed (1.0.7's code field). Handlers that test something use a block.
+test('no on-handler in the panel returns a test (false cancels the event)', () => {
+  const panel = ['panel/panel.js', 'panel/crypto-popout.html'].map((f) => fs.readFileSync(path.join(__dirname, '..', f), 'utf8')).join('\n');
+  // The arrow's own expression, with what's inside brackets and quotes taken out (a test inside a call's arguments is fine).
+  const flat = (x) => {
+    for (let was; was !== x;) [was, x] = [x, x.replace(/\([^()]*\)|\[[^[\]]*\]|\{[^{}]*\}|`[^`]*`|'[^']*'|"[^"]*"/g, '_')];
+    return x;
+  };
+  const bad = panel.split('\n').filter((l) => {
+    const m = /\.on[a-z]+ = (?:async )?(?:\([^)]*\)|\w+) => (?![({])(.*)$/.exec(l);
+    return m && /&&|\|\||\?(?![.?])/.test(flat(m[1].replace(/\s*\/\/.*$/, '')));
+  });
+  assert.deepEqual(bad, []);
+});
+
 test('every "?" in the panel has its help text', () => {
   const html = [...read('panel/index.html').matchAll(/data-help="([\w.]+)"/g)].map((m) => m[1]);
   const js = read('panel/panel.js');

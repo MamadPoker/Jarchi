@@ -157,6 +157,30 @@ test('relay team messages: a gift with a code (one line, plain text)', async () 
   assert.deepEqual(mine.map((m) => [m.id, m.style, m.code]), [[none.id, 'gift', null], [made.id, 'gift', 'JARCHI-2026 VIP']]);
 });
 
+// A design code: one install's only (target install, code needed); Jarchi 1.0.8 on gets style design, an older one a gift.
+test('relay team messages: a design code for one install; an older Jarchi gets it as a gift', async () => {
+  const { default: worker } = await import('../relay/worker.mjs');
+  const { DB } = d1(), env = { DB, ADMIN_KEY: KEY }, [x, y] = [crypto.randomUUID(), crypto.randomUUID()];
+  const call = (p, method, headers, body) => worker.fetch(new Request(`https://relay.test${p}`, {
+    method, headers: { 'content-type': 'application/json', ...headers }, body: body && JSON.stringify(body) }), env, ctx);
+  for (const id of [x, y]) {
+    assert.equal((await call('/ping', 'POST', {}, { id, version: '1.0.8', installed: true, open: true, kick: null, twitch: null, privacy: { version: 1, acceptedAt: null } })).status, 200);
+  }
+  const admin = { authorization: `Bearer ${KEY}`, 'cf-connecting-ip': '10.0.0.3' };
+  const design = { title: { en: 'A design for you', fa: 'یک طرح برای شما' }, body: { en: 'Use it.', fa: 'استفاده کنید.' }, style: 'design', target: { install: x }, code: 'ABCD-EFGH' };
+  for (const bad of [{ ...design, target: 'all' }, { ...design, target: { version: '1.0.8' } }, { ...design, code: null }, { ...design, code: undefined }]) {
+    assert.equal((await call('/admin/messages', 'POST', admin, bad)).status, 400, JSON.stringify(bad));
+  }
+  const made = await (await call('/admin/messages', 'POST', admin, design)).json();
+  assert.deepEqual([made.style, made.code, made.target], ['design', 'ABCD-EFGH', { install: x }]);
+  const of = async (id, version) => (await (await call(`/messages?version=${version}&installed=1`, 'GET', { 'x-jarchi-install': id })).json()).map((m) => [m.style, m.code]);
+  assert.deepEqual(await of(x, '1.0.8'), [['design', 'ABCD-EFGH']]);
+  assert.deepEqual(await of(x, '1.0.9-beta'), [['design', 'ABCD-EFGH']]);
+  assert.deepEqual(await of(x, '1.0.7'), [['gift', 'ABCD-EFGH']], 'an older Jarchi: the gift it knows');
+  assert.deepEqual(await of(x, '0.9.12'), [['gift', 'ABCD-EFGH']]);
+  assert.deepEqual(await of(y, '1.0.8'), [], 'only that install');
+});
+
 test('Jarchi: team messages from the relay, to the panel only; seen, closed for good (offline too)', async (t) => {
   const { default: worker } = await import('../relay/worker.mjs');
   const { db, DB } = d1(), env = { DB, ADMIN_KEY: KEY };
