@@ -31,7 +31,7 @@ const STREAM = '#111111';
 const STYLE_NAMES = { kick: ['#00F1FF', '#4CFF75', '#55FFC7', '#6F87FF', '#AAA9FF', '#BDFF28', '#E26EFF', '#E4D88F', '#E5FFAB', '#FEA0CF', '#FF2C56', '#FF4117', '#FF55B3', '#FFA600', '#FFAE76', '#FFFFFF'], cyberpunk: ['#fcee0a', '#00f0ff'], comic: ['#e63946', '#1d4ed8', '#059669', '#9333ea', '#ea580c'], galaxy: ['#c9a8ff', '#8fb8ff', '#ff9ad5'], persian: ['#e9c46a', '#2ec4b6'], led: ['#ffb000', '#ff8c1a', '#ffd34d'] };
 const STYLE_TURNS = { comic: [null, '#ffe14d', '#a5e4ff'], sticky: [null, '#ffb3c7', '#b8f2d0', '#a9d8ff', '#ffd59e'], pastel: [null, '#ffc6e0', '#bff0d8', '#ffd9b3', '#c5dcff'], popin: ['#ff4d9d', '#3ee8ff', '#ffd54d', '#7cff6b'], candy: ['#dccbff', '#ffc6e0', '#bff0d8', '#fff1a8'] };
 const SEPARATOR = { pastel: ' ·' }; // instead of the colon
-const RTL = /[֐-ࣿיִ-﷿ﹰ-﻿]/;
+const RTL = /[\u0590-\u08FF\uFB1D-\uFDFF\uFE70-\uFEFF]/; // Hebrew, Arabic, their presentation forms
 // Special lines (the chat's Events): the setting that turns each on, and the one with its smallest amount. Kicks and
 // raids are only ever special lines (kind 'event'); a sub notice or a cheer is its usual line again while its type is off.
 const EVENTS = { kicks: ['eventKicks', 'eventKicksMin'], sub: ['eventSubs'], resub: ['eventSubs'], gift_sub: ['eventGifts', 'eventGiftsMin'], bits: ['eventBits', 'eventBitsMin'], raid: ['eventRaids'] };

@@ -526,7 +526,7 @@ test('Chat 2: a copy of Chat 1 with its own settings, link, tests and resets; Ch
   assert.deepEqual([s.chat2.layout, s.chat2.fontSize, s.chat2.hiddenUsers, s.chat2.name], ['horizontal', 22, '', 'In game']);
   s = await json(call('PATCH', '/api/settings', { chat2: { style: 'neon' } }));
   assert.equal(s.chat2.style, 'neon', "a style's own changes are each chat's");
-  s = await json(call('PATCH', '/api/settings', { chat2: { bgColor: '#222222' } }));
+  await json(call('PATCH', '/api/settings', { chat2: { bgColor: '#222222' } }));
   s = await json(call('POST', '/api/chat/reset-style', { own: true, chat: 'chat2' }));
   assert.deepEqual([s.chat2.bgColor, s.chat2.fontSize], ['#07031a', 22], 'Reset <style> on Chat 2 only');
   s = await json(call('POST', '/api/chat/reset-style', { chat: 'chat2' }));
@@ -536,7 +536,7 @@ test('Chat 2: a copy of Chat 1 with its own settings, link, tests and resets; Ch
   // Border color "User's color": saved for each style like Border color, and each chat's own.
   assert.deepEqual([s.chat.borderColorMode, s.chat2.borderColorMode], ['custom', 'custom']);
   assert.equal((await call('PATCH', '/api/settings', { chat2: { borderColorMode: 'rainbow' } })).status, 400);
-  s = await json(call('PATCH', '/api/settings', { chat2: { borderColorMode: 'user' } }));
+  await json(call('PATCH', '/api/settings', { chat2: { borderColorMode: 'user' } }));
   s = await json(call('PATCH', '/api/settings', { chat2: { style: 'comic' } }));
   assert.deepEqual([s.chat2.borderColorMode, s.chat.borderColorMode], ['custom', 'custom']);
   s = await json(call('PATCH', '/api/settings', { chat2: { style: 'neon' } }));

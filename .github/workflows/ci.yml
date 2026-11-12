@@ -62,6 +62,8 @@ jobs:
         run: npm test
       - name: 🔎 Type check
         run: npm run typecheck
+      - name: 🧹 Lint
+        run: npm run lint
 
   pr:
     if: github.event_name == 'pull_request'

@@ -32,7 +32,7 @@ test('the Privacy Policy has a version and the same parts in English and Persian
 test("What's new: every version in English and Persian, newest first; this version's notes make the release text", () => {
   const log = JSON.parse(read('i18n/changelog.json'));
   const js = read('panel/panel.js'), drawn = js.slice(js.indexOf('const NEWS_ICON'), js.indexOf('const newsIcon'));
-  const NEWS_TYPES = [...drawn.matchAll(/\n  (\w+): (?:'<svg|CAT_ICON\.)/g)].map((m) => m[1]);
+  const NEWS_TYPES = [...drawn.matchAll(/\n {2}(\w+): (?:'<svg|CAT_ICON\.)/g)].map((m) => m[1]);
   assert.deepEqual(NEWS_TYPES, ['feature', 'improve', 'fix', 'security']);
   assert.ok(NEWS_TYPES.every((t) => en.panel[`news_${t}`] && fa.panel[`news_${t}`]), 'every type has its name');
   // On top, the Unreleased entry: the changes merged since the last release (build/release.js), maybe none yet.

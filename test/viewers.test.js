@@ -84,7 +84,7 @@ test('viewers settings: a style starts from its own look, the rest stays; Jarchi
   assert.equal(settings.get().viewers.style, 'gold');
   let v = settings.update({ viewers: { numberColor: '#123456', font: 'Bangers', anim: 'flip', chartMinutes: 15 } }).viewers;
   assert.deepEqual([v.numberColor, v.font, v.anim, v.chartMinutes], ['#d6a83e', 'Bangers', 'flip', 15], "Jarchi gold: Jarchi's colors, its font can change");
-  v = settings.update({ viewers: { style: 'chart' } }).viewers;
+  settings.update({ viewers: { style: 'chart' } });
   v = settings.update({ viewers: { numberColor: '#123456' } }).viewers;
   assert.equal(v.numberColor, '#123456', 'other styles: the color picked');
   v = settings.update({ viewers: { style: 'comic' } }).viewers;

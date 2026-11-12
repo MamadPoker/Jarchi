@@ -102,7 +102,7 @@ test("media by amount: fixed tiers (Kick's gift amounts), on/off and files; old 
   s = await (await up('bits', 1000, 'image', gif, 'b.gif')).json();
   assert.equal(tier(s, 'bits', 1000).image.name, 'b.gif');
   assert.ok(fs.existsSync(file(first)), 'the replaced file stays while Ctrl+Z can bring it back');
-  s = await (await up('bits', 1000, 'sound', wav, 's.wav')).json();
+  await up('bits', 1000, 'sound', wav, 's.wav');
   s = await (await call('PATCH', '/api/tiers/bits/1000', { on: false })).json();
   assert.deepEqual([tier(s, 'bits', 1000).on, tier(s, 'bits', 1000).sound.name], [false, 's.wav'], 'off keeps the files');
   s = await (await call('DELETE', '/api/tiers/bits/1000/sound')).json();

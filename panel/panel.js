@@ -3198,7 +3198,7 @@ function wireCryptoAlerts() {
   d.addEventListener('close', () => {
     lookOpen = null;
     const f = $('#cryptoLookPreview');
-    if (f.src) f.src = f.src; // a long sound of the last preview stops
+    if (f.src) f.src = f.src; // eslint-disable-line no-self-assign -- a long sound of the last preview stops
   });
 }
 
