@@ -99,7 +99,7 @@
 }
 /* Color themes other than Jarchi (Appearance), on <html> and on the color cards' mini panels (data-palette).
    Gold, danger, ok, warn and the goal colors stay as above. A data-palette with no block here (an old theme) is Jarchi. */
-/* System: Windows' accent color. panel.js puts its hue (--h), saturation (--s, at most 70%) and the main color's lightness
+/* System: Windows' accent color. js/look.js puts its hue (--h), saturation (--s, at most 70%) and the main color's lightness
    (--l, dark enough for white text) on <html>, and the System card's mini panel takes them from there. */
 [data-palette='system'] {
   --bg: hsl(var(--h) calc(var(--s) * 0.55) 5.5%);
@@ -687,7 +687,7 @@ input[type='color']::-webkit-color-swatch {
 }
 
 /* ---------- The desktop app's title bar (electron/main.js titleBarOverlay): the logo and the name, dragged to move the
-   window; Windows draws its own buttons on the right, in this bar's color (panel.js gives it as the theme-color). In a
+   window; Windows draws its own buttons on the right, in this bar's color (js/look.js gives it as the theme-color). In a
    browser the titlebar-area values don't exist: --tb is 0 and there's no bar. ---------- */
 :root {
   --tb: env(titlebar-area-height, 0px);
@@ -819,7 +819,7 @@ body {
   white-space: nowrap;
   text-overflow: ellipsis;
 }
-/* The hidden 👀 on the profile chip (Ctrl+Shift+E, panel.js wireEyes): the eyes look around now and then. Its popover,
+/* The hidden 👀 on the profile chip (Ctrl+Shift+E, js/eyes.js wireEyes): the eyes look around now and then. Its popover,
    and the first time's spotlight: everything dimmed but the eyes, in a softly pulsing gold frame. */
 .eyes {
   position: absolute;
@@ -1466,7 +1466,7 @@ button.link:focus-visible {
   background: var(--gold);
   color: var(--on-gold);
 }
-/* A page new in this version (panel.js renderNew): a soft gold frame that glows, and a small NEW tag that wiggles every
+/* A page new in this version (js/previews.js renderNew): a soft gold frame that glows, and a small NEW tag that wiggles every
    few seconds. Reduce animations: both still. */
 .nav-item.is-new {
   box-shadow: inset 0 0 0 1px var(--gold-line);
@@ -1955,7 +1955,7 @@ main {
   gap: 0;
 }
 /* The alert as in its OBS Browser Source: the iframe that size, the box that shape (--ar), the iframe scaled into the
-   middle of it with a margin (panel.js fitPreview()). 300 px tall, as wide as the shape needs (4:3: 400 px). */
+   middle of it with a margin (js/previews.js fitPreview()). 300 px tall, as wide as the shape needs (4:3: 400 px). */
 .stage.alert-stage .preview {
   width: min(100%, calc(300px * var(--ar, 4 / 3)));
   aspect-ratio: var(--ar, 4 / 3);
@@ -2302,7 +2302,7 @@ main {
 /* A message from Jarchi's team (#teamMsg, teamShow): in the middle, the page behind blurred and dimmed, in its style's
    colour (--c) and icon; it comes in softly. Warning: a firmer look (an amber edge on top, a filled icon, no bounce).
    Gift: gold and purple, its edge softly glowing; first a gently shaking box, whose lid lifts off with a little confetti
-   (over the page too: overflow visible). Reduce animations (Windows' or the panel's): all still, no confetti (panel.js). */
+   (over the page too: overflow visible). Reduce animations (Windows' or the panel's): all still, no confetti (js/home.js). */
 .team-msg {
   --c: var(--info);
   width: min(460px, calc(100vw - 32px));
@@ -2466,7 +2466,7 @@ main {
   padding: 11px 16px;
   font-weight: 700;
 }
-/* Copy beside a code: a check with "Copied" for 2 s (panel.js copyButton); as wide either way */
+/* Copy beside a code: a check with "Copied" for 2 s (js/home.js copyButton); as wide either way */
 .copy-btn {
   flex: none;
   justify-content: center;
@@ -3505,7 +3505,7 @@ textarea {
   font-size: 11px;
   font-weight: 700;
 } /* an exclusive design (core/designs.js) */
-/* A Chat setting saved for each style: a small gold palette before its label (panel.js ownMark); the note says so. */
+/* A Chat setting saved for each style: a small gold palette before its label (js/chat.js ownMark); the note says so. */
 .own-mark {
   display: inline-block;
   margin-inline-end: 5px;
@@ -4297,7 +4297,7 @@ code {
   zoom: var(--zoom, 1);
 }
 
-/* Background art (Appearance): behind everything, never in the mouse's way. panel.js places, sizes, blurs and moves each
+/* Background art (Appearance): behind everything, never in the mouse's way. js/art.js places, sizes, blurs and moves each
    item; the outline icons take the theme's main color or gold, the logos and pictures keep their own. */
 .bg-art {
   position: fixed;
@@ -4686,7 +4686,7 @@ button.crypto-big {
   font-size: 13px;
   line-height: 1.8;
 }
-/* The coin: two faces on a reeded edge of stacked discs, turned in 3D (panel.js coinFrame); drag it to spin it. */
+/* The coin: two faces on a reeded edge of stacked discs, turned in 3D (js/crypto.js coinFrame); drag it to spin it. */
 .coin-stage {
   padding: 10px 0 4px;
   perspective: 900px;
@@ -5432,7 +5432,7 @@ button.crypto-big {
     monospace;
   overflow-wrap: anywhere;
 }
-/* Home: Kick / Twitch out of reach for over a minute, and Fix it (panel.js renderConnWarn) */
+/* Home: Kick / Twitch out of reach for over a minute, and Fix it (js/chat.js renderConnWarn) */
 .conn-card {
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;

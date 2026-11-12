@@ -202,7 +202,7 @@ connectors/          Kick and Twitch chat readers (+ Twitch badge images), the K
 relay/               Jarchi's Kick relay (Cloudflare Worker): Kick's login and follow webhooks for every Jarchi
 assets/              official platform logos (platform-logos), Kick badge icons (kick-badges), Kick default profile pictures (kick-avatars), OG hats (og-hats), bundled fonts (fonts)
 widgets/<name>/      each widget is a folder, served at /widgets/<name>
-panel/               settings panel (served at /)
+panel/               settings panel (served at /): index.html, panel.css, and js/, one classic script per area, loaded in order by index.html
 electron/            the desktop app: window, tray, updates (main.js), the panel's update bridge (preload.js)
 build/               installer additions (installer.nsh), its pictures (installerSidebar.bmp, installerHeader.bmp), notes.js, which makes the release's text (release-notes.md, not in git) from i18n/changelog.json, release.js (semantic-release's step) and check-pr.js (CI's PR rules)
 .github/             workflows: CI (ci.yml), Release (release.yml), Deploy relay (relay.yml), Security (security.yml), PR Labeler (labeler.yml, paths in labeler.yml); PULL_REQUEST_TEMPLATE.md, ISSUE_TEMPLATE/ (bug report, feature request)

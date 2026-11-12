@@ -44,6 +44,7 @@
     "electron": "^45.2.3",
     "electron-builder": "^26.18.0",
     "eslint": "^10.14.0",
+    "espree": "^11.2.0",
     "globals": "^17.14.0",
     "husky": "^9.1.7",
     "prettier": "^3.10.1",

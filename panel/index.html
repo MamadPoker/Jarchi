@@ -6,9 +6,9 @@
     <title>Jarchi</title>
     <link rel="icon" href="/assets/brand/icons/jarchi.ico" />
     <meta name="theme-color" content="#0c1817" />
-    <!-- the title bar's color (panel.js), for the desktop app's window buttons -->
+    <!-- the title bar's color (js/look.js), for the desktop app's window buttons -->
     <link rel="stylesheet" href="panel.css" />
-    <!-- The look kept by panel.js (mode, color theme and System's accent, text size, background art, Reduce animations), set before the first
+    <!-- The look kept by js/look.js (mode, color theme and System's accent, text size, background art, Reduce animations), set before the first
        paint so a light panel doesn't flash dark. System without an accent color is Jarchi. -->
     <script>
       try {
@@ -28,10 +28,10 @@
   <body>
     <!-- The desktop app's title bar (no height in a browser): drag it to move the window; Windows' buttons sit on its right. -->
     <header class="titlebar" dir="ltr" aria-hidden="true"><img src="/assets/brand/icons/jarchi-32.png" alt="" />Jarchi</header>
-    <!-- Background art (Appearance): faint icons and the streamer's pictures behind everything (panel.js fills it). -->
+    <!-- Background art (Appearance): faint icons and the streamer's pictures behind everything (js/art.js fills it). -->
     <div id="bgArt" class="bg-art" aria-hidden="true"></div>
     <div class="app">
-      <!-- Sidebar: the brand, then one item per page. Each opens its <section data-view> (select() in panel.js). -->
+      <!-- Sidebar: the brand, then one item per page. Each opens its <section data-view> (select() in js/previews.js). -->
       <aside class="side">
         <img class="brand" src="/assets/brand/jarchi-logo-v2.png" alt="Jarchi" />
         <nav class="nav" data-aria="menu">
@@ -560,7 +560,7 @@
             <img src="/assets/brand/jarchi-logo-v2.png" alt="Jarchi" />
             <small id="aboutVersion"></small>
             <p data-i18n="aboutText"></p>
-            <!-- "Made with ♥ by MamadPoker" (filled in panel.js); hover: a gold-bordered box. Privacy: the policy's popup. -->
+            <!-- "Made with ♥ by MamadPoker" (filled in js/build.js); hover: a gold-bordered box. Privacy: the policy's popup. -->
             <small class="about-links"
               ><a class="made-by" id="madeWith" href="https://mamadpoker.netlify.app/" target="_blank" rel="noopener"></a><span aria-hidden="true">·</span
               ><button id="aboutPrivacy" class="link" data-i18n="privacyLink"></button
@@ -769,7 +769,7 @@
                   <small data-i18n="lookPanelHint"></small>
                 </div>
               </div>
-              <!-- Each color card draws a tiny panel in its theme, in the mode shown now (panel.js). -->
+              <!-- Each color card draws a tiny panel in its theme, in the mode shown now (js/build.js). -->
               <div class="field">
                 <span data-i18n="colorTheme" data-help="appearance.palette"></span>
                 <div id="palettes" class="modes" role="radiogroup" data-aria="colorTheme"></div>
@@ -975,7 +975,7 @@
                     <small data-only="minAmount" data-i18n="scaleHint"></small>
                   </div>
 
-                  <!-- Media by amount (Kicks, gifted subs, bits): fixed tiers, built in panel.js (renderTiers). -->
+                  <!-- Media by amount (Kicks, gifted subs, bits): fixed tiers, built in js/tiers.js (renderTiers). -->
                   <div class="box wide" data-only="tiers">
                     <label class="row between toggle-row">
                       <span class="stack"><b data-i18n="tiersTitle" data-help="alert.tiers"></b><small data-i18n="tiersHint"></small></span>
@@ -1228,7 +1228,7 @@
           <!-- ===== Goals: the goal list (with switches) next to the selected goal ===== -->
           <section class="view split" data-view="goal" hidden>
             <div class="split-body">
-              <!-- Kick | Twitch tabs, each with only that platform's goals (panel.js puts each row in its platform's list). On top of
+              <!-- Kick | Twitch tabs, each with only that platform's goals (js/build.js puts each row in its platform's list). On top of
              each, "Sync from …": goals set on that channel show its numbers (core/goals.js); Twitch needs the account
              connected (connectors/twitch-account.js), so until then its tab shows Connect instead. -->
               <div class="list tab-box" id="goalList">
@@ -1490,7 +1490,7 @@
                 </div>
               </div>
 
-              <!-- One row per link: its name, a hint while that account isn't connected (+ Connect), Copy OBS link (panel.js) -->
+              <!-- One row per link: its name, a hint while that account isn't connected (+ Connect), Copy OBS link (js/home.js) -->
               <div class="box">
                 <h2 data-i18n="viewersLinks" data-help="viewers.links"></h2>
                 <ul id="viewersLinks" class="viewers-links"></ul>
@@ -1673,7 +1673,7 @@
                 </div>
               </div>
 
-              <!-- Right: the style gallery (vertical or horizontal styles), then the settings in tabs (built in panel.js from CHAT_TABS) -->
+              <!-- Right: the style gallery (vertical or horizontal styles), then the settings in tabs (built in js/build.js from CHAT_TABS in js/chat-tabs.js) -->
               <div class="chat-right">
                 <div class="box">
                   <div class="row between">
@@ -1875,7 +1875,7 @@
     </dialog>
 
     <!-- Welcome tour: opens by itself on the first run (settings.welcomed), and from the Guide. The dots show the step; the
-       steps are built in panel.js (renderTour). The first one picks the language, so the others are in that language. -->
+       steps are built in js/tour.js (renderTour). The first one picks the language, so the others are in that language. -->
     <dialog id="tour" class="profile-dialog tour">
       <div id="tourDots" class="tour-dots" role="img"></div>
       <div id="tourBody" class="tour-body"></div>
@@ -1953,7 +1953,7 @@
       <div class="profile-actions"><button id="privacyOk" class="primary"></button></div>
     </dialog>
 
-    <!-- A message from Jarchi's team (renderTeam, teamShow in panel.js; core/messages.js): one at a time, a gift's box first.
+    <!-- A message from Jarchi's team (renderTeam, teamShow in js/home.js; core/messages.js): one at a time, a gift's box first.
        The confetti goes beside #teamBody, so it keeps flying while the message comes in. -->
     <!-- The hidden 👀's popover (wireEyes): a code from Jarchi's team unlocks an exclusive chat design (core/designs.js).
        And the first Ctrl+Shift+E's spotlight: everything dimmed but the eyes; a click anywhere ends it. -->
@@ -2061,6 +2061,29 @@
     <div id="tip" role="tooltip" hidden></div>
     <div id="toast" role="status" aria-live="polite"></div>
     <script src="/socket.io/socket.io.js"></script>
-    <script src="panel.js"></script>
+    <!-- The panel's code: classic scripts sharing one global scope, run in this order (a file may only call, as it
+         loads, what the files before it define). eslint.config.js and test/i18n.test.js read this list. -->
+    <script src="js/look.js"></script>
+    <script src="js/state.js"></script>
+    <script src="js/chat-tabs.js"></script>
+    <script src="js/chat.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/previews.js"></script>
+    <script src="js/queue.js"></script>
+    <script src="js/home.js"></script>
+    <script src="js/tiers.js"></script>
+    <script src="js/connections.js"></script>
+    <script src="js/help.js"></script>
+    <script src="js/support.js"></script>
+    <script src="js/tour.js"></script>
+    <script src="js/build.js"></script>
+    <script src="js/render.js"></script>
+    <script src="js/profile.js"></script>
+    <script src="js/crypto.js"></script>
+    <script src="js/banner.js"></script>
+    <script src="js/eyes.js"></script>
+    <script src="js/crypto-alerts.js"></script>
+    <script src="js/art.js"></script>
+    <script src="js/start.js"></script>
   </body>
 </html>
