@@ -9,6 +9,7 @@ const { DATA_DIR } = require('../core/config');
 const store = require('../core/store');
 const { emitEvent, setConnected, logIncoming } = require('../core/events');
 const net = require('../core/net');
+const { fail, single, tokens, backoff, liveOf } = require('./account');
 
 const FILE = path.join(DATA_DIR, 'twitch.json');
 const SECRET = ['access', 'refresh']; // sealed in the file (core/secrets.js)
@@ -48,14 +49,13 @@ function set(next) {
   st = { ...st, code: '', uri: '', why: '', ...next };
   account.emit('status', status());
 }
-const fail = (code) => Object.assign(new Error(code), { code });
 const whyOf = (err, host) => `${host}: ${err.status ? `HTTP ${err.status}` : net.why(err)}`;
 const form = (url, fields) => fetch(url, { method: 'POST', body: new URLSearchParams(fields), signal: AbortSignal.timeout(10000) });
 function keep(fields) {
   saved = { ...saved, ...fields };
   store.save(FILE, saved, SECRET);
 }
-const keepTokens = (j) => keep({ access: j.access_token, refresh: j.refresh_token, expires: Date.now() + j.expires_in * 1000 });
+const keepTokens = (j) => keep(tokens(j));
 
 // Every run (a login, a connection) carries the run number it started with; stop() moves on, so whatever is still
 // under way from before ends quietly.
@@ -152,21 +152,15 @@ async function disconnect() {
 
 // ---------- Tokens: refreshed before they run out (4 hours) and when Twitch says 401 ----------
 // A Public app's refresh token works once, so one refresh at a time. Unused for 30 days, it's gone: connect again.
-let refreshing = null;
-const refresh = () =>
-  (refreshing ??= (async () => {
-    try {
-      const res = await form(`${ID}/token`, { client_id: clientId(), grant_type: 'refresh_token', refresh_token: saved.refresh });
-      if (res.status === 400 || res.status === 401) {
-        forget('expired');
-        throw fail('expired');
-      }
-      if (!res.ok) throw fail('network');
-      keepTokens(await res.json());
-    } finally {
-      refreshing = null;
-    }
-  })());
+const refresh = single(async () => {
+  const res = await form(`${ID}/token`, { client_id: clientId(), grant_type: 'refresh_token', refresh_token: saved.refresh });
+  if (res.status === 400 || res.status === 401) {
+    forget('expired');
+    throw fail('expired');
+  }
+  if (!res.ok) throw fail('network');
+  keepTokens(await res.json());
+});
 
 async function authed(url, init = {}, again = true) {
   if (Date.now() > saved.expires - 60000) await refresh();
@@ -204,7 +198,7 @@ async function start() {
 function later(my, why = 'eventsub.wss.twitch.tv: no connection') {
   setConnected('twitch', false);
   set({ state: 'connecting', error: 'network', why });
-  timer = setTimeout(() => my === run && start(), Math.min(60000, 2000 * 2 ** retry++));
+  timer = setTimeout(() => my === run && start(), backoff(retry++));
 }
 
 // One socket. Twitch's "reconnect" opens a second one at the address it gives: the old one keeps delivering until the
@@ -327,10 +321,6 @@ async function stream() {
   return { live: !!s, viewers: Number(s?.viewer_count) || 0 };
 }
 // Live now? null when Twitch doesn't say.
-const live = () =>
-  stream().then(
-    (s) => s?.live ?? null,
-    () => null,
-  );
+const live = liveOf(stream);
 
 module.exports = { status, login, disconnect, start, handle, live, stream, events: account };

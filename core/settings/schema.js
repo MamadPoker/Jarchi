@@ -14,7 +14,7 @@ const THEMES = ['neon', 'minimal', 'fun', 'retro', 'glass', 'fire', 'ice', 'gala
 // welcomed: the panel's welcome tour was shown (it opens by itself once, on the first run).
 // privacyAccepted: the version of the Privacy Policy (i18n/privacy.json) the user accepted, 0 = none yet.
 // lang: the panel's language (it says so when it starts): what a crypto alert calls a donor who hid the name.
-// seenNew: the sidebar pages marked NEW (panel.js NEW_PAGES) the streamer has opened: never marked again.
+// seenNew: the sidebar pages marked NEW (panel/js/previews.js NEW_PAGES) the streamer has opened: never marked again.
 // eyesSeen: the panel showed where its hidden 👀 is (the first Ctrl+Shift+E): never again.
 // proxyAsk: Auto may offer the VPN app it finds by itself (core/vpn.js); false after a No, true again when the streamer looks.
 const GLOBAL = {

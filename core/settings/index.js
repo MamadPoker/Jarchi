@@ -469,7 +469,7 @@ function supportToken(make) {
   return (PLAIN.test(t) ? t : t && secrets.open('supportToken', t)) ?? null;
 }
 
-// The alerts overlay's size in OBS (its Browser Source's width x height), the last one it told (server/index.js): the
+// The alerts overlay's size in OBS (its Browser Source's width x height), the last one it told (server/sockets.js): the
 // panel's alert preview is that size, so it lays out the same. OBS's default 800 x 600 until then. Not a setting: not
 // in get(), kept through Reset everything.
 const okSize = (v) => !!v && [v.w, v.h].every((n) => Number.isInteger(n) && n >= 16 && n <= 16384);

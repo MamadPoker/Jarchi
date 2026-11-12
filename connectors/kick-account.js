@@ -13,6 +13,7 @@ const store = require('../core/store');
 const { emitEvent, setConnected, logIncoming } = require('../core/events');
 const net = require('../core/net');
 const kickChat = require('./kick-chat');
+const { fail, single, tokens, backoff, liveOf } = require('./account');
 
 const FILE = path.join(DATA_DIR, 'kick.json');
 const SECRET = ['access', 'refresh']; // sealed in the file (core/secrets.js)
@@ -42,7 +43,6 @@ function set(next) {
   st = { ...st, uri: '', why: '', ...next };
   account.emit('status', status());
 }
-const fail = (code) => Object.assign(new Error(code), { code });
 const RELAY_HOST = URL.canParse(RELAY) ? new URL(RELAY).host : '';
 // A failed request -> { error, why }: an HTTP answer (403: Kick refusing this network) or no answer at all (net.why()).
 const reason = (err, host) =>
@@ -58,7 +58,7 @@ function keep(fields) {
   saved = { ...saved, ...fields };
   store.save(FILE, saved, SECRET);
 }
-const keepTokens = (j) => keep({ access: j.access_token, refresh: j.refresh_token, expires: Date.now() + (Number(j.expires_in) || 3600) * 1000 });
+const keepTokens = (j) => keep(tokens(j));
 
 // Every run (a login, a connection) carries the run number it started with; stop() moves on, so whatever is still
 // under way from before ends quietly.
@@ -152,23 +152,17 @@ async function disconnect() {
 }
 
 // ---------- Tokens: refreshed (through the relay) before they run out and when Kick says 401 ----------
-let refreshing = null;
-const refresh = () =>
-  (refreshing ??= (async () => {
-    try {
-      const res = await post(`${RELAY}/token`, { refresh_token: saved.refresh }).catch((err) => {
-        throw Object.assign(err, { host: RELAY_HOST });
-      });
-      if (res.status === 400 || res.status === 401) {
-        forget('expired');
-        throw fail('expired');
-      }
-      if (!res.ok) throw Object.assign(fail('network'), { status: res.status, host: RELAY_HOST });
-      keepTokens(await res.json());
-    } finally {
-      refreshing = null;
-    }
-  })());
+const refresh = single(async () => {
+  const res = await post(`${RELAY}/token`, { refresh_token: saved.refresh }).catch((err) => {
+    throw Object.assign(err, { host: RELAY_HOST });
+  });
+  if (res.status === 400 || res.status === 401) {
+    forget('expired');
+    throw fail('expired');
+  }
+  if (!res.ok) throw Object.assign(fail('network'), { status: res.status, host: RELAY_HOST });
+  keepTokens(await res.json());
+});
 
 async function authed(url, init = {}, again = true) {
   if (Date.now() > saved.expires - 60000) await refresh();
@@ -222,7 +216,7 @@ async function start() {
 function later(my, r = { error: 'network', why: `${RELAY_HOST}: no connection` }) {
   setConnected('kick', false);
   set({ state: 'connecting', ...r });
-  timer = setTimeout(() => my === run && start(), Math.min(60000, 2000 * 2 ** retry++));
+  timer = setTimeout(() => my === run && start(), backoff(retry++));
 }
 
 function open(my) {
@@ -280,11 +274,7 @@ async function stream() {
   return { live: on, viewers: on ? Number(json.livestream.viewer_count) || 0 : 0 };
 }
 // Live now? null when Kick doesn't say.
-const live = () =>
-  stream().then(
-    (s) => s?.live ?? null,
-    () => null,
-  );
+const live = liveOf(stream);
 
 setInterval(() => ws?.readyState === WebSocket.OPEN && ws.send('ping'), 30000).unref();
 // Every hour: the login still works (one Kick no longer takes ends it: refresh() -> forget()), and still subscribed.
