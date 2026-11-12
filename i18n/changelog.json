@@ -6,16 +6,6 @@
     "fa": []
   },
   {
-    "version": "1.0.9",
-    "types": ["improve"],
-    "en": [
-      "Small fixes and improvements"
-    ],
-    "fa": [
-      "رفع اشکال‌ها و بهبودهای جزئی"
-    ]
-  },
-  {
     "version": "1.0.8",
     "types": ["feature", "improve"],
     "en": [
