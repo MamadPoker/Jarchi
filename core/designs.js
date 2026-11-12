@@ -3,7 +3,7 @@
 // Ctrl+Shift+E); the design then comes from the relay, for this install only, and is kept in data/designs/<id>.json so
 // it works offline. At start (once the Privacy Policy is accepted: the relay only knows installs that have pinged) this
 // install's designs are downloaded again, so a fixed design arrives by itself.
-// A design is a chat look's values (checked like any chat setting, core/settings.js addChatDesign) and CSS: never a
+// A design is a chat look's values (checked like any chat setting, core/settings/schema.js addChatDesign) and CSS: never a
 // script, and the CSS is checked here before it's used (cssOk). Each one is a chat style; the panel marks it Exclusive.
 const fs = require('node:fs');
 const path = require('node:path');

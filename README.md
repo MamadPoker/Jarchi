@@ -186,7 +186,7 @@ How it reads chat, and what needs a key:
 server/index.js      HTTP + Socket.IO server, API routes
 core/config.js       port and data folder (the one place to change them)
 core/events.js       event bus + the normalized event shape
-core/settings.js     defaults, user changes, uploads (alerts, tiers and goal looks)
+core/settings/       defaults and rules (schema.js), older versions' settings brought up to date (migrate.js), upload checks (files.js), user changes, undo and uploads (index.js)
 core/media.js        uploaded and linked files: 10 MB limit, images shrunk to 512 px, Giphy / Tenor pages
 core/alerts.js       the alert queue: what plays when, for every overlay
 core/net.js          proxy: every outgoing connection goes through it

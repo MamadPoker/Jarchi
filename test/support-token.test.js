@@ -1,4 +1,4 @@
-// The Support ticket token sealed at rest like the logins (core/secrets.js, through core/settings.js): made sealed, or
+// The Support ticket token sealed at rest like the logins (core/secrets.js, through core/settings/index.js): made sealed, or
 // sealed at the installed app's first start when it's from before. A run that can't open it (a dev run, another PC)
 // never loses it when settings.json is saved, never makes a new one over it and asks the relay nothing with it.
 const test = require('node:test');

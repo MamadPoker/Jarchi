@@ -80,7 +80,7 @@ function toBadges(tag, info) {
 // Channels' own cheermotes need the Twitch API: they stay text. Any case, like Twitch.
 const CHEER =
   /(^|\s)(Cheer|BibleThump|cheerwhal|Corgo|uni|ShowLove|Party|SeemsGood|Pride|Kappa|FrankerZ|HeyGuys|DansGame|EleGiggle|TriHard|Kreygasm|4Head|SwiftRage|NotLikeThis|FailFish|VoHiYo|PJSalt|MrDestructoid|bday|RIPCheer|Shamrock)(\d+)(?=\s|$)/gi;
-// Twitch's default gems, by amount: assets/twitch-bits/<gem>.gif (same amounts as the bits tiers in core/settings.js).
+// Twitch's default gems, by amount: assets/twitch-bits/<gem>.gif (same amounts as the bits tiers in core/settings/schema.js).
 const GEMS = [10000, 5000, 1000, 100, 1];
 
 // Text parts -> text and cheer parts ({ t: 'cheer', name, amount, gem }): the chat shows the gem and the amount, like Twitch.

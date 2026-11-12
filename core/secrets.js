@@ -6,7 +6,7 @@
 // Dev runs (npm start, npm run app, the tests) have no key: plain text, as before. A sealed value this run can't open
 // (no key, or another key) is left out: that login reads as not connected, and the file stays as it is until the next
 // login writes it.
-// settings.json's one sealed field, Support's ticket token, is opened per use in core/settings.js, which writes it back
+// settings.json's one sealed field, Support's ticket token, is opened per use in core/settings/index.js, which writes it back
 // as it was on disk, so a run that can't open it never drops it.
 // redact(): a log line with every secret this run has seen, and anything token-like, blanked out (guardConsole()).
 const crypto = require('node:crypto');
