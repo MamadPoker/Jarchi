@@ -15,9 +15,9 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  group: ci-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+# No concurrency group: every run finishes. A cancelled run's CI OK fails, and when two events come at once (a PR
+# opened with a label: opened + labeled) the cancelled run can be the newer one, which is the one GitHub reads, so the PR
+# stayed blocked with every check green. The runs are short; running both costs less than that.
 
 env:
   ELECTRON_SKIP_BINARY_DOWNLOAD: '1' # the tests don't start Electron
