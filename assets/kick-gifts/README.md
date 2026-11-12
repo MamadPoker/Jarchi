@@ -15,4 +15,4 @@ Kick's own Kicks gift images, unmodified, so the Kicks alert can show the gift t
 | `flex.webp` | Flex | 10,000 | `flex.webp` (animated) |
 | `boooom.webp` | BOOOOOM | 50,000 | `boom.webp` (animated) |
 
-If Kick adds a gift: add its file here (named by its `gift_id`), to `KICK_GIFTS` in `core/settings.js` and its name to `kickGifts` in `i18n/en.json`.
+If Kick adds a gift: add its file here (named by its `gift_id`), to `KICK_GIFTS` in `core/settings/schema.js` and its name to `kickGifts` in `i18n/en.json`.

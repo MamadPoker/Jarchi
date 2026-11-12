@@ -10,4 +10,4 @@ Twitch's own default cheer gems, unmodified, so the bits alert and the chat can 
 | `5000.gif` | blue | 5,000 bits | `#0099fe` |
 | `10000.gif` | red | 10,000 bits | `#f43021` |
 
-The bits alert tiers are these amounts (`TIER_AMOUNTS.bits` in `core/settings.js`); the chat picks the gem in `connectors/twitch-chat.js` (`GEMS`) and colors the amount in `widgets/chat/chat.css` (`.gem-<tier>`).
+The bits alert tiers are these amounts (`TIER_AMOUNTS.bits` in `core/settings/schema.js`); the chat picks the gem in `connectors/twitch-chat.js` (`GEMS`) and colors the amount in `widgets/chat/chat.css` (`.gem-<tier>`).
