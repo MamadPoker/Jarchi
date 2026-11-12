@@ -35,17 +35,21 @@ jobs:
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       WRANGLER: npx --yes wrangler@4.160.1
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: 📥 Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      - name: 🟢 Setup Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
-      - if: inputs.dry-run
+      - name: 🔍 Pending migrations and build (dry run)
+        if: inputs.dry-run
         run: |
           $WRANGLER d1 migrations list jarchi-stats --remote
           $WRANGLER deploy --dry-run
-      - if: ${{ !inputs.dry-run }}
+      - name: 🚀 Apply migrations, then deploy
+        if: ${{ !inputs.dry-run }}
         run: |
           $WRANGLER d1 migrations apply jarchi-stats --remote
           $WRANGLER deploy

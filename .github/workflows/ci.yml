@@ -29,11 +29,13 @@ jobs:
       packaging: ${{ steps.diff.outputs.packaging }}
       relay: ${{ steps.diff.outputs.relay }}
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: 📥 Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           persist-credentials: false
-      - id: diff
+      - name: 🗂️ Changed files
+        id: diff
         env:
           BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
         run: |
@@ -45,28 +47,35 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: 📥 Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      - name: 🟢 Setup Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
           cache: npm
-      - run: npm ci
-      - run: npm test
+      - name: 📦 Install
+        run: npm ci
+      - name: 🧪 Tests
+        run: npm test
 
   pr:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: 📥 Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           persist-credentials: false
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      - name: 🟢 Setup Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
-      - run: node build/check-pr.js
+      - name: 📋 PR title and What's new
+        run: node build/check-pr.js
         env:
           TITLE: ${{ github.event.pull_request.title }}
           LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
@@ -81,16 +90,21 @@ jobs:
       ELECTRON_SKIP_BINARY_DOWNLOAD: '' # electron-builder needs Electron here
       CSC_IDENTITY_AUTO_DISCOVERY: 'false' # not signed (no certificate yet)
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: 📥 Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      - name: 🟢 Setup Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
           cache: npm
-      - run: npm ci
-      - run: node build/notes.js
-      - run: npx electron-builder --win --dir --publish never
+      - name: 📦 Install
+        run: npm ci
+      - name: 📝 Release notes (latest.yml)
+        run: node build/notes.js
+      - name: 🏗️ Pack the installer (no upload)
+        run: npx electron-builder --win --dir --publish never
 
   relay:
     needs: changes
@@ -100,13 +114,16 @@ jobs:
       run:
         working-directory: relay
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: 📥 Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      - name: 🟢 Setup Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
-      - run: npx --yes wrangler@4.160.1 deploy --dry-run
+      - name: ☁️ Relay builds (dry run)
+        run: npx --yes wrangler@4.160.1 deploy --dry-run
 
   ci-ok:
     name: ✅ CI OK
@@ -114,6 +131,8 @@ jobs:
     if: always()
     runs-on: ubuntu-latest
     steps:
-      - if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
+      - name: ❌ A check failed
+        if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
         run: exit 1
-      - run: echo "All checks passed (skipped ones didn't apply)."
+      - name: ✅ All checks passed
+        run: echo "All checks passed (skipped ones didn't apply)."

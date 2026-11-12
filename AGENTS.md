@@ -20,7 +20,7 @@ The rules every AI coding agent follows on this repo. Claude Code reads them thr
 
 - Never commit a secret: no `.env`, tokens, keys, `*.pem`, or a real `wrangler secret` value. `.env.example` only lists the names.
 - GitHub holds only `RELEASE_DEPLOY_KEY` (environment `release`) and `CLOUDFLARE_API_TOKEN` / `CLOUDFLARE_ACCOUNT_ID` (environment `relay`), both usable from `main` only; a job that needs one names its environment. The Kick app keys and `ADMIN_KEY` are Worker secrets in Cloudflare. Twitch keys come from `.env` and are never built into the installer.
-- In workflows: set `permissions:` per job with the least it needs, pin actions to a full commit SHA with the version in a comment, use `persist-credentials: false` unless the job pushes, and pass `${{ }}` values through `env:`, never straight into `run:`.
+- In workflows: set `permissions:` per job with the least it needs, pin actions to the latest release's full commit SHA with the version in a comment (Dependabot bumps them), give every step a `name:` (the log shows it instead of `owner/action@<sha>`), use `persist-credentials: false` unless the job pushes, and pass `${{ }}` values through `env:`, never straight into `run:`.
 - The relay never logs or stores Kick tokens or login codes (`relay/README.md`). Keep it that way.
 
 ## Relay

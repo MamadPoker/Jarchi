@@ -43,21 +43,26 @@ jobs:
     permissions:
       contents: write # the release commit, the tag and the draft release
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: 📥 Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           # The deploy key is the only thing main's ruleset lets push (the release commit and its tag).
           ssh-key: ${{ secrets.RELEASE_DEPLOY_KEY }}
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      - name: 🟢 Setup Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
           cache: npm
-      - run: npm ci --ignore-scripts # no dependency's install script runs while the deploy key is on disk
-      - run: |
+      - name: 📦 Install (no install scripts)
+        run: npm ci --ignore-scripts # no dependency's install script runs while the deploy key is on disk
+      - name: ⚙️ Configure git
+        run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
       # The checkout's own remote (SSH, the deploy key) rather than package.json's https address, for the push.
-      - run: npx semantic-release --repository-url "$(git remote get-url origin)" $([ "$DRY_RUN" = true ] && echo --dry-run)
+      - name: 🏷️ semantic-release
+        run: npx semantic-release --repository-url "$(git remote get-url origin)" $([ "$DRY_RUN" = true ] && echo --dry-run)
         env:
           DRY_RUN: ${{ inputs.dry-run }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -77,11 +82,13 @@ jobs:
       GH_REPO: ${{ github.repository }}
       CSC_IDENTITY_AUTO_DISCOVERY: 'false' # not signed (no certificate yet)
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: 📥 Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           persist-credentials: false
-      - id: tag
+      - name: 🏷️ Pick the tag
+        id: tag
         env:
           VERSION: ${{ inputs.version }}
         run: |
@@ -92,14 +99,18 @@ jobs:
             || { echo "::error::$tag has no draft release (already published, or run action: release first)"; exit 1; }
           git checkout "$tag"
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      - name: 🟢 Setup Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
           cache: npm
-      - run: npm ci
-      - run: node build/notes.js
-      - run: npx electron-builder --win --publish always
-      - name: Publish (all three files are there)
+      - name: 📦 Install
+        run: npm ci
+      - name: 📝 Release notes (latest.yml)
+        run: node build/notes.js
+      - name: 🏗️ Build and upload the installer
+        run: npx electron-builder --win --publish always
+      - name: 🚀 Publish (all three files are there)
         env:
           TAG: ${{ steps.tag.outputs.tag }}
         run: |
