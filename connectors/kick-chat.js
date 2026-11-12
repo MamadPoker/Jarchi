@@ -38,6 +38,7 @@ const HISTORY_RETRY_MS = 60 * 1000;
 const fill = (tpl, v) => tpl.replace(/\{(\w+)\}/g, (m, k) => v[k] ?? m);
 
 // GET a kick.com API path over HTTP/2 (through the proxy setting) -> { status, json }. With `body`: POST it as JSON.
+/** @param {string} path @param {{ host?: string, body?: object, via?: object }} [opts] */
 async function kickGet(path, { host = 'kick.com', body: payload, via } = {}) { // via: a proxy to try (core/vpn.js), else the setting's
   const sock = await net.secure(host, 443, ['h2'], via);
   return new Promise((resolve, reject) => {
@@ -68,7 +69,7 @@ async function kickGet(path, { host = 'kick.com', body: payload, via } = {}) { /
 // empty, src 36x36 (the same size as Kick's animated original).
 function biggest(image) {
   const listed = String(image?.srcset ?? '').split(',').map((s) => s.trim().split(/\s+/)).filter(([u]) => u?.startsWith('https://'));
-  const size = ([, d]) => parseFloat(d) || 1;
+  const size = (/** @type {string[]} */ [, d]) => parseFloat(d) || 1;
   return listed.sort((a, b) => size(b) - size(a))[0]?.[0] ?? image?.src;
 }
 
@@ -323,9 +324,9 @@ async function readGoals(slug, send) {
 // metadata in Kick's history is JSON in a string; on the socket it's the object itself.
 const unpacked = (v) => { try { return JSON.parse(v); } catch { return v; } };
 
-// cb: { onStatus(state, detail), onMessage(msg), onClear(clear), onChannel({ userId, subBadges }), onAlert(alert),
-// onGoals(list), onGoal(goal) }. Goals are read now and every minute, besides their live events. Returns { stop() }.
+// Goals are read now and every minute, besides their live events.
 // Connects, drops and late spells also go to the event log as "socket": the installed app has no console to read.
+/** @param {string} slug @param {import('../core/chat').ConnectorCallbacks} cb @returns {import('../core/chat').Connection} */
 function connect(slug, cb) {
   let ws, timer, poller, info, retry = 0, stopped = false;
   let waiting = 0, rtt = 0, downAt = 0; // since when the socket owes us an answer, the last ping's round trip, when it dropped

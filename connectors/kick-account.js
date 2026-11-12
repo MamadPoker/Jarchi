@@ -205,7 +205,7 @@ function later(my, r = { error: 'network', why: `${RELAY_HOST}: no connection` }
 
 function open(my) {
   // The relay asks Kick whose token this is, so it hands this socket this channel's events only.
-  const s = new WebSocket(`${RELAY.replace(/^http/, 'ws')}/ws`, { headers: { authorization: `Bearer ${saved.access}` } });
+  const s = new WebSocket(`${RELAY.replace(/^http/, 'ws')}/ws`, /** @type {any} */ ({ headers: { authorization: `Bearer ${saved.access}` } })); // Node's WebSocket (undici) takes headers; the DOM type doesn't
   let quiet;
   const watch = () => {
     clearTimeout(quiet);

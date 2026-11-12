@@ -49,6 +49,7 @@ const ok = (service, via) => vpn.CHECKS[service](via).then(() => true, () => fal
 
 // VPN apps by their program's name. A core (the part that really listens) is named after the app running it.
 const CORE = 'core';
+/** @type {[RegExp, string][]} */
 const APPS = [
   [/^(xray|v2ray|sing-box|mihomo|verge-mihomo|clash-meta|psiphon-tunnel-core|sslocal|ss-local|hysteria2?|tuic-client|naive|trojan-go|juicity-client)(\.exe)?$/i, CORE],
   [/^v2rayn/i, 'v2rayN'], [/^v2raya/i, 'v2rayA'], [/^nekoray/i, 'NekoRay'], [/^nekobox/i, 'NekoBox'], [/^throne/i, 'Throne'],
@@ -66,6 +67,7 @@ const PORTS = {
 const types = (first) => (first === 'http' ? ['http', 'socks5'] : ['socks5', 'http']);
 const appOf = (exe) => APPS.find(([re]) => re.test(exe))?.[1];
 // System-wide VPN apps (they route the whole PC, no local proxy) by their programs' names.
+/** @type {[RegExp, string][]} */
 const SYSTEM = [
   [/^windscribe/i, 'Windscribe'], [/^expressvpn/i, 'ExpressVPN'], [/^nordvpn/i, 'NordVPN'], [/^protonvpn/i, 'Proton VPN'],
   [/^surfshark/i, 'Surfshark'], [/^(cloudflare warp|warp-svc)/i, 'Cloudflare WARP'], [/^mullvad/i, 'Mullvad VPN'],
@@ -209,7 +211,7 @@ async function accept() {
   const { found, service } = st, via = { type: found.type, host: found.host, port: found.port };
   set({ state: 'checking', service, found });
   const all = (await Promise.all([...new Set(['kick', 'relay', service].filter((x) => CHECKS[x]))].map((x) => ok(x, via)))).every(Boolean);
-  if (st.state !== 'checking') return null; // answered in another window meanwhile
+  if (/** @type {string} */ (st.state) !== 'checking') return null; // answered in another window meanwhile (the cast: tsc can't see st change during the await)
   if (!all) {
     set({ state: 'failed', service, found });
     return null;

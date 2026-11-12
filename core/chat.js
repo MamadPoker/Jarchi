@@ -13,6 +13,19 @@ const kick = require('../connectors/kick-chat');
 const twitch = require('../connectors/twitch-chat');
 const twitchBadges = require('../connectors/twitch-badges');
 
+/**
+ * What a chat connector's connect(channel, cb) is handed. Only Kick sends goals.
+ * @typedef {object} ConnectorCallbacks
+ * @property {(state: string, detail?: string) => void} onStatus
+ * @property {(msg: object) => void} onMessage
+ * @property {(clear: { platform: string, messageId?: string, userId?: string }) => void} onClear
+ * @property {(channel: { userId: string, subBadges?: object[] }) => void} onChannel
+ * @property {(alert: { type: string, user?: string, amount?: number, months?: number, message?: string, key?: string, received?: number }) => void} onAlert
+ * @property {(list: object[] | null) => void} [onGoals]
+ * @property {(goal: object) => void} [onGoal]
+ */
+/** @typedef {{ stop(): void }} Connection */
+
 const KEEP = 100; // messages kept in memory for widgets that (re)connect
 const CONNECTORS = { kick, twitch };
 const chat = new EventEmitter(); // 'status'
@@ -261,7 +274,7 @@ function effects(viewer, c) {
     gift: () => {
       const platform = pick(PLATFORMS), amount = Math.max(pick([1, 5, 10, 20]), c.eventGiftsMin);
       const fan = viewer(platform, [platform === 'kick' ? 'sub_gifter' : 'sub-gifter']);
-      return { platform, kind: 'sub', user: fan, system: strings.chatText.kickGift.replace('{user}', fan.name).replace('{count}', amount), text: '', parts: [], event: { type: 'gift_sub', amount } };
+      return { platform, kind: 'sub', user: fan, system: strings.chatText.kickGift.replace('{user}', fan.name).replace('{count}', String(amount)), text: '', parts: [], event: { type: 'gift_sub', amount } };
     },
     bits: () => {
       const amount = Math.max(pick([100, 500, 1000, 5000]), c.eventBitsMin), v = `Cheer${amount} ${T.bits}`;

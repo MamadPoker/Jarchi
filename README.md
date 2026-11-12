@@ -245,4 +245,5 @@ The installed app looks for a newer release at start and every 4 hours, download
 
 ```sh
 npm test
+npm run typecheck   # tsc over the JSDoc types (core, connectors, server, electron, build); CI runs both
 ```

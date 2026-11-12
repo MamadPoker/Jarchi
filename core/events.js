@@ -10,6 +10,13 @@ const { redact } = require('./secrets');
 const TYPES = ['follow', 'sub', 'resub', 'gift_sub', 'kicks', 'bits', 'raid'];
 const PLATFORMS = ['kick', 'twitch', 'test'];
 
+/** @typedef {'follow' | 'sub' | 'resub' | 'gift_sub' | 'kicks' | 'bits' | 'raid'} EventType */
+/** @typedef {'kick' | 'twitch' | 'test'} Platform */
+/**
+ * The one event shape every widget sees, whatever its source (README → Project layout).
+ * @typedef {{ id: string, time: number, received: number, platform: Platform, type: EventType, user: string, amount: number, months: number, message: string, test: boolean }} JarchiEvent
+ */
+
 const bus = new EventEmitter();
 const DEDUPE_MS = 6 * 60 * 60 * 1000; // about a stream: a viewer shares a resub once, a host with the same viewer count is the same host
 const seen = new Map(); // key -> when (oldest first)
@@ -17,6 +24,11 @@ const seen = new Map(); // key -> when (oldest first)
 // e.key (optional): connectors give one to events that can reach them twice (the same Kick event on two of its
 // sockets, a reconnect). An event whose key was seen in the last 6 hours is dropped: returns null.
 // e.received (optional): when Kick / Twitch's event reached Jarchi, if the connector held it before this (Kick subs).
+// platform and type are plain strings here: they're checked at run time, as connectors build them from what Kick / Twitch sent.
+/**
+ * @param {{ platform: string, type: string, user?: string, amount?: number, months?: number, message?: string, test?: boolean, key?: string, received?: number }} e
+ * @returns {JarchiEvent | null}
+ */
 function emitEvent(e) {
   if (!PLATFORMS.includes(e.platform) || !TYPES.includes(e.type)) throw new Error(`bad event: ${e.platform}/${e.type}`);
   if (e.key) {
@@ -25,12 +37,13 @@ function emitEvent(e) {
     if (seen.has(e.key)) return null;
     seen.set(e.key, now);
   }
+  /** @type {JarchiEvent} */
   const ev = {
     id: randomUUID(),
     time: Date.now(),
     received: Number(e.received) || Date.now(),
-    platform: e.platform,
-    type: e.type,
+    platform: /** @type {Platform} */ (e.platform),
+    type: /** @type {EventType} */ (e.type),
     user: String(e.user ?? '').slice(0, 64),
     amount: Number(e.amount) || 0,
     months: Number(e.months) || 0,
@@ -139,7 +152,7 @@ const LOG_LINES = 500;
 function logIncoming(platform, name, data) {
   try {
     const now = new Date();
-    const time = new Date(now - now.getTimezoneOffset() * 60000).toISOString().slice(0, 23).replace('T', ' ');
+    const time = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 23).replace('T', ' ');
     let lines = [];
     try { lines = fs.readFileSync(LOG_FILE, 'utf8').split('\n').filter(Boolean); } catch {} // none yet
     lines.push(redact(`${time} ${platform} ${name} ${typeof data === 'string' ? data : JSON.stringify(data)}`));

@@ -473,7 +473,7 @@ kickAccount.events.on('status', (st) => {
   vpn.status('relay', st.state === 'connected', st.state === 'connecting'); // the Kick account's live events come through the relay
 });
 
-server.on('error', (err) => {
+server.on('error', (/** @type {NodeJS.ErrnoException} */ err) => {
   console.error(err.code === 'EADDRINUSE' ? `Port ${PORT} is already in use. Set JARCHI_PORT in .env to another port.` : err);
   process.exit(1);
 });

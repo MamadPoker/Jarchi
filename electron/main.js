@@ -71,6 +71,7 @@ app.on('web-contents-created', (e, wc) => wc.on('context-menu', async (ev, p) =>
   if (!p.isEditable && !selected) return;
   const lang = await wc.executeJavaScript("localStorage.getItem('jarchi.lang')").catch(() => null);
   const W = wordsOf(lang === 'fa' ? 'fa' : 'en'), f = p.editFlags;
+  /** @type {Electron.MenuItemConstructorOptions[]} */
   const items = p.isEditable ? [
     { role: 'cut', label: W.cut, enabled: selected && f.canCut },
     { role: 'copy', label: W.copy, enabled: selected && f.canCopy },

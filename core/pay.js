@@ -57,7 +57,7 @@ async function call(method, p, body) {
   let r;
   try {
     r = await fetch(`${PAY}/api/app/${p}`, {
-      method, body: bytes ? body : body && JSON.stringify(body), signal: AbortSignal.timeout(bytes ? 60000 : 15000),
+      method, body: /** @type {BodyInit} */ (bytes ? body : body && JSON.stringify(body)), // a Buffer works; its type says SharedArrayBuffer might not signal: AbortSignal.timeout(bytes ? 60000 : 15000),
       headers: { ...(body && { 'content-type': bytes ? 'application/octet-stream' : 'application/json' }), ...(auth && { authorization: `Bearer ${token}` }) },
     });
   } catch {

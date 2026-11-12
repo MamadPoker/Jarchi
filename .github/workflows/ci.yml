@@ -60,6 +60,8 @@ jobs:
         run: npm ci
       - name: 🧪 Tests
         run: npm test
+      - name: 🔎 Type check
+        run: npm run typecheck
 
   pr:
     if: github.event_name == 'pull_request'

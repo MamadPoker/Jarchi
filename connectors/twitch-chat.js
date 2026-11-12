@@ -165,7 +165,7 @@ function handle(line, channel, cb) {
   if (alert) cb.onAlert?.(alert);
 }
 
-// cb: { onStatus(state, detail), onMessage(msg), onClear(clear), onChannel({ userId }), onAlert(alert) }. Returns { stop() }.
+/** @param {string} channel @param {import('../core/chat').ConnectorCallbacks} cb @returns {import('../core/chat').Connection} */
 function connect(channel, cb) {
   let ws, timer, last = Date.now(), retry = 0, stopped = false;
   const watchdog = setInterval(() => {
