@@ -11,6 +11,7 @@
 // Logs are off in wrangler.toml), never cached (no-store), and a Room never sees one.
 //   POST /ping      Jarchi's usage ping (core/stats.js, only once its Privacy Policy is accepted): one row per install
 //                   in the D1 database DB (schema.sql). No IP address or anything else about the request is kept.
+//                   ?messages=1 (Jarchi 1.0.9 on): it answers with the install's team messages, so one request does both.
 //   /support/...    Jarchi's Support page: an install's tickets (see "Support tickets" below), screenshots in KV SHOTS.
 //   /messages...    the team's messages for an install (see "Team messages" below).
 //   /designs...     an install's exclusive chat designs, unlocked with a code (see "Exclusive chat designs" below).
@@ -47,7 +48,7 @@ export default {
       case '/token': return req.method === 'POST' ? token(req, url, env) : text('POST only', 405);
       case '/webhook': return req.method === 'POST' ? webhook(req, env) : text('POST only', 405);
       case '/ws': return socket(req, env);
-      case '/ping': return req.method === 'POST' ? ping(req, env) : text('POST only', 405);
+      case '/ping': return req.method === 'POST' ? ping(req, url, env) : text('POST only', 405);
     }
     return text('Not found', 404);
   },
@@ -137,7 +138,7 @@ async function socket(req, env) {
 // diag: { kick, kickReason, twitch, twitchReason, proxy, vpn } (kick / twitch: never | ok | failed, the reason network |
 // denied | other when failed, else null; proxy: off | auto | manual; vpn: true / false / null), at most PING_BYTES;
 // anything else is refused. Each install gets PING_MAX pings in
-// PING_WINDOW_MS (Jarchi sends one every 5 minutes, plus start and quit), and at most NEW_MAX installs are new in the
+// PING_WINDOW_MS (Jarchi sends one every 3 minutes, 5 before 1.0.9, plus start and quit), and at most NEW_MAX installs are new in the
 // last NEW_WINDOW_MS, so made-up ids can't flood the database. Times are ISO 8601 in UTC.
 const PING_BYTES = 2048, PING_MAX = 10, PING_WINDOW_MS = 10 * 60 * 1000;
 const NEW_MAX = 100, NEW_WINDOW_MS = 60 * 60 * 1000;
@@ -203,7 +204,7 @@ async function capped(req, max) {
   return out;
 }
 
-async function ping(req, env) {
+async function ping(req, url, env) {
   if (!/^application\/json\b/i.test(req.headers.get('content-type') ?? '')) return text('JSON only', 415);
   const body = await capped(req, PING_BYTES);
   if (body === null) return text('Too large', 413);
@@ -219,7 +220,7 @@ async function ping(req, env) {
   if (!meta.changes) return text('Too many pings', 429);
   const day = at.slice(0, 10);
   if (!(seen?.last_seen >= day)) await env.DB.prepare(ACTIVE).bind(day, bit(p.installed), Number(isDev(p))).run();
-  return text('ok');
+  return url.searchParams.get('messages') === '1' ? json(await myMessages(env, p.id, p.version, Number(p.installed))) : text('ok');
 }
 
 // ---------- Admin API ----------
@@ -251,7 +252,7 @@ async function ping(req, env) {
 //   POST   /admin/codes          a new one for a design: the code itself, this once
 //   DELETE /admin/codes/<id>     revokes it: never redeemed again (an install that has it keeps its design)
 //   GET    /admin/designs        every design: id, name, createdAt (never its look or CSS)
-// "Online" = open and seen in ONLINE_MS (Jarchi pings every 5 minutes); "live" = online and live on Kick or Twitch.
+// "Online" = open and seen in ONLINE_MS (Jarchi pings every 3 minutes, 5 before 1.0.9); "live" = online and live on Kick or Twitch.
 const FAIL_MAX = 10, FAIL_MS = 60 * 60 * 1000;
 const ONLINE_MS = 10 * 60 * 1000, DAY_MS = 24 * 60 * 60 * 1000, RELEASES_MS = 10 * 60 * 1000;
 const FREE_REQUESTS = 100000; // Cloudflare's free plan, a day (UTC)
@@ -622,7 +623,8 @@ async function deleteTicket(env, id) {
 // (a dev run), and gets only what's meant for it: active, not expired, not closed by it, and for all installs, for its
 // version, for dev runs (installed=0) or for its id. Only installs that have pinged (an accepted Privacy Policy) get
 // any, so only they are ever counted (table team_message_views, migrations/0001_team_messages.sql).
-//   GET  /messages              mine, newest first, each with seen (I marked it seen)
+//   GET  /messages              mine, newest first, each with seen (I marked it seen); a ping with ?messages=1 answers
+//                               the same (its id, version and installed say who), and Jarchi 1.0.9 on asks only that way
 //   POST /messages/<id>/seen    I saw it
 //   POST /messages/<id>/closed  I closed it (seen too): off my list for good
 // One not meant for the install is not_found, like one that isn't there. Errors are JSON { error }: bad_request,
@@ -720,15 +722,18 @@ const MARK = `INSERT INTO team_message_views (message_id, install_id, seen_at, c
 SELECT m.id, ?1, ?4, ?6 FROM team_messages m WHERE m.id = ?5 AND ${FOR_ME}
 ON CONFLICT (message_id, install_id) DO UPDATE SET closed_at = COALESCE(closed_at, excluded.closed_at)`;
 
+// An install's messages, as GET /messages and a ping with ?messages=1 send them.
+const myMessages = async (env, install, version, installed) => (await env.DB.prepare(MINE).bind(install, version, installed, iso(Date.now())).all()).results
+  .map((r) => ({ ...teamMessageOf(r), style: r.style === 'design' && older(version, DESIGN_FROM) ? 'gift' : r.style, seen: r.seen_at !== null }));
+
 async function teamMessages(req, url, env) {
   const m = MY_MESSAGE.exec(url.pathname);
   if (!m) return fail('not_found', 404);
   if (req.method !== (m[1] ? 'POST' : 'GET')) return fail('method', 405);
   const install = req.headers.get('x-jarchi-install') ?? '', version = url.searchParams.get('version') ?? '', installed = url.searchParams.get('installed');
   if (!UUID.test(install) || !VERSION.test(version) || !['0', '1'].includes(installed)) return fail('bad_request');
+  if (!m[1]) return json(await myMessages(env, install, version, Number(installed)));
   const me = [install, version, Number(installed), iso(Date.now())];
-  const style = (s) => (s === 'design' && older(version, DESIGN_FROM) ? 'gift' : s);
-  if (!m[1]) return json((await env.DB.prepare(MINE).bind(...me).all()).results.map((r) => ({ ...teamMessageOf(r), style: style(r.style), seen: r.seen_at !== null })));
   const { meta } = await env.DB.prepare(MARK).bind(...me, Number(m[1]), m[2] === 'closed' ? me[3] : null).run();
   return meta.changes ? json({ [m[2]]: Number(m[1]) }) : fail('not_found', 404);
 }

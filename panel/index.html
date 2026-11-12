@@ -360,6 +360,13 @@
         <img src="/assets/brand/jarchi-logo-v2.png" alt="Jarchi">
         <small id="aboutVersion"></small>
         <p data-i18n="aboutText"></p>
+        <!-- The installed app only (renderUpdate): Check for updates, and what it found, in place; a downloaded update's
+             Restart instead. -->
+        <div id="aboutUpdate" class="about-update" hidden>
+          <button id="aboutCheck" class="ghost" data-i18n="aboutCheck"></button>
+          <button id="aboutRestart" hidden></button>
+          <small id="aboutCheckText" role="status"></small>
+        </div>
         <!-- "Made with ♥ by MamadPoker" (filled in panel.js); hover: a gold-bordered box. Privacy: the policy's popup. -->
         <small class="about-links"><a class="made-by" id="madeWith" href="https://mamadpoker.netlify.app/" target="_blank" rel="noopener"></a><span aria-hidden="true">·</span><button id="aboutPrivacy" class="link" data-i18n="privacyLink"></button></small>
       </section>

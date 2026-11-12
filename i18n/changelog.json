@@ -1,9 +1,15 @@
 [
   {
     "version": "unreleased",
-    "types": [],
-    "en": [],
-    "fa": []
+    "types": ["improve", "feature"],
+    "en": [
+      "Messages from the Jarchi team now arrive within a few minutes",
+      "Jarchi checks for updates more often, and About has a new \"Check for updates\" button"
+    ],
+    "fa": [
+      "پیام‌های تیم جارچی حالا تو چند دقیقه می‌رسن",
+      "جارچی زودتر دنبال آپدیت می‌گرده، و تو صفحه‌ی «درباره» یه دکمه‌ی «بررسی آپدیت» هم اضافه شده"
+    ]
   },
   {
     "version": "1.0.8",

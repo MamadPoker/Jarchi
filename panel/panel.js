@@ -2408,17 +2408,22 @@ function renderProfile() {
 // The desktop app's updates (electron/preload.js; nothing in a browser or with `npm run app`): { ready, installed }
 // from electron/main.js. ready = a downloaded update { version, notes }: the banner (until its ✕ or Restart now, once
 // per version: remembered under jarchi.updateClosed), the profile chip's gold dot and its menu's Restart. installed =
-// the update Jarchi just came from: What's new opens by itself, once.
+// the update Jarchi just came from: What's new opens by itself, once. check (the installed app only): what About's
+// Check for updates came to, shown next to it; a downloaded update puts its Restart there instead.
 let update = {};
 const closeUpdateBar = () => remember.set('jarchi.updateClosed', update.ready.version);
 function renderUpdate() {
-  const { ready } = update;
+  const { ready, check } = update;
   $('#updateBar').hidden = !ready || remember.get('jarchi.updateClosed') === ready.version;
-  $('#updateDot').hidden = $('#menuUpdate').hidden = !ready;
+  $('#updateDot').hidden = $('#menuUpdate').hidden = $('#aboutRestart').hidden = !ready;
   if (ready) {
     $('#updateText').textContent = tpl(S.panel.updateReady, { version: ready.version });
-    $('#menuUpdate span').textContent = tpl(S.panel.updateTo, { version: ready.version });
+    $('#menuUpdate span').textContent = $('#aboutRestart').textContent = tpl(S.panel.updateTo, { version: ready.version });
   }
+  $('#aboutUpdate').hidden = !check;
+  $('#aboutCheck').hidden = !!ready;
+  $('#aboutCheck').disabled = check === 'checking' || check === 'downloading';
+  $('#aboutCheckText').textContent = (!ready && S.panel[`aboutCheck_${check}`]) || '';
   if (view === 'news') renderNews();
 }
 function wireUpdate() {
@@ -2426,10 +2431,11 @@ function wireUpdate() {
   api('GET', '/api/version').then(({ version }) => ($('#menuVersion').textContent = tpl(S.panel.appVersion, { version })), () => {});
   $('#updateNotes').onclick = $('#menuNews').onclick = () => select('news');
   if (!app) return;
-  $('#updateRestart').onclick = $('#menuUpdate').onclick = () => {
+  $('#updateRestart').onclick = $('#menuUpdate').onclick = $('#aboutRestart').onclick = () => {
     closeUpdateBar();
     app.restart();
   };
+  $('#aboutCheck').onclick = () => app.check();
   $('#updateClose').onclick = () => {
     closeUpdateBar();
     renderUpdate();

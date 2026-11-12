@@ -79,7 +79,7 @@ function follow(patch) {
 app.patch('/api/settings', (req, res) => {
   const s = settings.update(req.body);
   if ('privacyAccepted' in req.body) {
-    stats.ping().then(messages.load); // the Privacy Policy accepted just now: the first usage ping, then the team's messages
+    stats.ping(); // the Privacy Policy accepted just now: the first usage ping, which brings the team's messages
     pay.refresh(); // and the crypto gateway's state
   }
   follow(req.body);
@@ -488,7 +488,7 @@ server.listen(PORT, HOST, () => {
   twitchAccount.start(); // and the Twitch and Kick accounts, when they're connected
   kickAccount.start();
   media.shrinkOld().catch(console.error); // uploads from before the 512 px rule, once
-  stats.start().then(() => (messages.start(), designs.sync())); // usage pings, once the Privacy Policy is accepted; then the team's messages (the relay knows this install by its ping)
+  stats.start().then(() => designs.sync()); // usage pings (with the team's messages), once the Privacy Policy is accepted; then the designs (the relay knows this install by its ping)
   pay.start(); // the crypto gateway's state (Jarchi Pay), the same
   if (DEV) release.start(); // a dev run doesn't update itself: it hears of new versions (core/release.js)
 });

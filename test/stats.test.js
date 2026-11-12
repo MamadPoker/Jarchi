@@ -43,6 +43,7 @@ test('usage ping: only after the Privacy Policy, only its fields, silent when th
   settings.update({ privacyAccepted: 1 });
   await stats.ping();
   assert.equal(pings().length, 1);
+  assert.equal(pings()[0].query, '?messages=1', 'the team messages come back with it');
   sent = JSON.parse(pings()[0].body);
   assert.deepEqual(Object.keys(sent), ['id', 'version', 'installed', 'open', 'kick', 'twitch', 'privacy', 'diag']);
   assert.match(sent.id, UUID);
@@ -58,6 +59,7 @@ test('usage ping: only after the Privacy Policy, only its fields, silent when th
   await stats.ping(false);
   assert.equal(calls.length, n + 1);
   const bye = JSON.parse(pings().at(-1).body);
+  assert.equal(pings().at(-1).query, '', 'not with the quit ping');
   assert.deepEqual([bye.id, bye.open, bye.kick.live, bye.twitch.live], [sent.id, false, false, true]);
 
   // The relay can't be reached: nothing thrown, Jarchi goes on.

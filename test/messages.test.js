@@ -1,8 +1,9 @@
 // Team messages: the relay's /admin/messages and /messages (relay/worker.mjs) on SQLite standing in for D1 (schema.sql +
 // migrations). Who gets what (all, a version, dev runs, one install; never another's), plain text only, seen / closed
-// counts, deactivate, expiry, delete, and an install's data deletion taking its views along; a gift with its code. Then Jarchi's side
-// (core/messages.js) through the real server to that relay: only after the Privacy Policy, only to the panel's socket
-// (never a widget's), seen, closed for good (offline too).
+// counts, deactivate, expiry, delete, and an install's data deletion taking its views along; a gift with its code; the
+// same list as a ping's answer. Then Jarchi's side (core/messages.js) through the real server to that relay: with the
+// usage ping, only after the Privacy Policy, only to the panel's socket (never a widget's), seen, closed for good
+// (offline too).
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -179,6 +180,13 @@ test('relay team messages: a design code for one install; an older Jarchi gets i
   assert.deepEqual(await of(x, '1.0.7'), [['gift', 'ABCD-EFGH']], 'an older Jarchi: the gift it knows');
   assert.deepEqual(await of(x, '0.9.12'), [['gift', 'ABCD-EFGH']]);
   assert.deepEqual(await of(y, '1.0.8'), [], 'only that install');
+
+  // A ping with ?messages=1 answers with the same list (Jarchi 1.0.9 on asks only that way); without it, still "ok".
+  const ping = (id, version, q = '?messages=1') => call(`/ping${q}`, 'POST', {}, { id, version, installed: true, open: true, kick: null, twitch: null, privacy: { version: 1, acceptedAt: null } });
+  const get = async (id, version) => (await call(`/messages?version=${version}&installed=1`, 'GET', { 'x-jarchi-install': id })).json();
+  for (const [id, version] of [[x, '1.0.9'], [x, '1.0.7'], [y, '1.0.9']]) assert.deepEqual(await (await ping(id, version)).json(), await get(id, version), `${id} ${version}`);
+  assert.deepEqual((await (await ping(x, '1.0.7')).json()).map((m) => m.style), ['gift'], 'an older Jarchi: the gift it knows');
+  assert.equal(await (await ping(x, '1.0.9', '')).text(), 'ok');
 });
 
 test('Jarchi: team messages from the relay, to the panel only; seen, closed for good (offline too)', async (t) => {
@@ -196,6 +204,7 @@ test('Jarchi: team messages from the relay, to the panel only; seen, closed for 
   const { server, io } = require('../server');
   const settings = require('../core/settings');
   const messages = require('../core/messages');
+  const stats = require('../core/stats');
   const { version } = require('../package.json');
   t.after(() => {
     io.close();
@@ -226,10 +235,9 @@ test('Jarchi: team messages from the relay, to the panel only; seen, closed for 
   await new Promise((r) => setTimeout(r, 50));
   assert.deepEqual([asked.length, ids()], [0, []]);
   await real('http://127.0.0.1:3995/api/settings', { method: 'PATCH', headers: { 'x-jarchi': '1', 'content-type': 'application/json' }, body: '{"privacyAccepted":1}' });
-  await until(() => ids().length === 3, 'loaded after the first ping');
+  await until(() => ids().length === 3, 'brought by the first ping');
   assert.deepEqual(ids(), [mine, dev, all]);
-  assert.deepEqual(asked.map((a) => a.at), ['POST /ping', `GET /messages?version=${version}&installed=0`]);
-  assert.equal(asked[1].install, settings.installId());
+  assert.deepEqual(asked.map((a) => a.at), ['POST /ping?messages=1'], 'one request does both');
 
   // Only the panel's socket gets them: never a widget's (OBS).
   const got = { panel: [], widget: [] };
@@ -251,6 +259,7 @@ test('Jarchi: team messages from the relay, to the panel only; seen, closed for 
   assert.deepEqual(await call(`/messages/${all}/seen`), [200, messages.list()]);
   await until(() => views().length === 1, 'seen on the relay');
   assert.deepEqual(views(), [{ id: all, closed: 0 }]);
+  assert.deepEqual(asked.at(-1), { at: `POST /messages/${all}/seen?version=${version}&installed=0`, install: settings.installId() });
   assert.deepEqual(got.panel.at(-1), [[mine, false], [dev, false], [all, true]]);
   for (const p of ['/messages/999/seen', `/messages/${all}/read`, `/messages/${all}/constructor`]) assert.deepEqual(await call(p), [404, { error: 'not_found' }], p);
 
@@ -259,13 +268,13 @@ test('Jarchi: team messages from the relay, to the panel only; seen, closed for 
   assert.equal((await call(`/messages/${dev}/closed`))[0], 200);
   assert.deepEqual(ids(), [mine, all]);
   assert.deepEqual(JSON.parse(fs.readFileSync(path.join(dataDir, 'messages.json'), 'utf8')), { closed: [dev] });
-  await messages.load(); // offline: what it had stays
+  await stats.ping(); // offline: what it had stays
   assert.deepEqual(ids(), [mine, all]);
   down = false;
-  await messages.load(); // the relay still sends it: not shown, and told it's closed
+  await stats.ping(); // the relay still sends it: not shown, and told it's closed
   assert.deepEqual(ids(), [mine, all]);
   await until(() => views().some((v) => v.id === dev && v.closed), 'closed on the relay');
-  await messages.load();
+  await stats.ping();
   assert.deepEqual(ids(), [mine, all], 'the relay leaves it out now');
   assert.deepEqual(got.panel.at(-1), [[mine, false], [all, true]]);
   assert.deepEqual(got.widget, [], 'never to a widget');
