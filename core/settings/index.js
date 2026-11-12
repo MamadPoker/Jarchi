@@ -70,6 +70,7 @@ const KEEP = [
   'lang',
   'seenNew',
   'eyesSeen',
+  'cryptoWelcomed',
   'proxyAsk',
 ];
 let past = [],
@@ -517,6 +518,7 @@ function reset(type) {
       lang: saved.lang,
       seenNew: saved.seenNew,
       eyesSeen: saved.eyesSeen,
+      cryptoWelcomed: saved.cryptoWelcomed,
     }; // still the same install, OBS and panel (none yet: left out)
   }
   persist(!!type); // Reset everything can't be undone

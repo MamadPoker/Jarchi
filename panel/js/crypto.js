@@ -3,7 +3,8 @@
 // donation page's link, the totals and the donations, newest first; a wallet step until both addresses are set, and a
 // warning with Cancel while a wallet change waits. The state: GET /api/crypto when the page opens or the window comes
 // back (from the browser, where the request and the wallets are done), and by socket when it changes (an approval opens
-// the active page by itself). The list again every 30 s while the page is in view.
+// the active page by itself). The list again every 30 s while the page is in view. The first time it's active: the
+// welcome and the page's tour (cryptoHello, below).
 let pay = { state: 'none' },
   donations = { list: [], next: null, totals: null, pages: 0 },
   payLink;
@@ -18,7 +19,8 @@ function gotCrypto(st) {
   const was = pay.state;
   pay = st;
   if (st.state === 'active' && was !== 'active') {
-    if (was === 'pending' && view !== 'donations') toast(S.panel.cryptoApproved);
+    if (!settings.cryptoWelcomed) cryptoHello();
+    else if (was === 'pending' && view !== 'donations') toast(S.panel.cryptoApproved); // approved again (lost)
     donations = { list: [], next: null, totals: null, pages: 0 };
     loadDonations();
   }
@@ -288,6 +290,168 @@ function wireCrypto() {
   addEventListener('focus', () => view === 'donations' && loadCrypto()); // back from the browser: the request sent, the wallets set
   wireCryptoAlerts();
   wireCryptoPage();
+  wireCryptoHello();
+}
+
+// ---------- The gateway approved: a welcome and a tour, once ----------
+// The first time the gateway is active (settings.cryptoWelcomed; also for one approved before there was a welcome): a
+// gold note on top and a dot on Crypto. Either opens the rules, whose tick waits until they're read to the end; Let's
+// go saves that they were shown and opens the Crypto page with its tour. Closed before that (Escape): the dot stays,
+// and the next start shows the note again.
+const RED_RULES = [1, 2, 6]; // where money can be lost: the address, the network, what Jarchi can't do
+const cryptoNav = () => $('.nav-item[data-view="donations"]');
+function cryptoHello() {
+  if (POP || $('.crypto-dot')) return;
+  cryptoNav().classList.add('crypto-hl');
+  cryptoNav().append(el('span', { className: 'crypto-dot' }));
+  setTimeout(() => $('#cryptoToast').classList.add('on'), 400);
+}
+function openCryptoHello() {
+  $('#cryptoToast').classList.remove('on');
+  if (!$('#cryptoHelloCoin').childElementCount) helloCoinFaces();
+  const page = pay.page?.replace(/^https?:\/\//, '') ?? '';
+  $('#cryptoHelloRules').replaceChildren(
+    ...S.panel.cryptoHelloRules.map(([title, text], i) =>
+      el(
+        'li',
+        { className: RED_RULES.includes(i) ? 'red' : '', style: `animation-delay: ${0.05 + i * 0.07}s` },
+        el('span', { className: 'n', textContent: fd(i + 1) }),
+        el('div', {}, el('b', { textContent: title }), el('span', {}, ...rich(tpl(text, { page })))),
+      ),
+    ),
+  );
+  Object.assign($('#cryptoHelloAgree'), { checked: false, disabled: true });
+  $('#cryptoHelloGo').disabled = true;
+  $('#cryptoHelloRead').textContent = S.panel.cryptoHelloRead;
+  $('#cryptoHello').showModal();
+  $('#cryptoHelloRules').scrollTop = 0;
+  helloRead();
+  requestAnimationFrame(helloCoin);
+}
+// How far the rules are read: the bar, and the tick once they're read to the end (on a tall window, at once). Also
+// when the rules finish coming in: until then they're a little lower.
+function helloRead() {
+  const b = $('#cryptoHelloRules'),
+    p = Math.min(1, (b.scrollTop + b.clientHeight) / b.scrollHeight);
+  $('#cryptoHelloBar').style.width = pct(p);
+  if (p <= 0.98 || !$('#cryptoHelloAgree').disabled) return;
+  $('#cryptoHelloAgree').disabled = false;
+  $('#cryptoHelloRead').textContent = '';
+}
+// The welcome's coin: Jarchi Pay's (the Luck page's faces, with its own words), turning and bobbing while the rules are
+// open. Reduce animations: it rests face on.
+function helloCoinFaces() {
+  const c = $('#cryptoHelloCoin'),
+    font = 'Manrope,Arial,sans-serif';
+  for (let z = -5; z <= 5; z++) c.append(el('div', { className: 'edge', style: `transform: translateZ(${z}px) scale(.985)` }));
+  c.append(
+    el('div', {
+      className: 'face',
+      style: 'transform: translateZ(5.3px)',
+      innerHTML: `<svg viewBox="0 0 200 200">${LK_FACE_DEFS('pa')}${lkArc('pa', 'JARCHI PAY', 'aT', 12.5, 5, font)}${lkArc('pa', 'CRYPTO · DONATE', 'aB', 9, 3.2, font)}</svg><img class="lk-clogo" src="/assets/brand/jarchi-coin-logo.webp" alt="" />${LK_SHINE}`,
+    }),
+    el('div', {
+      className: 'face',
+      style: 'transform: rotateY(180deg) translateZ(5.3px)',
+      innerHTML: `<svg viewBox="0 0 200 200">${LK_FACE_DEFS('pb')}<g filter="url(#empb)" fill="#9a6c0e" font-family="${font}" text-anchor="middle"><text x="100" y="96" font-size="27" font-weight="800" letter-spacing="2">JARCHI</text><text x="100" y="124" font-size="17" font-weight="800" letter-spacing="9">PAY</text><path d="M58 106 h22 M120 106 h22" stroke="#9a6c0e" stroke-width="1.4"/><text x="100" y="150" font-size="9" font-weight="700" letter-spacing="3">EST · 2026</text></g></svg>${LK_SHINE}`,
+    }),
+  );
+}
+function helloCoin(t) {
+  const c = $('#cryptoHelloCoin'),
+    still = calm(),
+    ay = still ? 0 : t * 0.06; // 60° a second
+  c.style.transform = `translateY(${still ? 0 : Math.sin(t / 700) * 4}px) rotateX(-8deg) rotateY(${ay}deg)`;
+  lkShine(c, ay);
+  if (!still && $('#cryptoHello').open) requestAnimationFrame(helloCoin);
+}
+
+// The tour: five stops, each a tab of the page and the part of it in the spotlight (with Pop out, for the donations).
+// A modal like the welcome tour's Sidebar step (#spot), so the page can't be clicked meanwhile. Skip, Escape or the
+// last stop end it on the Donation page tab, where the wallets are entered.
+const CRYPTO_TOUR = [
+  ['page', () => [$('#cryptoWalletChange').closest('.box')]],
+  ['alerts', () => [$('#cryptoAlertsTab .crypto-cards')]],
+  ['alerts', () => [$('#cryptoTestBtn').closest('.box')]],
+  ['page', () => [$('#cryptoBio').closest('.box')]],
+  ['donations', () => [$('#cryptoPop'), $('#cryptoDonations')]],
+];
+let cryptoStop = 0;
+function cryptoTourTo(i) {
+  const d = $('#cryptoTour'),
+    [tab, parts] = CRYPTO_TOUR[i],
+    [title, text] = S.panel.cryptoTourSteps[i],
+    n = CRYPTO_TOUR.length;
+  cryptoStop = i;
+  showCryptoTab(tab);
+  $('#cryptoTourStep').textContent = tpl(S.panel.cryptoTourStep, { n: fd(i + 1), total: fd(n) });
+  $('#cryptoTourTitle').textContent = title;
+  $('#cryptoTourText').textContent = text;
+  $('#cryptoTourNext').textContent = i < n - 1 ? S.panel.next : S.panel.cryptoTourStart;
+  $('#cryptoTourDots').replaceChildren(...CRYPTO_TOUR.map((_, k) => el('i', { className: k === i ? 'on' : '' })));
+  const first = !d.open;
+  d.classList.toggle('still', first); // the first stop shows at once, no glide in from the corner
+  if (first) d.showModal();
+  const ps = parts();
+  ps.at(-1).scrollIntoView({ block: 'nearest' });
+  ps[0].scrollIntoView({ block: 'nearest' });
+  placeCryptoTour();
+  void d.offsetWidth; // (that's where the next glide starts)
+  d.classList.remove('still');
+  $('#cryptoTourNext').focus();
+}
+// The bright hole around the stop's parts, and the tip under it (over it when there's no room below), its arrow at the
+// middle of the hole. Both always inside the window.
+function placeCryptoTour() {
+  const rs = CRYPTO_TOUR[cryptoStop][1]()
+      .map((e) => e.getBoundingClientRect())
+      .filter((r) => r.width),
+    pad = 8,
+    m = 20;
+  if (!rs.length) return;
+  const left = Math.min(...rs.map((r) => r.left)) - pad,
+    right = Math.max(...rs.map((r) => r.right)) + pad,
+    top = Math.min(...rs.map((r) => r.top)) - pad,
+    bottom = Math.max(...rs.map((r) => r.bottom)) + pad;
+  Object.assign($('#cryptoTour .spot-hole').style, { left: px(left), top: px(top), width: px(right - left), height: px(bottom - top) });
+  const tip = $('.crypto-tip'),
+    w = tip.offsetWidth,
+    h = tip.offsetHeight,
+    mid = (left + right) / 2,
+    below = bottom + 18 + h < innerHeight,
+    x = Math.max(m, Math.min(innerWidth - w - m, mid - w / 2));
+  tip.classList.toggle('above', !below);
+  Object.assign(tip.style, { left: px(x), top: px(Math.max(8, Math.min(innerHeight - h - 8, below ? bottom + 16 : top - 16 - h))) });
+  $('.crypto-arr').style.left = px(Math.max(16, Math.min(w - 30, mid - x - 7)));
+}
+
+function wireCryptoHello() {
+  $('#cryptoToast').onclick = openCryptoHello;
+  cryptoNav().addEventListener('click', () => $('.crypto-dot') && openCryptoHello());
+  $('#cryptoHelloRules').onscroll = $('#cryptoHelloRules').onanimationend = helloRead;
+  $('#cryptoHelloAgree').onchange = (e) => ($('#cryptoHelloGo').disabled = !e.target.checked);
+  $('#cryptoHelloGo').onclick = () => {
+    settings.cryptoWelcomed = true;
+    api('PATCH', '/api/settings', { cryptoWelcomed: true }).then(
+      (s) => (settings = s),
+      () => {},
+    );
+    $('#cryptoHello').close();
+    $('.crypto-dot')?.remove();
+    cryptoNav().classList.remove('crypto-hl');
+    select('donations');
+    if (pay.state === 'active') cryptoTourTo(0);
+  };
+  $('#cryptoTourNext').onclick = () => (cryptoStop < CRYPTO_TOUR.length - 1 ? cryptoTourTo(cryptoStop + 1) : $('#cryptoTour').close());
+  $('#cryptoTourSkip').onclick = () => $('#cryptoTour').close();
+  $('#cryptoTour').onclose = () => showCryptoTab('page');
+  const follow = () => $('#cryptoTour').open && placeCryptoTour();
+  addEventListener('resize', () => {
+    if ($('#cryptoHello').open) helloRead();
+    follow();
+  });
+  addEventListener('scroll', follow, true); // the page scrolled under it
+  new ResizeObserver(follow).observe($('.view.crypto')); // the state, the wallets or the donations came in under it
 }
 
 // ---------- The donation page (the Crypto page's Donation page tab) ----------
