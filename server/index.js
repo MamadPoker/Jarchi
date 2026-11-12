@@ -54,14 +54,22 @@ app.use(express.json());
 
 app.get('/api/settings', (req, res) => res.json(view()));
 // The panel's System colors: Windows' accent color from the registry (0xAABBGGRR), null when it can't be read (or not on
-// Windows): the panel shows Jarchi's colors then.
-app.get('/api/accent', (req, res) =>
-  execFile('reg', ['query', 'HKCU\\Software\\Microsoft\\Windows\\DWM', '/v', 'AccentColor'], { windowsHide: true, timeout: 3000 }, (err, out) => {
-    const abgr = !err && /AccentColor\s+REG_DWORD\s+0x([0-9a-f]{1,8})\b/i.exec(out)?.[1];
-    const n = abgr && parseInt(abgr, 16);
-    res.json({ accent: abgr ? `#${[n & 255, (n >>> 8) & 255, (n >>> 16) & 255].map((c) => c.toString(16).padStart(2, '0')).join('')}` : null });
-  }),
-);
+// Windows): the panel shows Jarchi's colors then. Any web page can send this GET (it can't read the answer), so one
+// reg.exe runs at a time and its answer is kept for 10 s: a page sending it over and over starts no pile of processes.
+const ACCENT_MS = 10000;
+let accent = null; // { at, answer: Promise of '#rrggbb' or null }
+const readAccent = () =>
+  new Promise((resolve) =>
+    execFile('reg', ['query', 'HKCU\\Software\\Microsoft\\Windows\\DWM', '/v', 'AccentColor'], { windowsHide: true, timeout: 3000 }, (err, out) => {
+      const abgr = !err && /AccentColor\s+REG_DWORD\s+0x([0-9a-f]{1,8})\b/i.exec(out)?.[1];
+      const n = abgr && parseInt(abgr, 16);
+      resolve(abgr ? `#${[n & 255, (n >>> 8) & 255, (n >>> 16) & 255].map((c) => c.toString(16).padStart(2, '0')).join('')}` : null);
+    }),
+  );
+app.get('/api/accent', async (req, res) => {
+  if (!accent || Date.now() - accent.at > ACCENT_MS) accent = { at: Date.now(), answer: readAccent() };
+  res.json({ accent: await accent.answer });
+});
 // The proxy setting changed: everything reconnects through it, and core/vpn.js starts over.
 function reconnect() {
   net.resetPool(); // nothing goes on through the old setting
