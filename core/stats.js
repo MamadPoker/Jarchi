@@ -1,13 +1,15 @@
 // Usage stats, only after the current Privacy Policy (i18n/privacy.json) was accepted: a small ping to Jarchi's relay
-// (relay/worker.mjs POST /ping) at start, every 5 minutes, when the policy is accepted and when Jarchi quits. It holds
+// (relay/worker.mjs POST /ping) at start, every 3 minutes, when the policy is accepted and when Jarchi quits. It holds
 // only: this install's random id, the connected Kick / Twitch channels (name, picture, live now), Jarchi's version,
 // installed app or a dev run, open (false: the quit ping), the policy version accepted and when, and diag (connection
 // diagnostics, below; Jarchi 1.0.1 sent none). Nothing at all before it's accepted. A relay that can't be reached
-// changes nothing: the next ping just tries again.
+// changes nothing: the next ping just tries again. The relay answers a ping (but the quit ping) with the team's messages
+// for this install ('messages', core/messages.js), so they need no request of their own; none when it's not accepted.
 // diag: codes, never error texts, addresses or links. kick / twitch: never (Connect never pressed) | ok | failed, with
 // kickReason / twitchReason when failed (else null): network (couldn't reach it, timed out), denied (the streamer said
 // no or cancelled) or other; proxy: the proxy mode (off | auto | manual); vpn: whether the VPN app finder
 // (core/vpn.js) found a proxy, null when it hasn't looked.
+const { EventEmitter } = require('node:events');
 const settings = require('./settings');
 const vpn = require('./vpn');
 const kickAccount = require('../connectors/kick-account');
@@ -15,7 +17,8 @@ const twitchAccount = require('../connectors/twitch-account');
 const privacy = require('../i18n/privacy.json');
 const { version } = require('../package.json');
 
-const EVERY_MS = 5 * 60 * 1000;
+const EVERY_MS = 3 * 60 * 1000;
+const events = new EventEmitter(); // 'messages' (the relay's answer) -> core/messages.js
 const INSTALLED = process.env.JARCHI_INSTALLED === '1'; // electron/main.js says so in the installed app
 const ACCOUNTS = { kick: kickAccount, twitch: twitchAccount };
 const lastLive = { kick: null, twitch: null }; // the quit ping doesn't wait for Kick and Twitch: what they said last
@@ -78,15 +81,16 @@ async function payload(open) {
 
 // open false: the quit ping, quick (Jarchi is closing).
 async function ping(open = true) {
-  if (!accepted()) return;
+  if (!accepted()) return events.emit('messages', []); // Settings > Reset took the policy back: the team's go too
   try {
-    await fetch(`${kickAccount.RELAY}/ping`, {
+    const r = await fetch(`${kickAccount.RELAY}/ping${open ? '?messages=1' : ''}`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify(await payload(open)),
       signal: AbortSignal.timeout(open ? 10000 : 2000),
     });
-  } catch {} // offline, or no relay: the next one
+    if (open && r.ok) events.emit('messages', await r.json());
+  } catch {} // offline, or no relay (or one older than 1.0.9's, answering only "ok"): the next one
 }
 
 // -> the first ping (done or failed).
@@ -95,4 +99,4 @@ function start() {
   return ping();
 }
 
-module.exports = { start, ping, accepted, INSTALLED };
+module.exports = { start, ping, accepted, INSTALLED, events };

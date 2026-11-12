@@ -2914,6 +2914,15 @@ main {
   max-width: 460px;
   margin: 6px 0;
 }
+.about-update {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  margin: 4px 0 8px;
+}
+.about-update small:empty {
+  display: none;
+}
 /* What's new: a box per version, newest first */
 .news-list {
   display: grid;

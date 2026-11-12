@@ -4,7 +4,6 @@ const settings = require('../../core/settings');
 const goals = require('../../core/goals');
 const chat = require('../../core/chat');
 const stats = require('../../core/stats');
-const messages = require('../../core/messages');
 const pay = require('../../core/pay');
 
 module.exports = function register(app, { view, changed, raw, upload, fileName, reconnect }) {
@@ -37,7 +36,7 @@ module.exports = function register(app, { view, changed, raw, upload, fileName, 
   app.patch('/api/settings', (req, res) => {
     const s = settings.update(req.body);
     if ('privacyAccepted' in req.body) {
-      stats.ping().then(messages.load); // the Privacy Policy accepted just now: the first usage ping, then the team's messages
+      stats.ping(); // the Privacy Policy accepted just now: the first usage ping, which brings the team's messages
       pay.refresh(); // and the crypto gateway's state
     }
     follow(req.body);

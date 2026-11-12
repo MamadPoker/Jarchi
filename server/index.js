@@ -13,7 +13,7 @@ const chat = require('../core/chat');
 const twitchAccount = require('../connectors/twitch-account');
 const kickAccount = require('../connectors/kick-account');
 const stats = require('../core/stats');
-const messages = require('../core/messages');
+require('../core/messages'); // before the first usage ping: it takes the team's messages from each ping's answer
 const designs = require('../core/designs');
 const pay = require('../core/pay');
 const vpn = require('../core/vpn');
@@ -130,7 +130,7 @@ server.listen(PORT, HOST, () => {
   twitchAccount.start(); // and the Twitch and Kick accounts, when they're connected
   kickAccount.start();
   media.shrinkOld().catch(console.error); // uploads from before the 512 px rule, once
-  stats.start().then(() => (messages.start(), designs.sync())); // usage pings, once the Privacy Policy is accepted; then the team's messages (the relay knows this install by its ping)
+  stats.start().then(() => designs.sync()); // usage pings (with the team's messages), once the Privacy Policy is accepted; then the designs (the relay knows this install by its ping)
   pay.start(); // the crypto gateway's state (Jarchi Pay), the same
   if (DEV) release.start(); // a dev run doesn't update itself: it hears of new versions (core/release.js)
 });
