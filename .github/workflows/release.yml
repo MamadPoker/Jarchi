@@ -42,6 +42,7 @@ jobs:
     timeout-minutes: 15
     permissions:
       contents: write # the release commit, the tag and the draft release
+      pull-requests: read # which PRs have the big-update label (build/release.js)
     steps:
       - name: 📥 Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

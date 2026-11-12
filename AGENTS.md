@@ -11,7 +11,7 @@ The rules every AI coding agent follows on this repo. Claude Code reads them thr
 
 ## Commits, PRs and releases
 
-- Everything reaches `main` through a PR, squash-merged. **The PR title is the commit** that semantic-release reads: `<type>(<scope>)?: <what>`, with type one of `feat fix perf refactor docs test build ci chore revert` (`build/check-pr.js`). `feat` makes a minor release, `fix` / `perf` a patch, `BREAKING CHANGE` a major one, and the rest make none.
+- Everything reaches `main` through a PR, squash-merged. **The PR title is the commit** that semantic-release reads: `<type>(<scope>)?: <what>`, with type one of `feat fix perf refactor docs test build ci chore revert` (`build/check-pr.js`). `feat`, `fix` and `perf` make a patch release (even with `!` or `BREAKING CHANGE`), and the rest make none. Only the owner's `big-update` label on a PR makes a minor one (a **Big update**, `CONTEXT.md`); nothing makes a major one.
 - A `feat`, `fix` or `perf` PR adds its change to the **`"unreleased"` entry at the top of `i18n/changelog.json`**: one plain line for streamers in `en`, the same in `fa`, and its `types` entry (`feature`, `improve`, `fix`, `security`). Write it for streamers, not developers, and in Persian too, never English only. If streamers see no difference, put the `no-notes` label on the PR instead.
 - Never raise `version`, edit a released What's new entry, or tag by hand. Releasing is two manual runs of **Actions → Release** (`release`, then `build-installers`). See `README.md` → Windows installer and updates.
 - Never commit to `main` directly. The ruleset refuses it anyway.

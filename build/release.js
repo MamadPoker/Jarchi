@@ -46,4 +46,19 @@ function prepare(_, { nextRelease: { version } }) {
   execFileSync('npm', ['version', version, '--no-git-tag-version', '--allow-same-version'], { cwd: ROOT, stdio: 'inherit', shell: process.platform === 'win32' });
 }
 
-module.exports = { generateNotes, prepare, stamp, rewrite };
+// A PR with the big-update label makes a minor release (1.0.9 → 1.1.0); everything else is a patch at most
+// (release.config.js). A label isn't in the commit, so ask GitHub which PR each commit came from. A failed ask fails
+// the release: running it again is cheap, a wrong version is forever.
+const BIG = 'big-update';
+async function analyzeCommits(_, { commits, env }) {
+  for (const { hash } of commits) {
+    const res = await fetch(`https://api.github.com/repos/${env.GITHUB_REPOSITORY}/commits/${hash}/pulls`, {
+      headers: { authorization: `Bearer ${env.GITHUB_TOKEN}`, accept: 'application/vnd.github+json' },
+    });
+    if (!res.ok) throw new Error(`GitHub answered ${res.status} when asked which PR ${hash} came from`);
+    if ((await res.json()).some((pr) => pr.labels.some((l) => l.name === BIG))) return 'minor';
+  }
+  return null;
+}
+
+module.exports = { analyzeCommits, generateNotes, prepare, stamp, rewrite };

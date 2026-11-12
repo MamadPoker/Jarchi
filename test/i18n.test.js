@@ -68,6 +68,30 @@ test('release: the Unreleased entry gets the version under a new empty one; the 
   assert.throws(() => stamp(log.slice(1), '9.0.0'), /must be "unreleased"/);
 });
 
+test('release version: feat / fix / perf, even breaking, are a patch; only a big-update PR is a minor', async () => {
+  const { analyzeCommits: analyzer } = await import('@semantic-release/commit-analyzer');
+  const [[, config]] = require('../release.config').plugins;
+  const logger = { log() {} }, cwd = process.cwd();
+  const bump = (...messages) => analyzer(config, { commits: messages.map((message, i) => ({ message, hash: `${i}` })), logger, cwd });
+  assert.equal(await bump('feat: x'), 'patch');
+  assert.equal(await bump('feat!: x', 'fix: y'), 'patch');
+  assert.equal(await bump('perf(panel): x\n\nBREAKING CHANGE: y'), 'patch');
+  assert.equal(await bump('chore: x', 'docs: y'), null);
+
+  const { analyzeCommits } = require('../build/release');
+  const fetch = globalThis.fetch, asked = [];
+  const env = { GITHUB_REPOSITORY: 'o/r', GITHUB_TOKEN: 't' };
+  const prs = { a: [{ labels: [{ name: 'panel' }] }], b: [{ labels: [{ name: 'big-update' }] }] };
+  try {
+    globalThis.fetch = async (url) => (asked.push(url), Response.json(prs[url.split('/').at(-2)] ?? []));
+    assert.equal(await analyzeCommits({}, { commits: [{ hash: 'a' }], env }), null);
+    assert.equal(await analyzeCommits({}, { commits: [{ hash: 'a' }, { hash: 'b' }], env }), 'minor');
+    assert.equal(asked[0], 'https://api.github.com/repos/o/r/commits/a/pulls');
+    globalThis.fetch = async () => new Response('', { status: 403 });
+    await assert.rejects(analyzeCommits({}, { commits: [{ hash: 'a' }], env }), /403/, 'a failed ask fails the release');
+  } finally { globalThis.fetch = fetch; }
+});
+
 test('PR rules: a conventional title; feat / fix / perf add What\'s new lines in both languages, or no-notes', () => {
   const { problems } = require('../build/check-pr');
   const base = [{ version: 'unreleased', en: ['old'], fa: ['قدیم'] }, { version: '1.0.0', en: ['x'], fa: ['ی'] }];

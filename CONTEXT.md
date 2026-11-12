@@ -20,3 +20,7 @@ _Avoid_: build, deploy (a release is never a relay deploy)
 
 **No-notes change**:
 A change that releases a new version without adding a line to the Unreleased entry, because streamers can't see any difference. It's marked with the `no-notes` label on its PR.
+
+**Big update**:
+A change the owner decides is big enough, like a full UI redesign, to raise the middle number of the version (1.0.9 → 1.1.0). It's marked with the `big-update` label on its PR. Every other release only raises the last number.
+_Avoid_: major, breaking change

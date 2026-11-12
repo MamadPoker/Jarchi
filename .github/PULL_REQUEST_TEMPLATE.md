@@ -4,7 +4,7 @@
 
 ## Type of change
 
-- [ ] `feat`: new feature (minor release)
+- [ ] `feat`: new feature (patch release; add the `big-update` label for a minor one, 1.0.9 → 1.1.0)
 - [ ] `fix`: bug fix (patch release)
 - [ ] `perf`: performance improvement (patch release)
 - [ ] `refactor`: refactor, no feature or fix
