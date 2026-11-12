@@ -23,7 +23,7 @@ Then set `JARCHI_RELAY` in `connectors/kick-account.js` to that address (or `KIC
 
 Opening the address in a browser says `Jarchi Kick relay: running.`
 
-After that first setup, deploys run on GitHub: **Actions → Deploy relay** (`.github/workflows/relay.yml`) applies the migrations D1 doesn't have yet, then deploys the worker (**dry-run** lists them and builds it, changing nothing). It needs the repo secrets `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`; the Worker secrets above stay in Cloudflare only.
+After that first setup, deploys run on GitHub: **Actions → Deploy relay** (`.github/workflows/relay.yml`) applies the migrations D1 doesn't have yet, then deploys the worker (**dry-run** lists them and builds it, changing nothing). It needs `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` in the GitHub environment `relay` (main only); the Worker secrets above stay in Cloudflare only.
 
 ## Usage pings (`POST /ping`)
 

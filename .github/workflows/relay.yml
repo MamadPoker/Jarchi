@@ -21,6 +21,10 @@ concurrency:
 
 jobs:
   deploy:
+    # main only. The real guard is the "relay" environment: its deployment-branch policy (main) is what hands out the
+    # Cloudflare secrets, so a copy of this file on another branch, with this if taken out, still gets none.
+    if: github.ref == 'refs/heads/main'
+    environment: relay
     runs-on: ubuntu-latest
     timeout-minutes: 10
     defaults:

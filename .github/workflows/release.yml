@@ -34,7 +34,10 @@ concurrency:
 
 jobs:
   release:
-    if: inputs.action == 'release'
+    # main only. The real guard is the "release" environment: its deployment-branch policy (main) is what hands out
+    # RELEASE_DEPLOY_KEY, so a copy of this file on another branch, with this if taken out, still gets no key.
+    if: inputs.action == 'release' && github.ref == 'refs/heads/main'
+    environment: release
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -49,9 +52,7 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - run: npm ci
-        env:
-          ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+      - run: npm ci --ignore-scripts # no dependency's install script runs while the deploy key is on disk
       - run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -62,7 +63,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   build-installers:
-    if: inputs.action == 'build-installers'
+    if: inputs.action == 'build-installers' && github.ref == 'refs/heads/main'
+    environment: release
     runs-on: windows-latest
     timeout-minutes: 30
     permissions:
