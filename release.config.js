@@ -10,6 +10,6 @@ module.exports = {
     ['@semantic-release/commit-analyzer', { preset: 'conventionalcommits', releaseRules: [{ breaking: true, release: 'patch' }, { type: 'feat', release: 'patch' }] }],
     './build/release.js',
     ['@semantic-release/git', { assets: ['package.json', 'package-lock.json', 'i18n/changelog.json'], message: 'chore(release): ${nextRelease.version} [skip ci]' }],
-    ['@semantic-release/github', { draftRelease: true, successComment: false, failComment: false, releasedLabels: false }],
+    ['@semantic-release/github', { draftRelease: true, releaseNameTemplate: 'Jarchi v<%= nextRelease.version %>', successComment: false, failComment: false, releasedLabels: false }],
   ],
 };

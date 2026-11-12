@@ -41,8 +41,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
-      contents: write # the release commit, the tag and the draft release
-      pull-requests: read # which PRs have the big-update label (build/release.js)
+      contents: read # the push goes over the deploy key and the draft is made with RELEASE_TOKEN, not this token
     steps:
       - name: 📥 Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -66,7 +65,10 @@ jobs:
         run: npx semantic-release --repository-url "$(git remote get-url origin)" $([ "$DRY_RUN" = true ] && echo --dry-run)
         env:
           DRY_RUN: ${{ inputs.dry-run }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # The owner's fine-grained token (this repo only: Contents read and write, Pull requests read), so the release
+          # shows "MamadPoker released this" instead of github-actions. build-installers keeps GitHub's own token:
+          # publishing a draft doesn't change who made it.
+          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
 
   build-installers:
     if: inputs.action == 'build-installers' && github.ref == 'refs/heads/main'
