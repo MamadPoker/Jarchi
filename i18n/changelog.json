@@ -1,9 +1,13 @@
 [
   {
     "version": "unreleased",
-    "types": [],
-    "en": [],
-    "fa": []
+    "types": ["security"],
+    "en": [
+      "A website open in your browser can no longer slow your PC down by making Jarchi start lots of background programs"
+    ],
+    "fa": [
+      "وب‌سایتی که در مرورگرتان باز است دیگر نمی‌تواند با واداشتن جارچی به اجرای برنامه‌های پس‌زمینهٔ زیاد، کامپیوترتان را کند کند"
+    ]
   },
   {
     "version": "1.0.8",

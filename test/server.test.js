@@ -31,6 +31,14 @@ process.env.JARCHI_DATA_DIR = dataDir;
 process.env.JARCHI_PORT = '3999';
 process.env.KICK_RELAY_URL = 'http://127.0.0.1:9'; // nothing there: accepting the Privacy Policy below pings no real relay
 process.env.JARCHI_PAY_URL = 'http://127.0.0.1:9'; // nothing there: the server's crypto checks reach no real Jarchi Pay
+// Counts the server's reg.exe runs for the accent color (before it loads: it takes execFile once, at require).
+const childProcess = require('node:child_process');
+const realExecFile = childProcess.execFile;
+let accentReads = 0;
+childProcess.execFile = (cmd, args, ...rest) => {
+  if (cmd === 'reg' && args?.includes('AccentColor')) accentReads++;
+  return realExecFile(cmd, args, ...rest);
+};
 const { server, io } = require('../server');
 const { bus, setConnected, emitEvent } = require('../core/events');
 const goals = require('../core/goals');
@@ -60,6 +68,9 @@ test('migration, settings, uploads, reset, events', async () => {
   // The panel's System colors: Windows' accent color from the registry, null where it can't be read.
   const { accent } = await (await call('GET', '/api/accent')).json();
   assert.ok(accent === null || /^#[0-9a-f]{6}$/.test(accent), accent);
+  // Asked over and over (any web page can send this GET): one reg.exe, the same answer.
+  const again = await Promise.all([1, 2, 3, 4, 5].map(async () => (await (await call('GET', '/api/accent')).json()).accent));
+  assert.deepEqual([accentReads, again], [1, Array(5).fill(accent)]);
   // Background art: no channels set, no profile pictures (and no lookups).
   assert.deepEqual(await (await call('GET', '/api/streamer')).json(), { kick: null, twitch: null });
   // Twitch account: not connected, nothing runs. Its Client ID isn't shown or set from the panel.
