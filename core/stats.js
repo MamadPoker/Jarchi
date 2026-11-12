@@ -42,8 +42,12 @@ function diag() {
   const [kick, twitch] = ['kick', 'twitch'].map(settings.connectState);
   const failed = (s) => (s === 'never' || s === 'ok' ? null : s);
   return {
-    kick: failed(kick) ? 'failed' : kick, kickReason: failed(kick), twitch: failed(twitch) ? 'failed' : twitch, twitchReason: failed(twitch),
-    proxy: settings.get().proxyMode, vpn: vpn.looked(),
+    kick: failed(kick) ? 'failed' : kick,
+    kickReason: failed(kick),
+    twitch: failed(twitch) ? 'failed' : twitch,
+    twitchReason: failed(twitch),
+    proxy: settings.get().proxyMode,
+    vpn: vpn.looked(),
   };
 }
 
@@ -61,8 +65,14 @@ async function channel(p, fresh) {
 async function payload(open) {
   const [kick, twitch] = await Promise.all([channel('kick', open), channel('twitch', open)]);
   return {
-    id: settings.installId(), version, installed: INSTALLED, open, kick, twitch,
-    privacy: { version: settings.get().privacyAccepted, acceptedAt: settings.privacyAcceptedAt() }, diag: diag(),
+    id: settings.installId(),
+    version,
+    installed: INSTALLED,
+    open,
+    kick,
+    twitch,
+    privacy: { version: settings.get().privacyAccepted, acceptedAt: settings.privacyAcceptedAt() },
+    diag: diag(),
   };
 }
 
@@ -71,7 +81,10 @@ async function ping(open = true) {
   if (!accepted()) return;
   try {
     await fetch(`${kickAccount.RELAY}/ping`, {
-      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(await payload(open)), signal: AbortSignal.timeout(open ? 10000 : 2000),
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(await payload(open)),
+      signal: AbortSignal.timeout(open ? 10000 : 2000),
     });
   } catch {} // offline, or no relay: the next one
 }

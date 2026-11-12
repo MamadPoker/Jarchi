@@ -9,19 +9,34 @@ const path = require('node:path');
 
 const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'jarchi-kick-socket-'));
 process.env.JARCHI_DATA_DIR = dataDir;
-const logged = () => { try { return fs.readFileSync(path.join(dataDir, 'logs', 'events.log'), 'utf8'); } catch { return ''; } };
+const logged = () => {
+  try {
+    return fs.readFileSync(path.join(dataDir, 'logs', 'events.log'), 'utf8');
+  } catch {
+    return '';
+  }
+};
 
 const sockets = [];
 globalThis.WebSocket = class {
   static OPEN = 1;
-  constructor(url) { Object.assign(this, { url, readyState: 1, sent: [], answers: true }); sockets.push(this); }
+  constructor(url) {
+    Object.assign(this, { url, readyState: 1, sent: [], answers: true });
+    sockets.push(this);
+  }
   send(m) {
     this.sent.push(JSON.parse(m));
     if (this.answers && JSON.parse(m).event === 'pusher:ping') this.say({ event: 'pusher:pong' });
   }
-  close() { this.readyState = 3; }
-  say(m) { this.onmessage({ data: JSON.stringify(m) }); }
-  pings() { return this.sent.filter((m) => m.event === 'pusher:ping').length; }
+  close() {
+    this.readyState = 3;
+  }
+  say(m) {
+    this.onmessage({ data: JSON.stringify(m) });
+  }
+  pings() {
+    return this.sent.filter((m) => m.event === 'pusher:ping').length;
+  }
 };
 
 const kick = require('../connectors/kick-chat');
@@ -47,15 +62,26 @@ const pass = async (t, ms) => {
 };
 
 // Kick's history says a message like this: metadata as a string, newest first in the list.
-const said = (id, ago, extra = {}) => ({ id, chat_id: 7, user_id: 1, content: `text ${id}`, type: 'message', metadata: '{"message_ref":"1"}',
-  created_at: new Date(Date.now() - ago).toISOString(), sender: { id: 1, slug: 'viewer', username: 'Viewer', identity: { color: '#ffffff', badges: [], badges_v2: [] } }, ...extra });
-const socketSays = (ws, m) => ws.say({ event: 'App\\Events\\ChatMessageEvent', channel: 'chatrooms.8.v2', data: JSON.stringify({ ...m, metadata: JSON.parse(m.metadata) }) });
+const said = (id, ago, extra = {}) => ({
+  id,
+  chat_id: 7,
+  user_id: 1,
+  content: `text ${id}`,
+  type: 'message',
+  metadata: '{"message_ref":"1"}',
+  created_at: new Date(Date.now() - ago).toISOString(),
+  sender: { id: 1, slug: 'viewer', username: 'Viewer', identity: { color: '#ffffff', badges: [], badges_v2: [] } },
+  ...extra,
+});
+const socketSays = (ws, m) =>
+  ws.say({ event: 'App\\Events\\ChatMessageEvent', channel: 'chatrooms.8.v2', data: JSON.stringify({ ...m, metadata: JSON.parse(m.metadata) }) });
 
 async function started(t, { live = true } = {}) {
   t.mock.timers.enable({ apis: ['setTimeout', 'setInterval', 'Date'], now: Date.now() });
   [onAir, history, asked] = [live, [], []];
   sockets.length = 0;
-  const shown = [], states = [];
+  const shown = [],
+    states = [];
   const conn = kick.connect('viewer', { onStatus: (s) => states.push(s), onMessage: (m) => shown.push(m), onClear() {}, onChannel() {}, onGoals() {} });
   t.after(() => conn.stop());
   for (let i = 0; i < 10; i++) await flush();
@@ -65,7 +91,7 @@ async function started(t, { live = true } = {}) {
   return { conn, shown, states, ws, ids: () => shown.map((m) => m.id) };
 }
 
-test('a message Pusher brings late comes from Kick\'s history, once; one that is on time never does', async (t) => {
+test("a message Pusher brings late comes from Kick's history, once; one that is on time never does", async (t) => {
   const { shown, ws, ids } = await started(t);
   history.unshift(said('before', 60000));
   await pass(t, 5000);
@@ -75,20 +101,23 @@ test('a message Pusher brings late comes from Kick\'s history, once; one that is
   socketSays(ws, said('on-time', 100));
   history.unshift(said('on-time', 100));
   await pass(t, 5000);
-  assert.deepEqual(ids(), ['on-time'], 'Pusher\'s copy, not repeated from history');
+  assert.deepEqual(ids(), ['on-time'], "Pusher's copy, not repeated from history");
 
   await pass(t, 4000);
   history.unshift(said('just-said', 0));
   await pass(t, 1100);
-  assert.deepEqual(ids(), ['on-time'], 'a message under 2 s old is still Pusher\'s to bring');
+  assert.deepEqual(ids(), ['on-time'], "a message under 2 s old is still Pusher's to bring");
   socketSays(ws, said('just-said', 1000));
   assert.deepEqual(ids(), ['on-time', 'just-said']);
 
-  history.unshift(said('late-2', 29000, { type: 'reply', metadata: '{"original_sender":{"username":"Other"},"original_message":{"content":"yes?"}}' }), said('late-1', 30000));
+  history.unshift(
+    said('late-2', 29000, { type: 'reply', metadata: '{"original_sender":{"username":"Other"},"original_message":{"content":"yes?"}}' }),
+    said('late-1', 30000),
+  );
   await pass(t, 5000);
   assert.deepEqual(ids().slice(2).sort(), ['late-1', 'late-2'], 'from history, without waiting for Pusher');
   assert.equal(ids()[2], 'late-1', 'oldest first (the list is newest first)');
-  assert.equal(shown.find((m) => m.id === 'late-2').reply.name, 'Other', 'history\'s metadata is read like the socket\'s');
+  assert.equal(shown.find((m) => m.id === 'late-2').reply.name, 'Other', "history's metadata is read like the socket's");
   assert.match(logged(), /kick socket chat late: .*3\d\.\d s ago/);
 
   const before = reads();
@@ -96,7 +125,7 @@ test('a message Pusher brings late comes from Kick\'s history, once; one that is
   assert.ok(reads() - before >= 2, 'read every 2 s while Pusher is late');
 
   socketSays(ws, said('late-1', 41000));
-  assert.equal(ids().length, 4, 'Pusher\'s late copy shows nothing');
+  assert.equal(ids().length, 4, "Pusher's late copy shows nothing");
 
   await pass(t, 61000);
   assert.match(logged(), /kick socket chat late over: 2 messages from history, Pusher up to 4\d\.\d s behind/);
@@ -161,7 +190,7 @@ test('a socket that closes reconnects at once, and stop() ends everything', asyn
   assert.equal(logged(), log, 'and quiet');
 });
 
-test('the PC clock\'s error comes from servers\' Date headers, and a message says it', () => {
+test("the PC clock's error comes from servers' Date headers, and a message says it", () => {
   assert.equal(clockAhead(), 0, 'nothing known yet');
   const seen = (ahead, from = 1800000000000) => {
     for (let i = 0; i < 40; i++) {
@@ -176,8 +205,8 @@ test('the PC clock\'s error comes from servers\' Date headers, and a message say
   assert.ok(Math.abs(clockAhead() - 6600) <= 100, `read ${clockAhead()}`);
 
   const platform = chatMessage({ platform: 'kick', time: 1800000000000, user: { name: 'a' } });
-  assert.equal(platform.skew, clockAhead(), 'Kick\'s time is on Kick\'s clock');
-  assert.equal(chatMessage({ platform: 'test', user: { name: 'a' } }).skew, 0, 'a time made here is on this PC\'s clock');
+  assert.equal(platform.skew, clockAhead(), "Kick's time is on Kick's clock");
+  assert.equal(chatMessage({ platform: 'test', user: { name: 'a' } }).skew, 0, "a time made here is on this PC's clock");
 
   seen(0, 1800001000000);
   assert.ok(Math.abs(clockAhead()) <= 100, `the clock was set right: read ${clockAhead()}`);

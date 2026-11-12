@@ -41,7 +41,8 @@ test('logins sealed at rest: migrated without a logout, unreadable ones left out
 });
 
 test('log lines and events.log: tokens and token-like fields blanked out', () => {
-  const lines = [], real = console.log;
+  const lines = [],
+    real = console.log;
   console.log = (s) => lines.push(s);
   secrets.guardConsole();
   console.log('Kick refresh %s failed', fake('n')); // a token this run has seen

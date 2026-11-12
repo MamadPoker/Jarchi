@@ -55,11 +55,13 @@ app.use(express.json());
 app.get('/api/settings', (req, res) => res.json(view()));
 // The panel's System colors: Windows' accent color from the registry (0xAABBGGRR), null when it can't be read (or not on
 // Windows): the panel shows Jarchi's colors then.
-app.get('/api/accent', (req, res) => execFile('reg', ['query', 'HKCU\\Software\\Microsoft\\Windows\\DWM', '/v', 'AccentColor'], { windowsHide: true, timeout: 3000 }, (err, out) => {
-  const abgr = !err && /AccentColor\s+REG_DWORD\s+0x([0-9a-f]{1,8})\b/i.exec(out)?.[1];
-  const n = abgr && parseInt(abgr, 16);
-  res.json({ accent: abgr ? `#${[n & 255, (n >>> 8) & 255, (n >>> 16) & 255].map((c) => c.toString(16).padStart(2, '0')).join('')}` : null });
-}));
+app.get('/api/accent', (req, res) =>
+  execFile('reg', ['query', 'HKCU\\Software\\Microsoft\\Windows\\DWM', '/v', 'AccentColor'], { windowsHide: true, timeout: 3000 }, (err, out) => {
+    const abgr = !err && /AccentColor\s+REG_DWORD\s+0x([0-9a-f]{1,8})\b/i.exec(out)?.[1];
+    const n = abgr && parseInt(abgr, 16);
+    res.json({ accent: abgr ? `#${[n & 255, (n >>> 8) & 255, (n >>> 16) & 255].map((c) => c.toString(16).padStart(2, '0')).join('')}` : null });
+  }),
+);
 // The proxy setting changed: everything reconnects through it, and core/vpn.js starts over.
 function reconnect() {
   net.resetPool(); // nothing goes on through the old setting
@@ -86,33 +88,49 @@ app.patch('/api/settings', (req, res) => {
   res.json(changed(s));
 });
 // Undo / redo (the panel's Ctrl+Z / Ctrl+Y, and Undo in its "Saved" note): one change back or forward again.
-const changes = (a, b) => Object.fromEntries(Object.keys(b).filter((k) => JSON.stringify(a[k]) !== JSON.stringify(b[k])).map((k) => [k, b[k]]));
-for (const step of ['undo', 'redo']) app.post(`/api/settings/${step}`, (req, res) => {
-  const before = settings.get(), s = settings[step]();
-  if (!s) return res.status(409).json({ error: `nothing_to_${step}` });
-  const patch = changes(before, s);
-  if (patch.goals) patch.goals = Object.fromEntries(Object.keys(s.goals).map((id) => [id, changes(before.goals[id], s.goals[id])])); // retarget: a target changed
-  follow(patch);
-  res.json(changed(s));
-});
+const changes = (a, b) =>
+  Object.fromEntries(
+    Object.keys(b)
+      .filter((k) => JSON.stringify(a[k]) !== JSON.stringify(b[k]))
+      .map((k) => [k, b[k]]),
+  );
+for (const step of ['undo', 'redo'])
+  app.post(`/api/settings/${step}`, (req, res) => {
+    const before = settings.get(),
+      s = settings[step]();
+    if (!s) return res.status(409).json({ error: `nothing_to_${step}` });
+    const patch = changes(before, s);
+    if (patch.goals) patch.goals = Object.fromEntries(Object.keys(s.goals).map((id) => [id, changes(before.goals[id], s.goals[id])])); // retarget: a target changed
+    follow(patch);
+    res.json(changed(s));
+  });
 
 const fileName = (req) => {
-  try { return decodeURIComponent(req.get('x-filename') || ''); } catch { return ''; }
+  try {
+    return decodeURIComponent(req.get('x-filename') || '');
+  } catch {
+    return '';
+  }
 };
 const raw = express.raw({ type: () => true, limit: media.MAX_BYTES });
 app.post('/api/profile/picture', raw, (req, res) => res.json(changed(settings.saveProfilePicture(req.body, fileName(req)))));
 // A widget's file: the request's body, or (x-link header: "Paste a link") the file at that link, downloaded once. Either
 // way at most 10 MB, and an image or GIF over 512 px is shrunk (core/media.js) before save(params, buf, name) keeps it.
-const upload = (save) => [raw, async (req, res) => {
-  const { buf, name } = req.get('x-link') ? await media.download(req.get('x-link')) : { buf: req.body, name: fileName(req) };
-  res.json(changed(save(req.params, await media.shrink(buf), name)));
-}];
+const upload = (save) => [
+  raw,
+  async (req, res) => {
+    const { buf, name } = req.get('x-link') ? await media.download(req.get('x-link')) : { buf: req.body, name: fileName(req) };
+    res.json(changed(save(req.params, await media.shrink(buf), name)));
+  },
+];
 app.post('/api/upload/:type/:kind', ...upload((p, buf, name) => settings.saveUpload(p.type, p.kind, buf, name)));
 
 // Media by amount: the fixed tiers of one alert type, by amount. { on } switches one; :kind is image | sound.
 app.patch('/api/tiers/:type/:amount', (req, res) => res.json(changed(settings.setTier(req.params.type, Number(req.params.amount), req.body))));
 app.post('/api/tiers/:type/:amount/:kind', ...upload((p, buf, name) => settings.saveTierFile(p.type, Number(p.amount), p.kind, buf, name)));
-app.delete('/api/tiers/:type/:amount/:kind', (req, res) => res.json(changed(settings.removeTierFile(req.params.type, Number(req.params.amount), req.params.kind))));
+app.delete('/api/tiers/:type/:amount/:kind', (req, res) =>
+  res.json(changed(settings.removeTierFile(req.params.type, Number(req.params.amount), req.params.kind))),
+);
 
 // Alert queue (core/alerts): what's playing, how many wait, and the panel's controls.
 app.get('/api/alerts/queue', (req, res) => res.json(alertQueue.state()));
@@ -149,10 +167,11 @@ app.post('/api/proxy/dismiss', (req, res) => {
 });
 // Dev runs only: "Test as if Kick were blocked" (Settings) runs the help above as if Kick couldn't be reached; what it
 // finds comes by socket ('proxyHelp') as usual.
-if (DEV) app.post('/api/dev/kick-blocked', (req, res) => {
-  vpn.trouble('kick', true);
-  res.json({ ok: true });
-});
+if (DEV)
+  app.post('/api/dev/kick-blocked', (req, res) => {
+    vpn.trouble('kick', true);
+    res.json({ ok: true });
+  });
 app.delete('/api/upload/:type/:kind', (req, res) => res.json(changed(settings.removeUpload(req.params.type, req.params.kind))));
 app.post('/api/reset{/:type}', (req, res) => {
   const s = settings.reset(req.params.type);
@@ -204,14 +223,20 @@ app.post('/api/kick/disconnect', async (req, res) => res.json(await kickAccount.
 const PAGE_STRINGS = { en: require('../i18n/en.json').panel.loginPage, fa: require('../i18n/fa.json').panel.loginPage };
 const html = (s) => String(s).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 function loginPage(platform, r) {
-  const lang = settings.get().lang === 'fa' ? 'fa' : 'en', P = PAGE_STRINGS[lang], name = (s) => html(s).replace('{platform}', platform);
+  const lang = settings.get().lang === 'fa' ? 'fa' : 'en',
+    P = PAGE_STRINGS[lang],
+    name = (s) => html(s).replace('{platform}', platform);
   const net = ['network', 'blocked'].includes(r.error);
   return `<!doctype html><html lang="${lang}" dir="${lang === 'fa' ? 'rtl' : 'ltr'}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width">
 <title>Jarchi</title><style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#091312;color:#e7f1f0;font:16px/1.7 Vazirmatn,"Segoe UI",Tahoma,sans-serif}
 main{max-width:520px;margin:24px;padding:26px;border:1px solid ${r.ok ? '#1fa39a' : '#b45309'};border-radius:16px;background:#101e1e}h1{margin:0 0 8px;font-size:21px;color:${r.ok ? '#4fd1bf' : '#f6dc8e'}}
 p{margin:8px 0}code{display:block;direction:ltr;text-align:left;padding:8px 10px;border-radius:8px;background:#091312;color:#f6dc8e;font:13px Consolas,monospace;overflow-wrap:anywhere}a{color:#4fd1bf}</style></head>
-<body><main><h1>${name(r.ok ? P.okTitle : P.failTitle)}</h1>${r.ok ? `<p>${html(P.okText)}</p>` : `<p>${html(P.reasons[r.error] ?? P.reasons.network)}</p>
-${r.why ? `<p>${html(P.detail)}</p><code>${html(r.why)}</code>` : ''}${net ? `<p>${html(P.vpnHint)}</p>` : ''}<p><a href="/#connections">${html(P.back)}</a></p>`}</main></body></html>`;
+<body><main><h1>${name(r.ok ? P.okTitle : P.failTitle)}</h1>${
+    r.ok
+      ? `<p>${html(P.okText)}</p>`
+      : `<p>${html(P.reasons[r.error] ?? P.reasons.network)}</p>
+${r.why ? `<p>${html(P.detail)}</p><code>${html(r.why)}</code>` : ''}${net ? `<p>${html(P.vpnHint)}</p>` : ''}<p><a href="/#connections">${html(P.back)}</a></p>`
+  }</main></body></html>`;
 }
 app.get('/api/kick/callback', async (req, res) => {
   const r = await kickAccount.callback(req.query);
@@ -226,7 +251,8 @@ app.use('/api/support', raw, async (req, res) => {
   const sent = req.is('json') ? JSON.stringify(req.body) : Buffer.isBuffer(req.body) && req.body.length ? req.body : undefined;
   const r = await support.call(req.method, `/support${req.path}`, sent, req.get('content-type'));
   if (!req.path.includes('/images/')) return res.json(await r.json());
-  const body = Buffer.from(await r.arrayBuffer()), type = SHOT_TYPES[settings.sniff(body)];
+  const body = Buffer.from(await r.arrayBuffer()),
+    type = SHOT_TYPES[settings.sniff(body)];
   if (!type) return res.status(502).json({ error: 'support_failed' });
   res.set({ 'content-type': type, 'x-content-type-options': 'nosniff', 'cache-control': 'private, max-age=86400' }).send(body);
 });
@@ -247,7 +273,13 @@ app.delete('/api/crypto/page/:kind', async (req, res) => res.json(await pay.rese
 // a sample donation with the look to play ({ look }); Replay: one of the Crypto page's donations as it was paid.
 pay.events.on('donation', alertQueue.push);
 app.post('/api/crypto/test', (req, res) => {
-  alertQueue.push(pay.alertOf({ name: 'Jarchi', amount: '10.0000', network: 'bep20', message: strings.test.message, txHash: `0x${'8f3a'.repeat(15)}c21d` }, true, req.body?.look));
+  alertQueue.push(
+    pay.alertOf(
+      { name: 'Jarchi', amount: '10.0000', network: 'bep20', message: strings.test.message, txHash: `0x${'8f3a'.repeat(15)}c21d` },
+      true,
+      req.body?.look,
+    ),
+  );
   res.json(alertQueue.state());
 });
 app.post('/api/crypto/replay', (req, res) => {
@@ -268,7 +300,8 @@ app.delete('/api/crypto/files/:look/:kind', (req, res) => res.json(changed(setti
 // Team messages (Home's cards, core/messages.js): a card shown = seen, its ✕ = closed. The list itself goes by socket, to
 // the panel only.
 app.post('/api/messages/:id/:what', (req, res) => {
-  const id = Number(req.params.id), what = req.params.what;
+  const id = Number(req.params.id),
+    what = req.params.what;
   if (!(what === 'seen' ? messages.seen(id) : what === 'closed' && messages.close(id))) return res.status(404).json({ error: 'not_found' });
   res.json(messages.list());
 });
@@ -307,11 +340,14 @@ app.post('/api/test/:type', (req, res) => {
 // Emotes, badges and profile pictures for widgets, fetched here so they go through the proxy setting too.
 // Only images (by their real bytes: Kick's CDN says "binary/octet-stream"), only from the platforms' own sites (and
 // Jarchi Pay's: the donation page's pictures).
-const REMOTE_HOSTS = /(^|\.)(kick\.com|jtvnw\.net|7tv\.app|7tv\.io)$/, PAY_HOST = new URL(pay.PAY).hostname;
+const REMOTE_HOSTS = /(^|\.)(kick\.com|jtvnw\.net|7tv\.app|7tv\.io)$/,
+  PAY_HOST = new URL(pay.PAY).hostname;
 const IMAGE = { png: 'image/png', jpg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp' };
 app.get('/remote', async (req, res) => {
   let url;
-  try { url = new URL(String(req.query.u)); } catch {}
+  try {
+    url = new URL(String(req.query.u));
+  } catch {}
   if (url?.protocol !== 'https:' || !(REMOTE_HOSTS.test(url.hostname) || url.hostname === PAY_HOST)) return res.status(400).end();
   try {
     const r = await fetch(url, { headers: { 'user-agent': 'Mozilla/5.0 Jarchi' }, signal: AbortSignal.timeout(15000) });
@@ -473,7 +509,7 @@ kickAccount.events.on('status', (st) => {
   vpn.status('relay', st.state === 'connected', st.state === 'connecting'); // the Kick account's live events come through the relay
 });
 
-server.on('error', (err) => {
+server.on('error', (/** @type {NodeJS.ErrnoException} */ err) => {
   console.error(err.code === 'EADDRINUSE' ? `Port ${PORT} is already in use. Set JARCHI_PORT in .env to another port.` : err);
   process.exit(1);
 });

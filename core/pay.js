@@ -57,7 +57,8 @@ async function call(method, p, body) {
   let r;
   try {
     r = await fetch(`${PAY}/api/app/${p}`, {
-      method, body: bytes ? body : body && JSON.stringify(body), signal: AbortSignal.timeout(bytes ? 60000 : 15000),
+      method,
+      body: /** @type {BodyInit} */ (bytes ? body : body && JSON.stringify(body)), // a Buffer works; its type says SharedArrayBuffer might not signal: AbortSignal.timeout(bytes ? 60000 : 15000),
       headers: { ...(body && { 'content-type': bytes ? 'application/octet-stream' : 'application/json' }), ...(auth && { authorization: `Bearer ${token}` }) },
     });
   } catch {
@@ -128,7 +129,8 @@ const cancelChange = async () => (await call('POST', 'wallets/cancel'), refresh(
 // ('' = Jarchi Pay's own); socials: an id each (Jarchi Pay makes the link on the platform's own site; website: a full
 // https URL). savePage: what it's given replaces what's there. A picture: PNG, JPG or WebP up to 2 MB (looked at here
 // first, then by Jarchi Pay; 10 an hour); reset: the channel's own picture again.
-const PICTURES = ['avatar', 'banner'], PICTURE_MAX = 2 * 1024 * 1024;
+const PICTURES = ['avatar', 'banner'],
+  PICTURE_MAX = 2 * 1024 * 1024;
 const page = () => call('GET', 'page');
 const savePage = (b) => call('PUT', 'page', { bio: b?.bio, socials: b?.socials });
 const picture = (kind) => {
@@ -151,7 +153,12 @@ const resetPicture = async (kind) => call('DELETE', picture(kind));
 // the transaction, and from = the platform the donor signed in with. test: the Crypto page's tests; look: the one to
 // play (tests), else the settings pick it when it starts.
 const alertOf = (d, test = false, look = undefined) => ({
-  id: `crypto-${randomUUID()}`, type: 'crypto', platform: 'crypto', time: Date.now(), received: Date.now(), test,
+  id: `crypto-${randomUUID()}`,
+  type: 'crypto',
+  platform: 'crypto',
+  time: Date.now(),
+  received: Date.now(),
+  test,
   from: ['kick', 'twitch'].includes(d?.platform) ? d.platform : null,
   user: typeof d?.name === 'string' ? d.name.slice(0, 64) : '',
   amount: /^\d{1,9}(\.\d{1,4})?$/.test(d?.amount) ? d.amount : '0',
@@ -165,7 +172,8 @@ const alertOf = (d, test = false, look = undefined) => ({
 // cursor (Jarchi Pay's /donations/new, in the order it found them), each one an alert. The cursor is kept in pay.json,
 // so a restart never plays one again; the first ask (no cursor yet) only takes the cursor, so nothing from before
 // plays. One paid over 10 minutes ago (Jarchi was closed then) is skipped, as Jarchi Pay's own overlay does.
-const NEW_MS = 20 * 1000, LATE_MS = 10 * 60 * 1000;
+const NEW_MS = 20 * 1000,
+  LATE_MS = 10 * 60 * 1000;
 let polling = false;
 async function pollNew() {
   if (!token || state.state !== 'active' || polling || !stats.accepted()) return;
@@ -189,4 +197,20 @@ function start() {
   setInterval(pollNew, NEW_MS).unref();
 }
 
-module.exports = { start, refresh, pollNew, alertOf, now: () => state, request, donations, walletLink, cancelChange, page, savePage, setPicture, resetPicture, events, PAY };
+module.exports = {
+  start,
+  refresh,
+  pollNew,
+  alertOf,
+  now: () => state,
+  request,
+  donations,
+  walletLink,
+  cancelChange,
+  page,
+  savePage,
+  setPicture,
+  resetPicture,
+  events,
+  PAY,
+};

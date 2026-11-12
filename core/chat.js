@@ -13,6 +13,19 @@ const kick = require('../connectors/kick-chat');
 const twitch = require('../connectors/twitch-chat');
 const twitchBadges = require('../connectors/twitch-badges');
 
+/**
+ * What a chat connector's connect(channel, cb) is handed. Only Kick sends goals.
+ * @typedef {object} ConnectorCallbacks
+ * @property {(state: string, detail?: string) => void} onStatus
+ * @property {(msg: object) => void} onMessage
+ * @property {(clear: { platform: string, messageId?: string, userId?: string }) => void} onClear
+ * @property {(channel: { userId: string, subBadges?: object[] }) => void} onChannel
+ * @property {(alert: { type: string, user?: string, amount?: number, months?: number, message?: string, key?: string, received?: number }) => void} onAlert
+ * @property {(list: object[] | null) => void} [onGoals]
+ * @property {(goal: object) => void} [onGoal]
+ */
+/** @typedef {{ stop(): void }} Connection */
+
 const KEEP = 100; // messages kept in memory for widgets that (re)connect
 const CONNECTORS = { kick, twitch };
 const chat = new EventEmitter(); // 'status'
@@ -41,7 +54,10 @@ function sync() {
       if (platform === 'kick') goals.kickGoals(null); // no Kick channel: no Kick goals
       continue;
     }
-    if (!globalRequested) { globalRequested = true; seventv.loadGlobal(); }
+    if (!globalRequested) {
+      globalRequested = true;
+      seventv.loadGlobal();
+    }
     running[platform] = {
       channel: want,
       conn: CONNECTORS[platform].connect(want, {
@@ -81,7 +97,14 @@ const CHECKS = {
 };
 // -> { mode, proxy: { type, host, port } | null, results: { kick | twitch | sevenTv: 'ok' | net.why() code } }
 async function check() {
-  const out = await Promise.all(Object.entries(CHECKS).map(([id, fn]) => fn().then(() => [id, 'ok'], (err) => [id, net.why(err)])));
+  const out = await Promise.all(
+    Object.entries(CHECKS).map(([id, fn]) =>
+      fn().then(
+        () => [id, 'ok'],
+        (err) => [id, net.why(err)],
+      ),
+    ),
+  );
   return { mode: settings.get().proxyMode, proxy: await net.current(), results: Object.fromEntries(out) };
 }
 
@@ -104,7 +127,10 @@ function publish(m) {
 }
 
 // A setting that's on in Chat 1 or Chat 2 (the messages are the same for both).
-const either = (k) => { const s = settings.get(); return s.chat[k] || !!s.chat2?.[k]; };
+const either = (k) => {
+  const s = settings.get();
+  return s.chat[k] || !!s.chat2?.[k];
+};
 
 // ---------- Profile pictures: cached, and Kick lookups rate-limited (one website API call per new chatter) ----------
 const avatars = new Map(); // 'platform:login' -> url | null
@@ -173,8 +199,9 @@ function timing(r, transport) {
   if (!m || !Number.isFinite(shown)) return null;
   const who = `${m.user.name}: ${m.text || m.system}`.replace(/\p{Cc}/gu, ' ').slice(0, 50); // viewers' text: no terminal control codes
   const made = m.time + m.skew;
-  const line = `chat timing  ${m.platform.padEnd(6)} created ${clock(m.time)}  received ${step(made, m.received)}  sent ${step(m.received, m.sent)}  `
-    + `shown ${step(m.sent, shown)}  total ${step(made, shown)}  ${WHERE.includes(r.where) ? r.where : '?'}/${transport}  ${who}`;
+  const line =
+    `chat timing  ${m.platform.padEnd(6)} created ${clock(m.time)}  received ${step(made, m.received)}  sent ${step(m.received, m.sent)}  ` +
+    `shown ${step(m.sent, shown)}  total ${step(made, shown)}  ${WHERE.includes(r.where) ? r.where : '?'}/${transport}  ${who}`;
   console.log(line);
   return line;
 }
@@ -189,10 +216,38 @@ const GIFTS = [1, 5, 10, 25, 50, 100, 250, 500, 1000];
 const COLORS = ['#1e90ff', '#ff4500', '#9acd32', '#ff69b4', '#daa520', '#00ff7f', '#8a2be2', '#5f9ea0', '#d2691e', '#53fc18', '#ff7f50', null];
 // Twitch: IRC badge sets. Kick: chat identity badge types. [] = no badges.
 const COMBOS = {
-  twitch: [['broadcaster'], ['moderator'], ['vip'], ['subscriber'], ['subscriber'], ['moderator', 'subscriber'], ['vip', 'subscriber'],
-    ['founder'], ['subscriber', 'sub-gifter'], ['premium'], ['sub-gifter', 'premium'], [], []],
-  kick: [['broadcaster'], ['moderator'], ['vip'], ['subscriber'], ['subscriber'], ['moderator', 'subscriber'], ['vip', 'subscriber'],
-    ['og'], ['founder'], ['subscriber', 'sub_gifter'], ['og', 'subscriber'], ['verified', 'subscriber'], ['staff'], [], []],
+  twitch: [
+    ['broadcaster'],
+    ['moderator'],
+    ['vip'],
+    ['subscriber'],
+    ['subscriber'],
+    ['moderator', 'subscriber'],
+    ['vip', 'subscriber'],
+    ['founder'],
+    ['subscriber', 'sub-gifter'],
+    ['premium'],
+    ['sub-gifter', 'premium'],
+    [],
+    [],
+  ],
+  kick: [
+    ['broadcaster'],
+    ['moderator'],
+    ['vip'],
+    ['subscriber'],
+    ['subscriber'],
+    ['moderator', 'subscriber'],
+    ['vip', 'subscriber'],
+    ['og'],
+    ['founder'],
+    ['subscriber', 'sub_gifter'],
+    ['og', 'subscriber'],
+    ['verified', 'subscriber'],
+    ['staff'],
+    [],
+    [],
+  ],
 };
 // One of Kick's image badges (badges_v2), as seen in real chat.
 const KICK_IMAGE_BADGE = { name: 'level', image_url: 'https://ext.cdn.kick.com/chat/badges/25_f055d38e-8e80-4a99-8419-467bad3eb1ab.png' };
@@ -216,29 +271,62 @@ function viewers() {
     if (!set && !decks[platform].length) decks[platform] = shuffled(COMBOS[platform]);
     set ??= decks[platform].pop();
     const name = names.pop() ?? pick(T.people);
-    const badges = platform === 'twitch'
-      ? twitch.toBadges(set.map((b) => `${b}/${b === 'subscriber' ? twitchBadges.subVersion(months) : b === 'sub-gifter' ? pick(GIFTS) : b === 'founder' ? 0 : 1}`).join(','), `subscriber/${months}`)
-      : kick.kickBadges({
-        badges: set.map((type) => ({ type, count: type === 'subscriber' ? months : type === 'sub_gifter' ? pick(GIFTS) : undefined })),
-        badges_v2: Math.random() < 0.25 ? [KICK_IMAGE_BADGE] : [],
-      }, subs);
+    const badges =
+      platform === 'twitch'
+        ? twitch.toBadges(
+            set
+              .map((b) => `${b}/${b === 'subscriber' ? twitchBadges.subVersion(months) : b === 'sub-gifter' ? pick(GIFTS) : b === 'founder' ? 0 : 1}`)
+              .join(','),
+            `subscriber/${months}`,
+          )
+        : kick.kickBadges(
+            {
+              badges: set.map((type) => ({ type, count: type === 'subscriber' ? months : type === 'sub_gifter' ? pick(GIFTS) : undefined })),
+              badges_v2: Math.random() < 0.25 ? [KICK_IMAGE_BADGE] : [],
+            },
+            subs,
+          );
     return { id: `test-${platform}-${name}`, name, color: pick(COLORS), badges };
   };
 }
 
-const twitchEmote = (id, name) => ({ t: 'emote', name, provider: 'twitch', src: `https://static-cdn.jtvnw.net/emoticons/v2/${id}/default/dark/2.0`, still: `https://static-cdn.jtvnw.net/emoticons/v2/${id}/static/dark/2.0` });
+const twitchEmote = (id, name) => ({
+  t: 'emote',
+  name,
+  provider: 'twitch',
+  src: `https://static-cdn.jtvnw.net/emoticons/v2/${id}/default/dark/2.0`,
+  still: `https://static-cdn.jtvnw.net/emoticons/v2/${id}/static/dark/2.0`,
+});
 // Twitch's default profile pictures (what Twitch shows for viewers without their own), for the profile picture test.
-const AVATARS = ['215b7342-def9-11e9-9a66-784f43822e80', '13e5fa74-defa-11e9-809c-784f43822e80', '998f01ae-def8-11e9-b95c-784f43822e80', 'ce57700a-def9-11e9-842d-784f43822e80',
-  'de130ab0-def7-11e9-b668-784f43822e80', 'dbdc9198-def8-11e9-8681-784f43822e80', 'ebe4cd89-b4f4-4cd9-adac-2f30151b4209', '294c98b5-e34d-42cd-a8f0-140b72fba9b0']
-  .map((id) => `https://static-cdn.jtvnw.net/user-default-pictures-uv/${id}-profile_image-70x70.png`);
+const AVATARS = [
+  '215b7342-def9-11e9-9a66-784f43822e80',
+  '13e5fa74-defa-11e9-809c-784f43822e80',
+  '998f01ae-def8-11e9-b95c-784f43822e80',
+  'ce57700a-def9-11e9-842d-784f43822e80',
+  'de130ab0-def7-11e9-b668-784f43822e80',
+  'dbdc9198-def8-11e9-8681-784f43822e80',
+  'ebe4cd89-b4f4-4cd9-adac-2f30151b4209',
+  '294c98b5-e34d-42cd-a8f0-140b72fba9b0',
+].map((id) => `https://static-cdn.jtvnw.net/user-default-pictures-uv/${id}-profile_image-70x70.png`);
 
 // Plain messages with emotes.
 const plain = {
-  twitch: (viewer) => ({ platform: 'twitch', user: viewer('twitch'), text: T.mod, parts: [twitchEmote(25, 'Kappa'), { t: 'text', v: T.mod.slice(5, -7) }, twitchEmote(30259, 'HeyGuys')] }),
+  twitch: (viewer) => ({
+    platform: 'twitch',
+    user: viewer('twitch'),
+    text: T.mod,
+    parts: [twitchEmote(25, 'Kappa'), { t: 'text', v: T.mod.slice(5, -7) }, twitchEmote(30259, 'HeyGuys')],
+  }),
   kick: (viewer) => ({ platform: 'kick', user: viewer('kick'), text: T.kick.replace(/\[emote:\d+:([^\]]*)\]/g, '$1'), parts: kick.kickParts(T.kick) }),
 };
 // A reply to an earlier message (the chat's Replies setting), on the same platform.
-const replyTo = (viewer, to) => ({ platform: to.platform, user: viewer(to.platform), text: T.reply, parts: [{ t: 'text', v: T.reply }], reply: { name: to.user.name, text: to.text } });
+const replyTo = (viewer, to) => ({
+  platform: to.platform,
+  user: viewer(to.platform),
+  text: T.reply,
+  parts: [{ t: 'text', v: T.reply }],
+  reply: { name: to.user.name, text: to.text },
+});
 
 // Messages that trigger each fancy effect: key -> () => a message, or a run of messages (combo). The widget shows an
 // effect only when it's on in the settings; the panel says which ones are off. The special lines (the chat's Events)
@@ -251,34 +339,64 @@ function effects(viewer, c) {
     sub: () => {
       const months = pick(SUB_MONTHS.slice(1));
       const fan = viewer('twitch', ['subscriber'], months);
-      return { platform: 'twitch', kind: 'sub', user: fan, system: T.subSystem.replace('{user}', fan.name).replace('{months}', months), text: T.subText, parts: text(T.subText),
-        event: { type: 'resub', months } };
+      return {
+        platform: 'twitch',
+        kind: 'sub',
+        user: fan,
+        system: T.subSystem.replace('{user}', fan.name).replace('{months}', months),
+        text: T.subText,
+        parts: text(T.subText),
+        event: { type: 'resub', months },
+      };
     },
     kicks: () => {
       const g = pick(KICK_GIFTS.filter((x) => x.amount >= c.eventKicksMin).slice(0, 5)) ?? KICK_GIFTS.at(-1);
-      return { platform: 'kick', kind: 'event', user: viewer('kick'), text: '', parts: [], event: { type: 'kicks', amount: g.amount, gift: g.id, name: strings.kickGifts[g.id] } };
+      return {
+        platform: 'kick',
+        kind: 'event',
+        user: viewer('kick'),
+        text: '',
+        parts: [],
+        event: { type: 'kicks', amount: g.amount, gift: g.id, name: strings.kickGifts[g.id] },
+      };
     },
     gift: () => {
-      const platform = pick(PLATFORMS), amount = Math.max(pick([1, 5, 10, 20]), c.eventGiftsMin);
+      const platform = pick(PLATFORMS),
+        amount = Math.max(pick([1, 5, 10, 20]), c.eventGiftsMin);
       const fan = viewer(platform, [platform === 'kick' ? 'sub_gifter' : 'sub-gifter']);
-      return { platform, kind: 'sub', user: fan, system: strings.chatText.kickGift.replace('{user}', fan.name).replace('{count}', amount), text: '', parts: [], event: { type: 'gift_sub', amount } };
+      return {
+        platform,
+        kind: 'sub',
+        user: fan,
+        system: strings.chatText.kickGift.replace('{user}', fan.name).replace('{count}', String(amount)),
+        text: '',
+        parts: [],
+        event: { type: 'gift_sub', amount },
+      };
     },
     bits: () => {
-      const amount = Math.max(pick([100, 500, 1000, 5000]), c.eventBitsMin), v = `Cheer${amount} ${T.bits}`;
+      const amount = Math.max(pick([100, 500, 1000, 5000]), c.eventBitsMin),
+        v = `Cheer${amount} ${T.bits}`;
       return { platform: 'twitch', user: viewer('twitch'), text: v, parts: twitch.cheerParts(text(v)), event: { type: 'bits', amount } };
     },
     raid: () => {
       const platform = pick(PLATFORMS);
       return { platform, kind: 'event', user: viewer(platform, []), text: '', parts: [], event: { type: 'raid', amount: pick([12, 42, 150, 640]) } };
     },
-    first: () => ({ platform: 'twitch', first: true, user: viewer('twitch', pick([[], ['premium']])), text: T.first,
-      parts: [...text(`${T.first} `), ...(seven ? [{ t: 'emote', name: seven.name, src: seven.src, still: seven.still, provider: '7tv' }] : [])] }),
+    first: () => ({
+      platform: 'twitch',
+      first: true,
+      user: viewer('twitch', pick([[], ['premium']])),
+      text: T.first,
+      parts: [...text(`${T.first} `), ...(seven ? [{ t: 'emote', name: seven.name, src: seven.src, still: seven.still, provider: '7tv' }] : [])],
+    }),
     vip: () => {
       const platform = pick(PLATFORMS);
       return { platform, user: viewer(platform, pick([['vip'], ['vip', 'subscriber']])), text: T.vip, parts: text(T.vip) };
     },
     mention: () => {
-      const platform = pick(PLATFORMS), v = T.mention.replace('{streamer}', streamer);
+      const platform = pick(PLATFORMS),
+        v = T.mention.replace('{streamer}', streamer);
       return { platform, user: viewer(platform), text: v, parts: text(v) };
     },
     avatar: () => ({ platform: 'twitch', user: { ...viewer('twitch'), avatar: pick(AVATARS) }, text: T.avatar, parts: text(T.avatar) }),
@@ -304,9 +422,15 @@ function build(kind, c) {
   const events = kind === 'all' ? EVENTS : kind === 'sample' ? [pick(EVENTS)] : [];
   const runs = [...picked, ...events].map((k) => [].concat(fx[k]()));
   if (kind === 'all') return { list: runs.flat(), effects: picked, events };
-  const fill = kind === 'burst'
-    ? shuffled(T.burst).slice(0, 10 - runs.flat().length).map((v) => { const platform = pick(PLATFORMS); return [{ platform, user: viewer(platform), text: v, parts: [{ t: 'text', v }] }]; })
-    : [[plain.twitch(viewer)], [plain.kick(viewer)]];
+  const fill =
+    kind === 'burst'
+      ? shuffled(T.burst)
+          .slice(0, 10 - runs.flat().length)
+          .map((v) => {
+            const platform = pick(PLATFORMS);
+            return [{ platform, user: viewer(platform), text: v, parts: [{ t: 'text', v }] }];
+          })
+      : [[plain.twitch(viewer)], [plain.kick(viewer)]];
   const list = shuffled([...runs, ...fill]).flat();
   // "Send test message" ends with a reply to its Twitch message, so what it answers is on screen above it.
   if (kind === 'sample') list.push(replyTo(viewer, fill[0][0]));
@@ -315,10 +439,18 @@ function build(kind, c) {
 
 // kind 'sample' | 'burst' | 'all', for one chat (key 'chat' | 'chat2': only that one shows them) -> { sent, effects, events }.
 function test(kind, key = 'chat') {
-  if (!globalRequested) { globalRequested = true; seventv.loadGlobal(); }
+  if (!globalRequested) {
+    globalRequested = true;
+    seventv.loadGlobal();
+  }
   const c = settings.get()[key];
   const { list, effects: used, events } = build(kind, c);
-  list.forEach((m, i) => setTimeout(() => emitChat({ ...m, test: true, only: key, channel: m.platform === 'kick' ? c.kickChannel : c.twitchChannel }), i * (kind === 'burst' ? 180 : 450)));
+  list.forEach((m, i) =>
+    setTimeout(
+      () => emitChat({ ...m, test: true, only: key, channel: m.platform === 'kick' ? c.kickChannel : c.twitchChannel }),
+      i * (kind === 'burst' ? 180 : 450),
+    ),
+  );
   return { sent: list.length, effects: used, events };
 }
 

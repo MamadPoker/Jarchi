@@ -1,0 +1,2 @@
+# The same checks CI runs, before anything leaves this PC. Skip once with git push --no-verify.
+npm run check

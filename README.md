@@ -245,4 +245,10 @@ The installed app looks for a newer release at start and every 4 hours, download
 
 ```sh
 npm test
+npm run typecheck      # tsc over the JSDoc types (core, connectors, server, electron, build)
+npm run lint           # ESLint (eslint.config.js)
+npm run format         # Prettier writes; format:check only looks
+npm run check          # all four, as CI runs them
 ```
+
+`npm install` sets up a Husky pre-push hook (`.husky/pre-push`) that runs `npm run check`. Skip it once with `git push --no-verify`.

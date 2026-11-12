@@ -38,17 +38,31 @@ const HISTORY_RETRY_MS = 60 * 1000;
 const fill = (tpl, v) => tpl.replace(/\{(\w+)\}/g, (m, k) => v[k] ?? m);
 
 // GET a kick.com API path over HTTP/2 (through the proxy setting) -> { status, json }. With `body`: POST it as JSON.
-async function kickGet(path, { host = 'kick.com', body: payload, via } = {}) { // via: a proxy to try (core/vpn.js), else the setting's
+/** @param {string} path @param {{ host?: string, body?: object, via?: object }} [opts] */
+async function kickGet(path, { host = 'kick.com', body: payload, via } = {}) {
+  // via: a proxy to try (core/vpn.js), else the setting's
   const sock = await net.secure(host, 443, ['h2'], via);
   return new Promise((resolve, reject) => {
     const client = http2.connect(`https://${host}`, { createConnection: () => sock });
-    const finish = (fn, v) => { client.close(); fn(v); };
+    const finish = (fn, v) => {
+      client.close();
+      fn(v);
+    };
     client.on('error', (e) => finish(reject, e));
-    client.setTimeout(10000, () => { client.destroy(); reject(new Error('timeout')); }); // close() would wait for the stuck request
+    client.setTimeout(10000, () => {
+      client.destroy();
+      reject(new Error('timeout'));
+    }); // close() would wait for the stuck request
     const sent = Date.now();
-    const req = client.request({ ':path': path, 'user-agent': UA, accept: 'application/json', ...(payload && { ':method': 'POST', 'content-type': 'application/json' }) });
+    const req = client.request({
+      ':path': path,
+      'user-agent': UA,
+      accept: 'application/json',
+      ...(payload && { ':method': 'POST', 'content-type': 'application/json' }),
+    });
     if (payload) req.end(JSON.stringify(payload));
-    let status = 0, body = '';
+    let status = 0,
+      body = '';
     req.setEncoding('utf8');
     req.on('response', (h) => {
       status = h[':status'];
@@ -57,7 +71,9 @@ async function kickGet(path, { host = 'kick.com', body: payload, via } = {}) { /
     req.on('data', (d) => (body += d));
     req.on('end', () => {
       let json = null;
-      try { json = JSON.parse(body); } catch {}
+      try {
+        json = JSON.parse(body);
+      } catch {}
       finish(resolve, { status, json });
     });
     req.on('error', (e) => finish(reject, e));
@@ -67,8 +83,11 @@ async function kickGet(path, { host = 'kick.com', body: payload, via } = {}) { /
 // The biggest picture Kick lists for an image ({ srcset: "url 2x, url 72w", src }). Sub badges in October 2026: srcset
 // empty, src 36x36 (the same size as Kick's animated original).
 function biggest(image) {
-  const listed = String(image?.srcset ?? '').split(',').map((s) => s.trim().split(/\s+/)).filter(([u]) => u?.startsWith('https://'));
-  const size = ([, d]) => parseFloat(d) || 1;
+  const listed = String(image?.srcset ?? '')
+    .split(',')
+    .map((s) => s.trim().split(/\s+/))
+    .filter(([u]) => u?.startsWith('https://'));
+  const size = (/** @type {string[]} */ [, d]) => parseFloat(d) || 1;
   return listed.sort((a, b) => size(b) - size(a))[0]?.[0] ?? image?.src;
 }
 
@@ -81,15 +100,20 @@ async function channelInfo(slug) {
     chatroomId: json.chatroom.id,
     channelId: json.id, // Kicks arrive on the channel's own socket channel
     userId: json.user_id,
-    subBadges: (json.subscriber_badges ?? []).map((b) => ({ months: b.months, src: biggest(b.badge_image) })).filter((b) => b.src).sort((a, b) => b.months - a.months),
+    subBadges: (json.subscriber_badges ?? [])
+      .map((b) => ({ months: b.months, src: biggest(b.badge_image) }))
+      .filter((b) => b.src)
+      .sort((a, b) => b.months - a.months),
   };
 }
 
 // The Pusher socket for a channel's chat, asked the way kick.com's own web app does (no login, a random client id).
 // Kick also offers its newer Centrifugo socket; Jarchi only asks for Pusher, the protocol it speaks.
 async function pusherUrl(channelId) {
-  const { json } = await module.exports.kickGet(`/api/v1/realtime/channels/${encodeURIComponent(channelId)}/chat/connection`, { host: 'web.kick.com',
-    body: { client: { id: crypto.randomUUID(), type: 'web' }, capabilities: { accepted_providers: [{ provider: 'pusher' }] } } });
+  const { json } = await module.exports.kickGet(`/api/v1/realtime/channels/${encodeURIComponent(channelId)}/chat/connection`, {
+    host: 'web.kick.com',
+    body: { client: { id: crypto.randomUUID(), type: 'web' }, capabilities: { accepted_providers: [{ provider: 'pusher' }] } },
+  });
   const c = json?.data?.connections?.find((x) => x.provider === 'pusher')?.credentials;
   return /^[0-9a-f]{20}$/.test(c?.app_key ?? '') && /^[a-z0-9-]+$/.test(c?.cluster ?? '') ? pusherAt(c.app_key, c.cluster) : PUSHER;
 }
@@ -97,7 +121,7 @@ async function pusherUrl(channelId) {
 // A viewer's profile picture (one website API call; callers cache and rate-limit).
 async function avatar(slug) {
   const { status, json } = await kickGet(`/api/v2/channels/${encodeURIComponent(slug)}`);
-  return status === 200 ? json?.user?.profile_pic ?? null : null;
+  return status === 200 ? (json?.user?.profile_pic ?? null) : null;
 }
 
 // "hi [emote:37226:KEKW]" -> text and emote parts.
@@ -150,7 +174,10 @@ const waiting = new Set(); // logins whose sub is waiting to be decided
 // raise SETTLE_MS if the event log ever shows that order.
 function hold(who, decide) {
   waiting.add(who);
-  const done = () => { waiting.delete(who); decide(); };
+  const done = () => {
+    waiting.delete(who);
+    decide();
+  };
   setTimeout(() => (waiting.size > 1 ? setTimeout(done, GIFT_WAIT_MS - SETTLE_MS) : done()), SETTLE_MS);
 }
 
@@ -206,7 +233,10 @@ function handle(event, raw, channel, info, cb) {
       const renewed = d.type === 'celebration' && c?.type === 'subscription_renewed' && (Number(c.total_months) || 2);
       const to = d.metadata?.original_sender?.username; // a reply (type "reply"): who it answers, and their message
       cb.onMessage({
-        platform: 'kick', id: d.id, channel, time: Date.parse(d.created_at) || Date.now(),
+        platform: 'kick',
+        id: d.id,
+        channel,
+        time: Date.parse(d.created_at) || Date.now(),
         text: (d.content ?? '').replace(EMOTE, '$2'),
         user: { id: s.id, login: s.slug, name: s.username, color: s.identity?.color, badges: kickBadges(s.identity, info.subBadges) },
         parts: kickParts(d.content ?? ''),
@@ -216,16 +246,30 @@ function handle(event, raw, channel, info, cb) {
       if (renewed) sub(s.username, renewed, (d.content ?? '').replace(EMOTE, '$2'));
       return;
     }
-    case 'MessageDeletedEvent': return cb.onClear({ platform: 'kick', messageId: d.message?.id });
-    case 'UserBannedEvent': return cb.onClear({ platform: 'kick', userId: d.user?.id });
-    case 'ChatroomClearEvent': return cb.onClear({ platform: 'kick' });
+    case 'MessageDeletedEvent':
+      return cb.onClear({ platform: 'kick', messageId: d.message?.id });
+    case 'UserBannedEvent':
+      return cb.onClear({ platform: 'kick', userId: d.user?.id });
+    case 'ChatroomClearEvent':
+      return cb.onClear({ platform: 'kick' });
     case 'SubscriptionEvent': {
-      const months = Number(d.months) || 1, who = login(d.username), gifted = isRecent(`to:${who}`);
+      const months = Number(d.months) || 1,
+        who = login(d.username),
+        gifted = isRecent(`to:${who}`);
       // A viewer a gift just named got their sub from that gift: a plain line (the gift has the special one).
       // ponytail: a "subscribed" that comes before its gift still gets the special line (chat lines never wait); if
       // that shows up, give the gift line its viewers and let the widget turn their lines plain.
       const own = !gifted && { event: { type: months > 1 ? 'resub' : 'sub', months } };
-      cb.onMessage({ platform: 'kick', channel, kind: 'sub', user: name(d.username), system: fill(strings.chatText.kickSub, { user: d.username, months }), text: '', parts: [], ...own });
+      cb.onMessage({
+        platform: 'kick',
+        channel,
+        kind: 'sub',
+        user: name(d.username),
+        system: fill(strings.chatText.kickSub, { user: d.username, months }),
+        text: '',
+        parts: [],
+        ...own,
+      });
       if (gifted) return;
       mark(`sub:${who}`); // the channel socket's copy of this sub makes no alert of its own
       return hold(who, () => sub(d.username, months));
@@ -252,30 +296,59 @@ function handle(event, raw, channel, info, cb) {
         waiting.delete(login(u)); // decided: no sub alert, and no reason for other subs to wait for a gift
       }
       mark(`from:${login(d.gifter_username)}`);
-      if (!isRecent(key)) { // the chat line once per gift, not per chunk
+      if (!isRecent(key)) {
+        // the chat line once per gift, not per chunk
         mark(key);
-        cb.onMessage({ platform: 'kick', channel, kind: 'sub', user: name(d.gifter_username), system: fill(strings.chatText.kickGift, { user: d.gifter_username, count }), text: '', parts: [],
-          event: { type: 'gift_sub', amount: count } });
+        cb.onMessage({
+          platform: 'kick',
+          channel,
+          kind: 'sub',
+          user: name(d.gifter_username),
+          system: fill(strings.chatText.kickGift, { user: d.gifter_username, count }),
+          text: '',
+          parts: [],
+          event: { type: 'gift_sub', amount: count },
+        });
       }
       if (!told) cb.onAlert?.({ type: 'gift_sub', user: d.gifter_username, amount: count, key });
       return;
     }
     case 'KicksGifted': {
-      const s = d.sender ?? {}, amount = Number(d.gift?.amount) || 0, message = d.message ?? '';
+      const s = d.sender ?? {},
+        amount = Number(d.gift?.amount) || 0,
+        message = d.message ?? '';
       const key = d.gift_transaction_id && `kick:kicks:${d.gift_transaction_id}`;
       if (!key || !isRecent(key)) {
         if (key) mark(key);
-        cb.onMessage({ platform: 'kick', id: d.gift_transaction_id, channel, kind: 'event', time: Date.parse(d.created_at) || Date.now(),
+        cb.onMessage({
+          platform: 'kick',
+          id: d.gift_transaction_id,
+          channel,
+          kind: 'event',
+          time: Date.parse(d.created_at) || Date.now(),
           user: { id: s.id, login: login(s.username), name: s.username, color: s.username_color, avatar: s.profile_picture },
-          text: message.replace(EMOTE, '$2'), parts: kickParts(message), event: { type: 'kicks', amount, gift: d.gift?.gift_id, name: d.gift?.name } });
+          text: message.replace(EMOTE, '$2'),
+          parts: kickParts(message),
+          event: { type: 'kicks', amount, gift: d.gift?.gift_id, name: d.gift?.name },
+        });
       }
       return cb.onAlert?.({ type: 'kicks', user: s.username, amount, message, key });
     }
     case 'StreamHostEvent': {
-      const viewers = Number(d.number_viewers) || 0, message = d.optional_message ?? '', key = `kick:host:${login(d.host_username)}:${d.number_viewers}`;
+      const viewers = Number(d.number_viewers) || 0,
+        message = d.optional_message ?? '',
+        key = `kick:host:${login(d.host_username)}:${d.number_viewers}`;
       if (!isRecent(key)) {
         mark(key);
-        cb.onMessage({ platform: 'kick', channel, kind: 'event', user: name(d.host_username), text: message, parts: kickParts(message), event: { type: 'raid', amount: viewers } });
+        cb.onMessage({
+          platform: 'kick',
+          channel,
+          kind: 'event',
+          user: name(d.host_username),
+          text: message,
+          parts: kickParts(message),
+          event: { type: 'raid', amount: viewers },
+        });
       }
       return cb.onAlert?.({ type: 'raid', user: d.host_username, amount: viewers, message, key });
     }
@@ -292,7 +365,8 @@ function handle(event, raw, channel, info, cb) {
 function official(type, d, cb) {
   const received = Date.now();
   if (type === 'channel.subscription.new' || type === 'channel.subscription.renewal') {
-    const user = d.subscriber?.username, who = login(user);
+    const user = d.subscriber?.username,
+      who = login(user);
     if (!who || ['to', 'from'].some((k) => isRecent(`${k}:${who}`))) return; // gifted, or the gifter (as on the socket)
     const months = type === 'channel.subscription.new' ? 1 : Math.max(2, Number(d.duration) || 2);
     return hold(who, () => subAlert(cb, user, months, '', received));
@@ -307,7 +381,14 @@ function official(type, d, cb) {
       waiting.delete(login(u));
     }
     mark(`from:${login(gifter)}`);
-    if (!told) cb.onAlert?.({ type: 'gift_sub', user: gifter, amount: to.length || 1, received, key: `kick:gift:api:${login(gifter)}:${to.map(login).sort().join(',')}` });
+    if (!told)
+      cb.onAlert?.({
+        type: 'gift_sub',
+        user: gifter,
+        amount: to.length || 1,
+        received,
+        key: `kick:gift:api:${login(gifter)}:${to.map(login).sort().join(',')}`,
+      });
   }
 }
 
@@ -321,26 +402,51 @@ async function readGoals(slug, send) {
 }
 
 // metadata in Kick's history is JSON in a string; on the socket it's the object itself.
-const unpacked = (v) => { try { return JSON.parse(v); } catch { return v; } };
+const unpacked = (v) => {
+  try {
+    return JSON.parse(v);
+  } catch {
+    return v;
+  }
+};
 
-// cb: { onStatus(state, detail), onMessage(msg), onClear(clear), onChannel({ userId, subBadges }), onAlert(alert),
-// onGoals(list), onGoal(goal) }. Goals are read now and every minute, besides their live events. Returns { stop() }.
+// Goals are read now and every minute, besides their live events.
 // Connects, drops and late spells also go to the event log as "socket": the installed app has no console to read.
+/** @param {string} slug @param {import('../core/chat').ConnectorCallbacks} cb @returns {import('../core/chat').Connection} */
 function connect(slug, cb) {
-  let ws, timer, poller, info, retry = 0, stopped = false;
-  let waiting = 0, rtt = 0, downAt = 0; // since when the socket owes us an answer, the last ping's round trip, when it dropped
-  let live = false, before = null, failing = false, late = null; // before: ids in the first history read; late: { at, count, worst }
+  let ws,
+    timer,
+    poller,
+    info,
+    retry = 0,
+    stopped = false;
+  let waiting = 0,
+    rtt = 0,
+    downAt = 0; // since when the socket owes us an answer, the last ping's round trip, when it dropped
+  let live = false,
+    before = null,
+    failing = false,
+    late = null; // before: ids in the first history read; late: { at, count, worst }
   const note = (text) => {
     console.log(`Kick chat: ${text}`);
     logIncoming('kick', 'socket', text);
   };
   const secs = (ms) => `${(ms / 1000).toFixed(1)} s`;
-  const again = (ms) => { if (!stopped) timer = setTimeout(open, ms); };
+  const again = (ms) => {
+    if (!stopped) timer = setTimeout(open, ms);
+  };
   const goals = () => readGoals(slug, (list) => !stopped && cb.onGoals?.(list)); // never after stop(): another channel by then
-  const onAir = () => module.exports.kickGet(`/api/v2/channels/${encodeURIComponent(slug)}`).then(({ status, json }) => {
-    if (status === 200) live = !!json?.livestream?.is_live;
-  }, () => {});
-  const everyMinute = setInterval(() => { goals(); onAir(); }, 60000);
+  const onAir = () =>
+    module.exports.kickGet(`/api/v2/channels/${encodeURIComponent(slug)}`).then(
+      ({ status, json }) => {
+        if (status === 200) live = !!json?.livestream?.is_live;
+      },
+      () => {},
+    );
+  const everyMinute = setInterval(() => {
+    goals();
+    onAir();
+  }, 60000);
   const pulse = setInterval(() => {
     if (waiting && Date.now() - waiting >= ANSWER_MS) {
       note(`no answer for ${Math.round((Date.now() - waiting) / 1000)} s, connecting again`);
@@ -359,15 +465,18 @@ function connect(slug, cb) {
   // Every chat message comes in here, from the socket or from history: the first copy is shown, a later one only tells
   // how late it was.
   const seen = new Set();
-  const once = { ...cb, onMessage(m) {
-    if (m.id && seen.has(m.id)) {
-      if (late) late.worst = Math.max(late.worst, Date.now() - clockAhead() - m.time);
-      return;
-    }
-    if (m.id) seen.add(m.id);
-    if (seen.size > 500) seen.delete(seen.values().next().value);
-    cb.onMessage(m);
-  } };
+  const once = {
+    ...cb,
+    onMessage(m) {
+      if (m.id && seen.has(m.id)) {
+        if (late) late.worst = Math.max(late.worst, Date.now() - clockAhead() - m.time);
+        return;
+      }
+      if (m.id) seen.add(m.id);
+      if (seen.size > 500) seen.delete(seen.values().next().value);
+      cb.onMessage(m);
+    },
+  };
 
   // One read of Kick's history -> ms until the next one. The first only notes what was said before: not for history to
   // bring, though the socket still may. The list is newest first.
@@ -426,7 +535,8 @@ function connect(slug, cb) {
       const msg = JSON.parse(e.data);
       if (msg.event === 'pusher:connection_established') {
         waiting = 0;
-        for (const channel of [`chatrooms.${info.chatroomId}.v2`, `chatroom_${info.chatroomId}`, `channel_${info.channelId}`]) ws.send(JSON.stringify({ event: 'pusher:subscribe', data: { auth: '', channel } }));
+        for (const channel of [`chatrooms.${info.chatroomId}.v2`, `chatroom_${info.chatroomId}`, `channel_${info.channelId}`])
+          ws.send(JSON.stringify({ event: 'pusher:subscribe', data: { auth: '', channel } }));
       } else if (msg.event === 'pusher_internal:subscription_succeeded') {
         if (!msg.channel?.endsWith('.v2')) return; // the chat itself is what "connected" means
         retry = 0;
@@ -439,7 +549,11 @@ function connect(slug, cb) {
         if (waiting) rtt = Date.now() - waiting;
         waiting = 0;
       } else {
-        try { handle(msg.event, msg.data, slug, info, once); } catch (err) { console.warn('Kick chat:', err.message); }
+        try {
+          handle(msg.event, msg.data, slug, info, once);
+        } catch (err) {
+          console.warn('Kick chat:', err.message);
+        }
       }
     };
     ws.onerror = () => cb.onStatus('error', 'network');
@@ -459,7 +573,16 @@ function connect(slug, cb) {
   }
   open();
   history();
-  return { stop() { stopped = true; clearTimeout(timer); clearTimeout(poller); clearInterval(everyMinute); clearInterval(pulse); ws?.close(); } };
+  return {
+    stop() {
+      stopped = true;
+      clearTimeout(timer);
+      clearTimeout(poller);
+      clearInterval(everyMinute);
+      clearInterval(pulse);
+      ws?.close();
+    },
+  };
 }
 
 module.exports = { connect, handle, official, kickParts, kickBadges, biggest, avatar, kickGet, subMonths, pusherUrl, PUSHER, SETTLE_MS, GIFT_WAIT_MS };

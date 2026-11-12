@@ -9,9 +9,12 @@ test('dev update notice: GitHub latest release from build.publish, newer only, q
   assert.ok(release.newer('1.0.10', '1.0.9') && release.newer('2.0.0', '1.9.9'));
   assert.ok(!release.newer('1.0.1', '1.0.1') && !release.newer('0.9.9', '1.0.0') && !release.newer('1.0.2', '1.0.2-beta.1'));
 
-  const [major] = version.split('.').map(Number), next = `${major + 1}.0.0`, after = `${major + 2}.0.0`;
+  const [major] = version.split('.').map(Number),
+    next = `${major + 1}.0.0`,
+    after = `${major + 2}.0.0`;
   const page = `https://github.com/${build.publish.owner}/${build.publish.repo}/releases/`;
-  const asked = [], found = [];
+  const asked = [],
+    found = [];
   let answer;
   globalThis.fetch = async (url) => (asked.push(url), typeof answer === 'function' ? answer() : answer.clone());
   release.events.on('found', (r) => found.push(r));
@@ -32,7 +35,9 @@ test('dev update notice: GitHub latest release from build.publish, newer only, q
   await release.check();
   says(200, { tag_name: 'nightly', html_url: `${page}tag/nightly` });
   await release.check();
-  answer = () => { throw new TypeError('fetch failed'); };
+  answer = () => {
+    throw new TypeError('fetch failed');
+  };
   await release.check();
   assert.deepEqual(release.latest(), { version: next, url: `${page}tag/v${next}` });
 

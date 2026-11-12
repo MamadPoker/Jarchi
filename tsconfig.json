@@ -1,0 +1,17 @@
+{
+  // Type-checks the plain JS (JSDoc types, docs/adr/0002). Nothing is emitted: Node and Electron run the same files.
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": true,
+    "noEmit": true,
+    "module": "node16",
+    "moduleResolution": "node16",
+    "target": "es2023",
+    "resolveJsonModule": true,
+    "types": ["node"],
+    "strict": false,
+    "skipLibCheck": true
+  },
+  // Node side first. The panel and widgets (browser globals) and the relay (Worker types) get their own configs later.
+  "include": ["core/**/*.js", "connectors/**/*.js", "server/**/*.js", "electron/**/*.js", "build/**/*.js"]
+}

@@ -6,8 +6,18 @@ const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
 // Remembered in this browser: the language, the colors.
 const remember = {
-  get: (k) => { try { return localStorage.getItem(k); } catch { return null; } },
-  set: (k, v) => { try { localStorage.setItem(k, v); } catch {} },
+  get: (k) => {
+    try {
+      return localStorage.getItem(k);
+    } catch {
+      return null;
+    }
+  },
+  set: (k, v) => {
+    try {
+      localStorage.setItem(k, v);
+    } catch {}
+  },
 };
 const FA = remember.get('jarchi.lang') === 'fa';
 document.documentElement.lang = FA ? 'fa' : 'en';
@@ -22,15 +32,27 @@ const palette = () => (PALETTES.includes(remember.get('jarchi.palette')) ? remem
 // System = Windows' accent color (GET /api/accent) -> the hue and saturation panel.css works from, and the main color's
 // lightness: 32%, darker where white text on it would read under 4.5:1 (bright accents like yellow). Kept in jarchi.accent
 // for index.html; null (no accent color found): System shows Jarchi's colors.
-let accent = (() => { try { return JSON.parse(remember.get('jarchi.accent')); } catch { return null; } })();
-const hslRgb = (h, s, l) => { // 0-360, 0-100, 0-100 -> sRGB 0-1
+let accent = (() => {
+  try {
+    return JSON.parse(remember.get('jarchi.accent'));
+  } catch {
+    return null;
+  }
+})();
+const hslRgb = (h, s, l) => {
+  // 0-360, 0-100, 0-100 -> sRGB 0-1
   const a = (s / 100) * Math.min(l / 100, 1 - l / 100);
-  return [0, 8, 4].map((n) => { const k = (n + h / 30) % 12; return l / 100 - a * Math.max(-1, Math.min(k - 3, 9 - k, 1)); });
+  return [0, 8, 4].map((n) => {
+    const k = (n + h / 30) % 12;
+    return l / 100 - a * Math.max(-1, Math.min(k - 3, 9 - k, 1));
+  });
 };
 const luminance = (rgb) => rgb.reduce((t, c, i) => t + [0.2126, 0.7152, 0.0722][i] * (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4), 0);
 function accentVars(hex) {
   const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
-  const max = Math.max(r, g, b), min = Math.min(r, g, b), d = max - min;
+  const max = Math.max(r, g, b),
+    min = Math.min(r, g, b),
+    d = max - min;
   const h = (!d ? 0 : max === r ? ((g - b) / d + 6) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4) * 60;
   const s = Math.min(70, d ? (d / (1 - Math.abs(max + min - 1))) * 100 : 0); // a very bright accent would tint every background
   let l = 32;
@@ -58,13 +80,17 @@ const applyLook = () => {
   $$('#palettes .mini').forEach((m) => Object.assign(m.dataset, { theme: de.dataset.theme, palette: shown(m.dataset.id) })); // in the mode shown now
 };
 const setLook = (key, value) => (remember.set(key, value), applyLook());
-const readAccent = () => fetch('/api/accent').then((r) => r.json()).then((r) => {
-  const next = r.accent ? accentVars(r.accent) : null;
-  if (JSON.stringify(next) === JSON.stringify(accent)) return;
-  accent = next;
-  remember.set('jarchi.accent', JSON.stringify(accent));
-  applyLook();
-}).catch(() => {});
+const readAccent = () =>
+  fetch('/api/accent')
+    .then((r) => r.json())
+    .then((r) => {
+      const next = r.accent ? accentVars(r.accent) : null;
+      if (JSON.stringify(next) === JSON.stringify(accent)) return;
+      accent = next;
+      remember.set('jarchi.accent', JSON.stringify(accent));
+      applyLook();
+    })
+    .catch(() => {});
 $$('.mode button').forEach((b) => (b.onclick = () => setLook('jarchi.theme', b.dataset.mode)));
 $$('[name=size]').forEach((r) => (r.onchange = () => (setLook('jarchi.size', r.value), toast(S.panel.saved))));
 $('#bgArtOn').onchange = (e) => (setLook('jarchi.art', e.target.checked ? '1' : '0'), artRun(), toast(S.panel.saved));
@@ -82,16 +108,30 @@ const tintTitleBar = () => ($('meta[name=theme-color]').content = getComputedSty
 new MutationObserver(tintTitleBar).observe(document.documentElement, { attributes: true });
 tintTitleBar();
 // Persian digits (and ٪ ٫) in labels; inputs keep theirs.
-const fd = (v, fa = FA) => (fa ? String(v).replace(/(?<=\d)\.(?=\d)/g, '٫').replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[d]).replace(/%/g, '٪') : String(v));
+const fd = (v, fa = FA) =>
+  fa
+    ? String(v)
+        .replace(/(?<=\d)\.(?=\d)/g, '٫')
+        .replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[d])
+        .replace(/%/g, '٪')
+    : String(v);
 const fmt = (n) => n.toLocaleString(FA ? 'fa-IR' : undefined);
 const ltr = (s) => (FA ? `\u2066${s}\u2069` : s); // an address inside a Persian sentence keeps its order
 let S, EN, settings, samples, goalData; // S: the panel's strings, EN: English for the overlays. goalData = { state, styles, fonts } from /api/goals; state then follows the socket
-let chatStyles, chatFonts, chatStatus, chatExclusive = {}; // (chatExclusive: unlocked exclusive designs, id -> name { en, fa }, core/designs.js)
+let chatStyles,
+  chatFonts,
+  chatStatus,
+  chatExclusive = {}; // (chatExclusive: unlocked exclusive designs, id -> name { en, fa }, core/designs.js)
 // chat style looks and fonts (/api/chat/styles), connection status (follows the socket)
 let chatThumbs; // sample messages for the chat style thumbnails (/api/chat/thumbs: random viewers and badges each visit)
-let view = 'home', cur = 'follow', curGoal = 'subs', topic = 'start'; // the open page, and the alert, goal and guide topic selected in theirs
+let view = 'home',
+  cur = 'follow',
+  curGoal = 'subs',
+  topic = 'start'; // the open page, and the alert, goal and guide topic selected in theirs
 let queue = { paused: false, overlays: 0, waiting: 0, now: null }; // the alert queue (follows the socket)
-let home, open = {}, feedFilter = 'all'; // Home: { today, started, kickGoals } (/api/home, then the socket), widget pages open now (socket)
+let home,
+  open = {},
+  feedFilter = 'all'; // Home: { today, started, kickGoals } (/api/home, then the socket), widget pages open now (socket)
 let hist = { list: [], filter: 'all', page: 0 }; // every saved event (/api/history, then the socket): Home's live feed and History; History's filter and page
 let twitch; // the Twitch account: { state, error, code, uri, login, goals } (/api/twitch, then the socket)
 let kick; // the Kick account: { state, error, uri, login } (/api/kick, then the socket)
@@ -105,13 +145,39 @@ const viewerSource = () => (VIEWER_SOURCES.includes(remember.get('jarchi.viewers
 const pct = (v) => `${Math.round(v * 100)}%`;
 const px = (v) => `${v}px`;
 const FORMAT = {
-  volume: pct, frameOpacity: pct, frameRadius: px, fontSize: px, bgOpacity: pct, borderWidth: px, radius: px, scale: pct, size: pct,
-  emoteSize: px, bigEmoteSize: px, badgeSize: pct, nameSize: px, padding: px, gap: px, width: px, height: px, fadeZone: px, blur: px,
-  tickerSpeed: (v) => `${v} px/s`, maxMessages: (v) => String(v), hideAfter: (v) => (Number(v) ? tpl(S.panel.seconds, { n: v }) : S.panel.never), animSpeed: (v) => `×${v}`,
+  volume: pct,
+  frameOpacity: pct,
+  frameRadius: px,
+  fontSize: px,
+  bgOpacity: pct,
+  borderWidth: px,
+  radius: px,
+  scale: pct,
+  size: pct,
+  emoteSize: px,
+  bigEmoteSize: px,
+  badgeSize: pct,
+  nameSize: px,
+  padding: px,
+  gap: px,
+  width: px,
+  height: px,
+  fadeZone: px,
+  blur: px,
+  tickerSpeed: (v) => `${v} px/s`,
+  maxMessages: (v) => String(v),
+  hideAfter: (v) => (Number(v) ? tpl(S.panel.seconds, { n: v }) : S.panel.never),
+  animSpeed: (v) => `×${v}`,
 };
 const GOAL_STEP = { subs: 1, kicks: 100, followers: 1, twitchSubs: 1, bits: 100, twitchFollowers: 1 }; // what "Test", "+" and "−" add
-const GOAL_SAMPLE = { subs: { current: 32, target: 50 }, kicks: { current: 640, target: 1000 }, followers: { current: 374, target: 500 }, // numbers on style thumbnails
-  twitchSubs: { current: 32, target: 50 }, bits: { current: 3200, target: 5000 }, twitchFollowers: { current: 374, target: 500 } };
+const GOAL_SAMPLE = {
+  subs: { current: 32, target: 50 },
+  kicks: { current: 640, target: 1000 },
+  followers: { current: 374, target: 500 }, // numbers on style thumbnails
+  twitchSubs: { current: 32, target: 50 },
+  bits: { current: 3200, target: 5000 },
+  twitchFollowers: { current: 374, target: 500 },
+};
 // Each goal is Kick's or Twitch's (its group on the Goals page). Outside its group it's named with its platform: "Sub goal (Twitch)".
 const TWITCH_GOALS = ['twitchSubs', 'bits', 'twitchFollowers'];
 const goalPlatform = (id) => (TWITCH_GOALS.includes(id) ? 'twitch' : 'kick');
@@ -120,7 +186,8 @@ const isVideo = (file) => /\.(webm|mp4)$/.test(file ?? '');
 const tpl = (s, v) => s.replace(/\{(\w+)\}/g, (m, k) => v[k] ?? m);
 const kickLook = (type, cfg) => type === 'kicks' && cfg.look === 'kick';
 // What plays when there's no file: the theme's, or (Kicks in its Kick look) Kick's gift and the Kick chime; bits show Twitch's gem.
-const defaultMedia = (kind, kick) => S.panel[kind === 'image' ? (kick ? 'mediaKickGift' : cur === 'bits' ? 'mediaTwitchGem' : 'mediaDefault') : (kick ? 'soundKickDefault' : 'tierNoSound')];
+const defaultMedia = (kind, kick) =>
+  S.panel[kind === 'image' ? (kick ? 'mediaKickGift' : cur === 'bits' ? 'mediaTwitchGem' : 'mediaDefault') : kick ? 'soundKickDefault' : 'tierNoSound'];
 const ACCEPT = { image: 'image/png,image/jpeg,image/gif,image/webp,video/webm,video/mp4,.webm,.mp4', sound: 'audio/mpeg,audio/wav,audio/ogg,.mp3,.wav,.ogg' };
 const valueOf = (inp) => (inp.type === 'checkbox' ? inp.checked : ['number', 'range'].includes(inp.type) ? Number(inp.value) : inp.value);
 const el = (tag, props = {}, ...kids) => {
@@ -142,49 +209,339 @@ const LISTS = () => ({
 // kind: toggle | range | seg | select | color | text | number. options.only: shown only when renderChat()'s show[only] is true.
 const CHAT_TABS = () => ({
   text: [
-    ['chatText', [['select', 'font', { options: chatFonts.map((x) => [x, x]) }], ['range', 'fontSize', { min: 10, max: 72, label: 'messageSize' }],
-      ['color', 'textColor', { label: 'messageColor' }], ['toggle', 'textShadow'], ['select', 'textDir', { options: [['auto', 'dirAuto'], ['ltr', 'dirLtr'], ['rtl', 'dirRtl']] }],
-      ['toggle', 'showTime'], ['toggle', 'showColon'],
-      ['select', 'replies', { options: [['line', 'repliesLine'], ['name', 'repliesName'], ['quote', 'repliesQuote'], ['off', 'repliesOff']] }]]],
-    ['chatEmotes', [['toggle', 'emotesKick'], ['toggle', 'emotesTwitch'], ['toggle', 'emotes7tv'], ['toggle', 'emotesAnimated'], ['range', 'emoteSize', { min: 12, max: 112 }],
-      ['toggle', 'bigEmotes'], ['range', 'bigEmoteSize', { min: 16, max: 160, only: 'big' }]]],
+    [
+      'chatText',
+      [
+        ['select', 'font', { options: chatFonts.map((x) => [x, x]) }],
+        ['range', 'fontSize', { min: 10, max: 72, label: 'messageSize' }],
+        ['color', 'textColor', { label: 'messageColor' }],
+        ['toggle', 'textShadow'],
+        [
+          'select',
+          'textDir',
+          {
+            options: [
+              ['auto', 'dirAuto'],
+              ['ltr', 'dirLtr'],
+              ['rtl', 'dirRtl'],
+            ],
+          },
+        ],
+        ['toggle', 'showTime'],
+        ['toggle', 'showColon'],
+        [
+          'select',
+          'replies',
+          {
+            options: [
+              ['line', 'repliesLine'],
+              ['name', 'repliesName'],
+              ['quote', 'repliesQuote'],
+              ['off', 'repliesOff'],
+            ],
+          },
+        ],
+      ],
+    ],
+    [
+      'chatEmotes',
+      [
+        ['toggle', 'emotesKick'],
+        ['toggle', 'emotesTwitch'],
+        ['toggle', 'emotes7tv'],
+        ['toggle', 'emotesAnimated'],
+        ['range', 'emoteSize', { min: 12, max: 112 }],
+        ['toggle', 'bigEmotes'],
+        ['range', 'bigEmoteSize', { min: 16, max: 160, only: 'big' }],
+      ],
+    ],
   ],
   names: [
-    ['nameBox', [['range', 'nameSize', { min: 10, max: 72 }],
-      ['seg', 'nameColorMode', { label: 'nameColor', options: [['user', 'nameOwn'], ['style', 'nameStyle'], ['custom', 'nameCustom']] }], ['color', 'nameColor', { only: 'nameCustom' }],
-      ['toggle', 'readableNames', { only: 'nameOwn' }], ['seg', 'namePos', { options: [['inline', 'nameInline'], ['above', 'nameAbove']] }],
-      ['toggle', 'showPlatform'], ['toggle', 'avatars', { hint: 'avatarsHint' }], ['toggle', 'fxRainbowVip'], ['text', 'rainbowUsers', { hint: 'listHint' }]]],
-    ['badgeBox', [['toggle', 'showBadges'], ['seg', 'badgeMode', { options: [['important', 'badgesImportant'], ['all', 'badgesAll']], only: 'badges' }],
-      ['range', 'badgeSize', { min: 0.5, max: 2, step: 0.05, only: 'badges' }],
-      ['seg', 'badgeBg', { options: [['auto', 'badgeBgAuto'], ['always', 'badgeBgAlways'], ['off', 'badgeBgOff']], only: 'badges' }], ['toggle', 'badgeBroadcaster', { only: 'badges' }], ['toggle', 'badgeMod', { only: 'badges' }],
-      ['toggle', 'badgeVip', { only: 'badges' }], ['toggle', 'badgeSub', { only: 'badges' }], ['toggle', 'badgeOther', { only: 'badges' }],
-      ['toggle', 'ogHat'], ['seg', 'hatStyle', { options: [['cap', 'hatCap'], ['beanie', 'hatBeanie'], ['fedora', 'hatFedora']], only: 'hat' }],
-      ['select', 'hatPos', { options: [['first', 'hatFirst'], ['last', 'hatLast'], ['badge', 'hatBadge'], ['avatar', 'hatAvatar']], only: 'hat' }]]],
+    [
+      'nameBox',
+      [
+        ['range', 'nameSize', { min: 10, max: 72 }],
+        [
+          'seg',
+          'nameColorMode',
+          {
+            label: 'nameColor',
+            options: [
+              ['user', 'nameOwn'],
+              ['style', 'nameStyle'],
+              ['custom', 'nameCustom'],
+            ],
+          },
+        ],
+        ['color', 'nameColor', { only: 'nameCustom' }],
+        ['toggle', 'readableNames', { only: 'nameOwn' }],
+        [
+          'seg',
+          'namePos',
+          {
+            options: [
+              ['inline', 'nameInline'],
+              ['above', 'nameAbove'],
+            ],
+          },
+        ],
+        ['toggle', 'showPlatform'],
+        ['toggle', 'avatars', { hint: 'avatarsHint' }],
+        ['toggle', 'fxRainbowVip'],
+        ['text', 'rainbowUsers', { hint: 'listHint' }],
+      ],
+    ],
+    [
+      'badgeBox',
+      [
+        ['toggle', 'showBadges'],
+        [
+          'seg',
+          'badgeMode',
+          {
+            options: [
+              ['important', 'badgesImportant'],
+              ['all', 'badgesAll'],
+            ],
+            only: 'badges',
+          },
+        ],
+        ['range', 'badgeSize', { min: 0.5, max: 2, step: 0.05, only: 'badges' }],
+        [
+          'seg',
+          'badgeBg',
+          {
+            options: [
+              ['auto', 'badgeBgAuto'],
+              ['always', 'badgeBgAlways'],
+              ['off', 'badgeBgOff'],
+            ],
+            only: 'badges',
+          },
+        ],
+        ['toggle', 'badgeBroadcaster', { only: 'badges' }],
+        ['toggle', 'badgeMod', { only: 'badges' }],
+        ['toggle', 'badgeVip', { only: 'badges' }],
+        ['toggle', 'badgeSub', { only: 'badges' }],
+        ['toggle', 'badgeOther', { only: 'badges' }],
+        ['toggle', 'ogHat'],
+        [
+          'seg',
+          'hatStyle',
+          {
+            options: [
+              ['cap', 'hatCap'],
+              ['beanie', 'hatBeanie'],
+              ['fedora', 'hatFedora'],
+            ],
+            only: 'hat',
+          },
+        ],
+        [
+          'select',
+          'hatPos',
+          {
+            options: [
+              ['first', 'hatFirst'],
+              ['last', 'hatLast'],
+              ['badge', 'hatBadge'],
+              ['avatar', 'hatAvatar'],
+            ],
+            only: 'hat',
+          },
+        ],
+      ],
+    ],
   ],
   events: [
-    ['eventLines', [['toggle', 'eventKicks'], ['number', 'eventKicksMin', { only: 'evKicks' }], ['toggle', 'eventSubs'], ['toggle', 'eventGifts'], ['number', 'eventGiftsMin', { only: 'evGifts' }],
-      ['toggle', 'eventBits'], ['number', 'eventBitsMin', { only: 'evBits' }], ['toggle', 'eventRaids']]],
-    ['eventLookBox', [['seg', 'eventLook', { options: [['card', 'lookCard'], ['glow', 'lookGlow'], ['line', 'lookLine']] }], ['toggle', 'eventLonger']]],
-    ['chatFx', [['toggle', 'fxSubGlow'], ['toggle', 'fxFirst'], ['toggle', 'fxMention'], ['toggle', 'fxCombo']]],
+    [
+      'eventLines',
+      [
+        ['toggle', 'eventKicks'],
+        ['number', 'eventKicksMin', { only: 'evKicks' }],
+        ['toggle', 'eventSubs'],
+        ['toggle', 'eventGifts'],
+        ['number', 'eventGiftsMin', { only: 'evGifts' }],
+        ['toggle', 'eventBits'],
+        ['number', 'eventBitsMin', { only: 'evBits' }],
+        ['toggle', 'eventRaids'],
+      ],
+    ],
+    [
+      'eventLookBox',
+      [
+        [
+          'seg',
+          'eventLook',
+          {
+            options: [
+              ['card', 'lookCard'],
+              ['glow', 'lookGlow'],
+              ['line', 'lookLine'],
+            ],
+          },
+        ],
+        ['toggle', 'eventLonger'],
+      ],
+    ],
+    [
+      'chatFx',
+      [
+        ['toggle', 'fxSubGlow'],
+        ['toggle', 'fxFirst'],
+        ['toggle', 'fxMention'],
+        ['toggle', 'fxCombo'],
+      ],
+    ],
   ],
   filters: [
-    ['chatFilters', [['toggle', 'hideCommands'], ['toggle', 'hideBots'], ['text', 'bots', { only: 'bots', hint: 'listHint' }], ['text', 'hiddenUsers', { hint: 'listHint' }],
-      ['text', 'blockedWords', { hint: 'listHint', dir: 'auto' }], ['toggle', 'hideLinks'], ['select', 'source', { options: [['both', 'sourceBoth'], ['kick', 'sourceKick'], ['twitch', 'sourceTwitch']] }]]],
+    [
+      'chatFilters',
+      [
+        ['toggle', 'hideCommands'],
+        ['toggle', 'hideBots'],
+        ['text', 'bots', { only: 'bots', hint: 'listHint' }],
+        ['text', 'hiddenUsers', { hint: 'listHint' }],
+        ['text', 'blockedWords', { hint: 'listHint', dir: 'auto' }],
+        ['toggle', 'hideLinks'],
+        [
+          'select',
+          'source',
+          {
+            options: [
+              ['both', 'sourceBoth'],
+              ['kick', 'sourceKick'],
+              ['twitch', 'sourceTwitch'],
+            ],
+          },
+        ],
+      ],
+    ],
   ],
   layout: [
-    ['chatBox', [['seg', 'bg', { label: 'bgMode', options: [['color', 'bgColor'], ['transparent', 'bgTransparent'], ['off', 'bgOff']] }], ['color', 'bgColor', { only: 'bgColor' }],
-      ['range', 'bgOpacity', { min: 0, max: 1, step: 0.05, only: 'bgColor' }], ['toggle', 'bubbles', { label: 'bubblesOpt' }], ['toggle', 'border'],
-      ['color', 'borderColor', { only: 'borderOn' }], ['seg', 'borderColorMode', { options: [['user', 'borderUser'], ['custom', 'borderCustom']], only: 'msgBorder' }],
-      ['range', 'borderWidth', { min: 1, max: 12, only: 'borderOn' }], ['range', 'radius', { min: 0, max: 40 }],
-      ['range', 'padding', { min: 0, max: 60 }], ['range', 'gap', { min: 0, max: 40 }], ['range', 'width', { min: 200, max: 1920, step: 10, label: 'chatWidth' }],
-      ['range', 'height', { min: 40, max: 1080, step: 10, label: 'chatHeight' }], ['range', 'blur', { min: 0, max: 40 }]]],
-    ['chatMotion', [['seg', 'layout', { options: [['vertical', 'layoutVertical'], ['horizontal', 'layoutHorizontal']] }],
-      ['seg', 'tickerDir', { options: [['rtl', 'dirRtlArrow'], ['ltr', 'dirLtrArrow']], only: 'ticker' }], ['range', 'tickerSpeed', { min: 20, max: 600, step: 10, only: 'ticker' }],
-      ['toggle', 'tickerLoop', { only: 'ticker' }], ['seg', 'tickerPos', { options: [['top', 'posTop'], ['bottom', 'posBottom']], only: 'ticker' }],
-      ['seg', 'newAt', { options: [['bottom', 'newBottom'], ['top', 'newTop']], only: 'vertical' }], ['range', 'maxMessages', { min: 1, max: 100 }],
-      ['range', 'hideAfter', { min: 0, max: 600, step: 5 }], ['select', 'enterAnim', { options: [['slide', 'animSlide'], ['fade', 'animFade'], ['pop', 'animPop'], ['float', 'animFloat'], ['bounce', 'animBounce'], ['drop', 'animDrop'], ['none', 'animNone']] }],
-      ['select', 'exitAnim', { options: [['fade', 'animFade'], ['slide', 'animSlide'], ['none', 'animNone']] }], ['range', 'animSpeed', { min: 0.25, max: 3, step: 0.25 }],
-      ['toggle', 'fade'], ['range', 'fadeZone', { min: 0, max: 400, step: 5, only: 'fade' }], ['toggle', 'typewriter'], ['toggle', 'typeSound', { only: 'typewriter' }]]],
+    [
+      'chatBox',
+      [
+        [
+          'seg',
+          'bg',
+          {
+            label: 'bgMode',
+            options: [
+              ['color', 'bgColor'],
+              ['transparent', 'bgTransparent'],
+              ['off', 'bgOff'],
+            ],
+          },
+        ],
+        ['color', 'bgColor', { only: 'bgColor' }],
+        ['range', 'bgOpacity', { min: 0, max: 1, step: 0.05, only: 'bgColor' }],
+        ['toggle', 'bubbles', { label: 'bubblesOpt' }],
+        ['toggle', 'border'],
+        ['color', 'borderColor', { only: 'borderOn' }],
+        [
+          'seg',
+          'borderColorMode',
+          {
+            options: [
+              ['user', 'borderUser'],
+              ['custom', 'borderCustom'],
+            ],
+            only: 'msgBorder',
+          },
+        ],
+        ['range', 'borderWidth', { min: 1, max: 12, only: 'borderOn' }],
+        ['range', 'radius', { min: 0, max: 40 }],
+        ['range', 'padding', { min: 0, max: 60 }],
+        ['range', 'gap', { min: 0, max: 40 }],
+        ['range', 'width', { min: 200, max: 1920, step: 10, label: 'chatWidth' }],
+        ['range', 'height', { min: 40, max: 1080, step: 10, label: 'chatHeight' }],
+        ['range', 'blur', { min: 0, max: 40 }],
+      ],
+    ],
+    [
+      'chatMotion',
+      [
+        [
+          'seg',
+          'layout',
+          {
+            options: [
+              ['vertical', 'layoutVertical'],
+              ['horizontal', 'layoutHorizontal'],
+            ],
+          },
+        ],
+        [
+          'seg',
+          'tickerDir',
+          {
+            options: [
+              ['rtl', 'dirRtlArrow'],
+              ['ltr', 'dirLtrArrow'],
+            ],
+            only: 'ticker',
+          },
+        ],
+        ['range', 'tickerSpeed', { min: 20, max: 600, step: 10, only: 'ticker' }],
+        ['toggle', 'tickerLoop', { only: 'ticker' }],
+        [
+          'seg',
+          'tickerPos',
+          {
+            options: [
+              ['top', 'posTop'],
+              ['bottom', 'posBottom'],
+            ],
+            only: 'ticker',
+          },
+        ],
+        [
+          'seg',
+          'newAt',
+          {
+            options: [
+              ['bottom', 'newBottom'],
+              ['top', 'newTop'],
+            ],
+            only: 'vertical',
+          },
+        ],
+        ['range', 'maxMessages', { min: 1, max: 100 }],
+        ['range', 'hideAfter', { min: 0, max: 600, step: 5 }],
+        [
+          'select',
+          'enterAnim',
+          {
+            options: [
+              ['slide', 'animSlide'],
+              ['fade', 'animFade'],
+              ['pop', 'animPop'],
+              ['float', 'animFloat'],
+              ['bounce', 'animBounce'],
+              ['drop', 'animDrop'],
+              ['none', 'animNone'],
+            ],
+          },
+        ],
+        [
+          'select',
+          'exitAnim',
+          {
+            options: [
+              ['fade', 'animFade'],
+              ['slide', 'animSlide'],
+              ['none', 'animNone'],
+            ],
+          },
+        ],
+        ['range', 'animSpeed', { min: 0.25, max: 3, step: 0.25 }],
+        ['toggle', 'fade'],
+        ['range', 'fadeZone', { min: 0, max: 400, step: 5, only: 'fade' }],
+        ['toggle', 'typewriter'],
+        ['toggle', 'typeSound', { only: 'typewriter' }],
+      ],
+    ],
     ['chatDebug', [['toggle', 'showTiming']]],
   ],
 });
@@ -199,24 +556,55 @@ function chatControl(kind, f, o) {
   };
   let node;
   if (kind === 'toggle') {
-    node = el('label', { className: 'row between toggle-row' }, el('span', { textContent: label }), el('span', { className: 'switch' }, input({ type: 'checkbox' }), el('span')));
+    node = el(
+      'label',
+      { className: 'row between toggle-row' },
+      el('span', { textContent: label }),
+      el('span', { className: 'switch' }, input({ type: 'checkbox' }), el('span')),
+    );
   } else if (kind === 'range') {
     const out = el('b');
     out.dataset.out = f;
-    node = el('label', { className: 'field' }, el('span', {}, el('span', { textContent: label }), ' ', out), input({ type: 'range', min: o.min, max: o.max, step: o.step ?? 1 }));
+    node = el(
+      'label',
+      { className: 'field' },
+      el('span', {}, el('span', { textContent: label }), ' ', out),
+      input({ type: 'range', min: o.min, max: o.max, step: o.step ?? 1 }),
+    );
   } else if (kind === 'seg') {
-    node = el('div', { className: 'field' }, el('span', { textContent: label }), el('div', { className: 'seg' }, ...o.options.map(([v, k]) => {
-      const r = input({ type: 'radio', name: `chat-${f}`, value: v });
-      return el('label', {}, r, el('span', { textContent: S.panel[k] ?? k }));
-    })));
+    node = el(
+      'div',
+      { className: 'field' },
+      el('span', { textContent: label }),
+      el(
+        'div',
+        { className: 'seg' },
+        ...o.options.map(([v, k]) => {
+          const r = input({ type: 'radio', name: `chat-${f}`, value: v });
+          return el('label', {}, r, el('span', { textContent: S.panel[k] ?? k }));
+        }),
+      ),
+    );
   } else if (kind === 'select') {
     const sel = input({ tag: 'select' });
     sel.append(...o.options.map(([v, k]) => new Option(S.panel[k] ?? k, v)));
     node = el('label', { className: 'field' }, el('span', { textContent: label }), sel);
-  } else if (kind === 'number') { // a smallest amount, under its line's switch
-    node = el('label', { className: 'row between toggle-row sub-row' }, el('span', { textContent: label }), input({ type: 'number', min: 0, step: 1, className: 'num' }));
+  } else if (kind === 'number') {
+    // a smallest amount, under its line's switch
+    node = el(
+      'label',
+      { className: 'row between toggle-row sub-row' },
+      el('span', { textContent: label }),
+      input({ type: 'number', min: 0, step: 1, className: 'num' }),
+    );
   } else {
-    node = el('label', { className: 'field' }, el('span', { textContent: label }), input({ type: kind === 'color' ? 'color' : 'text', maxLength: 1000, ...(o.dir && { dir: o.dir }) }), o.hint ? el('small', { textContent: S.panel[o.hint] }) : '');
+    node = el(
+      'label',
+      { className: 'field' },
+      el('span', { textContent: label }),
+      input({ type: kind === 'color' ? 'color' : 'text', maxLength: 1000, ...(o.dir && { dir: o.dir }) }),
+      o.hint ? el('small', { textContent: S.panel[o.hint] }) : '',
+    );
   }
   node.firstChild.dataset.help = `chat.${f}`; // the label: build() adds its "?"
   if (f in chatStyles.kick) node.firstChild.prepend(ownMark()); // saved for each style: a style from /api/chat/styles has just those
@@ -226,8 +614,11 @@ function chatControl(kind, f, o) {
 
 // The gold palette before a Chat setting that's saved for each style (and in the note under the style grid).
 function ownMark() {
-  const m = svgIn('own-mark', '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 0 0 0 18c1 0 1.7-.8 1.7-1.7 0-.4-.2-.8-.4-1.1-.3-.3-.4-.7-.4-1.1 0-.9.7-1.7 1.7-1.7h2a5.4 5.4 0 0 0 5.4-5.4C21 6.6 17 3 12 3z"/>'
-    + '<circle cx="7.5" cy="10.5" r="1" fill="currentColor"/><circle cx="10" cy="6.8" r="1" fill="currentColor"/><circle cx="14.5" cy="6.8" r="1" fill="currentColor"/><circle cx="17" cy="10.2" r="1" fill="currentColor"/></svg>');
+  const m = svgIn(
+    'own-mark',
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 0 0 0 18c1 0 1.7-.8 1.7-1.7 0-.4-.2-.8-.4-1.1-.3-.3-.4-.7-.4-1.1 0-.9.7-1.7 1.7-1.7h2a5.4 5.4 0 0 0 5.4-5.4C21 6.6 17 3 12 3z"/>' +
+      '<circle cx="7.5" cy="10.5" r="1" fill="currentColor"/><circle cx="10" cy="6.8" r="1" fill="currentColor"/><circle cx="14.5" cy="6.8" r="1" fill="currentColor"/><circle cx="17" cy="10.2" r="1" fill="currentColor"/></svg>',
+  );
   m.title = S.panel.ownMark;
   m.setAttribute('role', 'img');
   m.setAttribute('aria-label', S.panel.ownMark);
@@ -252,8 +643,16 @@ function renderChatTabs() {
   const keys = CHAT_KEYS.filter((k) => settings[k]);
   if (JSON.stringify(keys.map(chatName)) !== chatTabsDrawn) {
     chatTabsDrawn = JSON.stringify(keys.map(chatName));
-    box.replaceChildren(...keys.map((k) => el('label', {}, el('input', { type: 'radio', name: 'chatPick', value: k, onchange: () => select('chat', k) }),
-      el('span', { textContent: chatName(k), dir: 'auto' }))));
+    box.replaceChildren(
+      ...keys.map((k) =>
+        el(
+          'label',
+          {},
+          el('input', { type: 'radio', name: 'chatPick', value: k, onchange: () => select('chat', k) }),
+          el('span', { textContent: chatName(k), dir: 'auto' }),
+        ),
+      ),
+    );
   }
   $$('input', box).forEach((r) => (r.checked = r.value === curChat));
   $('#chatAdd').hidden = !!settings.chat2;
@@ -289,8 +688,23 @@ function drawChatThumbs() {
   for (const f of $$('.chat-tile:not([hidden]) iframe')) {
     const style = f.dataset.style;
     const ticker = chatStyles[style].layout === 'horizontal';
-    const cfg = { ...chatCfg(), ...chatStyles[style], style, enabled: true, width: ticker ? 440 : 400, height: ticker ? 64 : 290, maxMessages: 6,
-      hideCommands: false, hideBots: false, hiddenUsers: '', blockedWords: '', hideLinks: false, source: 'both', avatars: false, fxMention: false };
+    const cfg = {
+      ...chatCfg(),
+      ...chatStyles[style],
+      style,
+      enabled: true,
+      width: ticker ? 440 : 400,
+      height: ticker ? 64 : 290,
+      maxMessages: 6,
+      hideCommands: false,
+      hideBots: false,
+      hiddenUsers: '',
+      blockedWords: '',
+      hideLinks: false,
+      source: 'both',
+      avatars: false,
+      fxMention: false,
+    };
     f.contentWindow?.postMessage({ strings: EN, cfg, messages: chatThumbs }, location.origin);
   }
 }
@@ -301,17 +715,29 @@ const styleName = (id) => S.chatStyles[id] ?? chatExclusive[id]?.[S.lang] ?? cha
 function buildChatTiles() {
   const grid = $('#chatStyleGrid');
   $$('.preview', grid).forEach((p) => fit.unobserve(p));
-  grid.replaceChildren(...[...Object.keys(chatExclusive), ...Object.keys(S.chatStyles)].filter((id) => chatStyles[id]).map((id) => {
-    const frame = el('iframe', { src: '/widgets/chat?thumb', title: styleName(id), tabIndex: -1, onload: drawChatThumbs });
-    frame.dataset.style = id;
-    frame.setAttribute('aria-hidden', 'true');
-    const tile = el('button', { className: `style-tile chat-tile${chatStyles[id].layout === 'horizontal' ? ' bar' : ''}`, onclick: () => patchChat({ style: id }) },
-      el('div', { className: 'preview' }, frame),
-      el('span', { className: 'tile-name' }, styleName(id), id in chatExclusive ? el('span', { className: 'pill exclusive', textContent: S.panel.chatExclusive }) : ''));
-    tile.dataset.style = id;
-    fit.observe(tile.querySelector('.preview'));
-    return tile;
-  }));
+  grid.replaceChildren(
+    ...[...Object.keys(chatExclusive), ...Object.keys(S.chatStyles)]
+      .filter((id) => chatStyles[id])
+      .map((id) => {
+        const frame = el('iframe', { src: '/widgets/chat?thumb', title: styleName(id), tabIndex: -1, onload: drawChatThumbs });
+        frame.dataset.style = id;
+        frame.setAttribute('aria-hidden', 'true');
+        const tile = el(
+          'button',
+          { className: `style-tile chat-tile${chatStyles[id].layout === 'horizontal' ? ' bar' : ''}`, onclick: () => patchChat({ style: id }) },
+          el('div', { className: 'preview' }, frame),
+          el(
+            'span',
+            { className: 'tile-name' },
+            styleName(id),
+            id in chatExclusive ? el('span', { className: 'pill exclusive', textContent: S.panel.chatExclusive }) : '',
+          ),
+        );
+        tile.dataset.style = id;
+        fit.observe(tile.querySelector('.preview'));
+        return tile;
+      }),
+  );
 }
 async function reloadChatStyles() {
   try {
@@ -333,7 +759,8 @@ function showStyleGroup(g) {
   styleGroup = g;
   $$('[name=styleGroup]').forEach((r) => (r.checked = r.value === g));
   $$('.chat-tile').forEach((t) => (t.hidden = chatStyles[t.dataset.style].layout !== g));
-  const grid = $('#chatStyleGrid'), current = $('.chat-tile.selected:not([hidden])', grid);
+  const grid = $('#chatStyleGrid'),
+    current = $('.chat-tile.selected:not([hidden])', grid);
   grid.dataset.group = g;
   grid.scrollTop = current ? current.offsetTop - 8 : 0; // the chat's own style in view
   drawChatThumbs();
@@ -341,10 +768,17 @@ function showStyleGroup(g) {
 
 // The chat preview iframe is as big as the chat (+ a margin), scaled down to fit and centered.
 function fitChat() {
-  const box = $('.chat-preview'), f = $('#chatPreview'), c = chatCfg();
-  const W = c.width + 60, H = c.height + 60;
+  const box = $('.chat-preview'),
+    f = $('#chatPreview'),
+    c = chatCfg();
+  const W = c.width + 60,
+    H = c.height + 60;
   const k = Math.min(box.clientWidth / W, box.clientHeight / H, 1);
-  Object.assign(f.style, { width: `${W}px`, height: `${H}px`, transform: `translate(${(box.clientWidth - W * k) / 2}px, ${(box.clientHeight - H * k) / 2}px) scale(${k})` });
+  Object.assign(f.style, {
+    width: `${W}px`,
+    height: `${H}px`,
+    transform: `translate(${(box.clientWidth - W * k) / 2}px, ${(box.clientHeight - H * k) / 2}px) scale(${k})`,
+  });
 }
 
 // Chat page status lines, and the top bar's Kick / Twitch pills (green dot = connected).
@@ -366,13 +800,17 @@ function renderStatus() {
 // down for over 30 s, counted from when this panel saw it go (or opened). A click opens where it's set up. On Home,
 // instead, a card once it's over a minute and for a reason a VPN can help with (not a channel that isn't there), with
 // Fix it: the VPN popup (core/vpn.js look).
-const DOWN_MS = 30000, CARD_MS = 60000, downSince = {};
+const DOWN_MS = 30000,
+  CARD_MS = 60000,
+  downSince = {};
 const NOT_NETWORK = ['not_found', 'refused'];
 const outOfReach = (st) => st.state === 'connecting' || (st.state === 'error' && !NOT_NETWORK.includes(st.detail));
 const secs = new Intl.NumberFormat(FA ? 'fa' : 'en', { style: 'unit', unit: 'second', unitDisplay: 'short' });
 const mins = new Intl.NumberFormat(FA ? 'fa' : 'en', { style: 'unit', unit: 'minute', unitDisplay: 'short' });
 function renderConnWarn() {
-  const now = Date.now(), long = [], card = [];
+  const now = Date.now(),
+    long = [],
+    card = [];
   const conns = [
     ['kickChat', 'kick', 'chat', !['off', 'connected'].includes(chatStatus.kick.state), outOfReach(chatStatus.kick)],
     ['twitchChat', 'twitch', 'chat', !['off', 'connected'].includes(chatStatus.twitch.state), outOfReach(chatStatus.twitch)],
@@ -386,7 +824,10 @@ function renderConnWarn() {
   }
   const said = (list, text) => {
     const s = Math.floor((now - Math.min(...list.map((c) => c.since))) / 1000);
-    return tpl(text, { platforms: [...new Set(list.map((c) => S.platforms[c.platform]))].join(FA ? '، ' : ', '), time: s < 60 ? secs.format(s) : mins.format(Math.floor(s / 60)) });
+    return tpl(text, {
+      platforms: [...new Set(list.map((c) => S.platforms[c.platform]))].join(FA ? '، ' : ', '),
+      time: s < 60 ? secs.format(s) : mins.format(Math.floor(s / 60)),
+    });
   };
   $('#connCard').hidden = !card.length;
   if (card.length) $('#connCardTitle').textContent = said(card, S.panel.connCardTitle);
@@ -431,7 +872,8 @@ function toast(msg, isError, undoable) {
 async function send(method, url, body, headers) {
   try {
     settings = await api(method, url, body, headers);
-    if (view === 'chat') { // the Chat page's own "Saved" note lights up instead of the toast
+    if (view === 'chat') {
+      // the Chat page's own "Saved" note lights up instead of the toast
       const note = $('#chatSaved');
       note.classList.remove('flash');
       void note.offsetWidth; // restart its animation
@@ -470,7 +912,13 @@ async function goalCount(body, id = curGoal) {
 
 // A goal's row in the Goals list: its count (click it and type another), "/ target", and Reset to 0 (click twice).
 function goalCountRow(id) {
-  const input = el('input', { type: 'number', min: 0, step: 1, className: 'count-input', onchange: () => goalCount({ set: Math.max(0, Math.round(Number(input.value) || 0)) }, id) });
+  const input = el('input', {
+    type: 'number',
+    min: 0,
+    step: 1,
+    className: 'count-input',
+    onchange: () => goalCount({ set: Math.max(0, Math.round(Number(input.value) || 0)) }, id),
+  });
   input.setAttribute('aria-label', `${goalName(id)}: ${S.panel.goalCurrent}`);
   const zero = el('button', { className: 'ghost zero', textContent: S.panel.goalZero });
   twoClick(zero, zero, S.panel.goalZero, S.panel.confirmZero, () => goalCount({ set: 0 }, id));
@@ -489,9 +937,29 @@ function preview() {
 }
 
 // Theme cards: the sub alert in that theme with its own look and sound; it stays on the card (hold) until the next play.
-const THEME_TEXT = { nameColor: null, nameFont: 'theme', nameBold: true, nameShadow: true, textColor: null, textFont: 'theme', textBold: true, textShadow: true, autoSize: true };
+const THEME_TEXT = {
+  nameColor: null,
+  nameFont: 'theme',
+  nameBold: true,
+  nameShadow: true,
+  textColor: null,
+  textFont: 'theme',
+  textBold: true,
+  textShadow: true,
+  autoSize: true,
+};
 function playTile(frame, muted = true) {
-  const sub = { ...settings.alerts.sub, ...THEME_TEXT, size: 1, theme: null, image: null, soundMode: 'theme', frame: 'theme', textPos: 'below', textAlign: 'center' };
+  const sub = {
+    ...settings.alerts.sub,
+    ...THEME_TEXT,
+    size: 1,
+    theme: null,
+    image: null,
+    soundMode: 'theme',
+    frame: 'theme',
+    textPos: 'below',
+    textAlign: 'center',
+  };
   post(frame, { theme: frame.dataset.theme, alerts: { sub } }, sample('sub'), muted, true);
 }
 
@@ -501,7 +969,10 @@ function drawThumbs() {
   const { current, target } = GOAL_SAMPLE[curGoal];
   for (const f of $$('.goal-tile iframe')) {
     const style = f.dataset.style;
-    f.contentWindow?.postMessage({ cfg: { ...goalData.styles[style], style, title: g.title, target, enabled: true }, state: { current, reached: false } }, location.origin);
+    f.contentWindow?.postMessage(
+      { cfg: { ...goalData.styles[style], style, title: g.title, target, enabled: true }, state: { current, reached: false } },
+      location.origin,
+    );
   }
 }
 
@@ -519,7 +990,9 @@ const fit = new ResizeObserver((entries) => {
 let sourceSize = { w: 800, h: 600 };
 const PREVIEW_MARGIN = 12;
 function fitPreview() {
-  const box = $('#previewBox'), f = $('#preview'), { w, h } = sourceSize;
+  const box = $('#previewBox'),
+    f = $('#preview'),
+    { w, h } = sourceSize;
   f.style.width = `${w}px`;
   f.style.height = `${h}px`;
   box.style.setProperty('--ar', w / h);
@@ -532,7 +1005,8 @@ const NEW_PAGES = { '1.0.7': ['donations'] };
 const newPages = () => Object.values(NEW_PAGES).flat();
 function renderNew() {
   for (const p of newPages()) {
-    const b = $(`.nav-item[data-view="${p}"]`), on = !settings.seenNew.includes(p);
+    const b = $(`.nav-item[data-view="${p}"]`),
+      on = !settings.seenNew.includes(p);
     b.classList.toggle('is-new', on);
     if (on !== !!$('.nav-new', b)) on ? b.append(el('span', { className: 'nav-new', textContent: S.panel.navNew })) : $('.nav-new', b).remove();
   }
@@ -540,7 +1014,10 @@ function renderNew() {
 function seenPage(v) {
   if (!newPages().includes(v) || settings.seenNew.includes(v)) return;
   settings.seenNew = [...settings.seenNew, v]; // plain at once (render below), saved for good
-  api('PATCH', '/api/settings', { seenNew: settings.seenNew }).then((s) => (settings = s), () => {});
+  api('PATCH', '/api/settings', { seenNew: settings.seenNew }).then(
+    (s) => (settings = s),
+    () => {},
+  );
 }
 
 // Open a page (and in Alerts / Goals / Guide, an item of it: without `key`, the one selected before).
@@ -561,7 +1038,8 @@ function select(v, key) {
     const src = `/widgets/viewers/${viewerSource()}?preview`;
     if ($('#viewersPreview').getAttribute('src') !== src) $('#viewersPreview').src = src;
   }
-  if (v === 'chat' && key) { // one of the chats (its tab, Home's Fix, an undo)
+  if (v === 'chat' && key) {
+    // one of the chats (its tab, Home's Fix, an undo)
     curChat = key;
     remember.set('jarchi.chat', key);
     $('#chatFxHint').textContent = ''; // about the other chat's test
@@ -570,7 +1048,11 @@ function select(v, key) {
   if (v === 'events') loadHistory();
   if (v === 'support') loadTickets();
   if (v === 'connections') showProxyNow();
-  if (v === 'about') api('GET', '/api/version').then(({ version }) => ($('#aboutVersion').textContent = S.panel.version.replace('{version}', version)), () => {});
+  if (v === 'about')
+    api('GET', '/api/version').then(
+      ({ version }) => ($('#aboutVersion').textContent = S.panel.version.replace('{version}', version)),
+      () => {},
+    );
   if (v === 'donations') {
     cryptoPage = null; // the Donation page tab asks again
     renderCrypto();
@@ -593,7 +1075,13 @@ function select(v, key) {
   if (v === 'chat') {
     fitChat();
     if (!styleGroup || key) showStyleGroup(chatStyles[chatCfg().style].layout);
-    api('GET', `/api/chat/thumbs?chat=${curChat}`).then((m) => { chatThumbs = m; drawChatThumbs(); }, () => {});
+    api('GET', `/api/chat/thumbs?chat=${curChat}`).then(
+      (m) => {
+        chatThumbs = m;
+        drawChatThumbs();
+      },
+      () => {},
+    );
   }
 }
 
@@ -612,7 +1100,8 @@ function wireTabs(root, key) {
   tabs.forEach((b) => (b.onclick = () => showTab(b.dataset.tab)));
   showTab(tabs.some((b) => b.dataset.tab === remember.get(key)) ? remember.get(key) : tabs[0].dataset.tab);
   $('.tabs', root).onkeydown = (e) => {
-    const step = { ArrowRight: 1, ArrowLeft: -1 }[e.key] * (FA ? -1 : 1), i = tabs.indexOf(e.target);
+    const step = { ArrowRight: 1, ArrowLeft: -1 }[e.key] * (FA ? -1 : 1),
+      i = tabs.indexOf(e.target);
     if (!step || i < 0) return;
     const next = tabs[(i + step + tabs.length) % tabs.length];
     showTab(next.dataset.tab);
@@ -640,8 +1129,12 @@ function wireMenu(btn, pop) {
   };
   btn.onclick = () => show(pop.hidden);
   pop.addEventListener('click', () => show(false));
-  addEventListener('click', (e) => { if (!btn.parentNode.contains(e.target)) show(false); });
-  addEventListener('keydown', (e) => { if (e.key === 'Escape') show(false); });
+  addEventListener('click', (e) => {
+    if (!btn.parentNode.contains(e.target)) show(false);
+  });
+  addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') show(false);
+  });
 }
 
 // ---------- Alert queue (its own page) ----------
@@ -654,7 +1147,8 @@ const TYPE_ICON = {
   kicks: 'M13 2L4 14h7l-1 8 9-12h-7z',
   bits: 'M12 2l8 5v10l-8 5-8-5V7z',
   raid: 'M17 19v-1a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v1M10 10a3 3 0 1 0 0-6 3 3 0 0 0 0 6M21 19v-1a4 4 0 0 0-3-3.9M16 4.1a3 3 0 0 1 0 5.8',
-  crypto: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18M14.8 9.2a2.8 2.8 0 0 0-2.8-1.7c-1.6 0-2.8.9-2.8 2.1 0 2.9 5.6 1.5 5.6 4.5 0 1.2-1.2 2.2-2.8 2.2a2.9 2.9 0 0 1-2.8-1.8M12 6v1.5M12 16.3v1.7',
+  crypto:
+    'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18M14.8 9.2a2.8 2.8 0 0 0-2.8-1.7c-1.6 0-2.8.9-2.8 2.1 0 2.9 5.6 1.5 5.6 4.5 0 1.2-1.2 2.2-2.8 2.2a2.9 2.9 0 0 1-2.8-1.8M12 6v1.5M12 16.3v1.7',
 };
 function typeIcon(type) {
   const i = el('span', { className: 'q-icon', title: S.types[type] });
@@ -663,21 +1157,33 @@ function typeIcon(type) {
   return i;
 }
 // An alert from one platform only: that platform's logo, "Kick only" / "Twitch only".
-const platMarks = (type) => el('span', { className: 'plat-marks' }, ...(ALERT_PLATFORMS[type] ?? []).map((p) => {
-  const only = tpl(S.panel.platformOnly, { platform: S.platforms[p] });
-  return el('img', { src: `/assets/platform-logos/${p}.svg`, alt: only, title: only });
-}));
+const platMarks = (type) =>
+  el(
+    'span',
+    { className: 'plat-marks' },
+    ...(ALERT_PLATFORMS[type] ?? []).map((p) => {
+      const only = tpl(S.panel.platformOnly, { platform: S.platforms[p] });
+      return el('img', { src: `/assets/platform-logos/${p}.svg`, alt: only, title: only });
+    }),
+  );
 // "Rich · Gifted subs · 10": icon, name, type, and the amount (or a resub's months).
 function alertRow(a, action) {
-  const amount = a.type === 'crypto' ? `${a.amount} USDT` : a.type === 'resub' && a.months ? tpl(S.panel.qMonths, { n: fmt(a.months) }) : a.amount ? fmt(a.amount) : '';
+  const amount =
+    a.type === 'crypto' ? `${a.amount} USDT` : a.type === 'resub' && a.months ? tpl(S.panel.qMonths, { n: fmt(a.months) }) : a.amount ? fmt(a.amount) : '';
   const who = a.user || S.panel.cryptoAnon; // only a crypto donation has none: the donor hid it
-  return el('li', { className: 'q-item' }, typeIcon(a.type),
+  return el(
+    'li',
+    { className: 'q-item' },
+    typeIcon(a.type),
     el('span', { className: 'q-who' }, el('b', { textContent: who, title: who, dir: 'auto' }), el('small', { textContent: S.types[a.type] })),
-    el('span', { className: 'q-amt', textContent: amount }), action ?? '');
+    el('span', { className: 'q-amt', textContent: amount }),
+    action ?? '',
+  );
 }
 
 function renderQueue() {
-  const q = queue, n = q.now;
+  const q = queue,
+    n = q.now;
   for (const c of $$('#qCount, #qNavCount')) c.textContent = fd(q.waiting);
   $('#qNavCount').hidden = !q.waiting; // in the sidebar: only when alerts are waiting
   $('#qPaused').hidden = !q.paused;
@@ -696,21 +1202,50 @@ function renderQueue() {
   $('#qPause').title = q.paused ? S.panel.qResumeHint : S.panel.qPauseHint;
   $('#qSkip').disabled = !n;
   $('#qClear').disabled = !q.waiting;
-  $('#qList').replaceChildren(...q.list.map((a) => alertRow(a, el('button', {
-    className: 'x', textContent: '×', title: S.panel.qRemove, ariaLabel: S.panel.qRemove, onclick: () => queueCall('DELETE', `queue/${encodeURIComponent(a.id)}`),
-  }))));
+  $('#qList').replaceChildren(
+    ...q.list.map((a) =>
+      alertRow(
+        a,
+        el('button', {
+          className: 'x',
+          textContent: '×',
+          title: S.panel.qRemove,
+          ariaLabel: S.panel.qRemove,
+          onclick: () => queueCall('DELETE', `queue/${encodeURIComponent(a.id)}`),
+        }),
+      ),
+    ),
+  );
   $('#qEmpty').hidden = q.list.length > 0;
-  $('#qHistory').replaceChildren(...q.history.map((a) => alertRow(a, el('button', {
-    className: 'replay', textContent: S.panel.qReplay, onclick: () => queueCall('POST', `replay/${encodeURIComponent(a.id)}`).then((r) => r && toast(S.panel.qReplayed)),
-  }))));
+  $('#qHistory').replaceChildren(
+    ...q.history.map((a) =>
+      alertRow(
+        a,
+        el('button', {
+          className: 'replay',
+          textContent: S.panel.qReplay,
+          onclick: () => queueCall('POST', `replay/${encodeURIComponent(a.id)}`).then((r) => r && toast(S.panel.qReplayed)),
+        }),
+      ),
+    ),
+  );
   $('#qNoHistory').hidden = q.history.length > 0;
   $('#qNoObs').hidden = q.overlays > 0;
 }
-const queueCall = (method, what, body) => api(method, `/api/alerts/${what}`, body).then((q) => { queue = q; renderQueue(); return q; }, (err) => toast(err.message, true));
+const queueCall = (method, what, body) =>
+  api(method, `/api/alerts/${what}`, body).then(
+    (q) => {
+      queue = q;
+      renderQueue();
+      return q;
+    },
+    (err) => toast(err.message, true),
+  );
 
 // ---------- Goal marks (panel only): an icon per goal in its colour (CSS [data-goal]), Kick's K ----------
 // Kick's own logo shape (assets/platform-logos/kick.svg), drawn in currentColor so light mode can use a darker green.
-const KICK_K = '<svg class="kick-k" viewBox="0 0 26 26" aria-hidden="true"><path fill-rule="evenodd" d="M1 0H9.76711V5.79452H12.589V2.82193H15.5616V0H24.1781V8.61645H21.3561V11.589H18.3836V14.411H21.3561V17.3836H24.1781V26H15.5616V23.1781H12.589V20.2055H9.76711V26H1V0Z"/></svg>';
+const KICK_K =
+  '<svg class="kick-k" viewBox="0 0 26 26" aria-hidden="true"><path fill-rule="evenodd" d="M1 0H9.76711V5.79452H12.589V2.82193H15.5616V0H24.1781V8.61645H21.3561V11.589H18.3836V14.411H21.3561V17.3836H24.1781V26H15.5616V23.1781H12.589V20.2055H9.76711V26H1V0Z"/></svg>';
 const HEART = 'M12 20.5s-7.6-4.5-9.4-9.2C1.4 8.1 3.5 4.7 7 4.7c2 0 3.6 1.1 5 2.9 1.4-1.8 3-2.9 5-2.9 3.5 0 5.6 3.4 4.4 6.6-1.8 4.7-9.4 9.2-9.4 9.2z';
 const GOAL_ICON = {
   subs: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${TYPE_ICON.sub}"/></svg>`, // star
@@ -720,15 +1255,26 @@ const GOAL_ICON = {
 };
 GOAL_ICON.twitchSubs = GOAL_ICON.subs; // Twitch's look like Kick's
 GOAL_ICON.twitchFollowers = GOAL_ICON.followers;
-const svgIn = (cls, markup) => { // fixed markup only
+const svgIn = (cls, markup) => {
+  // fixed markup only
   const s = el('span', { className: cls });
   s.innerHTML = markup;
   return s;
 };
 // A Kick / Twitch channel goal's icon and bar colour (Home), by its type, never its title: the Jarchi goal of the same
 // kind, so a Twitch followers goal looks exactly like Kick's (green heart). Cheerers are bits too.
-const CHANNEL_GOAL = { followers: 'followers', subscriptions: 'subs', kicks: 'kicks', follow: 'followers', subscription: 'subs', subscription_count: 'subs',
-  new_subscription: 'subs', new_subscription_count: 'subs', new_bit: 'bits', new_cheerer: 'bits' };
+const CHANNEL_GOAL = {
+  followers: 'followers',
+  subscriptions: 'subs',
+  kicks: 'kicks',
+  follow: 'followers',
+  subscription: 'subs',
+  subscription_count: 'subs',
+  new_subscription: 'subs',
+  new_subscription_count: 'subs',
+  new_bit: 'bits',
+  new_cheerer: 'bits',
+};
 const goalIcon = (id) => svgIn('goal-icon', GOAL_ICON[id] ?? ''); // a goal type that's new to Jarchi: none
 
 // ---------- Home ----------
@@ -773,7 +1319,8 @@ function copyButton(text, box) {
   };
   return b;
 }
-const copyBtn = (name, url) => { // a widget's copy icon (Home's Widgets card, the welcome tour)
+const copyBtn = (name, url) => {
+  // a widget's copy icon (Home's Widgets card, the welcome tour)
   const b = el('button', { className: 'icon-btn', title: S.panel.copyObs, ariaLabel: `${S.panel.copyObs}: ${name}`, onclick: () => copyLink(url) });
   b.innerHTML = COPY_ICON; // fixed markup
   return b;
@@ -785,7 +1332,11 @@ const widgetPages = () => [
   ['alerts', S.panel.groupAlerts, `${location.origin}/widgets/alerts`],
   ...CHAT_KEYS.filter((k) => settings[k]).map((k) => [k, settings.chat2 ? chatName(k) : S.panel.chatName, chatUrl(k)]),
   ...Object.keys(settings.goals).map((id) => [id, goalName(id), `${location.origin}/widgets/goal/${id}`]),
-  ...VIEWER_SOURCES.map((p) => [`viewers-${p}`, tpl(S.panel.goalOn, { goal: S.panel.navViewers, platform: p === 'total' ? S.panel.viewersTotal : S.platforms[p] }), `${location.origin}/widgets/viewers/${p}`]),
+  ...VIEWER_SOURCES.map((p) => [
+    `viewers-${p}`,
+    tpl(S.panel.goalOn, { goal: S.panel.navViewers, platform: p === 'total' ? S.panel.viewersTotal : S.platforms[p] }),
+    `${location.origin}/widgets/viewers/${p}`,
+  ]),
 ];
 // In use (Home's Widgets): on, and a Viewer count link only once it was opened in OBS (seenWidgets, from the server).
 let seenWidgets = [];
@@ -797,13 +1348,15 @@ const pressFilter = (box, f) => $$('button', box).forEach((b) => b.setAttribute(
 
 // What's missing before going live: [text, the page (and item) that fixes it]. Widgets switched off aren't needed.
 function issues() {
-  const out = ['kick', 'twitch'].filter((p) => chatStatus[p].state !== 'connected')
+  const out = ['kick', 'twitch']
+    .filter((p) => chatStatus[p].state !== 'connected')
     .map((p) => [tpl(S.panel.issuePlatform, { platform: S.platforms[p] }), ['chat']]); // the channel names are on the Chat page for now
   if (!open.alerts) out.push([S.panel.issueAlerts, ['alert'], 'obs']);
   for (const k of CHAT_KEYS) {
     if (settings[k]?.enabled && !open[k]) out.push([settings.chat2 ? tpl(S.panel.issueChatN, { chat: chatName(k) }) : S.panel.issueChat, ['chat', k], 'obs']);
   }
-  for (const [id, g] of Object.entries(settings.goals)) if (g.enabled && !open[id]) out.push([tpl(S.panel.issueGoal, { goal: goalName(id) }), ['goal', id], 'obs']);
+  for (const [id, g] of Object.entries(settings.goals))
+    if (g.enabled && !open[id]) out.push([tpl(S.panel.issueGoal, { goal: goalName(id) }), ['goal', id], 'obs']);
   return out;
 }
 
@@ -816,22 +1369,50 @@ function did(ev) {
 const since = new Intl.RelativeTimeFormat(FA ? 'fa' : 'en', { numeric: 'auto', style: 'short' });
 function ago(t) {
   const s = (Date.now() - t) / 1000;
-  return s < 60 ? since.format(0, 'second') : s < 3600 ? since.format(-Math.floor(s / 60), 'minute')
-    : s < 86400 ? since.format(-Math.floor(s / 3600), 'hour') : since.format(-Math.floor(s / 86400), 'day');
+  return s < 60
+    ? since.format(0, 'second')
+    : s < 3600
+      ? since.format(-Math.floor(s / 60), 'minute')
+      : s < 86400
+        ? since.format(-Math.floor(s / 3600), 'hour')
+        : since.format(-Math.floor(s / 86400), 'day');
 }
 function uptime() {
   const m = Math.floor((Date.now() - home.started) / 60000);
   return fd(tpl(S.panel[m < 60 ? 'uptimeM' : 'uptimeHM'], { h: Math.floor(m / 60), m: m % 60 }));
 }
 
-const loadHome = () => api('GET', '/api/home').then((h) => { home = h; if (view === 'home') renderHome(); }, () => {});
+const loadHome = () =>
+  api('GET', '/api/home').then(
+    (h) => {
+      home = h;
+      if (view === 'home') renderHome();
+    },
+    () => {},
+  );
 
 // An event (Home's live feed, History), with when it came; a test button's alert says so.
-const feedRow = (ev, when) => el('li', { className: 'feed-row' },
-  ev.platform === 'test' ? typeIcon(ev.type) : el('img', { className: 'feed-logo', src: `/assets/platform-logos/${ev.platform}.svg`, alt: S.platforms[ev.platform], title: S.platforms[ev.platform] }),
-  el('span', { className: 'feed-what' }, el('b', { textContent: ev.user, dir: 'auto' }), ` ${did(ev)}`, ev.test ? el('span', { className: 'pill', textContent: S.platforms.test }) : ''),
-  el('small', { textContent: when }),
-  el('button', { className: 'replay', textContent: S.panel.qReplay, onclick: () => queueCall('POST', `replay/${encodeURIComponent(ev.id)}`).then((q) => q && toast(S.panel.qReplayed)) }));
+const feedRow = (ev, when) =>
+  el(
+    'li',
+    { className: 'feed-row' },
+    ev.platform === 'test'
+      ? typeIcon(ev.type)
+      : el('img', { className: 'feed-logo', src: `/assets/platform-logos/${ev.platform}.svg`, alt: S.platforms[ev.platform], title: S.platforms[ev.platform] }),
+    el(
+      'span',
+      { className: 'feed-what' },
+      el('b', { textContent: ev.user, dir: 'auto' }),
+      ` ${did(ev)}`,
+      ev.test ? el('span', { className: 'pill', textContent: S.platforms.test }) : '',
+    ),
+    el('small', { textContent: when }),
+    el('button', {
+      className: 'replay',
+      textContent: S.panel.qReplay,
+      onclick: () => queueCall('POST', `replay/${encodeURIComponent(ev.id)}`).then((q) => q && toast(S.panel.qReplayed)),
+    }),
+  );
 
 // History: every saved event, newest first, 20 a page, each with its local date and time ("19 Oct 2026, 04:50"; in
 // Persian the Persian calendar: "۲۷ مهر ۱۴۰۵، ۰۴:۵۰"). Page buttons: all of them up to 7, else the first, the last and
@@ -840,7 +1421,14 @@ const PAGE = 20;
 const dayFmt = new Intl.DateTimeFormat(FA ? 'fa-IR' : 'en-GB', { day: 'numeric', month: FA ? 'long' : 'short', year: 'numeric' });
 const timeFmt = new Intl.DateTimeFormat(FA ? 'fa-IR' : 'en-GB', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
 const dateTime = (t) => `${dayFmt.format(t)}${FA ? '، ' : ', '}${timeFmt.format(t)}`; // one fa-IR format would say "ساعت"
-const loadHistory = () => api('GET', '/api/history').then((list) => { hist.list = list; if (view === 'events') renderHistory(); }, () => {});
+const loadHistory = () =>
+  api('GET', '/api/history').then(
+    (list) => {
+      hist.list = list;
+      if (view === 'events') renderHistory();
+    },
+    () => {},
+  );
 function renderHistory() {
   pressFilter($('#histChips'), hist.filter);
   const rows = ofType(hist.list, hist.filter);
@@ -848,14 +1436,26 @@ function renderHistory() {
   hist.page = Math.min(hist.page, pages - 1);
   $('#histList').replaceChildren(...rows.slice(hist.page * PAGE, (hist.page + 1) * PAGE).map((ev) => feedRow(ev, dateTime(ev.time))));
   $('#histEmpty').hidden = rows.length > 0;
-  const go = (p, text, props) => el('button', { textContent: text, onclick: () => { hist.page = p; renderHistory(); }, ...props });
+  const go = (p, text, props) =>
+    el('button', {
+      textContent: text,
+      onclick: () => {
+        hist.page = p;
+        renderHistory();
+      },
+      ...props,
+    });
   const nums = [];
   for (let p = 0; p < pages; p++) {
     if (pages <= 7 || p === 0 || p === pages - 1 || Math.abs(p - hist.page) <= 1) nums.push(go(p, fd(p + 1), p === hist.page && { ariaCurrent: 'page' }));
     else if (nums.at(-1).tagName !== 'SPAN') nums.push(el('span', { textContent: '…' }));
   }
   $('#histPages').hidden = pages < 2;
-  $('#histPages').replaceChildren(go(hist.page - 1, S.panel.prev, { disabled: !hist.page }), ...nums, go(hist.page + 1, S.panel.next, { disabled: hist.page === pages - 1 }));
+  $('#histPages').replaceChildren(
+    go(hist.page - 1, S.panel.prev, { disabled: !hist.page }),
+    ...nums,
+    go(hist.page + 1, S.panel.next, { disabled: hist.page === pages - 1 }),
+  );
 }
 
 function renderHome() {
@@ -864,13 +1464,19 @@ function renderHome() {
   $('#bannerTitle').textContent = S.panel[missing.length ? 'notReadyTitle' : 'readyTitle'];
   $('#bannerHint').hidden = missing.length > 0;
   $('#obsOrderHint').hidden = !missing.some((m) => m[2]); // a widget isn't open in OBS
-  $('#issues').replaceChildren(...missing.map(([text, page]) => el('li', {}, el('span', { textContent: text }),
-    el('button', { textContent: S.panel.fix, onclick: () => select(...page) }))));
-  $('#obsMenu').replaceChildren(...widgetPages().map(([, name, url]) => { // the OBS links menu: Chat 2 comes and goes
-    const b = el('button', { onclick: () => copyLink(url) }, el('span', { textContent: name }));
-    b.insertAdjacentHTML('beforeend', COPY_ICON);
-    return b;
-  }));
+  $('#issues').replaceChildren(
+    ...missing.map(([text, page]) =>
+      el('li', {}, el('span', { textContent: text }), el('button', { textContent: S.panel.fix, onclick: () => select(...page) })),
+    ),
+  );
+  $('#obsMenu').replaceChildren(
+    ...widgetPages().map(([, name, url]) => {
+      // the OBS links menu: Chat 2 comes and goes
+      const b = el('button', { onclick: () => copyLink(url) }, el('span', { textContent: name }));
+      b.insertAdjacentHTML('beforeend', COPY_ICON);
+      return b;
+    }),
+  );
 
   // Live feed: the 10 newest events, whenever they came. View all = History.
   pressFilter($('#feedChips'), feedFilter);
@@ -879,18 +1485,34 @@ function renderHome() {
   $('#feedEmpty').hidden = rows.length > 0;
 
   // Widgets: only the ones in use (alerts always), green when a page of it is open (in OBS) right now.
-  $('#widgetList').replaceChildren(...widgetPages().filter(([id]) => widgetUsed(id)).map(([id, name, url]) => el('li', { className: `widget-row${open[id] ? ' on' : ''}` }, el('i', { className: 'state-dot' }),
-    el('span', { className: 'stack' }, el('b', { textContent: name }), el('small', { textContent: S.panel[open[id] ? 'widgetOpen' : 'widgetClosed'] })), copyBtn(name, url))));
+  $('#widgetList').replaceChildren(
+    ...widgetPages()
+      .filter(([id]) => widgetUsed(id))
+      .map(([id, name, url]) =>
+        el(
+          'li',
+          { className: `widget-row${open[id] ? ' on' : ''}` },
+          el('i', { className: 'state-dot' }),
+          el('span', { className: 'stack' }, el('b', { textContent: name }), el('small', { textContent: S.panel[open[id] ? 'widgetOpen' : 'widgetClosed'] })),
+          copyBtn(name, url),
+        ),
+      ),
+  );
 
   // Goals: what's set on each channel right now, exactly as Kick / Twitch list it (read-only; whatever the syncs do).
   // Kick's have no title: their type names them. A Twitch goal's title is its description, else its type.
   $('#kickGoals').replaceChildren(...home.kickGoals.map((g) => homeGoal(CHANNEL_GOAL[g.type], S.panel.kickGoalTypes[g.type] ?? g.type, g.current, g.target)));
   hint('#kickGoalsHint', !settings.chat.kickChannel ? S.panel.kickSyncNoChannel : home.kickGoals.length ? '' : S.panel.kickSyncNone);
-  $('#twitchGoals').replaceChildren(...twitch.goals.map((g) => {
-    const kind = S.panel.twitchGoalTypes[g.type] ?? g.type;
-    return homeGoal(CHANNEL_GOAL[g.type], g.description || kind, g.current, g.target, [], g.description ? el('small', { textContent: kind }) : '');
-  }));
-  hint('#twitchGoalsHint', twitch.state === 'off' ? S.panel.twitchGoalsOff : twitch.state === 'connected' && !twitch.goals.length ? S.panel.twitchGoalsNone : '');
+  $('#twitchGoals').replaceChildren(
+    ...twitch.goals.map((g) => {
+      const kind = S.panel.twitchGoalTypes[g.type] ?? g.type;
+      return homeGoal(CHANNEL_GOAL[g.type], g.description || kind, g.current, g.target, [], g.description ? el('small', { textContent: kind }) : '');
+    }),
+  );
+  hint(
+    '#twitchGoalsHint',
+    twitch.state === 'off' ? S.panel.twitchGoalsOff : twitch.state === 'connected' && !twitch.goals.length ? S.panel.twitchGoalsNone : '',
+  );
   $('#twitchGoalsConnect').hidden = twitch.state !== 'off';
 
   $('#statAlerts').textContent = fmt(home.today.alerts);
@@ -904,9 +1526,20 @@ const hint = (sel, text) => Object.assign($(sel), { textContent: text, hidden: !
 function homeGoal(id, name, current, target, marks = [], under = '') {
   const bar = el('i');
   bar.style.width = `${Math.min(100, target ? (current / target) * 100 : 0)}%`;
-  const row = el('div', { className: 'home-goal' },
-    el('div', { className: 'row' }, goalIcon(id), el('b', { textContent: name, dir: 'auto' }), el('small', { textContent: `${fmt(current)} / ${fmt(target)}` }), ...marks),
-    under, el('div', { className: 'goal-bar' }, bar));
+  const row = el(
+    'div',
+    { className: 'home-goal' },
+    el(
+      'div',
+      { className: 'row' },
+      goalIcon(id),
+      el('b', { textContent: name, dir: 'auto' }),
+      el('small', { textContent: `${fmt(current)} / ${fmt(target)}` }),
+      ...marks,
+    ),
+    under,
+    el('div', { className: 'goal-bar' }, bar),
+  );
   row.dataset.goal = id;
   return row;
 }
@@ -920,11 +1553,14 @@ function homeGoal(id, name, current, target, marks = [], under = '') {
 // once the code works; until then it comes back next start). Shown =
 // seen (told once); Next, OK, ✕ or Esc = that one closed for good, and ✕ before the last leaves the rest for Jarchi's
 // next start. It waits for the window to be in front and for any other dialog (the tour, the Privacy Policy) to close.
-let teamMsgs = [], teamQueue = [], teamAt = 0;
+let teamMsgs = [],
+  teamQueue = [],
+  teamAt = 0;
 const teamSkip = new Set(); // closed here (a list sent just before may still have it) or left for the next start
 const TEAM_ICON = {
   info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/>',
-  update: '<path d="M4.5 16.5c-1.5 1.3-2 5-2 5s3.7-.5 5-2c.7-.8.7-2.1-.1-2.9a2.2 2.2 0 0 0-2.9-.1zM12 15l-3-3a22 22 0 0 1 2-4A12.9 12.9 0 0 1 22 2c0 2.7-.8 7.5-6 11a22.4 22.4 0 0 1-4 2zM9 12H4s.6-3 2-4c1.6-1.1 5 0 5 0M12 15v5s3-.6 4-2c1.1-1.6 0-5 0-5"/>', // rocket
+  update:
+    '<path d="M4.5 16.5c-1.5 1.3-2 5-2 5s3.7-.5 5-2c.7-.8.7-2.1-.1-2.9a2.2 2.2 0 0 0-2.9-.1zM12 15l-3-3a22 22 0 0 1 2-4A12.9 12.9 0 0 1 22 2c0 2.7-.8 7.5-6 11a22.4 22.4 0 0 1-4 2zM9 12H4s.6-3 2-4c1.6-1.1 5 0 5 0M12 15v5s3-.6 4-2c1.1-1.6 0-5 0-5"/>', // rocket
   warning: '<path d="M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0zM12 9v4M12 17h.01"/>',
   gift: `<path d="${TYPE_ICON.gift_sub}"/>`,
   design: '', // the 👀 itself (the profile chip's), teamShow()
@@ -944,12 +1580,16 @@ function renderTeam() {
   teamShow(0);
   $('#teamMsg').showModal();
 }
-function teamDone(m) { // closed for good: not shown again here, and the relay told
+function teamDone(m) {
+  // closed for good: not shown again here, and the relay told
   teamSkip.add(m.id);
   teamCall(m.id, 'closed');
 }
 function teamShow(i, opened) {
-  const d = $('#teamMsg'), m = teamQueue[(teamAt = i)], lang = FA ? 'fa' : 'en', last = i === teamQueue.length - 1;
+  const d = $('#teamMsg'),
+    m = teamQueue[(teamAt = i)],
+    lang = FA ? 'fa' : 'en',
+    last = i === teamQueue.length - 1;
   const style = Object.hasOwn(TEAM_ICON, m.style) ? m.style : 'info';
   if (!m.seen) {
     m.seen = true;
@@ -958,40 +1598,73 @@ function teamShow(i, opened) {
   d.className = `profile-dialog team-msg ${style}`;
   const x = el('button', { className: 'ghost team-x', title: S.panel.teamClose, ariaLabel: S.panel.teamClose, onclick: () => d.close() });
   x.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>';
-  if (style === 'gift' && !opened) { // the box first
+  if (style === 'gift' && !opened) {
+    // the box first
     const box = Object.assign(svgIn('gift-box', GIFT_BOX), { id: 'teamTitle', role: 'img', ariaLabel: S.panel.teamGift });
-    const open = el('button', { className: 'primary gift-open', autofocus: true, textContent: S.panel.teamGiftOpen, onclick: () => {
-      if (calm()) return teamShow(i, true);
-      open.disabled = true;
-      d.classList.add('opening');
-      const bits = el('div', { className: 'confetti' }, ...Array.from({ length: 30 }, (_, n) => el('i', {
-        style: `--x: ${rnd(-170, 170)}px; --y: ${rnd(-190, -70)}px; --r: ${rnd(-720, 720)}deg; --c: ${CONFETTI[n % CONFETTI.length]}; animation-delay: ${rnd(0, 120)}ms` })));
-      d.append(bits);
-      setTimeout(() => bits.remove(), 1800);
-      setTimeout(() => d.open && teamQueue[i] === m && teamShow(i, true), 600); // not if it was closed meanwhile
-    } });
+    const open = el('button', {
+      className: 'primary gift-open',
+      autofocus: true,
+      textContent: S.panel.teamGiftOpen,
+      onclick: () => {
+        if (calm()) return teamShow(i, true);
+        open.disabled = true;
+        d.classList.add('opening');
+        const bits = el(
+          'div',
+          { className: 'confetti' },
+          ...Array.from({ length: 30 }, (_, n) =>
+            el('i', {
+              style: `--x: ${rnd(-170, 170)}px; --y: ${rnd(-190, -70)}px; --r: ${rnd(-720, 720)}deg; --c: ${CONFETTI[n % CONFETTI.length]}; animation-delay: ${rnd(0, 120)}ms`,
+            }),
+          ),
+        );
+        d.append(bits);
+        setTimeout(() => bits.remove(), 1800);
+        setTimeout(() => d.open && teamQueue[i] === m && teamShow(i, true), 600); // not if it was closed meanwhile
+      },
+    });
     $('#teamBody').replaceChildren(x, box, open);
     return open.focus();
   }
-  const link = m.link && /^https:\/\//i.test(m.link.url)
-    ? el('button', { className: 'team-link', textContent: m.link.label[lang], dir: 'auto', onclick: () => window.open(m.link.url, '_blank', 'noopener') }) : '';
+  const link =
+    m.link && /^https:\/\//i.test(m.link.url)
+      ? el('button', { className: 'team-link', textContent: m.link.label[lang], dir: 'auto', onclick: () => window.open(m.link.url, '_blank', 'noopener') })
+      : '';
   const shown = m.code && el('code', { textContent: m.code, dir: 'ltr' });
   const code = m.code ? el('div', { className: 'team-code' }, shown, copyButton(m.code, shown)) : '';
-  const use = style === 'design' && m.code ? el('button', { className: 'primary team-use', textContent: S.panel.teamUseCode, onclick: (e) => {
-    e.stopPropagation(); // the page's "a click elsewhere closes the popover" would close it again at once
-    codeMsg = m; // not closed for good until its code works (the close handler)
-    d.close();
-    eyesUi.show();
-    eyesUi.open(m.code);
-  } }) : '';
+  const use =
+    style === 'design' && m.code
+      ? el('button', {
+          className: 'primary team-use',
+          textContent: S.panel.teamUseCode,
+          onclick: (e) => {
+            e.stopPropagation(); // the page's "a click elsewhere closes the popover" would close it again at once
+            codeMsg = m; // not closed for good until its code works (the close handler)
+            d.close();
+            eyesUi.show();
+            eyesUi.open(m.code);
+          },
+        })
+      : '';
   if (use) use.autofocus = true; // the window opening focuses it (showModal), not OK
-  const go = el('button', { className: link || use ? '' : 'primary', autofocus: !use, textContent: last ? S.panel.teamOk : S.panel.next,
-    onclick: () => (last ? d.close() : (teamDone(m), teamShow(i + 1))) });
+  const go = el('button', {
+    className: link || use ? '' : 'primary',
+    autofocus: !use,
+    textContent: last ? S.panel.teamOk : S.panel.next,
+    onclick: () => (last ? d.close() : (teamDone(m), teamShow(i + 1))),
+  });
   const count = teamQueue.length > 1 ? tpl(S.panel.teamOf, { n: fmt(i + 1), total: fmt(teamQueue.length) }) : '';
   const icon = style === 'design' ? $('#eyes svg').outerHTML : `<svg viewBox="0 0 24 24" aria-hidden="true">${TEAM_ICON[style]}</svg>`;
-  $('#teamBody').replaceChildren(x, svgIn('team-icon', icon),
-    el('h2', { id: 'teamTitle', textContent: m.title[lang], dir: 'auto' }), el('p', { className: 'team-text', textContent: m.body[lang], dir: 'auto' }),
-    code, use, link, el('div', { className: 'team-foot' }, el('small', { textContent: count }), go));
+  $('#teamBody').replaceChildren(
+    x,
+    svgIn('team-icon', icon),
+    el('h2', { id: 'teamTitle', textContent: m.title[lang], dir: 'auto' }),
+    el('p', { className: 'team-text', textContent: m.body[lang], dir: 'auto' }),
+    code,
+    use,
+    link,
+    el('div', { className: 'team-foot' }, el('small', { textContent: count }), go),
+  );
   (use || go).focus();
 }
 
@@ -1005,7 +1678,7 @@ function twoClick(btn, label, idle, confirm, action) {
     btn.classList.remove('armed');
   };
   btn.onclick = () => {
-    if (armed) return disarm(), action();
+    if (armed) return (disarm(), action());
     armed = setTimeout(disarm, 3000);
     btn.classList.add('armed');
     label.textContent = confirm;
@@ -1018,34 +1691,53 @@ function renderTiers(cfg) {
   const key = JSON.stringify([cur, cfg.tiers, cfg.look]);
   if (key === tiersDrawn) return;
   tiersDrawn = key;
-  $('#tiers').replaceChildren(...cfg.tiers.map((t) => {
-    const on = el('input', { type: 'checkbox', checked: t.on, onchange: () => send('PATCH', `/api/tiers/${cur}/${t.amount}`, { on: on.checked }) });
-    on.setAttribute('aria-label', S.panel.tierOn);
-    const amount = tpl(S.panel.tierAmount[cur][t.amount === 1 ? 'one' : 'many'], { n: fmt(t.amount) });
-    const name = t.gift // Kicks: Kick's own gift, its icon and name
-      ? [el('img', { className: 'gift-icon', alt: '', src: `/assets/kick-gifts/${t.gift.id}.webp` }),
-        el('b', { textContent: S.kickGifts[t.gift.id] ?? t.gift.id }), el('small', { textContent: amount })]
-      : cur === 'bits' ? [el('img', { className: 'gift-icon', alt: '', src: `/assets/twitch-bits/${t.amount}.gif` }), el('b', { textContent: amount })] // Twitch's gem
-      : [el('b', { textContent: amount })];
-    return el('div', { className: `tier${t.on ? '' : ' off'}` },
-      el('div', { className: 'tier-head' },
-        el('label', { className: 'switch' }, on, el('span')),
-        el('span', { className: 'tier-name' }, ...name),
-        el('button', { textContent: S.panel.tierTest, onclick: () => testTier(t.amount) })),
-      tierFile(t, 'image', kickLook(cur, cfg)), tierFile(t, 'sound', kickLook(cur, cfg)));
-  }));
+  $('#tiers').replaceChildren(
+    ...cfg.tiers.map((t) => {
+      const on = el('input', { type: 'checkbox', checked: t.on, onchange: () => send('PATCH', `/api/tiers/${cur}/${t.amount}`, { on: on.checked }) });
+      on.setAttribute('aria-label', S.panel.tierOn);
+      const amount = tpl(S.panel.tierAmount[cur][t.amount === 1 ? 'one' : 'many'], { n: fmt(t.amount) });
+      const name = t.gift // Kicks: Kick's own gift, its icon and name
+        ? [
+            el('img', { className: 'gift-icon', alt: '', src: `/assets/kick-gifts/${t.gift.id}.webp` }),
+            el('b', { textContent: S.kickGifts[t.gift.id] ?? t.gift.id }),
+            el('small', { textContent: amount }),
+          ]
+        : cur === 'bits'
+          ? [el('img', { className: 'gift-icon', alt: '', src: `/assets/twitch-bits/${t.amount}.gif` }), el('b', { textContent: amount })] // Twitch's gem
+          : [el('b', { textContent: amount })];
+      return el(
+        'div',
+        { className: `tier${t.on ? '' : ' off'}` },
+        el(
+          'div',
+          { className: 'tier-head' },
+          el('label', { className: 'switch' }, on, el('span')),
+          el('span', { className: 'tier-name' }, ...name),
+          el('button', { textContent: S.panel.tierTest, onclick: () => testTier(t.amount) }),
+        ),
+        tierFile(t, 'image', kickLook(cur, cfg)),
+        tierFile(t, 'sound', kickLook(cur, cfg)),
+      );
+    }),
+  );
 }
 
 // A tier's image or sound: the file's name (or the theme's), Upload (replaces it), Remove. Wired like the alert's own .file rows.
 function tierFile(t, kind, kick) {
   const f = t[kind];
-  const row = el('div', { className: 'tier-files' },
+  const row = el(
+    'div',
+    { className: 'tier-files' },
     el('span', { className: 'tier-label', textContent: S.panel[kind === 'image' ? 'mediaTitle' : 'soundTitle'] }),
-    el('div', { className: 'chips' },
+    el(
+      'div',
+      { className: 'chips' },
       el('span', { className: `fname${f ? '' : ' default'}`, textContent: f ? f.name : defaultMedia(kind, kick), title: f?.name ?? '' }),
       el('button', { className: 'ghost add upload', textContent: S.panel.upload }),
       el('button', { className: 'ghost add remove', textContent: S.panel.remove, hidden: !f }),
-      el('input', { type: 'file', hidden: true, accept: ACCEPT[kind] })));
+      el('input', { type: 'file', hidden: true, accept: ACCEPT[kind] }),
+    ),
+  );
   const url = () => `/api/tiers/${cur}/${t.amount}/${kind}`;
   wireFile(row, url, url);
   return row;
@@ -1055,19 +1747,28 @@ function tierFile(t, kind, kick) {
 function testTier(amount) {
   $('#previewAmount').value = amount;
   preview();
-  api('POST', `/api/test/${cur}`, { platform: $('#testAs').value, amount }).then(() => toast(S.panel.testSent), (err) => toast(err.message, true));
+  api('POST', `/api/test/${cur}`, { platform: $('#testAs').value, amount }).then(
+    () => toast(S.panel.testSent),
+    (err) => toast(err.message, true),
+  );
 }
 
 // ---------- Connections: proxy ----------
 // netState = the card's status dot: the last Test (off: not tested yet, connecting: testing, connected: all reached,
 // error). help = core/vpn.js's state (the popup, the top bar's warning); 'broken' turns the dot red too.
-let netState = 'off', help = { state: 'idle' };
+let netState = 'off',
+  help = { state: 'idle' };
 const proxyLabel = (p) => ltr(`${p.host}:${p.port} (${p.type === 'socks5' ? 'SOCKS5' : 'HTTP'})`);
 const proxyName = (p) => p.app ?? tpl(S.panel.proxyAt, { proxy: proxyLabel(p) }); // the VPN app, or its address
-function showProxyNow() { // what Off means; the Windows proxy: what it is right now (Manual: its fields say it)
-  api('GET', '/api/net/proxy').then(({ mode, proxy }) => {
-    $('#proxyNow').textContent = mode === 'off' ? S.net.offNow : mode === 'manual' ? '' : proxy ? tpl(S.net.autoWindows, { proxy: proxyLabel(proxy) }) : S.net.autoNone;
-  }, () => {});
+function showProxyNow() {
+  // what Off means; the Windows proxy: what it is right now (Manual: its fields say it)
+  api('GET', '/api/net/proxy').then(
+    ({ mode, proxy }) => {
+      $('#proxyNow').textContent =
+        mode === 'off' ? S.net.offNow : mode === 'manual' ? '' : proxy ? tpl(S.net.autoWindows, { proxy: proxyLabel(proxy) }) : S.net.autoNone;
+    },
+    () => {},
+  );
 }
 function renderNet({ proxy, results }) {
   const p = proxy && proxyLabel(proxy);
@@ -1101,7 +1802,9 @@ async function testNet() {
 }
 function renderProxy() {
   const box = $('#proxyNow').closest('.box');
-  const keep = (inp, v) => { if (inp !== document.activeElement) inp.value = v; }; // never under the cursor
+  const keep = (inp, v) => {
+    if (inp !== document.activeElement) inp.value = v;
+  }; // never under the cursor
   keep($('#proxyHost'), settings.proxyHost);
   keep($('#proxyPort'), settings.proxyPort || '');
   $$('[name=proxyMode]').forEach((r) => (r.checked = r.value === settings.proxyMode));
@@ -1118,9 +1821,19 @@ function renderProxy() {
 // No; checking: Yes is trying Kick and the relay through it; failed: they didn't answer, Try again; none: how to let
 // Jarchi through the VPN app, with Jarchi's own path to copy, Try again and the proxy setting) and the top bar's warning
 // (broken: a click looks again).
-const lookForVpn = () => api('POST', '/api/proxy/look').then((h) => { help = h; renderProxyHelp(); }, (err) => toast(err.message, true));
+const lookForVpn = () =>
+  api('POST', '/api/proxy/look').then(
+    (h) => {
+      help = h;
+      renderProxyHelp();
+    },
+    (err) => toast(err.message, true),
+  );
 function renderProxyHelp() {
-  const d = $('#proxyHelp'), h = help, P = S.panel, w = $('#proxyWarn');
+  const d = $('#proxyHelp'),
+    h = help,
+    P = S.panel,
+    w = $('#proxyWarn');
   w.hidden = h.state !== 'broken';
   if (h.state === 'broken') {
     $('span', w).textContent = tpl(P.proxyBroken, { app: proxyName(h.proxy) });
@@ -1129,18 +1842,42 @@ function renderProxyHelp() {
   renderConnWarn(); // hidden while this one shows
   renderProxy();
   if (!['offer', 'none', 'looking', 'checking', 'failed'].includes(h.state)) return d.open && d.close();
-  const app = h.found && proxyName(h.found), service = h.service && P.proxyServices[h.service];
+  const app = h.found && proxyName(h.found),
+    service = h.service && P.proxyServices[h.service];
   $('#proxyHelpTitle').textContent = {
-    looking: P.proxyLookingTitle, offer: tpl(P.proxyFoundTitle, { app }), checking: tpl(P.proxyChecking, { app }), failed: tpl(P.proxyFailedTitle, { app }),
+    looking: P.proxyLookingTitle,
+    offer: tpl(P.proxyFoundTitle, { app }),
+    checking: tpl(P.proxyChecking, { app }),
+    failed: tpl(P.proxyFailedTitle, { app }),
     none: service ? tpl(P.proxyCantReach, { service }) : P.proxyNoneTitle,
   }[h.state];
   $('#proxyHelpText').textContent = {
-    looking: P.proxyLookingText, offer: P.proxyFoundAsk, checking: P.proxyCheckingText, failed: P.proxyFailedText,
+    looking: P.proxyLookingText,
+    offer: P.proxyFoundAsk,
+    checking: P.proxyCheckingText,
+    failed: P.proxyFailedText,
     none: `${h.system ? `${tpl(P.proxySplitTunnel, { app: h.system })} ` : ''}${P.proxyNoneText}`,
   }[h.state];
   // The guide: Jarchi on the VPN app's own list (its path, to copy), TUN mode, or the proxy typed in.
-  $('#proxyHelpSteps').replaceChildren(...(h.state === 'none' ? P.proxySteps.map((s, i) => el('li', {}, s, i || !h.exe ? '' : el('div', { className: 'copy-row' },
-    el('code', { dir: 'ltr', textContent: h.exe, title: h.exe }), el('button', { className: 'primary', textContent: S.panel.copy, onclick: () => copyLink(h.exe, P.proxyExeCopied) })))) : []));
+  $('#proxyHelpSteps').replaceChildren(
+    ...(h.state === 'none'
+      ? P.proxySteps.map((s, i) =>
+          el(
+            'li',
+            {},
+            s,
+            i || !h.exe
+              ? ''
+              : el(
+                  'div',
+                  { className: 'copy-row' },
+                  el('code', { dir: 'ltr', textContent: h.exe, title: h.exe }),
+                  el('button', { className: 'primary', textContent: S.panel.copy, onclick: () => copyLink(h.exe, P.proxyExeCopied) }),
+                ),
+          ),
+        )
+      : []),
+  );
   $('#proxyHelpNote').hidden = h.state !== 'offer';
   $('#proxyNo').hidden = h.state === 'checking';
   $('#proxyNo').textContent = h.state === 'offer' ? P.proxyNo : P.updateClose;
@@ -1150,10 +1887,11 @@ function renderProxyHelp() {
   if (!d.open) d.showModal();
 }
 function wireProxy() {
-  const patch = (fields) => send('PATCH', '/api/settings', fields).then(() => {
-    showProxyNow();
-    testNet(); // the dot follows the new setting
-  });
+  const patch = (fields) =>
+    send('PATCH', '/api/settings', fields).then(() => {
+      showProxyNow();
+      testNet(); // the dot follows the new setting
+    });
   $$('[name=proxyMode]').forEach((r) => (r.onchange = () => patch({ proxyMode: r.value })));
   $$('[name=proxyType]').forEach((r) => (r.onchange = () => patch({ proxyType: r.value })));
   $('#proxyHost').onchange = (e) => patch({ proxyHost: e.target.value.trim() });
@@ -1161,12 +1899,14 @@ function wireProxy() {
   $('#netTest').onclick = testNet;
   $('#proxyLook').onclick = $('#proxyWarn').onclick = $('#proxyAgain').onclick = lookForVpn;
   const d = $('#proxyHelp');
-  d.onclose = () => { // No, Close, Escape
+  d.onclose = () => {
+    // No, Close, Escape
     if (['offer', 'none'].includes(help.state)) api('POST', '/api/proxy/dismiss').catch(() => {});
   };
   $('#proxyNo').onclick = () => d.close();
   $('#proxyYes').onclick = () => {
-    if (help.state !== 'offer') { // nothing found: to the setting, to type it in
+    if (help.state !== 'offer') {
+      // nothing found: to the setting, to type it in
       d.close();
       select('connections');
       return $('#proxyNow').closest('.box').scrollIntoView({ block: 'center' });
@@ -1174,14 +1914,17 @@ function wireProxy() {
     // Kick and the relay are tried through it first ('proxyHelp' checking, then idle, or failed with Try again); then
     // Jarchi's proxy is Manual with it.
     const app = proxyName(help.found);
-    api('POST', '/api/proxy/accept').then(({ settings: s }) => {
-      if (!s) return;
-      settings = s;
-      render();
-      showProxyNow();
-      testNet();
-      toast(tpl(S.panel.proxyConnected, { app }));
-    }, () => {});
+    api('POST', '/api/proxy/accept').then(
+      ({ settings: s }) => {
+        if (!s) return;
+        settings = s;
+        render();
+        showProxyNow();
+        testNet();
+        toast(tpl(S.panel.proxyConnected, { app }));
+      },
+      () => {},
+    );
   };
 }
 
@@ -1189,7 +1932,8 @@ function wireProxy() {
 // (the x-link header; the same 10 MB limit and shrinking, core/media.js). A file over 10 MB isn't even sent.
 const MAX_FILE = 10 * 1024 * 1024;
 function wireFile(row, upload, remove) {
-  const input = $('input[type=file]', row), up = $('.upload', row);
+  const input = $('input[type=file]', row),
+    up = $('.upload', row);
   up.onclick = () => input.click();
   input.onchange = () => {
     const f = input.files[0];
@@ -1202,35 +1946,58 @@ function wireFile(row, upload, remove) {
   // Paste a link: a field under the buttons. "giphy.com/…" without https:// is fine too.
   const field = el('input', { type: 'text', inputMode: 'url', dir: 'ltr', placeholder: 'https://', spellcheck: false });
   field.setAttribute('aria-label', S.panel.pasteLink);
-  const form = el('form', { className: 'link-row', hidden: true }, field,
+  const form = el(
+    'form',
+    { className: 'link-row', hidden: true },
+    field,
     el('button', { className: 'primary', textContent: S.panel.linkAdd }),
-    el('button', { type: 'button', className: 'ghost', textContent: S.panel.twCancel, onclick: () => (form.hidden = true) }));
+    el('button', { type: 'button', className: 'ghost', textContent: S.panel.twCancel, onclick: () => (form.hidden = true) }),
+  );
   form.onsubmit = (e) => {
     e.preventDefault();
     const text = field.value.trim();
     let link;
-    try { link = new URL(/^[a-z]+:\/\//i.test(text) ? text : `https://${text}`).href; } catch { return toast(S.errors.bad_link, true); }
+    try {
+      link = new URL(/^[a-z]+:\/\//i.test(text) ? text : `https://${text}`).href;
+    } catch {
+      return toast(S.errors.bad_link, true);
+    }
     form.hidden = true;
     field.value = '';
     toast(S.panel.linkLoading);
     send('POST', upload(), null, { 'x-link': link });
   };
-  up.after(el('button', { className: up.className.replace('upload', 'link'), textContent: S.panel.pasteLink, onclick: () => {
-    form.hidden = !form.hidden;
-    if (!form.hidden) field.focus();
-  } }));
+  up.after(
+    el('button', {
+      className: up.className.replace('upload', 'link'),
+      textContent: S.panel.pasteLink,
+      onclick: () => {
+        form.hidden = !form.hidden;
+        if (!form.hidden) field.focus();
+      },
+    }),
+  );
   up.parentElement.append(form);
 }
 
 // ---------- Help ("?") and Guide text ----------
 // `code` stays left to right (links, {user}), **bold** names a button; {alertsUrl}-style names become this PC's links.
 const LINKS = {
-  panelUrl: location.origin, alertsUrl: `${location.origin}/widgets/alerts`, chatUrl: `${location.origin}/widgets/chat`,
-  goalSubsUrl: `${location.origin}/widgets/goal/subs`, goalKicksUrl: `${location.origin}/widgets/goal/kicks`,
+  panelUrl: location.origin,
+  alertsUrl: `${location.origin}/widgets/alerts`,
+  chatUrl: `${location.origin}/widgets/chat`,
+  goalSubsUrl: `${location.origin}/widgets/goal/subs`,
+  goalKicksUrl: `${location.origin}/widgets/goal/kicks`,
 };
-const rich = (s) => tpl(s, LINKS).replace(/ × /g, '\u00a0×\u00a0').split('`').flatMap((part, i) => (i % 2 // "420 × 600" stays on one line
-  ? [el('code', { dir: 'ltr', textContent: part })]
-  : part.split('**').map((t, j) => (j % 2 ? el('b', { textContent: t }) : t))));
+const rich = (s) =>
+  tpl(s, LINKS)
+    .replace(/ × /g, '\u00a0×\u00a0')
+    .split('`')
+    .flatMap((part, i) =>
+      i % 2 // "420 × 600" stays on one line
+        ? [el('code', { dir: 'ltr', textContent: part })]
+        : part.split('**').map((t, j) => (j % 2 ? el('b', { textContent: t }) : t)),
+    );
 const helpText = (key) => key.split('.').reduce((o, k) => o?.[k], S.help);
 
 // A "?" after a setting's label (data-help="alert.volume" -> S.help.alert.volume). Its text is the "?"'s
@@ -1251,14 +2018,19 @@ function addHelp(host) {
 }
 // To the side of the "?" (left in English, right in Persian), on the other side if there's no room, inside the window.
 function showTip(q) {
-  const tip = $('#tip'), gap = 8;
+  const tip = $('#tip'),
+    gap = 8;
   tip.replaceChildren(...rich(q.dataset.tip));
   Object.assign(tip.style, { left: '0px', top: '0px' }); // measured at full width, not squeezed by where it was last
   tip.hidden = false;
-  const r = q.getBoundingClientRect(), w = tip.offsetWidth, h = tip.offsetHeight;
-  const left = r.left - gap - w, right = r.right + gap;
-  const fitsLeft = left >= gap, fitsRight = right + w <= innerWidth - gap;
-  const x = FA ? (fitsRight || !fitsLeft ? right : left) : (fitsLeft || !fitsRight ? left : right);
+  const r = q.getBoundingClientRect(),
+    w = tip.offsetWidth,
+    h = tip.offsetHeight;
+  const left = r.left - gap - w,
+    right = r.right + gap;
+  const fitsLeft = left >= gap,
+    fitsRight = right + w <= innerWidth - gap;
+  const x = FA ? (fitsRight || !fitsLeft ? right : left) : fitsLeft || !fitsRight ? left : right;
   Object.assign(tip.style, {
     left: `${Math.min(Math.max(gap, x), innerWidth - w - gap)}px`,
     top: `${Math.min(Math.max(gap, r.top + r.height / 2 - h / 2), innerHeight - h - gap)}px`,
@@ -1268,7 +2040,9 @@ const hideTip = () => ($('#tip').hidden = true);
 function wireHelp() {
   const helpOf = (e) => e.target.closest?.('.help');
   addEventListener('mouseover', (e) => helpOf(e) && showTip(helpOf(e)));
-  addEventListener('mouseout', (e) => { if (helpOf(e) && !helpOf(e).contains(e.relatedTarget)) hideTip(); }); // left the "?"
+  addEventListener('mouseout', (e) => {
+    if (helpOf(e) && !helpOf(e).contains(e.relatedTarget)) hideTip();
+  }); // left the "?"
   addEventListener('focusin', (e) => helpOf(e) && showTip(helpOf(e)));
   addEventListener('focusout', (e) => helpOf(e) && hideTip());
   addEventListener('click', (e) => {
@@ -1279,7 +2053,10 @@ function wireHelp() {
   addEventListener('scroll', hideTip, true);
   addEventListener('keydown', (e) => {
     if (e.key === 'Escape') hideTip();
-    if (helpOf(e) && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); showTip(helpOf(e)); } // a role="button": Space doesn't scroll
+    if (helpOf(e) && (e.key === 'Enter' || e.key === ' ')) {
+      e.preventDefault();
+      showTip(helpOf(e));
+    } // a role="button": Space doesn't scroll
   });
 }
 
@@ -1290,12 +2067,24 @@ function renderGuide() {
   $('#guideBody').replaceChildren(
     el('h2', { textContent: t.title }),
     el('p', { className: 'guide-intro' }, ...rich(t.intro)),
-    t.steps.length ? el('ol', { className: 'steps' }, ...t.steps.map(([title, text], i) => el('li', { className: 'step' },
-      el('span', { className: 'step-n', textContent: fd(i + 1) }),
-      el('div', {}, el('b', { textContent: title }), el('p', {}, ...rich(text)))))) : '',
+    t.steps.length
+      ? el(
+          'ol',
+          { className: 'steps' },
+          ...t.steps.map(([title, text], i) =>
+            el(
+              'li',
+              { className: 'step' },
+              el('span', { className: 'step-n', textContent: fd(i + 1) }),
+              el('div', {}, el('b', { textContent: title }), el('p', {}, ...rich(text))),
+            ),
+          ),
+        )
+      : '',
     t.tip ? el('aside', { className: 'tip' }, el('b', { textContent: S.guide.tip }), el('p', {}, ...rich(t.tip))) : '',
-    ...(t.faq ?? []).map(({ q, a }) => el('details', { className: 'faq' },
-      el('summary', { textContent: q }), el('ul', {}, ...a.map((line) => el('li', {}, ...rich(line)))))),
+    ...(t.faq ?? []).map(({ q, a }) =>
+      el('details', { className: 'faq' }, el('summary', { textContent: q }), el('ul', {}, ...a.map((line) => el('li', {}, ...rich(line))))),
+    ),
   );
 }
 
@@ -1303,7 +2092,9 @@ function renderGuide() {
 function setLang(lang) {
   if (lang === S.lang) return;
   remember.set('jarchi.lang', lang);
-  try { sessionStorage.setItem('jarchi.back', JSON.stringify([view, { alert: cur, goal: curGoal, guide: topic }[view]])); } catch {}
+  try {
+    sessionStorage.setItem('jarchi.back', JSON.stringify([view, { alert: cur, goal: curGoal, guide: topic }[view]]));
+  } catch {}
   location.reload();
 }
 
@@ -1312,10 +2103,15 @@ function setLang(lang) {
 // accepted; one newer than the version accepted (settings.privacyAccepted) opens by itself to Accept, as "Privacy
 // Policy updated" ("Privacy Policy" for someone who never accepted one). The popup switches between the two languages.
 const mustAccept = () => settings.privacyAccepted < privacy.version;
-const acceptPrivacy = () => api('PATCH', '/api/settings', { privacyAccepted: privacy.version }).then((s) => (settings = s), () => {});
+const acceptPrivacy = () =>
+  api('PATCH', '/api/settings', { privacyAccepted: privacy.version }).then(
+    (s) => (settings = s),
+    () => {},
+  );
 // A language's strings: the panel's, English (always loaded) or Persian (fetched once, for an English panel).
 const stringsOf = async (lang) => (lang === S.lang ? S : lang === 'en' ? EN : (faStrings ??= await (await fetch('/i18n/fa.json')).json()));
-const POINT_ICON = { // privacy.json's icons, one per point
+const POINT_ICON = {
+  // privacy.json's icons, one per point
   collect: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
   never: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7l10 10M17 7L7 17"/></svg>',
   why: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.6 10.8c.7.6 1.1 1.3 1.1 2.2h5c0-.9.4-1.6 1.1-2.2A6 6 0 0 0 12 3z"/></svg>',
@@ -1333,13 +2129,29 @@ async function showPrivacy(lang = S.lang, accept = false) {
   d.showModal();
 }
 async function renderPrivacy(lang) {
-  const d = $('#privacy'), p = privacy[lang], P = (await stringsOf(lang)).panel, accept = d.classList.contains('accept');
+  const d = $('#privacy'),
+    p = privacy[lang],
+    P = (await stringsOf(lang)).panel,
+    accept = d.classList.contains('accept');
   Object.assign(d, { lang, dir: lang === 'fa' ? 'rtl' : 'ltr' });
   $$('input[name=privacyLang]', d).forEach((r) => (r.checked = r.value === lang));
   $('#privacyTitle').textContent = !accept ? p.title : settings.privacyAccepted ? P.privacyUpdated : P.privacyPolicy;
   $('#privacyVersion').textContent = tpl(P.version, { version: fd(privacy.version, lang === 'fa') });
-  $('#privacyText').replaceChildren(el('p', { textContent: p.intro }), el('ul', { className: 'privacy-points' }, ...p.items.map(([what, text], i) =>
-    el('li', { className: `pt-${privacy.icons[i]}` }, svgIn('pt-icon', POINT_ICON[privacy.icons[i]]), el('span', { className: 'stack' }, el('b', { textContent: what }), el('span', { textContent: text }))))));
+  $('#privacyText').replaceChildren(
+    el('p', { textContent: p.intro }),
+    el(
+      'ul',
+      { className: 'privacy-points' },
+      ...p.items.map(([what, text], i) =>
+        el(
+          'li',
+          { className: `pt-${privacy.icons[i]}` },
+          svgIn('pt-icon', POINT_ICON[privacy.icons[i]]),
+          el('span', { className: 'stack' }, el('b', { textContent: what }), el('span', { textContent: text })),
+        ),
+      ),
+    ),
+  );
   $('#privacyAgree span').textContent = tpl(P.privacyAgree, { policy: P.privacyPolicy });
   $('#privacyOk').textContent = accept ? P.privacyAccept : P.updateClose;
 }
@@ -1347,7 +2159,8 @@ async function renderPrivacy(lang) {
 // opened from it still closes). On keydown, not cancel: a dialog that opened by itself, before any click, can't stop
 // its cancel event.
 addEventListener('keydown', (e) => {
-  const p = $('#privacy'), held = p.open ? p.classList.contains('accept') : $('#tour').open && TOUR[tourStep] === 'hello' && mustAccept();
+  const p = $('#privacy'),
+    held = p.open ? p.classList.contains('accept') : $('#tour').open && TOUR[tourStep] === 'hello' && mustAccept();
   if (e.key === 'Escape' && held) e.preventDefault();
 });
 
@@ -1359,7 +2172,10 @@ addEventListener('keydown', (e) => {
 // page's sound switch, remembered in this browser).
 const support = { tickets: [], error: '', mode: 'list', open: null, loaded: false, asked: 0 }; // mode: list | new | ticket; open: the ticket shown, with its messages; asked: when the list was last asked for
 let formShots, replyShots; // the screenshots picked for a new ticket / a reply (wireShots)
-const SHOTS = 3, SHOT_PX = 1920, SHOT_BYTES = 2 * 1024 * 1024, SHOT_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
+const SHOTS = 3,
+  SHOT_PX = 1920,
+  SHOT_BYTES = 2 * 1024 * 1024,
+  SHOT_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
 const shotUrl = (id, name) => `/api/support/tickets/${id}/images/${name}`;
 const statusPill = (s) => el('span', { className: `pill tk-${s}`, textContent: S.panel.ticketStatus[s] });
 const TRASH = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>';
@@ -1367,20 +2183,27 @@ const TRASH = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 1
 const CAT_ICON = {
   bug: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 8a3 3 0 0 1 6 0"/><rect x="7" y="8" width="10" height="12" rx="5"/><path d="M12 12v8M7 12H4M17 12h3M7.5 16.5 5 18M16.5 16.5 19 18M10.3 5.6 9 4M13.7 5.6 15 4"/></svg>',
   suggestion: POINT_ICON.why, // a light bulb
-  question: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.4a2.5 2.5 0 1 1 3.4 2.4c-.6.3-1 .9-1 1.5v.4M12 17h.01"/></svg>',
+  question:
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.4a2.5 2.5 0 1 1 3.4 2.4c-.6.3-1 .9-1 1.5v.4M12 17h.01"/></svg>',
   data: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>',
-  crypto: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M14.8 9.2a2.8 2.8 0 0 0-2.8-1.7c-1.6 0-2.8.9-2.8 2.1 0 2.9 5.6 1.5 5.6 4.5 0 1.2-1.2 2.2-2.8 2.2a2.9 2.9 0 0 1-2.8-1.8M12 6v1.5M12 16.3v1.7"/></svg>',
+  crypto:
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M14.8 9.2a2.8 2.8 0 0 0-2.8-1.7c-1.6 0-2.8.9-2.8 2.1 0 2.9 5.6 1.5 5.6 4.5 0 1.2-1.2 2.2-2.8 2.2a2.9 2.9 0 0 1-2.8-1.8M12 6v1.5M12 16.3v1.7"/></svg>',
 };
 // A category's icon and name (cat-<category> gives its color): the list's badge, the New ticket form's choice.
 function catTag(c, cls = '') {
-  const known = CAT_ICON[c] ? c : 'data', s = svgIn(`cat-${known} ${cls}`, CAT_ICON[known]);
+  const known = CAT_ICON[c] ? c : 'data',
+    s = svgIn(`cat-${known} ${cls}`, CAT_ICON[known]);
   s.append(S.panel.ticketCats[c] ?? c);
   return s;
 }
 // Who wrote last (the relay's lastAuthor; an older relay's list: an unread one is the admin's, a lone message mine).
 const lastAuthor = (t) => t.lastAuthor ?? (t.unread ? 'admin' : t.messages === 1 ? 'user' : undefined);
-const replyState = (t) => (t.status === 'closed' || !lastAuthor(t) ? '' : lastAuthor(t) === 'admin'
-  ? el('span', { className: 'pill tk-answered', textContent: S.panel.ticketAnswered }) : el('span', { className: 'pill tk-waiting', textContent: S.panel.ticketWaiting }));
+const replyState = (t) =>
+  t.status === 'closed' || !lastAuthor(t)
+    ? ''
+    : lastAuthor(t) === 'admin'
+      ? el('span', { className: 'pill tk-answered', textContent: S.panel.ticketAnswered })
+      : el('span', { className: 'pill tk-waiting', textContent: S.panel.ticketWaiting });
 const SOUND = 'jarchi.ticketSound'; // 'off', or on
 let audio;
 // A new reply: two soft rising notes, made here (no sound file).
@@ -1390,8 +2213,12 @@ function ding() {
     audio ??= new AudioContext();
     audio.resume();
     const t = audio.currentTime;
-    for (const [hz, at] of [[880, 0], [1320, 0.13]]) {
-      const o = new OscillatorNode(audio, { frequency: hz }), g = new GainNode(audio, { gain: 0.0001 });
+    for (const [hz, at] of [
+      [880, 0],
+      [1320, 0.13],
+    ]) {
+      const o = new OscillatorNode(audio, { frequency: hz }),
+        g = new GainNode(audio, { gain: 0.0001 });
       g.gain.exponentialRampToValueAtTime(0.07, t + at + 0.02);
       g.gain.exponentialRampToValueAtTime(0.0001, t + at + 0.4);
       o.connect(g).connect(audio.destination);
@@ -1404,31 +2231,64 @@ function ding() {
 function loadTickets() {
   if (mustAccept()) return renderSupport();
   support.asked = Date.now();
-  api('GET', '/api/support/tickets').then((list) => {
-    // A new admin reply since the last list (not on the first one): a ticket unread with more messages than before.
-    const before = new Map(support.tickets.map((t) => [t.id, t.messages]));
-    if (support.loaded && list.some((t) => t.unread && t.messages > (before.get(t.id) ?? 0))) ding();
-    support.tickets = list;
-    support.loaded = true;
-    support.error = '';
-    // The ticket open on the page right now: a reply shown at once (opening it again); the team seeing it, too.
-    const shown = view === 'support' && support.mode === 'ticket' && list.find((t) => t.id === support.open.id);
-    if (shown?.unread) openTicket(shown.id);
-    else if (shown && shown.teamSeenAt !== support.open.teamSeenAt) {
-      support.open.teamSeenAt = shown.teamSeenAt;
-      renderThread();
-    }
-  }, (err) => (support.error = err.message)).finally(renderSupport);
+  api('GET', '/api/support/tickets')
+    .then(
+      (list) => {
+        // A new admin reply since the last list (not on the first one): a ticket unread with more messages than before.
+        const before = new Map(support.tickets.map((t) => [t.id, t.messages]));
+        if (support.loaded && list.some((t) => t.unread && t.messages > (before.get(t.id) ?? 0))) ding();
+        support.tickets = list;
+        support.loaded = true;
+        support.error = '';
+        // The ticket open on the page right now: a reply shown at once (opening it again); the team seeing it, too.
+        const shown = view === 'support' && support.mode === 'ticket' && list.find((t) => t.id === support.open.id);
+        if (shown?.unread) openTicket(shown.id);
+        else if (shown && shown.teamSeenAt !== support.open.teamSeenAt) {
+          support.open.teamSeenAt = shown.teamSeenAt;
+          renderThread();
+        }
+      },
+      (err) => (support.error = err.message),
+    )
+    .finally(renderSupport);
 }
 
 function renderSupport() {
   const ok = !mustAccept();
   $('#supportPrivacy').hidden = ok;
-  for (const [sel, mode] of [['#ticketsBox', 'list'], ['#ticketForm', 'new'], ['#ticketView', 'ticket']]) $(sel).hidden = !ok || support.mode !== mode;
-  $('#ticketList').replaceChildren(...support.tickets.map((t) => el('li', {}, el('button', { className: 'ticket-row', onclick: () => openTicket(t.id) },
-    el('span', { className: 'stack' }, el('b', { textContent: t.subject, dir: 'auto' }),
-      el('span', { className: 'tk-tags' }, statusPill(t.status), catTag(t.category, 'pill tk-cat'), replyState(t), el('small', { textContent: dateTime(Date.parse(t.updatedAt)) }))),
-    t.unread ? el('span', { className: 'pill unread', textContent: S.panel.ticketUnread }) : ''), t.status === 'closed' ? hideButton(t.id) : '')));
+  for (const [sel, mode] of [
+    ['#ticketsBox', 'list'],
+    ['#ticketForm', 'new'],
+    ['#ticketView', 'ticket'],
+  ])
+    $(sel).hidden = !ok || support.mode !== mode;
+  $('#ticketList').replaceChildren(
+    ...support.tickets.map((t) =>
+      el(
+        'li',
+        {},
+        el(
+          'button',
+          { className: 'ticket-row', onclick: () => openTicket(t.id) },
+          el(
+            'span',
+            { className: 'stack' },
+            el('b', { textContent: t.subject, dir: 'auto' }),
+            el(
+              'span',
+              { className: 'tk-tags' },
+              statusPill(t.status),
+              catTag(t.category, 'pill tk-cat'),
+              replyState(t),
+              el('small', { textContent: dateTime(Date.parse(t.updatedAt)) }),
+            ),
+          ),
+          t.unread ? el('span', { className: 'pill unread', textContent: S.panel.ticketUnread }) : '',
+        ),
+        t.status === 'closed' ? hideButton(t.id) : '',
+      ),
+    ),
+  );
   $('#ticketsEmpty').hidden = support.tickets.length > 0 || !!support.error;
   $('#ticketsError').hidden = !support.error;
   $('#ticketsError span').textContent = support.error;
@@ -1438,11 +2298,17 @@ function renderSupport() {
 // A closed ticket's trash button: a second click (twoClick) takes it off my list. Only off the list: the relay keeps it
 // for the admin.
 function hideButton(id) {
-  const label = el('span'), b = el('button', { type: 'button', className: 'ghost ticket-hide', title: S.panel.ticketHide, innerHTML: TRASH }, label);
-  twoClick(b, label, '', S.panel.ticketHideConfirm, () => api('PATCH', `/api/support/tickets/${id}`, { hidden: true }).then(() => {
-    support.tickets = support.tickets.filter((t) => t.id !== id);
-    renderSupport();
-  }, (err) => toast(err.message, true)));
+  const label = el('span'),
+    b = el('button', { type: 'button', className: 'ghost ticket-hide', title: S.panel.ticketHide, innerHTML: TRASH }, label);
+  twoClick(b, label, '', S.panel.ticketHideConfirm, () =>
+    api('PATCH', `/api/support/tickets/${id}`, { hidden: true }).then(
+      () => {
+        support.tickets = support.tickets.filter((t) => t.id !== id);
+        renderSupport();
+      },
+      (err) => toast(err.message, true),
+    ),
+  );
   return b;
 }
 
@@ -1454,7 +2320,8 @@ function showSupport(mode) {
 }
 
 async function openTicket(id) {
-  if (support.open?.id !== id) { // another ticket: not the last one's half-written reply
+  if (support.open?.id !== id) {
+    // another ticket: not the last one's half-written reply
     $('#replyForm').reset();
     replyShots.clear();
   }
@@ -1470,17 +2337,34 @@ async function openTicket(id) {
 
 // The open ticket: mine on one side, the admin's on the other, oldest first, scrolled to the newest.
 function renderThread() {
-  const t = support.open, box = $('#ticketThread'), closed = t.status === 'closed';
+  const t = support.open,
+    box = $('#ticketThread'),
+    closed = t.status === 'closed';
   $('#ticketSubject').textContent = t.subject;
   $('#ticketMeta').textContent = [S.panel.ticketCats[t.category], ltr(`#${t.id}`), dateTime(Date.parse(t.createdAt))].join(' · ');
   Object.assign($('#ticketStatus'), { className: `pill tk-${t.status}`, textContent: S.panel.ticketStatus[t.status] });
   const mine = t.messages.findLastIndex((m) => m.author === 'user');
-  box.replaceChildren(...t.messages.flatMap((m, i) => [el('li', { className: `msg ${m.author === 'user' ? 'me' : 'them'}` },
-    el('small', { className: 'who', textContent: m.author === 'user' ? S.panel.ticketYou : S.panel.ticketAdmin }),
-    m.text ? el('p', { textContent: m.text, dir: 'auto' }) : '',
-    m.images.length ? el('span', { className: 'msg-shots' }, ...m.images.map((n) => el('a', { href: shotUrl(t.id, n), target: '_blank', rel: 'noopener' },
-      el('img', { src: shotUrl(t.id, n), alt: S.panel.ticketShot })))) : '',
-    el('small', { className: 'when', textContent: dateTime(Date.parse(m.at)) })), ...(i === mine ? receipt(t, m) : [])]));
+  box.replaceChildren(
+    ...t.messages.flatMap((m, i) => [
+      el(
+        'li',
+        { className: `msg ${m.author === 'user' ? 'me' : 'them'}` },
+        el('small', { className: 'who', textContent: m.author === 'user' ? S.panel.ticketYou : S.panel.ticketAdmin }),
+        m.text ? el('p', { textContent: m.text, dir: 'auto' }) : '',
+        m.images.length
+          ? el(
+              'span',
+              { className: 'msg-shots' },
+              ...m.images.map((n) =>
+                el('a', { href: shotUrl(t.id, n), target: '_blank', rel: 'noopener' }, el('img', { src: shotUrl(t.id, n), alt: S.panel.ticketShot })),
+              ),
+            )
+          : '',
+        el('small', { className: 'when', textContent: dateTime(Date.parse(m.at)) }),
+      ),
+      ...(i === mine ? receipt(t, m) : []),
+    ]),
+  );
   box.scrollTop = box.scrollHeight;
   $$('#replyForm textarea, #replyForm button').forEach((e) => (e.disabled = closed));
   $('#replyClosed').hidden = !closed;
@@ -1492,7 +2376,10 @@ const SEEN_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12.5l
 function receipt(t, m) {
   if (!('teamSeenAt' in t)) return [];
   const seen = !!t.teamSeenAt && t.teamSeenAt >= m.at;
-  const li = el('li', { className: `receipt${seen ? ' seen' : ''}`, title: seen ? S.panel.ticketSeenAt.replace('{time}', dateTime(Date.parse(t.teamSeenAt))) : '' });
+  const li = el('li', {
+    className: `receipt${seen ? ' seen' : ''}`,
+    title: seen ? S.panel.ticketSeenAt.replace('{time}', dateTime(Date.parse(t.teamSeenAt))) : '',
+  });
   li.innerHTML = seen ? SEEN_ICON : POINT_ICON.collect; // fixed markup: a check
   li.append(seen ? S.panel.ticketSeen : S.panel.ticketSent);
   return [li];
@@ -1519,16 +2406,26 @@ function wireShots(box, field) {
   const list = [];
   const input = el('input', { type: 'file', accept: SHOT_TYPES.join(','), multiple: true, hidden: true });
   const add = el('button', { type: 'button', className: 'shot-add', textContent: S.panel.ticketAddShot, onclick: () => input.click() });
-  const draw = () => box.replaceChildren(...list.map((s, i) => {
-    const x = el('button', { type: 'button', className: 'shot-x', title: S.panel.ticketRemoveShot, onclick: () => {
-      URL.revokeObjectURL(s.url);
-      list.splice(i, 1);
-      draw();
-    } });
-    x.innerHTML = POINT_ICON.never; // ✕
-    x.setAttribute('aria-label', S.panel.ticketRemoveShot);
-    return el('span', { className: 'shot' }, el('img', { src: s.url, alt: '' }), x);
-  }), ...(list.length < SHOTS ? [add] : []), input);
+  const draw = () =>
+    box.replaceChildren(
+      ...list.map((s, i) => {
+        const x = el('button', {
+          type: 'button',
+          className: 'shot-x',
+          title: S.panel.ticketRemoveShot,
+          onclick: () => {
+            URL.revokeObjectURL(s.url);
+            list.splice(i, 1);
+            draw();
+          },
+        });
+        x.innerHTML = POINT_ICON.never; // ✕
+        x.setAttribute('aria-label', S.panel.ticketRemoveShot);
+        return el('span', { className: 'shot' }, el('img', { src: s.url, alt: '' }), x);
+      }),
+      ...(list.length < SHOTS ? [add] : []),
+      input,
+    );
   const take = async (files) => {
     for (const f of files) {
       if (list.length >= SHOTS) {
@@ -1560,7 +2457,8 @@ function wireShots(box, field) {
 
 // A form (a new ticket, a reply) and its screenshots -> the ticket as it is now, or nothing (the error toasted).
 async function sendForm(url, form, shots) {
-  const data = new FormData(form), btn = $('button[type=submit]', form);
+  const data = new FormData(form),
+    btn = $('button[type=submit]', form);
   shots.list.forEach((s, i) => data.append('image', s.blob, `screenshot-${i + 1}`));
   btn.disabled = true;
   btn.textContent = S.panel.ticketSending;
@@ -1575,18 +2473,23 @@ async function sendForm(url, form, shots) {
 }
 
 function wireSupport() {
-  const form = $('#ticketForm'), reply = $('#replyForm');
-  $('#ticketCats').append(...Object.keys(S.panel.ticketCats).map((v, i) => el('label', {},
-    el('input', { type: 'radio', name: 'category', value: v, defaultChecked: !i }), catTag(v))));
+  const form = $('#ticketForm'),
+    reply = $('#replyForm');
+  $('#ticketCats').append(
+    ...Object.keys(S.panel.ticketCats).map((v, i) =>
+      el('label', {}, el('input', { type: 'radio', name: 'category', value: v, defaultChecked: !i }), catTag(v)),
+    ),
+  );
   const catHint = () => ($('#ticketCatHint').textContent = S.panel.ticketCatHints[form.category.value]);
   $('#ticketCats').onchange = catHint;
   catHint();
   // The sound for a new reply: on unless switched off here.
-  const sound = $('#ticketSound'), drawSound = () => {
-    const on = remember.get(SOUND) !== 'off';
-    sound.setAttribute('aria-pressed', on);
-    sound.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="${on ? 'M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13' : 'M16 9.5l5 5M21 9.5l-5 5'}"/></svg>`;
-  };
+  const sound = $('#ticketSound'),
+    drawSound = () => {
+      const on = remember.get(SOUND) !== 'off';
+      sound.setAttribute('aria-pressed', on);
+      sound.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="${on ? 'M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13' : 'M16 9.5l5 5M21 9.5l-5 5'}"/></svg>`;
+    };
   Object.assign(sound, { title: S.panel.ticketSound, onclick: () => (remember.set(SOUND, remember.get(SOUND) === 'off' ? 'on' : 'off'), drawSound(), ding()) });
   sound.setAttribute('aria-label', S.panel.ticketSound);
   drawSound();
@@ -1633,11 +2536,30 @@ const TOUR = ['hello', 'connect', 'obs', 'sidebar', 'done'];
 const SIDEBAR = TOUR.indexOf('sidebar');
 // Sidebar's stops, the sidebar's own groups: [the group's name, its pages, first to last]. Main (the pages on top) and
 // More (under the line) have no title in the sidebar. Viewer count is a stop of its own, just after Main.
-const SPOTS = [['navMain', ['home', 'alert', 'chat', 'goal']], ['navViewers', ['viewers']], ['navLive', ['queue', 'events']], ['navBot', ['bot']], ['navContent', ['battle', 'clips', 'giveaway']], ['navDonations', ['donations']],
-  ['navSetup', ['connections', 'appearance', 'settings', 'guide']], ['navMore', ['about', 'support']]];
-const obsSize = (id) => (id === 'alerts' ? [800, 600] : id.startsWith('viewers-') ? [400, 200] : CHAT_KEYS.includes(id) ? [settings[id].width, settings[id].height] : settings.goals[id].style === 'circle' ? [400, 400] : [800, 200]);
+const SPOTS = [
+  ['navMain', ['home', 'alert', 'chat', 'goal']],
+  ['navViewers', ['viewers']],
+  ['navLive', ['queue', 'events']],
+  ['navBot', ['bot']],
+  ['navContent', ['battle', 'clips', 'giveaway']],
+  ['navDonations', ['donations']],
+  ['navSetup', ['connections', 'appearance', 'settings', 'guide']],
+  ['navMore', ['about', 'support']],
+];
+const obsSize = (id) =>
+  id === 'alerts'
+    ? [800, 600]
+    : id.startsWith('viewers-')
+      ? [400, 200]
+      : CHAT_KEYS.includes(id)
+        ? [settings[id].width, settings[id].height]
+        : settings.goals[id].style === 'circle'
+          ? [400, 400]
+          : [800, 200];
 const connCards = () => [$('#kcConnect'), $('#twConnect')].map((b) => b.closest('.box'));
-let tourStep = 0, spot = 0, faStrings;
+let tourStep = 0,
+  spot = 0,
+  faStrings;
 
 // A step (and in Sidebar, which stop): the dialog for the others, the sidebar's spotlight for Sidebar.
 async function tourTo(n, stop = 0) {
@@ -1651,24 +2573,35 @@ async function tourTo(n, stop = 0) {
   ($('#tourNav').hidden ? $('.tour-langs button:enabled, .tour-agree input') : $('#tourNext')).focus(); // the step's way on
 }
 function openTour(step = 0) {
-  if (!settings.welcomed) api('PATCH', '/api/settings', { welcomed: true }).then((s) => (settings = s), () => {});
+  if (!settings.welcomed)
+    api('PATCH', '/api/settings', { welcomed: true }).then(
+      (s) => (settings = s),
+      () => {},
+    );
   return tourTo(step);
 }
 
 // The sidebar's elements in the stop's group: its pages, the titles among them and the group's own title above them.
 function spotGroup() {
-  const kids = [...$('.nav').children], at = (v) => kids.indexOf($(`.nav-item[data-view="${v}"]`)), views = SPOTS[spot][1];
+  const kids = [...$('.nav').children],
+    at = (v) => kids.indexOf($(`.nav-item[data-view="${v}"]`)),
+    views = SPOTS[spot][1];
   const a = at(views[0]);
   return kids.slice(kids[a - 1]?.matches('.group-title') ? a - 1 : a, at(views.at(-1)) + 1);
 }
 function spotTo(i) {
-  const s = $('#spot'), W = S.panel.welcome, [name, views] = SPOTS[i];
+  const s = $('#spot'),
+    W = S.panel.welcome,
+    [name, views] = SPOTS[i];
   spot = i;
   $('#spotTitle').textContent = S.panel[name];
   $('#spotCount').textContent = fd(`${i + 1}/${SPOTS.length}`);
   $('#spotCount').ariaLabel = tpl(W.stepOf, { n: fd(i + 1), total: fd(SPOTS.length) });
-  $('#spotItems').replaceChildren(...views.map((v) => el('li', {},
-    el('b', { textContent: $(`.nav-item[data-view="${v}"] [data-i18n]`).textContent }), el('span', { textContent: W.pages[v] }))));
+  $('#spotItems').replaceChildren(
+    ...views.map((v) =>
+      el('li', {}, el('b', { textContent: $(`.nav-item[data-view="${v}"] [data-i18n]`).textContent }), el('span', { textContent: W.pages[v] })),
+    ),
+  );
   const group = spotGroup();
   group.at(-1).scrollIntoView({ block: 'nearest' }); // a sidebar taller than the window (large text) scrolls to it
   group[0].scrollIntoView({ block: 'nearest' });
@@ -1684,18 +2617,31 @@ function spotTo(i) {
 // room beside it (the narrow layout's sidebar on top). Always inside the window.
 // ponytail: the narrow layout's wrapped rows make the hole the group's whole bounding box, other pages included.
 function placeSpot() {
-  const rs = spotGroup().map((k) => k.getBoundingClientRect()).filter((r) => r.width), pad = 6, gap = 14, m = 8;
-  const left = Math.min(...rs.map((r) => r.left)) - pad, right = Math.max(...rs.map((r) => r.right)) + pad;
-  const top = Math.min(...rs.map((r) => r.top)) - pad, bottom = Math.max(...rs.map((r) => r.bottom)) + pad;
+  const rs = spotGroup()
+      .map((k) => k.getBoundingClientRect())
+      .filter((r) => r.width),
+    pad = 6,
+    gap = 14,
+    m = 8;
+  const left = Math.min(...rs.map((r) => r.left)) - pad,
+    right = Math.max(...rs.map((r) => r.right)) + pad;
+  const top = Math.min(...rs.map((r) => r.top)) - pad,
+    bottom = Math.max(...rs.map((r) => r.bottom)) + pad;
   Object.assign($('.spot-hole').style, { left: px(left), top: px(top), width: px(right - left), height: px(bottom - top) });
-  const pop = $('.spot-pop'), w = pop.offsetWidth, h = pop.offsetHeight;
-  let x = FA ? left - gap - w : right + gap, y = top;
+  const pop = $('.spot-pop'),
+    w = pop.offsetWidth,
+    h = pop.offsetHeight;
+  let x = FA ? left - gap - w : right + gap,
+    y = top;
   if (x < m || x + w > innerWidth - m) [x, y] = [FA ? right - w : left, bottom + gap];
   Object.assign(pop.style, { left: px(Math.min(Math.max(m, x), innerWidth - w - m)), top: px(Math.min(Math.max(m, y), innerHeight - h - m)) });
 }
 
 function renderTour() {
-  const W = S.panel.welcome, step = TOUR[tourStep], body = $('#tourBody'), h2 = (text) => el('h2', { textContent: text });
+  const W = S.panel.welcome,
+    step = TOUR[tourStep],
+    body = $('#tourBody'),
+    h2 = (text) => el('h2', { textContent: text });
   $('main .connections').prepend(...connCards()); // home again, above the proxy (Connect takes them back)
   $('#tourDots').replaceChildren(...TOUR.map((s) => el('i', { className: s === step ? 'on' : '' })));
   $('#tourDots').ariaLabel = tpl(W.stepOf, { n: fd(tourStep + 1), total: fd(TOUR.length) });
@@ -1706,41 +2652,91 @@ function renderTour() {
   if (step === 'hello') {
     const say = (s) => el('div', { lang: s.lang, dir: s.dir }, h2(s.panel.welcome.hello), el('p', { textContent: s.panel.welcome.about }));
     const agreed = !mustAccept();
-    const langs = [['en', 'English'], ['fa', 'فارسی']].map(([lang, name]) => el('button', { className: 'primary', lang, textContent: name, disabled: !agreed, onclick: async () => {
-      if (mustAccept()) await acceptPrivacy(); // saved before a reload into the other language
-      if (lang === S.lang) return tourTo(1);
-      try { sessionStorage.setItem('jarchi.tour', '1'); } catch {}
-      setLang(lang);
-    } }));
+    const langs = [
+      ['en', 'English'],
+      ['fa', 'فارسی'],
+    ].map(([lang, name]) =>
+      el('button', {
+        className: 'primary',
+        lang,
+        textContent: name,
+        disabled: !agreed,
+        onclick: async () => {
+          if (mustAccept()) await acceptPrivacy(); // saved before a reload into the other language
+          if (lang === S.lang) return tourTo(1);
+          try {
+            sessionStorage.setItem('jarchi.tour', '1');
+          } catch {}
+          setLang(lang);
+        },
+      }),
+    );
     // "I have read and accept the Privacy Policy" in both languages, each one's link opening the policy in it.
     const agree = (s) => {
       const [a, b] = s.panel.privacyAgree.split('{policy}');
-      return el('span', { lang: s.lang, dir: s.dir }, a, el('button', { className: 'link', textContent: s.panel.privacyPolicy, onclick: () => showPrivacy(s.lang) }), b);
+      return el(
+        'span',
+        { lang: s.lang, dir: s.dir },
+        a,
+        el('button', { className: 'link', textContent: s.panel.privacyPolicy, onclick: () => showPrivacy(s.lang) }),
+        b,
+      );
     };
     const box = el('input', { type: 'checkbox', checked: agreed, onchange: () => langs.forEach((b) => (b.disabled = !box.checked)) });
-    body.replaceChildren(el('img', { className: 'tour-logo', src: '/assets/brand/jarchi-logo-v2.png', alt: 'Jarchi' }), say(EN), say(faStrings),
-      el('div', { className: 'tour-langs' }, ...langs), el('label', { className: 'tour-agree' }, box, el('span', { className: 'stack' }, agree(EN), agree(faStrings))));
+    body.replaceChildren(
+      el('img', { className: 'tour-logo', src: '/assets/brand/jarchi-logo-v2.png', alt: 'Jarchi' }),
+      say(EN),
+      say(faStrings),
+      el('div', { className: 'tour-langs' }, ...langs),
+      el('label', { className: 'tour-agree' }, box, el('span', { className: 'stack' }, agree(EN), agree(faStrings))),
+    );
   }
   if (step === 'connect') body.replaceChildren(h2(W.connectTitle), ...connCards(), el('p', { className: 'tip', textContent: W.profileNote }));
   if (step === 'obs') {
-    body.replaceChildren(h2(W.obsTitle), el('small', { textContent: W.obsHint }),
-      el('ul', { className: 'tour-links' }, ...widgetPages().filter(([id]) => widgetOn(id)).map(([id, name, url]) => el('li', {},
-        el('span', { className: 'stack' }, el('b', { textContent: name }), el('code', { dir: 'ltr', textContent: url })),
-        el('small', { dir: 'ltr', textContent: fd(obsSize(id).join(' × ')) }), copyBtn(name, url)))),
-      el('ol', { className: 'steps' }, ...W.obsSteps.map((text, i) => el('li', { className: 'step' },
-        el('span', { className: 'step-n', textContent: fd(i + 1) }), el('p', {}, ...rich(text))))));
+    body.replaceChildren(
+      h2(W.obsTitle),
+      el('small', { textContent: W.obsHint }),
+      el(
+        'ul',
+        { className: 'tour-links' },
+        ...widgetPages()
+          .filter(([id]) => widgetOn(id))
+          .map(([id, name, url]) =>
+            el(
+              'li',
+              {},
+              el('span', { className: 'stack' }, el('b', { textContent: name }), el('code', { dir: 'ltr', textContent: url })),
+              el('small', { dir: 'ltr', textContent: fd(obsSize(id).join(' × ')) }),
+              copyBtn(name, url),
+            ),
+          ),
+      ),
+      el(
+        'ol',
+        { className: 'steps' },
+        ...W.obsSteps.map((text, i) =>
+          el('li', { className: 'step' }, el('span', { className: 'step-n', textContent: fd(i + 1) }), el('p', {}, ...rich(text))),
+        ),
+      ),
+    );
   }
   if (step === 'done') {
     const test = $('#homeTest').cloneNode(true); // Home's "Send test alert": a random alert to OBS
     test.id = 'tourTest';
     test.onclick = () => $('#homeTest').click();
-    body.replaceChildren(svgIn('tour-check', '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>'),
-      h2(W.doneTitle), el('p', { textContent: W.doneHint }), test);
+    body.replaceChildren(
+      svgIn('tour-check', '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>'),
+      h2(W.doneTitle),
+      el('p', { textContent: W.doneHint }),
+      test,
+    );
   }
 }
 
 function wireTour() {
-  const d = $('#tour'), s = $('#spot'), W = S.panel.welcome;
+  const d = $('#tour'),
+    s = $('#spot'),
+    W = S.panel.welcome;
   d.ariaLabel = W.title;
   $$('#tourSkip, #spotSkip').forEach((b) => (b.textContent = W.skip));
   $$('#tourBack, #spotBack').forEach((b) => (b.textContent = W.back));
@@ -1790,10 +2786,18 @@ function build() {
     for (const it of items) {
       const sw = el('input', { type: 'checkbox', onchange: () => it.toggle(sw.checked) });
       sw.setAttribute('aria-label', v === 'goal' ? goalName(it.key) : it.label);
-      const row = el('li', { className: 'nav-row' },
-        el('button', { className: 'nav-btn', onclick: () => select(v, it.key) }, v === 'goal' ? goalIcon(it.key) : typeIcon(it.key), el('span', { className: 'label', textContent: it.label }),
-          ...(v === 'alert' ? [el('span', { className: 'swatch own', hidden: true }), platMarks(it.key)] : [])),
-        el('label', { className: 'switch' }, sw, el('span')));
+      const row = el(
+        'li',
+        { className: 'nav-row' },
+        el(
+          'button',
+          { className: 'nav-btn', onclick: () => select(v, it.key) },
+          v === 'goal' ? goalIcon(it.key) : typeIcon(it.key),
+          el('span', { className: 'label', textContent: it.label }),
+          ...(v === 'alert' ? [el('span', { className: 'swatch own', hidden: true }), platMarks(it.key)] : []),
+        ),
+        el('label', { className: 'switch' }, sw, el('span')),
+      );
       row.dataset.key = it.key;
       if (v === 'goal') {
         row.dataset.goal = it.key; // its colour
@@ -1804,27 +2808,46 @@ function build() {
   }
 
   // Alerts page: the main theme (opens the theme page), with a swatch per theme (render() outlines the current one).
-  $('#themeSwatches').append(...Object.entries(S.themes).map(([id, name]) => {
-    const sw = el('span', { className: `swatch sw-${id}`, title: name });
-    sw.dataset.theme = id;
-    return sw;
-  }));
+  $('#themeSwatches').append(
+    ...Object.entries(S.themes).map(([id, name]) => {
+      const sw = el('span', { className: `swatch sw-${id}`, title: name });
+      sw.dataset.theme = id;
+      return sw;
+    }),
+  );
   $('#themeRow').onclick = () => select('theme');
   $('#themeBack').onclick = () => select('alert');
 
   // Home: feed filters, View all (History, with the feed's filter), a test alert of any type, and the OBS links menu
   // (closes on a click elsewhere or Escape). History has the same filters.
-  const filterChips = (box, pick) => box.append(...Object.keys(FEED_FILTERS).map((f) => {
-    const b = el('button', { textContent: S.panel.feedFilters[f], onclick: () => pick(f) });
-    b.dataset.filter = f;
-    return b;
-  }));
-  filterChips($('#feedChips'), (f) => { feedFilter = f; renderHome(); });
-  filterChips($('#histChips'), (f) => { hist.filter = f; hist.page = 0; renderHistory(); });
-  $('#feedAll').onclick = () => { hist.filter = feedFilter; hist.page = 0; select('events'); };
+  const filterChips = (box, pick) =>
+    box.append(
+      ...Object.keys(FEED_FILTERS).map((f) => {
+        const b = el('button', { textContent: S.panel.feedFilters[f], onclick: () => pick(f) });
+        b.dataset.filter = f;
+        return b;
+      }),
+    );
+  filterChips($('#feedChips'), (f) => {
+    feedFilter = f;
+    renderHome();
+  });
+  filterChips($('#histChips'), (f) => {
+    hist.filter = f;
+    hist.page = 0;
+    renderHistory();
+  });
+  $('#feedAll').onclick = () => {
+    hist.filter = feedFilter;
+    hist.page = 0;
+    select('events');
+  };
   $('#homeTest').onclick = () => {
     const types = Object.keys(settings.alerts);
-    api('POST', `/api/test/${types[Math.floor(Math.random() * types.length)]}`, { platform: $('#testAs').value }).then(() => toast(S.panel.testSent), (err) => toast(err.message, true));
+    api('POST', `/api/test/${types[Math.floor(Math.random() * types.length)]}`, { platform: $('#testAs').value }).then(
+      () => toast(S.panel.testSent),
+      (err) => toast(err.message, true),
+    );
   };
   wireMenu($('#obsMenuBtn'), $('#obsMenu')); // its links: renderHome()
   $('#widgetsManage').onclick = () => select('goal'); // the Widgets card shows only what's on: switch goals on or off there
@@ -1846,42 +2869,73 @@ function build() {
 
   // Appearance: a card per color theme, with a mini panel in it, in that theme (applyLook()). Pointing at a card shows
   // the whole panel in its theme; only a click keeps it.
-  $('#palettes').append(...PALETTES.map((id) => {
-    const mini = el('span', { className: 'mini' }, el('i'), el('i'), el('i'));
-    mini.dataset.id = id;
-    if (id === 'system') mini.insertAdjacentHTML('beforeend', '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>'); // a PC: Windows' color
-    return el('label', { className: 'mode-card', onmouseenter: () => show(id), onmouseleave: () => show(palette()) },
-      el('input', { type: 'radio', name: 'palette', value: id, onchange: () => (setLook('jarchi.palette', id), toast(S.panel.saved)) }),
-      el('span', { className: 'mode-body' }, mini, el('span', { textContent: S.panel.palettes[id] }),
-        ...(id === 'system' ? [el('small', { textContent: S.panel.systemHint })] : [])));
-  }));
+  $('#palettes').append(
+    ...PALETTES.map((id) => {
+      const mini = el('span', { className: 'mini' }, el('i'), el('i'), el('i'));
+      mini.dataset.id = id;
+      if (id === 'system')
+        mini.insertAdjacentHTML(
+          'beforeend',
+          '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>',
+        ); // a PC: Windows' color
+      return el(
+        'label',
+        { className: 'mode-card', onmouseenter: () => show(id), onmouseleave: () => show(palette()) },
+        el('input', { type: 'radio', name: 'palette', value: id, onchange: () => (setLook('jarchi.palette', id), toast(S.panel.saved)) }),
+        el(
+          'span',
+          { className: 'mode-body' },
+          mini,
+          el('span', { textContent: S.panel.palettes[id] }),
+          ...(id === 'system' ? [el('small', { textContent: S.panel.systemHint })] : []),
+        ),
+      );
+    }),
+  );
   applyLook();
 
   // Guide: one button per topic.
-  $('#guideTopics').append(...Object.entries(S.guide.topics).map(([id, t]) => {
-    const b = el('button', { textContent: t.title, onclick: () => {
-      topic = id;
-      renderGuide();
-      const top = $('#guideBody').getBoundingClientRect().top;
-      if (top < 60) scrollBy(0, top - 80); // scrolled down a long topic: back to the new topic's start (below the top bar)
-    } });
-    b.dataset.topic = id;
-    return b;
-  }));
+  $('#guideTopics').append(
+    ...Object.entries(S.guide.topics).map(([id, t]) => {
+      const b = el('button', {
+        textContent: t.title,
+        onclick: () => {
+          topic = id;
+          renderGuide();
+          const top = $('#guideBody').getBoundingClientRect().top;
+          if (top < 60) scrollBy(0, top - 80); // scrolled down a long topic: back to the new topic's start (below the top bar)
+        },
+      });
+      b.dataset.topic = id;
+      return b;
+    }),
+  );
 
   // Theme page: a card per theme. Hover (or focus) previews it muted; click selects it and plays it with sound.
   for (const [id, name] of Object.entries(S.themes)) {
     const frame = el('iframe', { src: '/widgets/alerts/?preview=tile', title: name, tabIndex: -1, onload: () => playTile(frame) });
     frame.dataset.theme = id;
     frame.setAttribute('aria-hidden', 'true');
-    const tile = el('button', {
-      className: 'theme-tile',
-      onclick: () => { send('PATCH', '/api/settings', { theme: id }); playTile(frame, false); },
-      onmouseenter: () => playTile(frame),
-      onfocus: () => playTile(frame),
-    },
-    el('div', { className: 'preview' }, frame),
-    el('div', { className: 'tile-foot' }, el('span', { className: `swatch sw-${id}` }), el('span', { className: 'tile-name', textContent: name }), el('span', { className: 'selected-label', textContent: S.panel.selected })));
+    const tile = el(
+      'button',
+      {
+        className: 'theme-tile',
+        onclick: () => {
+          send('PATCH', '/api/settings', { theme: id });
+          playTile(frame, false);
+        },
+        onmouseenter: () => playTile(frame),
+        onfocus: () => playTile(frame),
+      },
+      el('div', { className: 'preview' }, frame),
+      el(
+        'div',
+        { className: 'tile-foot' },
+        el('span', { className: `swatch sw-${id}` }),
+        el('span', { className: 'tile-name', textContent: name }),
+        el('span', { className: 'selected-label', textContent: S.panel.selected }),
+      ),
+    );
     tile.dataset.theme = id;
     $('#themeGrid').append(tile);
   }
@@ -1891,8 +2945,12 @@ function build() {
     const frame = el('iframe', { src: '/widgets/goal/subs?thumb', title: name, tabIndex: -1, onload: drawThumbs });
     frame.dataset.style = id;
     frame.setAttribute('aria-hidden', 'true');
-    const tile = el('button', { className: 'style-tile goal-tile', onclick: () => patchGoal(curGoal, { style: id }) },
-      el('div', { className: 'preview' }, frame), el('span', { className: 'tile-name', textContent: name }));
+    const tile = el(
+      'button',
+      { className: 'style-tile goal-tile', onclick: () => patchGoal(curGoal, { style: id }) },
+      el('div', { className: 'preview' }, frame),
+      el('span', { className: 'tile-name', textContent: name }),
+    );
     tile.dataset.style = id;
     $('#styleGrid').append(tile);
   }
@@ -1915,11 +2973,13 @@ function build() {
     if (valueOf(inp) !== settings.alerts[type][inp.dataset.f]) patchAlert(type, { [inp.dataset.f]: valueOf(inp) });
   };
   $$('[data-f]', editor).forEach((inp) => inp.addEventListener('change', () => saveField(inp)));
-  $$('input[type=text][data-f]', editor).forEach((inp) => inp.addEventListener('input', () => {
-    const type = cur;
-    clearTimeout(typing);
-    typing = setTimeout(() => saveField(inp, type), 700);
-  }));
+  $$('input[type=text][data-f]', editor).forEach((inp) =>
+    inp.addEventListener('input', () => {
+      const type = cur;
+      clearTimeout(typing);
+      typing = setTimeout(() => saveField(inp, type), 700);
+    }),
+  );
   wireTabs(editor, 'jarchi.alertTab'); // Media, Sound, Text, Style
   wireBg($('#previewBox'), 'previewBg', 'jarchi.previewBg');
   $$('input[type=range][data-f]', editor).forEach((inp) => inp.addEventListener('input', () => showRange(inp)));
@@ -1929,17 +2989,27 @@ function build() {
   }
   $('#resetText').onclick = () => send('POST', `/api/alerts/${cur}/reset-text`);
   // Alert size (Style tab): this alert's size, given to every alert in one save.
-  $('#sizeAll').onclick = () => send('PATCH', '/api/settings', { alerts: Object.fromEntries(Object.keys(settings.alerts).map((t) => [t, { size: settings.alerts[cur].size }])) });
+  $('#sizeAll').onclick = () =>
+    send('PATCH', '/api/settings', { alerts: Object.fromEntries(Object.keys(settings.alerts).map((t) => [t, { size: settings.alerts[cur].size }])) });
   // Font size: Auto (the biggest that fits) or Custom (the slider).
   $$('[name=alertSizeMode]').forEach((r) => (r.onchange = () => patchAlert(cur, { autoSize: r.value === 'auto' })));
   // Per-alert theme: "" = same as the main theme.
   $('#alertTheme').append(new Option('', ''), ...Object.entries(S.themes).map(([id, name]) => new Option(name, id)));
   $('#alertTheme').onchange = (e) => patchAlert(cur, { theme: e.target.value || null });
-  $$('.file', editor).forEach((row) => wireFile(row, () => `/api/upload/${cur}/${row.dataset.kind}`, () => `/api/upload/${cur}/${row.dataset.kind}`));
+  $$('.file', editor).forEach((row) =>
+    wireFile(
+      row,
+      () => `/api/upload/${cur}/${row.dataset.kind}`,
+      () => `/api/upload/${cur}/${row.dataset.kind}`,
+    ),
+  );
   $('#play').onclick = () => preview();
   $('#previewAmount').onchange = () => preview();
-  $('#test').onclick = () => api('POST', `/api/test/${cur}`, { platform: $('#testAs').value, amount: previewAmount() })
-    .then(() => toast(S.panel.testSent), (err) => toast(err.message, true));
+  $('#test').onclick = () =>
+    api('POST', `/api/test/${cur}`, { platform: $('#testAs').value, amount: previewAmount() }).then(
+      () => toast(S.panel.testSent),
+      (err) => toast(err.message, true),
+    );
   $('#reset').onclick = () => send('POST', `/api/reset/${cur}`);
   $('#preview').onload = () => preview();
 
@@ -1948,7 +3018,11 @@ function build() {
   $('#goalFont').append(...goalData.fonts.map((f) => new Option(f, f)));
   $$('[data-f]', goalEd).forEach((inp) => inp.addEventListener('change', () => patchGoal(curGoal, { [inp.dataset.f]: valueOf(inp) })));
   $$('input[type=range]', goalEd).forEach((inp) => inp.addEventListener('input', () => showRange(inp)));
-  wireFile($('.file', goalEd), () => `/api/goals/${curGoal}/sound`, () => `/api/goals/${curGoal}/sound`);
+  wireFile(
+    $('.file', goalEd),
+    () => `/api/goals/${curGoal}/sound`,
+    () => `/api/goals/${curGoal}/sound`,
+  );
   $('#goalTest').onclick = () => goalCount({ add: GOAL_STEP[curGoal] });
   $('#goalPlus').onclick = () => goalCount({ add: GOAL_STEP[curGoal] });
   $('#goalMinus').onclick = () => goalCount({ add: -GOAL_STEP[curGoal] });
@@ -1970,9 +3044,11 @@ function build() {
     if (list.some((m) => m.style === 'design' && m.code)) eyesUi.show(); // a design code: the 👀 by itself
   });
   document.addEventListener('visibilitychange', renderTeam); // shown once the window is in front
-  $('#teamMsg').addEventListener('close', () => { // OK, ✕ or Esc: this one closed for good, the ones after it for the next start
+  $('#teamMsg').addEventListener('close', () => {
+    // OK, ✕ or Esc: this one closed for good, the ones after it for the next start
     const m = teamQueue[teamAt];
-    if (m && m === codeMsg) teamSkip.add(m.id); // Use code: closed for good only once its code works
+    if (m && m === codeMsg)
+      teamSkip.add(m.id); // Use code: closed for good only once its code works
     else teamDone(m);
     teamQueue.slice(teamAt + 1).forEach((m) => teamSkip.add(m.id));
     renderTeam(); // any new one that came meanwhile
@@ -1982,7 +3058,8 @@ function build() {
     goalData.state = state;
     render();
   });
-  socket.on('settings', (s) => { // also changed by the server itself (a connected account fills its chat channel)
+  socket.on('settings', (s) => {
+    // also changed by the server itself (a connected account fills its chat channel)
     settings = s;
     render();
   });
@@ -2007,7 +3084,15 @@ function build() {
   // Connections: the Twitch account. Connect opens Twitch's page in a new tab at once, like Kick's (its link has the code
   // in it: nothing to type; Open again, if the browser blocked it), until the streamer approves Jarchi there. Home's
   // Twitch tab shows the Twitch channel's goals.
-  const twitchCall = (method, url, body) => api(method, url, body).then((t) => { twitch = t; render(); return t; }, (err) => toast(err.message, true));
+  const twitchCall = (method, url, body) =>
+    api(method, url, body).then(
+      (t) => {
+        twitch = t;
+        render();
+        return t;
+      },
+      (err) => toast(err.message, true),
+    );
   $('#twConnect').onclick = () => twitchCall('POST', '/api/twitch/connect').then((t) => t?.uri && window.open(t.uri, '_blank', 'noopener'));
   $('#twDisconnect').onclick = () => twitchCall('POST', '/api/twitch/disconnect');
   $('#twOpen').onclick = () => window.open(twitch.uri, '_blank', 'noopener');
@@ -2021,7 +3106,15 @@ function build() {
   });
   // Connections: the Kick account. Connect opens Kick's login page in a new tab (Open Kick, if the browser blocked it);
   // after the login that tab comes back to Connections, and this one follows by socket.
-  const kickCall = (method, url) => api(method, url).then((k) => { kick = k; renderKick(); return k; }, (err) => toast(err.message, true));
+  const kickCall = (method, url) =>
+    api(method, url).then(
+      (k) => {
+        kick = k;
+        renderKick();
+        return k;
+      },
+      (err) => toast(err.message, true),
+    );
   $('#kcConnect').onclick = () => kickCall('POST', '/api/kick/connect').then((k) => k?.uri && window.open(k.uri, '_blank', 'noopener'));
   $('#kcDisconnect').onclick = () => kickCall('POST', '/api/kick/disconnect');
   $('#kcOpen').onclick = () => window.open(kick.uri, '_blank', 'noopener');
@@ -2039,7 +3132,9 @@ function build() {
     if (view === 'home') renderHome();
     if (view === 'events') renderHistory();
   });
-  socket.on('chat', (m) => { if (!m.test && m.kind !== 'event') $('#statChat').textContent = fmt(++home.today.chat); }); // Kicks / raid lines aren't messages
+  socket.on('chat', (m) => {
+    if (!m.test && m.kind !== 'event') $('#statChat').textContent = fmt(++home.today.chat);
+  }); // Kicks / raid lines aren't messages
   socket.on('kickGoals', (list) => {
     home.kickGoals = list;
     if (view === 'home') renderHome();
@@ -2061,28 +3156,49 @@ function build() {
   // from that style's look). Bars get wide, low thumbnails.
   const chatEd = $('main [data-view=chat]');
   for (const [tab, boxes] of Object.entries(CHAT_TABS())) {
-    $(`#pane-c-${tab}`).append(...boxes.map(([title, controls]) => el('div', { className: 'box' },
-      el('h2', { textContent: S.panel[title] }), ...controls.map(([kind, f, o = {}]) => chatControl(kind, f, o)))));
+    $(`#pane-c-${tab}`).append(
+      ...boxes.map(([title, controls]) =>
+        el('div', { className: 'box' }, el('h2', { textContent: S.panel[title] }), ...controls.map(([kind, f, o = {}]) => chatControl(kind, f, o))),
+      ),
+    );
   }
   wireTabs(chatEd, 'jarchi.chatTab');
   buildChatTiles();
   $$('[name=styleGroup]').forEach((r) => (r.onchange = () => showStyleGroup(r.value)));
-  $$('[data-f]', chatEd).forEach((inp) => inp.addEventListener('change', () => patchChat({
-    [inp.dataset.f]: inp.type === 'number' ? Math.max(0, Math.round(Number(inp.value) || 0)) : valueOf(inp), // amounts: whole numbers
-  })));
+  $$('[data-f]', chatEd).forEach((inp) =>
+    inp.addEventListener('change', () =>
+      patchChat({
+        [inp.dataset.f]: inp.type === 'number' ? Math.max(0, Math.round(Number(inp.value) || 0)) : valueOf(inp), // amounts: whole numbers
+      }),
+    ),
+  );
   $$('input[type=range]', chatEd).forEach((inp) => inp.addEventListener('input', () => showRange(inp)));
   $$('[data-placeholder]').forEach((e) => (e.placeholder = S.panel[e.dataset.placeholder]));
   wireBg($('#chatPreviewBox'), 'chatPreviewBg', 'jarchi.chatPreviewBg');
   $('#chatReplay').onclick = () => $('#chatPreview').contentWindow?.postMessage({ replay: true }, location.origin);
   // Test messages. Effects and special lines that are off still get their message (Kicks and raids: none), just
   // without that look: say which ones. A sub is a special line, or with those off the usual line with its glow.
-  const OFF = { first: 'fxFirst', vip: 'fxRainbowVip', mention: 'fxMention', combo: 'fxCombo', avatar: 'avatars', kicks: 'eventKicks', gift: 'eventGifts', bits: 'eventBits', raid: 'eventRaids' };
-  const sendTest = (kind) => api('POST', '/api/chat/test', { kind, chat: curChat }).then((r) => {
-    const c = chatCfg();
-    const off = [...r.effects, ...r.events].map((k) => (k === 'sub' ? !c.eventSubs && 'fxSubGlow' : OFF[k])).filter((f) => f && !c[f]);
-    $('#chatFxHint').textContent = off.map((f) => S.panel.fxOff[f]).join(' · ');
-    toast(S.panel.chatTestSent);
-  }, (err) => toast(err.message, true));
+  const OFF = {
+    first: 'fxFirst',
+    vip: 'fxRainbowVip',
+    mention: 'fxMention',
+    combo: 'fxCombo',
+    avatar: 'avatars',
+    kicks: 'eventKicks',
+    gift: 'eventGifts',
+    bits: 'eventBits',
+    raid: 'eventRaids',
+  };
+  const sendTest = (kind) =>
+    api('POST', '/api/chat/test', { kind, chat: curChat }).then(
+      (r) => {
+        const c = chatCfg();
+        const off = [...r.effects, ...r.events].map((k) => (k === 'sub' ? !c.eventSubs && 'fxSubGlow' : OFF[k])).filter((f) => f && !c[f]);
+        $('#chatFxHint').textContent = off.map((f) => S.panel.fxOff[f]).join(' · ');
+        toast(S.panel.chatTestSent);
+      },
+      (err) => toast(err.message, true),
+    );
   $('#chatTest').onclick = () => sendTest('sample');
   $('#chatBurst').onclick = () => sendTest('burst');
   $('#chatAllFx').onclick = () => sendTest('all');
@@ -2098,15 +3214,25 @@ function build() {
   $('#chatAdd').onclick = () => send('POST', '/api/chat/add').then(() => settings.chat2 && select('chat', 'chat2'));
   $('#chatRename').onclick = renameChat;
   twoClick($('#chatDelete'), $('#chatDelete span'), '', S.panel.chatDeleteConfirm, () => send('POST', '/api/chat/remove').then(() => select('chat', 'chat')));
-  new ResizeObserver(() => { if (view === 'chat') fitChat(); }).observe($('.chat-preview'));
+  new ResizeObserver(() => {
+    if (view === 'chat') fitChat();
+  }).observe($('.chat-preview'));
   renderStatus();
 
-  wireCss($('#alertCss'), () => settings.alerts[cur], (f) => patchAlert(cur, f));
+  wireCss(
+    $('#alertCss'),
+    () => settings.alerts[cur],
+    (f) => patchAlert(cur, f),
+  );
   twoClick($('#cssAll'), $('#cssAll'), S.panel.cssApplyAll, S.panel.cssApplyAllConfirm, () => {
     const customCss = $('#alertCss textarea').value; // as typed, even if not saved yet
     send('PATCH', '/api/settings', { alerts: Object.fromEntries(ALERT_ORDER.map((t) => [t, { customCss }])) }); // one step: Undo brings every alert's back
   });
-  wireCss($('#goalCss'), () => settings.goals[curGoal], (f) => patchGoal(curGoal, f));
+  wireCss(
+    $('#goalCss'),
+    () => settings.goals[curGoal],
+    (f) => patchGoal(curGoal, f),
+  );
   wireCss($('#chatCss'), chatCfg, patchChat);
 
   // Viewers page: [data-f] inputs save the widget's settings (Chart's minutes are numbers); the style picker (a live
@@ -2114,14 +3240,20 @@ function build() {
   // in the preview only); a row per OBS link, with Connect while its account isn't connected (renderViewers()).
   const viewersEd = $('main [data-view=viewers]');
   $('#viewersFont').append(...viewerData.fonts.map((f) => new Option(f, f)));
-  $$('[data-f]', viewersEd).forEach((inp) => inp.addEventListener('change', () => patchViewers({ [inp.dataset.f]: inp.dataset.f === 'chartMinutes' ? Number(inp.value) : valueOf(inp) })));
+  $$('[data-f]', viewersEd).forEach((inp) =>
+    inp.addEventListener('change', () => patchViewers({ [inp.dataset.f]: inp.dataset.f === 'chartMinutes' ? Number(inp.value) : valueOf(inp) })),
+  );
   $$('input[type=range]', viewersEd).forEach((inp) => inp.addEventListener('input', () => showRange(inp)));
   for (const [id, name] of Object.entries(S.viewerStyles)) {
     const frame = el('iframe', { src: '/widgets/viewers/total?thumb', title: name, tabIndex: -1, onload: drawViewerThumbs });
     frame.dataset.style = id;
     frame.setAttribute('aria-hidden', 'true');
-    const tile = el('button', { className: 'style-tile viewers-tile', onclick: () => patchViewers({ style: id }) },
-      el('div', { className: 'preview' }, frame), el('span', { className: 'tile-name', textContent: name }));
+    const tile = el(
+      'button',
+      { className: 'style-tile viewers-tile', onclick: () => patchViewers({ style: id }) },
+      el('div', { className: 'preview' }, frame),
+      el('span', { className: 'tile-name', textContent: name }),
+    );
     tile.dataset.style = id;
     $('#viewersStyleGrid').append(tile);
     fit.observe(tile.querySelector('.preview'));
@@ -2131,15 +3263,35 @@ function build() {
     r.onchange = () => (remember.set('jarchi.viewersSource', r.value), select('viewers'));
   });
   $('#viewersTest').onclick = () => $('#viewersPreview').contentWindow?.postMessage({ test: true }, location.origin);
-  $('#viewersLinks').append(...VIEWER_SOURCES.map((p) => {
-    const logos = (p === 'total' ? ['kick', 'twitch'] : [p]).map((l) => el('img', { className: 'plat-logo', src: `/assets/platform-logos/${l}.svg`, alt: '' }));
-    const copy = el('button', { title: S.panel.viewersCopyHint, onclick: () => copyLink(`${location.origin}/widgets/viewers/${p}`, S.panel.viewersCopied) }, el('span', { textContent: S.panel.copyObs }));
-    copy.insertAdjacentHTML('afterbegin', COPY_ICON);
-    const connect = el('button', { className: 'ghost connect', textContent: S.panel[p === 'kick' ? 'kcConnect' : 'twConnect'], hidden: true, onclick: () => select('connections') });
-    const row = el('li', {}, el('span', { className: 'row' }, ...logos), el('span', { className: 'stack' }, el('b', { textContent: p === 'total' ? S.panel.viewersTotal : S.platforms[p] }), el('small')), connect, copy);
-    row.dataset.source = p;
-    return row;
-  }));
+  $('#viewersLinks').append(
+    ...VIEWER_SOURCES.map((p) => {
+      const logos = (p === 'total' ? ['kick', 'twitch'] : [p]).map((l) =>
+        el('img', { className: 'plat-logo', src: `/assets/platform-logos/${l}.svg`, alt: '' }),
+      );
+      const copy = el(
+        'button',
+        { title: S.panel.viewersCopyHint, onclick: () => copyLink(`${location.origin}/widgets/viewers/${p}`, S.panel.viewersCopied) },
+        el('span', { textContent: S.panel.copyObs }),
+      );
+      copy.insertAdjacentHTML('afterbegin', COPY_ICON);
+      const connect = el('button', {
+        className: 'ghost connect',
+        textContent: S.panel[p === 'kick' ? 'kcConnect' : 'twConnect'],
+        hidden: true,
+        onclick: () => select('connections'),
+      });
+      const row = el(
+        'li',
+        {},
+        el('span', { className: 'row' }, ...logos),
+        el('span', { className: 'stack' }, el('b', { textContent: p === 'total' ? S.panel.viewersTotal : S.platforms[p] }), el('small')),
+        connect,
+        copy,
+      );
+      row.dataset.source = p;
+      return row;
+    }),
+  );
   wireCss($('#viewersCss'), () => settings.viewers, patchViewers);
 
   // Settings
@@ -2207,7 +3359,8 @@ function fill(root, cfg) {
   $$('[data-f]', root).forEach((inp) => {
     const val = cfg[inp.dataset.f];
     if (inp.type === 'checkbox') inp.checked = val;
-    else if (inp.type === 'radio') inp.checked = inp.value === String(val); // a number too (Viewers' chart minutes)
+    else if (inp.type === 'radio')
+      inp.checked = inp.value === String(val); // a number too (Viewers' chart minutes)
     else if (inp.type === 'color') inp.value = val ?? '#ffffff';
     else if (inp !== document.activeElement || !['text', 'number'].includes(inp.type)) inp.value = val ?? ''; // never under the cursor
     if (inp.type === 'range') showRange(inp);
@@ -2217,7 +3370,10 @@ function fill(root, cfg) {
 // ---------- Sync UI from settings ----------
 function render() {
   renderNew();
-  for (const [list, all, selected] of [['#alertList', settings.alerts, cur], ['#goalList', settings.goals, curGoal]]) {
+  for (const [list, all, selected] of [
+    ['#alertList', settings.alerts, cur],
+    ['#goalList', settings.goals, curGoal],
+  ]) {
     $$(`${list} .nav-row`).forEach((row) => {
       const cfg = all[row.dataset.key];
       row.classList.toggle('active', row.dataset.key === selected);
@@ -2240,7 +3396,12 @@ function render() {
   }
 
   $('#chatUndo').hidden = !settings.canUndo;
-  for (const [box, cfg] of [['#alertCss', settings.alerts[cur]], ['#goalCss', settings.goals[curGoal]], ['#chatCss', chatCfg()], ['#viewersCss', settings.viewers]]) {
+  for (const [box, cfg] of [
+    ['#alertCss', settings.alerts[cur]],
+    ['#goalCss', settings.goals[curGoal]],
+    ['#chatCss', chatCfg()],
+    ['#viewersCss', settings.viewers],
+  ]) {
     const area = $(`${box} textarea`);
     if (area !== document.activeElement) area.value = cfg.customCss; // never under the cursor
   }
@@ -2253,13 +3414,24 @@ function render() {
   });
 
   // Goals page: "Sync from Kick" / "Sync from Twitch", and which goals each channel has.
-  const setOn = (key) => Object.keys(settings.goals).filter((id) => goalData.state[id][key]).map((id) => S.goals[id].name).join(FA ? '، ' : ', ');
+  const setOn = (key) =>
+    Object.keys(settings.goals)
+      .filter((id) => goalData.state[id][key])
+      .map((id) => S.goals[id].name)
+      .join(FA ? '، ' : ', ');
   $('#kickSync').checked = settings.kickGoalSync;
-  $('#kickSyncHint').textContent = !settings.chat.kickChannel ? S.panel.kickSyncNoChannel
-    : setOn('onKick') ? tpl(S.panel.kickSyncOnKick, { goals: setOn('onKick') }) : S.panel.kickSyncNone;
+  $('#kickSyncHint').textContent = !settings.chat.kickChannel
+    ? S.panel.kickSyncNoChannel
+    : setOn('onKick')
+      ? tpl(S.panel.kickSyncOnKick, { goals: setOn('onKick') })
+      : S.panel.kickSyncNone;
   $('#twitchSync').checked = settings.twitchGoalSync;
-  $('#twitchSyncHint').textContent = twitch.state !== 'connected' ? S.panel.twitchSyncNoAccount
-    : setOn('onTwitch') ? tpl(S.panel.twitchSyncOnTwitch, { goals: setOn('onTwitch') }) : S.panel.twitchGoalsNone;
+  $('#twitchSyncHint').textContent =
+    twitch.state !== 'connected'
+      ? S.panel.twitchSyncNoAccount
+      : setOn('onTwitch')
+        ? tpl(S.panel.twitchSyncOnTwitch, { goals: setOn('onTwitch') })
+        : S.panel.twitchGoalsNone;
   $('#twitchSyncConnect').hidden = twitch.state !== 'off';
   $('#twitchSyncRow').hidden = twitch.state === 'off'; // not connected: Connect instead of the switch
 
@@ -2295,9 +3467,23 @@ function renderChat() {
   $$('.chat-tile').forEach((t) => t.classList.toggle('selected', t.dataset.style === c.style));
   $('#chatResetOwn').textContent = tpl(S.panel.chatResetOwn, { style: styleName(c.style) });
   const show = {
-    off: !c.enabled, badges: c.showBadges, big: c.bigEmotes, nameCustom: c.nameColorMode === 'custom', bgColor: c.bg === 'color',
-    borderOn: c.border, msgBorder: c.border && (c.bubbles || c.bg === 'off'), typewriter: c.typewriter, ticker: c.layout === 'horizontal', vertical: c.layout === 'vertical', fade: c.fade, bots: c.hideBots,
-    nameOwn: c.nameColorMode === 'user', hat: c.ogHat, evKicks: c.eventKicks, evGifts: c.eventGifts, evBits: c.eventBits,
+    off: !c.enabled,
+    badges: c.showBadges,
+    big: c.bigEmotes,
+    nameCustom: c.nameColorMode === 'custom',
+    bgColor: c.bg === 'color',
+    borderOn: c.border,
+    msgBorder: c.border && (c.bubbles || c.bg === 'off'),
+    typewriter: c.typewriter,
+    ticker: c.layout === 'horizontal',
+    vertical: c.layout === 'vertical',
+    fade: c.fade,
+    bots: c.hideBots,
+    nameOwn: c.nameColorMode === 'user',
+    hat: c.ogHat,
+    evKicks: c.eventKicks,
+    evGifts: c.eventGifts,
+    evBits: c.eventBits,
   };
   $$('[data-only]', ed).forEach((e) => (e.hidden = !show[e.dataset.only]));
   ed.dataset.layout = c.layout; // a bar's preview spans the page (panel.css .chat-page)
@@ -2340,7 +3526,11 @@ function renderAlert() {
   $$('.file', editor).forEach((row) => {
     const f = cfg[row.dataset.kind];
     const fname = $('.fname', row);
-    fname.textContent = f ? f.name : row.dataset.kind === 'image' ? defaultMedia('image', kickLook(cur, cfg)) : S.panel[kickLook(cur, cfg) ? 'soundNoFileKick' : 'soundNoFile'];
+    fname.textContent = f
+      ? f.name
+      : row.dataset.kind === 'image'
+        ? defaultMedia('image', kickLook(cur, cfg))
+        : S.panel[kickLook(cur, cfg) ? 'soundNoFileKick' : 'soundNoFile'];
     fname.classList.toggle('default', !f);
     $('.remove', row).hidden = !f;
   });
@@ -2355,7 +3545,8 @@ function renderAccFix(box, a) {
 }
 // The Connections page's Twitch card.
 function renderTwitch() {
-  const t = twitch, on = t.state !== 'off';
+  const t = twitch,
+    on = t.state !== 'off';
   const line = $('#twState');
   line.className = `status st-${!on ? (t.error ? 'error' : 'off') : t.state === 'connected' ? 'connected' : 'connecting'}`;
   line.textContent = [tpl(S.panel.twStates[t.state], { login: t.login }), t.error && S.panel.twErrors[t.error]].filter(Boolean).join(' · ');
@@ -2369,7 +3560,8 @@ function renderTwitch() {
 
 // The Connections page's Kick card.
 function renderKick() {
-  const k = kick, on = k.state !== 'off';
+  const k = kick,
+    on = k.state !== 'off';
   const line = $('#kcState');
   line.className = `status st-${!on ? (k.error ? 'error' : 'off') : k.state === 'connected' ? 'connected' : 'connecting'}`;
   line.textContent = [tpl(S.panel.kcStates[k.state], { login: k.login }), k.error && S.panel.kcErrors[k.error]].filter(Boolean).join(' · ');
@@ -2388,9 +3580,12 @@ function renderKick() {
 function profileOf(p, cropped) {
   const acc = { kick, twitch };
   const from = (want, own) => [want, 'kick', 'twitch', own].find((s) => s === own || acc[s]?.login);
-  const nameFrom = from(p.nameFrom, 'custom'), pictureFrom = from(p.pictureFrom, 'upload');
-  const picture = pictureFrom === 'upload' ? cropped || (p.picture && `/uploads/${p.picture.file}`)
-    : acc[pictureFrom].picture && `/remote?u=${encodeURIComponent(acc[pictureFrom].picture)}`;
+  const nameFrom = from(p.nameFrom, 'custom'),
+    pictureFrom = from(p.pictureFrom, 'upload');
+  const picture =
+    pictureFrom === 'upload'
+      ? cropped || (p.picture && `/uploads/${p.picture.file}`)
+      : acc[pictureFrom].picture && `/remote?u=${encodeURIComponent(acc[pictureFrom].picture)}`;
   const name = nameFrom === 'custom' ? p.name.trim() || S.panel.profileDefault : acc[nameFrom].name || acc[nameFrom].login;
   return { nameFrom, pictureFrom, name, picture: picture || '' };
 }
@@ -2423,7 +3618,10 @@ function renderUpdate() {
 }
 function wireUpdate() {
   const app = window.jarchiApp;
-  api('GET', '/api/version').then(({ version }) => ($('#menuVersion').textContent = tpl(S.panel.appVersion, { version })), () => {});
+  api('GET', '/api/version').then(
+    ({ version }) => ($('#menuVersion').textContent = tpl(S.panel.appVersion, { version })),
+    () => {},
+  );
   $('#updateNotes').onclick = $('#menuNews').onclick = () => select('news');
   if (!app) return;
   $('#updateRestart').onclick = $('#menuUpdate').onclick = () => {
@@ -2442,14 +3640,18 @@ let devUpdate = null;
 const DEV_CLOSED = 'jarchi.devUpdateClosed';
 function renderDevUpdate() {
   let closed = null;
-  try { closed = sessionStorage.getItem(DEV_CLOSED); } catch {}
+  try {
+    closed = sessionStorage.getItem(DEV_CLOSED);
+  } catch {}
   $('#devUpdateBar').hidden = !devUpdate || closed === devUpdate.version;
   if (devUpdate) $('#devUpdateText').textContent = tpl(S.panel.devUpdateText, { version: devUpdate.version });
 }
 function wireDevUpdate() {
   $('#devUpdateDownload').onclick = () => window.open(devUpdate.url, '_blank', 'noopener');
   $('#devUpdateClose').onclick = () => {
-    try { sessionStorage.setItem(DEV_CLOSED, devUpdate.version); } catch {}
+    try {
+      sessionStorage.setItem(DEV_CLOSED, devUpdate.version);
+    } catch {}
     renderDevUpdate();
   };
 }
@@ -2473,22 +3675,43 @@ function followUpdates() {
 // other, Persian right to left. Each line has its type's icon (changelog.json's types, the same for both languages); a
 // line without one (older notes, a downloaded update's) has a small dot.
 const NEWS_ICON = {
-  feature: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5c.7 4.3 2.7 6.3 7 7-4.3.7-6.3 2.7-7 7-.7-4.3-2.7-6.3-7-7 4.3-.7 6.3-2.7 7-7z"/><path d="M18.5 2.5v5M16 5h5"/></svg>',
-  improve: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.8-3.8a6 6 0 0 1-7.9 7.9l-6.9 6.9a2.1 2.1 0 0 1-3-3l6.9-6.9a6 6 0 0 1 7.9-7.9z"/></svg>',
+  feature:
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5c.7 4.3 2.7 6.3 7 7-4.3.7-6.3 2.7-7 7-.7-4.3-2.7-6.3-7-7 4.3-.7 6.3-2.7 7-7z"/><path d="M18.5 2.5v5M16 5h5"/></svg>',
+  improve:
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.8-3.8a6 6 0 0 1-7.9 7.9l-6.9 6.9a2.1 2.1 0 0 1-3-3l6.9-6.9a6 6 0 0 1 7.9-7.9z"/></svg>',
   fix: CAT_ICON.bug,
-  security: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l7.5 3v5.5c0 4.6-3.2 8.3-7.5 9.5-4.3-1.2-7.5-4.9-7.5-9.5V6z"/><path d="M8.8 12.2l2.2 2.2 4.2-4.4"/></svg>',
+  security:
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l7.5 3v5.5c0 4.6-3.2 8.3-7.5 9.5-4.3-1.2-7.5-4.9-7.5-9.5V6z"/><path d="M8.8 12.2l2.2 2.2 4.2-4.4"/></svg>',
 };
-const newsIcon = (t, P) => (NEWS_ICON[t] ? Object.assign(svgIn(`nt nt-${t}`, NEWS_ICON[t]), { role: 'img', title: P[`news_${t}`], ariaLabel: P[`news_${t}`] }) : el('span', { className: 'nt' }));
+const newsIcon = (t, P) =>
+  NEWS_ICON[t]
+    ? Object.assign(svgIn(`nt nt-${t}`, NEWS_ICON[t]), { role: 'img', title: P[`news_${t}`], ariaLabel: P[`news_${t}`] })
+    : el('span', { className: 'nt' });
 let changelog, newsLang;
 async function renderNews(lang = newsLang) {
   newsLang = lang;
-  const P = (await stringsOf(lang)).panel, { ready } = update, box = $('#newsList');
-  const list = ready && !changelog.some((c) => c.version === ready.version) ? [{ ...ready.notes, version: ready.version, ready: true }, ...changelog] : changelog;
+  const P = (await stringsOf(lang)).panel,
+    { ready } = update,
+    box = $('#newsList');
+  const list =
+    ready && !changelog.some((c) => c.version === ready.version) ? [{ ...ready.notes, version: ready.version, ready: true }, ...changelog] : changelog;
   $$('input[name=newsLang]').forEach((r) => (r.checked = r.value === lang));
   Object.assign(box, { lang, dir: lang === 'fa' ? 'rtl' : 'ltr' });
-  box.replaceChildren(...list.map((c) => el('article', { className: 'box news-item' },
-    el('div', { className: 'row' }, el('h2', { textContent: `v${c.version}` }), c.ready ? el('span', { className: 'pill news-ready', textContent: P.updateInstall }) : ''),
-    el('ul', {}, ...c[lang].map((s, i) => el('li', {}, newsIcon(c.types?.[i], P), el('span', { textContent: s })))))));
+  box.replaceChildren(
+    ...list.map((c) =>
+      el(
+        'article',
+        { className: 'box news-item' },
+        el(
+          'div',
+          { className: 'row' },
+          el('h2', { textContent: `v${c.version}` }),
+          c.ready ? el('span', { className: 'pill news-ready', textContent: P.updateInstall }) : '',
+        ),
+        el('ul', {}, ...c[lang].map((s, i) => el('li', {}, newsIcon(c.types?.[i], P), el('span', { textContent: s })))),
+      ),
+    ),
+  );
 }
 
 // ---------- Crypto (Jarchi Pay, core/pay.js) ----------
@@ -2497,8 +3720,11 @@ async function renderNews(lang = newsLang) {
 // warning with Cancel while a wallet change waits. The state: GET /api/crypto when the page opens or the window comes
 // back (from the browser, where the request and the wallets are done), and by socket when it changes (an approval opens
 // the active page by itself). The list again every 30 s while the page is in view.
-let pay = { state: 'none' }, donations = { list: [], next: null, totals: null, pages: 0 }, payLink;
-const DAY_MS = 86400000, NEW_MS = 15 * 60 * 1000;
+let pay = { state: 'none' },
+  donations = { list: [], next: null, totals: null, pages: 0 },
+  payLink;
+const DAY_MS = 86400000,
+  NEW_MS = 15 * 60 * 1000;
 const days = new Intl.NumberFormat(FA ? 'fa' : 'en', { style: 'unit', unit: 'day', unitDisplay: 'long' });
 const TX = { bep20: ['BEP20', 'https://bscscan.com/tx/'], trc20: ['TRC20', 'https://tronscan.org/#/transaction/'] };
 const marked = (s, tag) => s.split('*').map((part, i) => (i % 2 ? el(tag, { textContent: part }) : part)); // *these words* in <tag>
@@ -2527,11 +3753,14 @@ let listSeq = 0;
 function loadDonations(more) {
   const seq = ++listSeq;
   const q = new URLSearchParams({ ...bounds(), ...(more && { cursor: donations.next }) });
-  return api('GET', `/api/crypto/donations?${q}`).then((r) => {
-    if (seq !== listSeq) return;
-    donations = { totals: r.totals, next: r.next, list: more ? [...donations.list, ...r.donations] : r.donations, pages: more ? donations.pages + 1 : 1 };
-    if (view === 'donations') renderDonations();
-  }, (err) => more && toast(err.message, true));
+  return api('GET', `/api/crypto/donations?${q}`).then(
+    (r) => {
+      if (seq !== listSeq) return;
+      donations = { totals: r.totals, next: r.next, list: more ? [...donations.list, ...r.donations] : r.donations, pages: more ? donations.pages + 1 : 1 };
+      if (view === 'donations') renderDonations();
+    },
+    (err) => more && toast(err.message, true),
+  );
 }
 // ponytail: the 30 s refresh skips a list with more pages open (it would drop them); merge by id if that's missed.
 const refreshDonations = () => pay.state === 'active' && donations.pages <= 1 && loadDonations(); // pages 0: the last load failed
@@ -2563,7 +3792,13 @@ function renderCrypto() {
   $('#cryptoChange').hidden = !w?.pending;
   if (w?.pending) {
     $('#cryptoChangeText').textContent = tpl(S.panel.cryptoChange, { date: dateTime(w.pending.effectiveAt) });
-    $('#cryptoChangeTo').textContent = [['BEP20', w.pending.bep20], ['TRC20', w.pending.trc20]].filter(([, a]) => a).map(([n, a]) => `${n}: ${a}`).join('\n');
+    $('#cryptoChangeTo').textContent = [
+      ['BEP20', w.pending.bep20],
+      ['TRC20', w.pending.trc20],
+    ]
+      .filter(([, a]) => a)
+      .map(([n, a]) => `${n}: ${a}`)
+      .join('\n');
   }
   renderDonations();
   showCryptoTab(cryptoTab);
@@ -2572,11 +3807,14 @@ function renderCrypto() {
 function renderDonations() {
   const t = donations.totals;
   for (const k of ['today', 'week', 'all']) {
-    const box = $(`[data-total="${k}"]`), n = t?.[k].count;
+    const box = $(`[data-total="${k}"]`),
+      n = t?.[k].count;
     $('b', box).textContent = t ? Number(t[k].amount).toLocaleString('en', { maximumFractionDigits: 2 }) : '–';
     $('em', box).textContent = t ? (n === 1 ? S.panel.cryptoCountOne : tpl(S.panel.cryptoCount, { n: fmt(n) })) : '';
   }
-  $('#cryptoList').replaceChildren(...(!t ? [] : donations.list.length ? donations.list.map(donationRow) : [el('li', { className: 'crypto-empty', textContent: S.panel.cryptoEmpty })]));
+  $('#cryptoList').replaceChildren(
+    ...(!t ? [] : donations.list.length ? donations.list.map(donationRow) : [el('li', { className: 'crypto-empty', textContent: S.panel.cryptoEmpty })]),
+  );
   $('#cryptoMore').hidden = !donations.next;
 }
 // One donation: who (or Anonymous) with the platform they signed in with, when, how much on which network, the message
@@ -2588,16 +3826,58 @@ function donationRow(d) {
   const logo = ['kick', 'twitch'].includes(d.platform)
     ? el('img', { className: 'don-logo', src: `/assets/platform-logos/${d.platform}.svg`, alt: S.platforms[d.platform], title: S.platforms[d.platform] })
     : el('span', { className: 'don-logo' });
-  return el('li', { className: `donation${isNew ? ' new' : ''}` },
-    el('div', { className: 'don-top' }, logo,
-      el('span', { className: 'don-who' },
-        el('b', {}, el('bdi', { textContent: d.name ?? S.panel.cryptoAnon }), isNew ? el('span', { className: 'don-new', textContent: S.panel.cryptoNew }) : ''),
-        el('small', { textContent: ago(d.paidAt), title: dateTime(d.paidAt) })),
-      el('span', { className: 'don-amt' }, el('b', {}, usdt(d.amount)), el('small', { className: 'don-net', textContent: net }))),
-    d.message ? el('div', { className: 'don-msg', dir: 'auto' }, d.private ? el('span', { className: 'don-private', textContent: `🔒 ${S.panel.cryptoPrivate}` }) : '', d.message) : '',
-    el('div', { className: 'don-foot' },
-      d.txHash && explorer ? el('a', { href: explorer + encodeURIComponent(d.txHash), target: '_blank', rel: 'noopener', title: S.panel.cryptoTx, dir: 'ltr', textContent: `${d.txHash.slice(0, 6)}…${d.txHash.slice(-4)} ↗` }) : el('span'),
-      el('button', { className: 'ghost', textContent: `↻ ${S.panel.cryptoReplay}`, onclick: () => api('POST', '/api/crypto/replay', d).then(() => toast(S.panel.qReplayed), (err) => toast(err.message, true)) })));
+  return el(
+    'li',
+    { className: `donation${isNew ? ' new' : ''}` },
+    el(
+      'div',
+      { className: 'don-top' },
+      logo,
+      el(
+        'span',
+        { className: 'don-who' },
+        el(
+          'b',
+          {},
+          el('bdi', { textContent: d.name ?? S.panel.cryptoAnon }),
+          isNew ? el('span', { className: 'don-new', textContent: S.panel.cryptoNew }) : '',
+        ),
+        el('small', { textContent: ago(d.paidAt), title: dateTime(d.paidAt) }),
+      ),
+      el('span', { className: 'don-amt' }, el('b', {}, usdt(d.amount)), el('small', { className: 'don-net', textContent: net })),
+    ),
+    d.message
+      ? el(
+          'div',
+          { className: 'don-msg', dir: 'auto' },
+          d.private ? el('span', { className: 'don-private', textContent: `🔒 ${S.panel.cryptoPrivate}` }) : '',
+          d.message,
+        )
+      : '',
+    el(
+      'div',
+      { className: 'don-foot' },
+      d.txHash && explorer
+        ? el('a', {
+            href: explorer + encodeURIComponent(d.txHash),
+            target: '_blank',
+            rel: 'noopener',
+            title: S.panel.cryptoTx,
+            dir: 'ltr',
+            textContent: `${d.txHash.slice(0, 6)}…${d.txHash.slice(-4)} ↗`,
+          })
+        : el('span'),
+      el('button', {
+        className: 'ghost',
+        textContent: `↻ ${S.panel.cryptoReplay}`,
+        onclick: () =>
+          api('POST', '/api/crypto/replay', d).then(
+            () => toast(S.panel.qReplayed),
+            (err) => toast(err.message, true),
+          ),
+      }),
+    ),
+  );
 }
 
 // The coin: it turns by itself (not with Reduce animations: then it rests face on), a drag turns it, and a quick drag
@@ -2625,7 +3905,10 @@ function coinRun() {
 function wireCoin() {
   const c = $('#coin');
   for (let z = -8; z <= 8; z++) c.append(el('i', { className: 'edge', style: `transform: translateZ(${z}px) scale(.985)` }));
-  c.append(el('i', { className: 'face', style: 'transform: translateZ(9px)' }), el('i', { className: 'face', style: 'transform: rotateY(180deg) translateZ(9px)' }));
+  c.append(
+    el('i', { className: 'face', style: 'transform: translateZ(9px)' }),
+    el('i', { className: 'face', style: 'transform: rotateY(180deg) translateZ(9px)' }),
+  );
   c.onpointerdown = (e) => {
     Object.assign(coin, { drag: true, lx: e.clientX, ly: e.clientY, lt: performance.now(), sv: 0 });
     c.classList.add('grab');
@@ -2633,7 +3916,10 @@ function wireCoin() {
   };
   c.onpointermove = (e) => {
     if (!coin.drag) return;
-    const t = performance.now(), dx = e.clientX - coin.lx, dy = e.clientY - coin.ly, ms = Math.max(1, t - coin.lt);
+    const t = performance.now(),
+      dx = e.clientX - coin.lx,
+      dy = e.clientY - coin.ly,
+      ms = Math.max(1, t - coin.lt);
     coin.ay += dx * 0.6;
     coin.ax = Math.max(-35, Math.min(35, coin.ax - dy * 0.4));
     coin.sv = coin.sv * 0.5 + ((dx * 0.6) / ms) * 1000 * 0.5;
@@ -2651,13 +3937,24 @@ function wireCoin() {
 // Request: the connected Kick / Twitch accounts (none: Connections first), the terms and "I accept", then Send: Jarchi
 // Pay's one-time link opens in the browser, where signing in with the channel sends the request.
 function openCryptoAsk() {
-  const accounts = [['kick', kick], ['twitch', twitch]].filter(([, a]) => a?.state === 'connected' && a.login);
+  const accounts = [
+    ['kick', kick],
+    ['twitch', twitch],
+  ].filter(([, a]) => a?.state === 'connected' && a.login);
   $('#cryptoForm').hidden = !accounts.length;
   $('#cryptoNoChannel').hidden = !!accounts.length;
   $('#cryptoSent').hidden = true;
-  $('#cryptoChannels').replaceChildren(...accounts.map(([p, a]) => el('div', { className: 'crypto-channel' },
-    el('img', { src: `/assets/platform-logos/${p}.svg`, alt: '' }), el('b', {}, el('bdi', { textContent: a.login })),
-    el('small', { textContent: tpl(S.panel.cryptoConnected, { platform: S.platforms[p] }) }))));
+  $('#cryptoChannels').replaceChildren(
+    ...accounts.map(([p, a]) =>
+      el(
+        'div',
+        { className: 'crypto-channel' },
+        el('img', { src: `/assets/platform-logos/${p}.svg`, alt: '' }),
+        el('b', {}, el('bdi', { textContent: a.login })),
+        el('small', { textContent: tpl(S.panel.cryptoConnected, { platform: S.platforms[p] }) }),
+      ),
+    ),
+  );
   $('#cryptoAgree').checked = false;
   $('#cryptoSend').disabled = true;
   $('#cryptoAsk').showModal();
@@ -2691,11 +3988,19 @@ function wireCrypto() {
   $('#cryptoPop').title = S.panel.cryptoPopOutHint;
   $('#cryptoPop').onclick = () => window.open('/crypto-popout.html', 'jarchiDonations', 'popup,width=380,height=600');
   $('#cryptoMore').onclick = () => loadDonations(true);
-  $('#cryptoWalletSet').onclick = $('#cryptoWalletChange').onclick = () => api('POST', '/api/crypto/wallets/link').then(({ url }) => window.open(url, '_blank', 'noopener'), (err) => toast(err.message, true));
-  $('#cryptoChangeCancel').onclick = () => api('POST', '/api/crypto/wallets/cancel').then((st) => {
-    gotCrypto(st);
-    toast(S.panel.cryptoChangeCancelled);
-  }, (err) => (toast(err.message, true), loadCrypto()));
+  $('#cryptoWalletSet').onclick = $('#cryptoWalletChange').onclick = () =>
+    api('POST', '/api/crypto/wallets/link').then(
+      ({ url }) => window.open(url, '_blank', 'noopener'),
+      (err) => toast(err.message, true),
+    );
+  $('#cryptoChangeCancel').onclick = () =>
+    api('POST', '/api/crypto/wallets/cancel').then(
+      (st) => {
+        gotCrypto(st);
+        toast(S.panel.cryptoChangeCancelled);
+      },
+      (err) => (toast(err.message, true), loadCrypto()),
+    );
   addEventListener('focus', () => view === 'donations' && loadCrypto()); // back from the browser: the request sent, the wallets set
   wireCryptoAlerts();
   wireCryptoPage();
@@ -2707,17 +4012,24 @@ function wireCrypto() {
 // stays while the state changes; Save sends the line and every link, and Jarchi Pay's answer fills them in again.
 // Each link: the start that stays (the platform's own site, or https:// for Website), then the id or the address.
 const PAGE_LINKS = {
-  kick: ['kick.com/'], twitch: ['twitch.tv/'], youtube: ['youtube.com/@'], instagram: ['instagram.com/'],
-  telegram: ['t.me/', 'telegram.me/'], discord: ['discord.gg/', 'discord.com/invite/', 'discordapp.com/invite/'], website: ['https://'],
+  kick: ['kick.com/'],
+  twitch: ['twitch.tv/'],
+  youtube: ['youtube.com/@'],
+  instagram: ['instagram.com/'],
+  telegram: ['t.me/', 'telegram.me/'],
+  discord: ['discord.gg/', 'discord.com/invite/', 'discordapp.com/invite/'],
+  website: ['https://'],
 };
 const LINK_NAMES = { kick: 'Kick', twitch: 'Twitch', youtube: 'YouTube', instagram: 'Instagram', telegram: 'Telegram', discord: 'Discord' };
-let cryptoPage = null, pageAsk = null; // Jarchi Pay's { bio, socials, links, avatar, banner }; null: not here (yet)
+let cryptoPage = null,
+  pageAsk = null; // Jarchi Pay's { bio, socials, links, avatar, banner }; null: not here (yet)
 // What a link's field keeps: a link pasted from the platform's own site (www. or m. in front is fine) gives its id, an
 // @ in front goes; Website keeps the address without https://. Jarchi Pay checks them all again.
 function linkId(k, v) {
   const bare = v.trim().replace(/^https?:\/\//i, '');
   if (k === 'website') return bare.replace(/^([^/?#]+)\/$/, '$1');
-  const at = bare.replace(/^(www|m)\./i, ''), from = PAGE_LINKS[k].find((f) => at.toLowerCase().startsWith(f));
+  const at = bare.replace(/^(www|m)\./i, ''),
+    from = PAGE_LINKS[k].find((f) => at.toLowerCase().startsWith(f));
   if (!from) return v.trim().replace(/^@/, '');
   try {
     return decodeURIComponent(at.slice(from.length).split(/[/?#]/)[0]);
@@ -2725,22 +4037,30 @@ function linkId(k, v) {
     return v.trim();
   }
 }
-const loadCryptoPage = () => (pageAsk ??= api('GET', '/api/crypto/page').then((r) => {
-  cryptoPage = r;
-  fillCryptoPage();
-}, (err) => toast(err.message, true)).finally(() => {
-  pageAsk = null;
-  renderCryptoPage();
-}));
+const loadCryptoPage = () =>
+  (pageAsk ??= api('GET', '/api/crypto/page')
+    .then(
+      (r) => {
+        cryptoPage = r;
+        fillCryptoPage();
+      },
+      (err) => toast(err.message, true),
+    )
+    .finally(() => {
+      pageAsk = null;
+      renderCryptoPage();
+    }));
 function fillCryptoPage() {
   $('#cryptoBio').value = cryptoPage.bio ?? '';
   for (const inp of $$('#cryptoLinks input')) inp.value = linkId(inp.dataset.link, cryptoPage.socials[inp.dataset.link] ?? '');
   $$('#cryptoPageTab [aria-invalid]').forEach((i) => i.removeAttribute('aria-invalid'));
 }
 function renderCryptoPage() {
-  const w = pay.wallets, p = cryptoPage;
+  const w = pay.wallets,
+    p = cryptoPage;
   for (const net of ['bep20', 'trc20']) {
-    const row = $(`#cryptoPageTab [data-net="${net}"]`), a = w?.[net];
+    const row = $(`#cryptoPageTab [data-net="${net}"]`),
+      a = w?.[net];
     Object.assign($('code', row), { textContent: a ? `${a.slice(0, 6)}…${a.slice(-4)}` : '', title: a ?? '' });
     Object.assign($('.crypto-ok', row), { textContent: a ? `✓ ${S.panel.cryptoWalletOn}` : S.panel.cryptoWalletOff, className: `crypto-ok${a ? '' : ' off'}` });
   }
@@ -2758,7 +4078,8 @@ function renderCryptoPage() {
 async function saveCryptoPage() {
   const socials = {};
   for (const inp of $$('#cryptoLinks input')) {
-    const k = inp.dataset.link, v = (inp.value = linkId(k, inp.value));
+    const k = inp.dataset.link,
+      v = (inp.value = linkId(k, inp.value));
     if (v) socials[k] = k === 'website' ? `https://${v}` : v;
   }
   $('#cryptoPageSave').disabled = true;
@@ -2780,26 +4101,35 @@ async function saveCryptoPage() {
 // CRYPTO DONATE / WALLET TO WALLET, USDT on BEP20 and TRC20, and the streamer's own link. Drawn on a canvas in CSS
 // pixels times k (the preview 2, Download PNG 3: 1920 wide). 8 colors: [accent, light accent, second color, two backgrounds].
 const BANNER_COLORS = [
-  ['#e8bd55', '#fff2b8', '#4fd1bf', '#173a33', '#0c1514'], ['#53fc18', '#d6ffc4', '#e8bd55', '#11341a', '#07130a'],
-  ['#a970ff', '#e6d6ff', '#4fd1bf', '#2a1a4a', '#0e0918'], ['#ff4d5e', '#ffd1d6', '#ffc94d', '#3a1216', '#14070a'],
-  ['#3fa9ff', '#d4ecff', '#7ef2d8', '#0f2a44', '#071220'], ['#ff5fb1', '#ffd3ea', '#ffd166', '#3d1230', '#150712'],
-  ['#ff8a3d', '#ffe0c7', '#4fd1bf', '#3d2210', '#140b05'], ['#e9eef0', '#ffffff', '#4fd1bf', '#2a3032', '#101314'],
+  ['#e8bd55', '#fff2b8', '#4fd1bf', '#173a33', '#0c1514'],
+  ['#53fc18', '#d6ffc4', '#e8bd55', '#11341a', '#07130a'],
+  ['#a970ff', '#e6d6ff', '#4fd1bf', '#2a1a4a', '#0e0918'],
+  ['#ff4d5e', '#ffd1d6', '#ffc94d', '#3a1216', '#14070a'],
+  ['#3fa9ff', '#d4ecff', '#7ef2d8', '#0f2a44', '#071220'],
+  ['#ff5fb1', '#ffd3ea', '#ffd166', '#3d1230', '#150712'],
+  ['#ff8a3d', '#ffe0c7', '#4fd1bf', '#3d2210', '#140b05'],
+  ['#e9eef0', '#ffffff', '#4fd1bf', '#2a3032', '#101314'],
 ];
 const BANNER_SIZE = { wide: [640, 220], square: [640, 640] };
-let bannerColor = 0, bannerShape = 'wide', bannerSeq = 0, coinPic;
+let bannerColor = 0,
+  bannerShape = 'wide',
+  bannerSeq = 0,
+  coinPic;
 const alpha = (hex, a) => {
   const n = parseInt(hex.slice(1), 16);
   return `rgba(${n >> 16},${(n >> 8) & 255},${n & 255},${a})`;
 };
-const coinImage = () => (coinPic ??= new Promise((ok, no) => {
-  const img = new Image();
-  img.onload = () => ok(img);
-  img.onerror = no;
-  img.src = '/assets/brand/jarchi-pay-coin.webp';
-}));
+const coinImage = () =>
+  (coinPic ??= new Promise((ok, no) => {
+    const img = new Image();
+    img.onload = () => ok(img);
+    img.onerror = no;
+    img.src = '/assets/brand/jarchi-pay-coin.webp';
+  }));
 // Draws one banner on ctx (already scaled by k; shadows aren't, so they get k themselves).
 function paintBanner(x, k, shape, [a, a2, b, bg1, bg2], coin, page) {
-  const [W, H] = BANNER_SIZE[shape], wide = shape === 'wide';
+  const [W, H] = BANNER_SIZE[shape],
+    wide = shape === 'wide';
   const shadow = (ox, oy, blur, color) => Object.assign(x, { shadowOffsetX: ox * k, shadowOffsetY: oy * k, shadowBlur: blur * k, shadowColor: color });
   const text = (s, px, py, font, fill, { align = wide ? 'right' : 'center', spacing = 0, dir = 'ltr' } = {}) => {
     x.save();
@@ -2818,13 +4148,17 @@ function paintBanner(x, k, shape, [a, a2, b, bg1, bg2], coin, page) {
     x.beginPath();
     x.roundRect(0, 0, W, H, 18);
     x.clip();
-    const d = ((W + H) * Math.SQRT1_2) / 2 * Math.SQRT1_2, g = x.createLinearGradient(W / 2 - d, H / 2 - d, W / 2 + d, H / 2 + d); // 135deg
+    const d = (((W + H) * Math.SQRT1_2) / 2) * Math.SQRT1_2,
+      g = x.createLinearGradient(W / 2 - d, H / 2 - d, W / 2 + d, H / 2 + d); // 135deg
     g.addColorStop(0, bg1);
     g.addColorStop(0.6, bg2);
     g.addColorStop(1, bg2);
     x.fillStyle = g;
     x.fillRect(0, 0, W, H);
-    radial(0.18 * W, H / 2, Math.hypot(0.82 * W, H / 2), [[0, alpha(a, 0.3)], [0.45, alpha(a, 0)]]);
+    radial(0.18 * W, H / 2, Math.hypot(0.82 * W, H / 2), [
+      [0, alpha(a, 0.3)],
+      [0.45, alpha(a, 0)],
+    ]);
     x.fillStyle = alpha(b, 0.06); // scan lines
     for (let y = H - 2; y > -2; y -= 5) x.fillRect(0, y, W, 2);
   } else {
@@ -2838,8 +4172,14 @@ function paintBanner(x, k, shape, [a, a2, b, bg1, bg2], coin, page) {
       x.arc(W / 2, H * 0.4, 1000, from, from + Math.PI / 24);
       x.fill();
     }
-    radial(W / 2, H * 0.4, Math.hypot(W / 2, H * 0.6), [[0, alpha(a, 0.35)], [0.38, alpha(a, 0)]]);
-    radial(W / 2, H * 0.45, Math.hypot(W / 2, H * 0.55), [[0.45, 'rgba(6,12,11,0)'], [1, 'rgba(6,12,11,0.85)']]);
+    radial(W / 2, H * 0.4, Math.hypot(W / 2, H * 0.6), [
+      [0, alpha(a, 0.35)],
+      [0.38, alpha(a, 0)],
+    ]);
+    radial(W / 2, H * 0.45, Math.hypot(W / 2, H * 0.55), [
+      [0.45, 'rgba(6,12,11,0)'],
+      [1, 'rgba(6,12,11,0.85)'],
+    ]);
   }
   x.restore();
   if (wide) {
@@ -2851,7 +4191,12 @@ function paintBanner(x, k, shape, [a, a2, b, bg1, bg2], coin, page) {
   }
   // The coin, with its glow
   const [cx, cy, r] = wide ? [108, 110, 80] : [W / 2, 185, 155];
-  for (const s of wide ? [[0, 0, 40, alpha(a, 0.55)]] : [[0, 18, 40, 'rgba(0,0,0,0.55)'], [0, 0, 60, alpha(a, 0.55)]]) {
+  for (const s of wide
+    ? [[0, 0, 40, alpha(a, 0.55)]]
+    : [
+        [0, 18, 40, 'rgba(0,0,0,0.55)'],
+        [0, 0, 60, alpha(a, 0.55)],
+      ]) {
     x.save();
     shadow(...s);
     x.fillStyle = bg2;
@@ -2867,8 +4212,24 @@ function paintBanner(x, k, shape, [a, a2, b, bg1, bg2], coin, page) {
   x.drawImage(coin, cx - r, cy - r, 2 * r, 2 * r);
   x.restore();
   // The words: right-aligned beside the coin (wide), centered under it (square)
-  const tx = wide ? W - 24 : W / 2, from = wide ? 214 : 0, L = 'Manrope, "Segoe UI", sans-serif';
-  const [fa, en, wt, chips, url] = wide ? [[40, 41], [20, 81.5], [13, 110], [15, 142], [15, 192]] : [[62, 392], [24, 448], [17, 482], [19, 521], [19, 611]];
+  const tx = wide ? W - 24 : W / 2,
+    from = wide ? 214 : 0,
+    L = 'Manrope, "Segoe UI", sans-serif';
+  const [fa, en, wt, chips, url] = wide
+    ? [
+        [40, 41],
+        [20, 81.5],
+        [13, 110],
+        [15, 142],
+        [15, 192],
+      ]
+    : [
+        [62, 392],
+        [24, 448],
+        [17, 482],
+        [19, 521],
+        [19, 611],
+      ];
   x.save();
   if (!wide) shadow(0, 4, 0, 'rgba(0,0,0,0.35)');
   text('دونیت کریپتو', tx, fa[1], `800 ${fa[0]}px Vazirmatn, Tahoma, sans-serif`, '#fff', { dir: 'rtl' });
@@ -2880,8 +4241,11 @@ function paintBanner(x, k, shape, [a, a2, b, bg1, bg2], coin, page) {
   text('WALLET TO WALLET', tx, wt[1], `800 ${wt[0]}px ${L}`, b, { spacing: wt[0] * 0.3 });
   // USDT · BEP20 · TRC20, in pills
   x.font = `700 ${chips[0]}px ${L}`;
-  const padX = wide ? 12 : 16, ph = chips[0] * 1.36 + (wide ? 8 : 10), names = ['USDT', 'BEP20', 'TRC20'];
-  const widths = names.map((n) => x.measureText(n).width + 2 * padX), all = widths.reduce((s, w) => s + w, 0) + 8 * 2;
+  const padX = wide ? 12 : 16,
+    ph = chips[0] * 1.36 + (wide ? 8 : 10),
+    names = ['USDT', 'BEP20', 'TRC20'];
+  const widths = names.map((n) => x.measureText(n).width + 2 * padX),
+    all = widths.reduce((s, w) => s + w, 0) + 8 * 2;
   let px = wide ? tx - all : tx - all / 2;
   names.forEach((n, i) => {
     x.fillStyle = i ? b : a;
@@ -2892,12 +4256,15 @@ function paintBanner(x, k, shape, [a, a2, b, bg1, bg2], coin, page) {
     px += widths[i] + 8;
   });
   // The streamer's own link, the channel in the accent color
-  const u = new URL(page), host = `${u.host}/`, channel = decodeURIComponent(u.pathname.slice(1));
+  const u = new URL(page),
+    host = `${u.host}/`,
+    channel = decodeURIComponent(u.pathname.slice(1));
   const mono = (w) => `${w} ${url[0]}px Consolas, ui-monospace, monospace`;
   x.font = mono(600);
   const hw = x.measureText(host).width;
   x.font = mono(800);
-  const cw = x.measureText(channel).width, ux = wide ? tx - hw - cw : tx - (hw + cw) / 2;
+  const cw = x.measureText(channel).width,
+    ux = wide ? tx - hw - cw : tx - (hw + cw) / 2;
   text(host, ux, url[1], mono(600), '#c9d8d5', { align: 'left' });
   text(channel, ux + hw, url[1], mono(800), a, { align: 'left' });
 }
@@ -2914,31 +4281,54 @@ async function bannerCanvas(k, canvas = document.createElement('canvas')) {
 // The preview (only while its tab is on screen, the gateway active).
 function drawBanner() {
   if (pay.state !== 'active' || $('#cryptoPageTab').hidden) return;
-  const seq = ++bannerSeq, live = $('#bannerCanvas');
+  const seq = ++bannerSeq,
+    live = $('#bannerCanvas');
   $('.banner-maker').dataset.shape = bannerShape;
   $$('#bannerColors button').forEach((s, i) => s.setAttribute('aria-checked', String(i === bannerColor)));
   $('.banner-maker .copy-row code').textContent = pay.page;
-  bannerCanvas(2).then((c) => {
-    if (seq !== bannerSeq) return; // a newer pick meanwhile
-    Object.assign(live, { width: c.width, height: c.height });
-    live.style.width = `${c.width / 2}px`;
-    live.getContext('2d').drawImage(c, 0, 0);
-  }, () => {});
+  bannerCanvas(2).then(
+    (c) => {
+      if (seq !== bannerSeq) return; // a newer pick meanwhile
+      Object.assign(live, { width: c.width, height: c.height });
+      live.style.width = `${c.width / 2}px`;
+      live.getContext('2d').drawImage(c, 0, 0);
+    },
+    () => {},
+  );
 }
 function wireBanner() {
-  $('#bannerColors').append(...S.panel.bannerColors.map((name, i) => {
-    const [a, , , , bg2] = BANNER_COLORS[i];
-    return el('button', { role: 'radio', title: name, ariaLabel: name, style: `background: linear-gradient(135deg, ${a}, ${bg2})`, onclick: () => ((bannerColor = i), drawBanner()) });
-  }));
+  $('#bannerColors').append(
+    ...S.panel.bannerColors.map((name, i) => {
+      const [a, , , , bg2] = BANNER_COLORS[i];
+      return el('button', {
+        role: 'radio',
+        title: name,
+        ariaLabel: name,
+        style: `background: linear-gradient(135deg, ${a}, ${bg2})`,
+        onclick: () => ((bannerColor = i), drawBanner()),
+      });
+    }),
+  );
   $$('[name=bannerShape]').forEach((r) => (r.onchange = () => ((bannerShape = r.value), drawBanner())));
   $('#bannerSteps').append(...S.panel.bannerSteps.map((t) => el('li', {}, ...marked(t, 'b'))));
-  $('#bannerSteps li:last-child').append(el('div', { className: 'copy-row' }, el('code', { dir: 'ltr' }),
-    el('button', { className: 'primary', textContent: S.panel.copy, onclick: () => copyLink(pay.page, S.panel.cryptoLinkCopied) })));
-  $('#bannerDownload').onclick = () => bannerCanvas(3).then((c) => c.toBlob((blob) => {
-    const a = el('a', { href: URL.createObjectURL(blob), download: `jarchi-donate-${bannerShape}.png` });
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 60000);
-  }, 'image/png'), (err) => toast(err.message, true));
+  $('#bannerSteps li:last-child').append(
+    el(
+      'div',
+      { className: 'copy-row' },
+      el('code', { dir: 'ltr' }),
+      el('button', { className: 'primary', textContent: S.panel.copy, onclick: () => copyLink(pay.page, S.panel.cryptoLinkCopied) }),
+    ),
+  );
+  $('#bannerDownload').onclick = () =>
+    bannerCanvas(3).then(
+      (c) =>
+        c.toBlob((blob) => {
+          const a = el('a', { href: URL.createObjectURL(blob), download: `jarchi-donate-${bannerShape}.png` });
+          a.click();
+          setTimeout(() => URL.revokeObjectURL(a.href), 60000);
+        }, 'image/png'),
+      (err) => toast(err.message, true),
+    );
 }
 
 function wireCryptoPage() {
@@ -2947,22 +4337,37 @@ function wireCryptoPage() {
   $('#cryptoPageSave').onclick = saveCryptoPage;
   $('#cryptoBio').placeholder = S.panel.cryptoBioDefault; // Jarchi Pay's own line, without one
   $('#cryptoBio').oninput = () => $('#cryptoBio').removeAttribute('aria-invalid');
-  $('#cryptoLinks').replaceChildren(...Object.entries(PAGE_LINKS).map(([k, [start]]) => {
-    const name = LINK_NAMES[k] ?? S.panel.cryptoWebsite;
-    const inp = el('input', { type: 'text', dir: 'ltr', spellcheck: false, autocomplete: 'off', maxLength: 300 });
-    inp.dataset.link = k;
-    inp.setAttribute('aria-label', name);
-    inp.oninput = (e) => {
-      inp.removeAttribute('aria-invalid');
-      if (e.inputType === 'insertFromPaste') inp.value = linkId(k, inp.value); // a whole link pasted: its id
-    };
-    inp.onchange = () => (inp.value = linkId(k, inp.value));
-    return el('label', { className: 'crypto-link' }, el('span', { textContent: name }), el('span', { className: 'crypto-pfx' }, el('em', { textContent: start }), inp));
-  }));
+  $('#cryptoLinks').replaceChildren(
+    ...Object.entries(PAGE_LINKS).map(([k, [start]]) => {
+      const name = LINK_NAMES[k] ?? S.panel.cryptoWebsite;
+      const inp = el('input', { type: 'text', dir: 'ltr', spellcheck: false, autocomplete: 'off', maxLength: 300 });
+      inp.dataset.link = k;
+      inp.setAttribute('aria-label', name);
+      inp.oninput = (e) => {
+        inp.removeAttribute('aria-invalid');
+        if (e.inputType === 'insertFromPaste') inp.value = linkId(k, inp.value); // a whole link pasted: its id
+      };
+      inp.onchange = () => (inp.value = linkId(k, inp.value));
+      return el(
+        'label',
+        { className: 'crypto-link' },
+        el('span', { textContent: name }),
+        el('span', { className: 'crypto-pfx' }, el('em', { textContent: start }), inp),
+      );
+    }),
+  );
   // A picture: an upload (Jarchi Pay checks it), or Reset = the channel's own again. Either answer is the whole page.
   for (const box of $$('#cryptoPageTab [data-kind]')) {
-    const kind = box.dataset.kind, file = $('input[type=file]', box), up = $('.upload', box);
-    const after = (ask) => ask.then((r) => (cryptoPage = r), (err) => toast(err.message, true)).finally(renderCryptoPage);
+    const kind = box.dataset.kind,
+      file = $('input[type=file]', box),
+      up = $('.upload', box);
+    const after = (ask) =>
+      ask
+        .then(
+          (r) => (cryptoPage = r),
+          (err) => toast(err.message, true),
+        )
+        .finally(renderCryptoPage);
     up.onclick = () => file.click();
     file.onchange = () => {
       const f = file.files[0];
@@ -2986,7 +4391,11 @@ const eyesUi = {}; // wireEyes: show() the eyes, open(code) the popover
 let codeMsg = null; // the Design code message whose Use code filled the popover: closed for good once its code works
 const plainCode = (c) => String(c).toUpperCase().replace(/[\s-]/g, '');
 function wireEyes() {
-  const eyes = $('#eyes'), pop = $('#redeemPop'), spot = $('#eyesSpot'), msg = $('#redeemMsg'), code = $('#redeemCode');
+  const eyes = $('#eyes'),
+    pop = $('#redeemPop'),
+    spot = $('#eyesSpot'),
+    msg = $('#redeemMsg'),
+    code = $('#redeemCode');
   let spotWaits = false; // the first time's frame, until the eyes are full size and no other window is open
   const say = (text, bad = false) => Object.assign(msg, { textContent: text, className: `redeem-msg${bad ? ' bad' : ''}` });
   const close = () => (pop.hidden = true);
@@ -2998,11 +4407,17 @@ function wireEyes() {
     if (given) code.value = given;
     pop.hidden = false;
     eyes.scrollIntoView({ block: 'nearest' }); // a short window: the chip may be scrolled out of sight
-    const r = eyes.getBoundingClientRect(), w = pop.offsetWidth, h = pop.offsetHeight;
-    const x = document.dir === 'rtl' ? r.left - 12 - w : r.right + 12, above = r.bottom - h >= 8;
+    const r = eyes.getBoundingClientRect(),
+      w = pop.offsetWidth,
+      h = pop.offsetHeight;
+    const x = document.dir === 'rtl' ? r.left - 12 - w : r.right + 12,
+      above = r.bottom - h >= 8;
     // Held by its bottom when it's above: a longer answer (the message line) grows it upward, never off the window.
-    Object.assign(pop.style, { left: `${Math.max(8, Math.min(x, innerWidth - w - 8))}px`,
-      top: above ? 'auto' : `${r.bottom + 8}px`, bottom: above ? `${Math.max(8, innerHeight - r.bottom)}px` : 'auto' });
+    Object.assign(pop.style, {
+      left: `${Math.max(8, Math.min(x, innerWidth - w - 8))}px`,
+      top: above ? 'auto' : `${r.bottom + 8}px`,
+      bottom: above ? `${Math.max(8, innerHeight - r.bottom)}px` : 'auto',
+    });
     code.focus();
     code.setSelectionRange(code.value.length, code.value.length);
   };
@@ -3020,9 +4435,13 @@ function wireEyes() {
     eyes.scrollIntoView({ block: 'nearest' }); // a short window: the sidebar scrolls to it
     if (settings.eyesSeen) return;
     settings.eyesSeen = true; // once, for good
-    api('PATCH', '/api/settings', { eyesSeen: true }).then((s) => (settings = s), () => {});
+    api('PATCH', '/api/settings', { eyesSeen: true }).then(
+      (s) => (settings = s),
+      () => {},
+    );
     spotWaits = true;
-    if (getComputedStyle(eyes).animationName === 'none') place(); // Reduce animations
+    if (getComputedStyle(eyes).animationName === 'none')
+      place(); // Reduce animations
     else eyes.addEventListener('animationend', (ev) => ev.animationName === 'eyes-in' && place(), { once: true });
   };
   eyes.onclick = (e) => {
@@ -3078,9 +4497,23 @@ function wireEyes() {
 // instead). Your own alert and each amount alert are looks, edited in #cryptoLook with a live preview. Every change is
 // saved at once (send()), files like the other alerts' (wireFile).
 const CRYPTO_SECONDS = [6, 8, 10, 15];
-let cryptoTab = ['alerts', 'page'].includes(remember.get('jarchi.cryptoTab')) ? remember.get('jarchi.cryptoTab') : 'donations', lookOpen = null; // lookOpen: 'custom' | an amount alert's id
-const cryptoEvent = (look, amount = '25.0000') => ({ type: 'crypto', id: 'preview', user: 'Jarchi', amount, network: 'bep20', message: EN.test.message, txHash: `0x${'8f3a'.repeat(15)}c21d`, look });
-const cryptoTest = (look) => api('POST', '/api/crypto/test', { look }).then(() => toast(S.panel.testSent), (err) => toast(err.message, true));
+let cryptoTab = ['alerts', 'page'].includes(remember.get('jarchi.cryptoTab')) ? remember.get('jarchi.cryptoTab') : 'donations',
+  lookOpen = null; // lookOpen: 'custom' | an amount alert's id
+const cryptoEvent = (look, amount = '25.0000') => ({
+  type: 'crypto',
+  id: 'preview',
+  user: 'Jarchi',
+  amount,
+  network: 'bep20',
+  message: EN.test.message,
+  txHash: `0x${'8f3a'.repeat(15)}c21d`,
+  look,
+});
+const cryptoTest = (look) =>
+  api('POST', '/api/crypto/test', { look }).then(
+    () => toast(S.panel.testSent),
+    (err) => toast(err.message, true),
+  );
 const lookOf = (id) => (id === 'custom' ? settings.crypto.custom : settings.crypto.tiers.find((t) => t.id === id));
 const upFile = (f) => `/uploads/${encodeURIComponent(f.file)}`;
 function fileRow(row, f, none) {
@@ -3089,7 +4522,8 @@ function fileRow(row, f, none) {
   name.classList.toggle('default', !f);
   $('.remove', row).hidden = !f;
 }
-const seconds = (sel, v) => sel.replaceChildren(...[...new Set([...CRYPTO_SECONDS, v])].sort((a, b) => a - b).map((n) => new Option(fd(tpl(S.panel.seconds, { n })), n, false, n === v)));
+const seconds = (sel, v) =>
+  sel.replaceChildren(...[...new Set([...CRYPTO_SECONDS, v])].sort((a, b) => a - b).map((n) => new Option(fd(tpl(S.panel.seconds, { n })), n, false, n === v)));
 
 function showCryptoTab(tab) {
   cryptoTab = tab;
@@ -3111,21 +4545,47 @@ function showCryptoTab(tab) {
 }
 
 function renderCryptoAlerts() {
-  const c = settings.crypto, own = c.design === 'custom';
+  const c = settings.crypto,
+    own = c.design === 'custom';
   $$('[name=cryptoDesign]').forEach((r) => (r.checked = r.value === c.design));
   $$('#cryptoAlertsTab [data-only]').forEach((e) => (e.hidden = (e.dataset.only === 'own') !== own));
   fileRow($('#cryptoSoundRow'), c.sound, S.panel.cryptoSoundDesign);
   seconds($('#cryptoDur'), c.duration);
-  $('#cryptoTiers').replaceChildren(...c.tiers.map((t) => el('li', { className: 'crypto-tier' }, lookThumb(t),
-    el('span', { className: 'stack' }, el('b', { textContent: tpl(S.panel.cryptoTierFrom, { amount: t.min }) }), el('small', { textContent: lookSummary(t) })),
-    el('button', { className: 'ghost', textContent: '▶', title: S.panel.testObs, ariaLabel: S.panel.testObs, onclick: () => cryptoTest(t.id) }),
-    el('button', { className: 'ghost', textContent: S.panel.cryptoEdit, onclick: () => openLook(t.id) }))));
+  $('#cryptoTiers').replaceChildren(
+    ...c.tiers.map((t) =>
+      el(
+        'li',
+        { className: 'crypto-tier' },
+        lookThumb(t),
+        el(
+          'span',
+          { className: 'stack' },
+          el('b', { textContent: tpl(S.panel.cryptoTierFrom, { amount: t.min }) }),
+          el('small', { textContent: lookSummary(t) }),
+        ),
+        el('button', { className: 'ghost', textContent: '▶', title: S.panel.testObs, ariaLabel: S.panel.testObs, onclick: () => cryptoTest(t.id) }),
+        el('button', { className: 'ghost', textContent: S.panel.cryptoEdit, onclick: () => openLook(t.id) }),
+      ),
+    ),
+  );
   if (lookOpen) renderLook();
 }
-const lookSummary = (l) => [l.image ? S.panel.cryptoImageYours : S.panel.cryptoImageCoin, l.sound ? S.panel.cryptoSoundYours : S.panel.cryptoSoundDefault,
-  tpl(S.panel.cryptoFontIs, { font: l.font })].join(' · ');
-const lookThumb = (l) => el('span', { className: 'crypto-thumb' }, !l.image ? el('img', { src: '/assets/brand/jarchi-pay-coin.webp', alt: '' })
-  : isVideo(l.image.file) ? el('video', { muted: true, src: upFile(l.image) }) : el('img', { src: upFile(l.image), alt: '' }));
+const lookSummary = (l) =>
+  [
+    l.image ? S.panel.cryptoImageYours : S.panel.cryptoImageCoin,
+    l.sound ? S.panel.cryptoSoundYours : S.panel.cryptoSoundDefault,
+    tpl(S.panel.cryptoFontIs, { font: l.font }),
+  ].join(' · ');
+const lookThumb = (l) =>
+  el(
+    'span',
+    { className: 'crypto-thumb' },
+    !l.image
+      ? el('img', { src: '/assets/brand/jarchi-pay-coin.webp', alt: '' })
+      : isVideo(l.image.file)
+        ? el('video', { muted: true, src: upFile(l.image) })
+        : el('img', { src: upFile(l.image), alt: '' }),
+  );
 
 // The editor: a look's fields and files, and its preview (the real overlay, held on screen; Play preview with sound).
 function openLook(id) {
@@ -3149,7 +4609,8 @@ function renderLook() {
   playLook(true);
 }
 function playLook(muted) {
-  const f = $('#cryptoLookPreview'), go = () => post(f, settings, cryptoEvent(lookOpen, String(lookOf(lookOpen)?.min ?? '25.0000')), muted, true);
+  const f = $('#cryptoLookPreview'),
+    go = () => post(f, settings, cryptoEvent(lookOpen, String(lookOf(lookOpen)?.min ?? '25.0000')), muted, true);
   if (f.src) go();
   else {
     f.onload = go;
@@ -3166,18 +4627,30 @@ function wireCryptoAlerts() {
   $('#cryptoOwnEdit').onclick = () => openLook('custom');
   $('#cryptoDur').onchange = (e) => send('PATCH', '/api/settings', { crypto: { duration: Number(e.target.value) } });
   $('#cryptoTestBtn').onclick = () => cryptoTest(settings.crypto.design);
-  $('#cryptoTierAdd').onclick = () => api('POST', '/api/crypto/tiers', { min: (settings.crypto.tiers.at(-1)?.min ?? 25) * 2 }).then(({ settings: s, id }) => {
-    settings = s;
-    render();
-    openLook(id);
-  }, (err) => toast(err.message, true));
+  $('#cryptoTierAdd').onclick = () =>
+    api('POST', '/api/crypto/tiers', { min: (settings.crypto.tiers.at(-1)?.min ?? 25) * 2 }).then(
+      ({ settings: s, id }) => {
+        settings = s;
+        render();
+        openLook(id);
+      },
+      (err) => toast(err.message, true),
+    );
   $('#cryptoSoundRow input[type=file]').accept = ACCEPT.sound;
-  wireFile($('#cryptoSoundRow'), () => '/api/crypto/files/main/sound', () => '/api/crypto/files/main/sound');
+  wireFile(
+    $('#cryptoSoundRow'),
+    () => '/api/crypto/files/main/sound',
+    () => '/api/crypto/files/main/sound',
+  );
 
   const d = $('#cryptoLook');
   for (const row of $$('.file', d)) {
     $('input[type=file]', row).accept = ACCEPT[row.dataset.kind];
-    wireFile(row, () => `/api/crypto/files/${lookOpen}/${row.dataset.kind}`, () => `/api/crypto/files/${lookOpen}/${row.dataset.kind}`);
+    wireFile(
+      row,
+      () => `/api/crypto/files/${lookOpen}/${row.dataset.kind}`,
+      () => `/api/crypto/files/${lookOpen}/${row.dataset.kind}`,
+    );
   }
   $('#cryptoLookMin').onchange = (e) => {
     const min = Math.round(Number(e.target.value) * 100) / 100;
@@ -3198,14 +4671,15 @@ function wireCryptoAlerts() {
   d.addEventListener('close', () => {
     lookOpen = null;
     const f = $('#cryptoLookPreview');
-    if (f.src) f.src = f.src; // a long sound of the last preview stops
+    if (f.src) f.src = f.src; // eslint-disable-line no-self-assign -- a long sound of the last preview stops
   });
 }
 
 // Settings > Uninstall Jarchi: only in the installed app (electron/main.js says whether its uninstaller is there; not
 // with `npm run app`, and a browser has no window.jarchiApp). The uninstaller is told whether to keep the data.
 function wireUninstall() {
-  const app = window.jarchiApp, d = $('#uninstallDialog');
+  const app = window.jarchiApp,
+    d = $('#uninstallDialog');
   if (!app) return;
   app.installed().then((on) => ($('#uninstall').hidden = !on));
   $('#uninstall').onclick = () => {
@@ -3223,13 +4697,18 @@ function wireUninstall() {
 // Settings > Developer: only in dev runs (/api/version's dev; the server has no such route otherwise). "Test as if Kick
 // were blocked": the VPN help (core/vpn.js) runs as if Kick couldn't be reached; its popup comes by socket as usual.
 function wireDev() {
-  api('GET', '/api/version').then(({ dev }) => ($('#devBox').hidden = !dev), () => {});
+  api('GET', '/api/version').then(
+    ({ dev }) => ($('#devBox').hidden = !dev),
+    () => {},
+  );
   $('#devKickBlocked').onclick = () => api('POST', '/api/dev/kick-blocked').catch((err) => toast(err.message, true));
 }
 
 let draft, crop; // Edit profile: the profile being edited, the picture being cropped { img, zoom, x, y, out, url }
 function renderProfileDialog() {
-  const d = $('#profileDialog'), pr = profileOf(draft, crop?.url), acc = { kick, twitch };
+  const d = $('#profileDialog'),
+    pr = profileOf(draft, crop?.url),
+    acc = { kick, twitch };
   paintChip($('#profilePreview'), pr);
   let off = false;
   $$('input[type=radio]', d).forEach((r) => {
@@ -3246,14 +4725,19 @@ function renderProfileDialog() {
 // The picture in the round frame: zoom 1 = it just covers the frame, and it can be dragged anywhere that still covers
 // it. What's inside the circle is the picture (round, transparent corners).
 function drawCrop() {
-  const c = $('#cropCanvas'), n = c.width, { img } = crop;
-  const s = (n / Math.min(img.naturalWidth, img.naturalHeight)) * crop.zoom, w = img.naturalWidth * s, h = img.naturalHeight * s;
+  const c = $('#cropCanvas'),
+    n = c.width,
+    { img } = crop;
+  const s = (n / Math.min(img.naturalWidth, img.naturalHeight)) * crop.zoom,
+    w = img.naturalWidth * s,
+    h = img.naturalHeight * s;
   crop.x = Math.max((n - w) / 2, Math.min((w - n) / 2, crop.x));
   crop.y = Math.max((n - h) / 2, Math.min((h - n) / 2, crop.y));
   const g = c.getContext('2d');
   g.clearRect(0, 0, n, n);
   g.drawImage(img, (n - w) / 2 + crop.x, (n - h) / 2 + crop.y, w, h);
-  const out = el('canvas', { width: n, height: n }), o = out.getContext('2d');
+  const out = el('canvas', { width: n, height: n }),
+    o = out.getContext('2d');
   o.beginPath();
   o.arc(n / 2, n / 2, n / 2, 0, 2 * Math.PI);
   o.clip();
@@ -3263,7 +4747,9 @@ function drawCrop() {
 }
 
 function wireProfile() {
-  const d = $('#profileDialog'), canvas = $('#cropCanvas'), err = $('#profileErr');
+  const d = $('#profileDialog'),
+    canvas = $('#cropCanvas'),
+    err = $('#profileErr');
   $$('.avatar img').forEach((img) => (img.onerror = () => (img.hidden = true)));
   $('#profileName').placeholder = S.panel.profileDefault;
   wireMenu($('#profileChip'), $('#profileMenu')); // its other items: wireUpdate
@@ -3277,10 +4763,13 @@ function wireProfile() {
   };
   d.onclose = () => (crop = null);
   $('#profileCancel').onclick = () => d.close();
-  $$('input[type=radio]', d).forEach((r) => (r.onchange = () => {
-    draft[r.name] = r.value;
-    renderProfileDialog();
-  }));
+  $$('input[type=radio]', d).forEach(
+    (r) =>
+      (r.onchange = () => {
+        draft[r.name] = r.value;
+        renderProfileDialog();
+      }),
+  );
   $('#profileName').oninput = (e) => {
     draft.name = e.target.value;
     draft.nameFrom = 'custom'; // shown because nothing is connected: typing picks it
@@ -3310,7 +4799,8 @@ function wireProfile() {
   canvas.onpointerdown = (e) => {
     if (!crop) return;
     canvas.setPointerCapture(e.pointerId);
-    const k = canvas.width / canvas.clientWidth, start = { x: e.clientX, y: e.clientY, cx: crop.x, cy: crop.y };
+    const k = canvas.width / canvas.clientWidth,
+      start = { x: e.clientX, y: e.clientY, cx: crop.x, cy: crop.y };
     canvas.onpointermove = (m) => {
       crop.x = start.cx + (m.clientX - start.x) * k;
       crop.y = start.cy + (m.clientY - start.y) * k;
@@ -3351,7 +4841,9 @@ function renderGoal() {
   fill(ed, g);
   $$('[name=goalSizeMode]').forEach((r) => (r.checked = (r.value === 'auto') === g.autoSize));
   // Synced from Kick / Twitch: their count and target, read-only (no −, +, Test or Reset to 0).
-  const st = goalData.state[curGoal], synced = st.kick || st.twitch, target = $('[data-f=target]', ed);
+  const st = goalData.state[curGoal],
+    synced = st.kick || st.twitch,
+    target = $('[data-f=target]', ed);
   if (synced) target.value = st.target;
   target.readOnly = $('#goalCurrent').readOnly = synced;
   $('#goalMinus').disabled = $('#goalPlus').disabled = $('#goalTest').disabled = synced;
@@ -3383,7 +4875,8 @@ function renderGoal() {
 
 // The Viewers page. Its links: a hint and Connect while that account isn't connected (Total: while neither is).
 function renderViewers() {
-  const ed = $('main [data-view=viewers]'), v = settings.viewers;
+  const ed = $('main [data-view=viewers]'),
+    v = settings.viewers;
   fill(ed, v);
   $$('.viewers-tile').forEach((t) => t.classList.toggle('selected', t.dataset.style === v.style));
   // Jarchi gold: Jarchi's own colors, no pickers. Angled bar has no border or line.
@@ -3392,7 +4885,8 @@ function renderViewers() {
   $('#viewersHidden').hidden = v.offline !== 'hide';
   const on = { kick: !!kick.login, twitch: !!twitch.login };
   for (const row of $$('#viewersLinks li')) {
-    const p = row.dataset.source, off = p === 'total' ? !on.kick && !on.twitch : !on[p];
+    const p = row.dataset.source,
+      off = p === 'total' ? !on.kick && !on.twitch : !on[p];
     const note = $('small', row);
     note.textContent = off && p !== 'total' ? tpl(S.panel.viewersNoAccount, { platform: S.platforms[p] }) : p === 'total' ? S.panel.viewersTotalHint : '';
     note.classList.toggle('warn', off && p !== 'total');
@@ -3416,28 +4910,55 @@ const ART_ICONS = [
   'M9 5a3 3 0 0 1 6 0v6a3 3 0 0 1-6 0zM5 10v1a7 7 0 0 0 14 0v-1M12 18v4M8 22h8', // mic
   'M4 6h10a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2zM16 10.5L22 7v10l-6-3.5', // camera
   'M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z', // chat
-  HEART, TYPE_ICON.sub, TYPE_ICON.gift_sub, // heart, star, gift
+  HEART,
+  TYPE_ICON.sub,
+  TYPE_ICON.gift_sub, // heart, star, gift
   'M3 11l18-5v12L3 14zM11.6 16.8a3 3 0 1 1-5.8-1.6', // megaphone
   'M9 18V5l12-2v13M9 18a3 3 0 1 1-6 0 3 3 0 0 1 6 0zM21 16a3 3 0 1 1-6 0 3 3 0 0 1 6 0z', // music note
 ];
 const ART_RING = { kick: '#53fc18', twitch: '#9146ff' };
 const STILL = matchMedia('(prefers-reduced-motion: reduce)');
 const rnd = (a, b) => a + Math.random() * (b - a);
-let art = [], artPics = [], artChannels, artMouse = null, artFrame = 0, artLast = 0, area;
+let art = [],
+  artPics = [],
+  artChannels,
+  artMouse = null,
+  artFrame = 0,
+  artLast = 0,
+  area;
 // Where the items go: beside the sidebar (all the width on a narrow window, where the sidebar is a bar on top), below
 // the top bar, a little in from the edges. Nothing behind the sidebar: it would barely show through.
 function artArea() {
-  const s = $('.side').getBoundingClientRect(), beside = s.bottom >= innerHeight - 1; // down to the bottom (under the app's title bar)
-  const x = beside && s.left < innerWidth / 2 ? s.right : 0, w = beside ? innerWidth - s.width : innerWidth;
+  const s = $('.side').getBoundingClientRect(),
+    beside = s.bottom >= innerHeight - 1; // down to the bottom (under the app's title bar)
+  const x = beside && s.left < innerWidth / 2 ? s.right : 0,
+    w = beside ? innerWidth - s.width : innerWidth;
   area = { x: x + 24, y: 70, w: Math.max(1, w - 48), h: Math.max(1, innerHeight - 94) };
 }
 // Spots for the pictures and the logos, as shares of the area (mirrored in Persian, like the page), on one 4 x 4
 // pattern where they take turns like a checkerboard, so the logos sit about 2 cells apart. Pictures: four on each half,
 // near the corners and in the middle; the first in the bottom right, below the Home page's narrow column. Logos (their
 // own files and colors): Kick also right and bottom, Twitch also left and top.
-const FACE_SPOTS = [[0.9, 0.88], [0.1, 0.12], [0.37, 0.38], [0.63, 0.12], [0.9, 0.38], [0.1, 0.62], [0.37, 0.88], [0.63, 0.62]];
-const LOGO_SPOTS = [['kick', [0.9, 0.12]], ['twitch', [0.37, 0.12]], ['kick', [0.9, 0.62]], ['twitch', [0.1, 0.38]],
-  ['kick', [0.63, 0.88]], ['twitch', [0.63, 0.38]], ['kick', [0.37, 0.62]], ['twitch', [0.1, 0.88]]];
+const FACE_SPOTS = [
+  [0.9, 0.88],
+  [0.1, 0.12],
+  [0.37, 0.38],
+  [0.63, 0.12],
+  [0.9, 0.38],
+  [0.1, 0.62],
+  [0.37, 0.88],
+  [0.63, 0.62],
+];
+const LOGO_SPOTS = [
+  ['kick', [0.9, 0.12]],
+  ['twitch', [0.37, 0.12]],
+  ['kick', [0.9, 0.62]],
+  ['twitch', [0.1, 0.38]],
+  ['kick', [0.63, 0.88]],
+  ['twitch', [0.63, 0.38]],
+  ['kick', [0.37, 0.62]],
+  ['twitch', [0.1, 0.88]],
+];
 // pics: [[platform, url]...]. 8 logos, 8 pictures (none without a channel: 8 more icons then, so the page is as full and
 // the logos keep their spacing) and outline icons, 34 in all. Spread evenly: rows across the area, the items shared out
 // between them with no gaps (so corners and edges get some too), each somewhere in the middle of its cell. The logos,
@@ -3446,7 +4967,8 @@ function buildArt(pics) {
   artPics = pics;
   const faces = pics.length ? Array.from({ length: 8 }, (_, k) => pics[k % pics.length]) : [];
   const icons = Array.from({ length: 26 - faces.length }, (_, i) => ART_ICONS[i % ART_ICONS.length]);
-  const n = LOGO_SPOTS.length + faces.length + icons.length, rows = Math.max(1, Math.round(Math.sqrt((n * area.h) / area.w)));
+  const n = LOGO_SPOTS.length + faces.length + icons.length,
+    rows = Math.max(1, Math.round(Math.sqrt((n * area.h) / area.w)));
   const cells = [];
   for (let r = 0; r < rows; r++) {
     const c = Math.floor(n / rows) + (r < n % rows ? 1 : 0);
@@ -3470,8 +4992,15 @@ function buildArt(pics) {
     const opacity = filled ? 0.2 - 0.05 * depth : 0.3 - 0.15 * depth;
     Object.assign(e.style, { width: px(size), height: px(size), opacity: opacity.toFixed(2), filter: `blur(${(1.2 + 1.8 * depth).toFixed(1)}px)` });
     return {
-      e, size, u, v, ox: 0, oy: 0, rot: rnd(-15, 15), // u, v: the spot, as shares of the area
-      ph: [rnd(0, 7), rnd(0, 7), rnd(0, 7)], sp: [rnd(1.2, 2.5) / 1e4, rnd(1.2, 2.5) / 1e4, rnd(1.2, 2.5) / 1e4], // slow: 25-50 s a swing
+      e,
+      size,
+      u,
+      v,
+      ox: 0,
+      oy: 0,
+      rot: rnd(-15, 15), // u, v: the spot, as shares of the area
+      ph: [rnd(0, 7), rnd(0, 7), rnd(0, 7)],
+      sp: [rnd(1.2, 2.5) / 1e4, rnd(1.2, 2.5) / 1e4, rnd(1.2, 2.5) / 1e4], // slow: 25-50 s a swing
     };
   };
   art = [
@@ -3486,7 +5015,8 @@ function buildArt(pics) {
       return item(el('img', { src: `/assets/platform-logos/${logo}.svg`, alt: '' }), logoCells[k], size, (size - 44) / 66, true);
     }),
     ...icons.map((icon, i) => {
-      const size = rnd(44, 110), depth = (size - 44) / 66;
+      const size = rnd(44, 110),
+        depth = (size - 44) / 66;
       const e = el('span', { className: (i + Math.floor(i / ART_ICONS.length)) % 2 ? 'gold' : 'main' }); // each kind once in each color
       e.innerHTML = `<svg viewBox="0 0 24 24"><path d="${icon}"/></svg>`; // fixed paths
       return item(e, cells[i], size, depth, false);
@@ -3499,10 +5029,14 @@ function buildArt(pics) {
 function drawArt(t, dt = 0) {
   const ease = 1 - 0.94 ** (dt / 16.7);
   for (const a of art) {
-    const x = area.x + a.u * area.w + 14 * Math.sin(t * a.sp[0] + a.ph[0]), y = area.y + a.v * area.h + 14 * Math.sin(t * a.sp[1] + a.ph[1]);
-    let tx = 0, ty = 0; // out of the mouse's way: 70 px when it's right on top, less and less up to 170 px away
+    const x = area.x + a.u * area.w + 14 * Math.sin(t * a.sp[0] + a.ph[0]),
+      y = area.y + a.v * area.h + 14 * Math.sin(t * a.sp[1] + a.ph[1]);
+    let tx = 0,
+      ty = 0; // out of the mouse's way: 70 px when it's right on top, less and less up to 170 px away
     if (artMouse) {
-      const dx = x - artMouse.x, dy = y - artMouse.y, d = Math.hypot(dx, dy) || 1;
+      const dx = x - artMouse.x,
+        dy = y - artMouse.y,
+        d = Math.hypot(dx, dy) || 1;
       if (d < 170) [tx, ty] = [(dx / d) * 70 * (1 - d / 170), (dy / d) * 70 * (1 - d / 170)];
     }
     a.ox += (tx - a.ox) * ease; // eases there, and back when the mouse goes
@@ -3530,10 +5064,13 @@ function artFaces() {
   const channels = `${settings.chat.kickChannel}/${settings.chat.twitchChannel}`;
   if (channels === artChannels) return;
   artChannels = channels;
-  api('GET', '/api/streamer').then((r) => {
-    const pics = Object.entries(r).filter(([, url]) => url);
-    if (JSON.stringify(pics) !== JSON.stringify(artPics)) buildArt(pics);
-  }, () => {});
+  api('GET', '/api/streamer').then(
+    (r) => {
+      const pics = Object.entries(r).filter(([, url]) => url);
+      if (JSON.stringify(pics) !== JSON.stringify(artPics)) buildArt(pics);
+    },
+    () => {},
+  );
 }
 addEventListener('pointermove', (e) => (artMouse = { x: e.clientX, y: e.clientY }), { passive: true });
 document.documentElement.addEventListener('pointerleave', () => (artMouse = null));
@@ -3550,15 +5087,44 @@ artRun();
   EN = await (await fetch('/i18n/en.json')).json();
   S = FA ? await (await fetch('/i18n/fa.json')).json() : EN;
   try {
-    [settings, samples, goalData, { styles: chatStyles, fonts: chatFonts, exclusive: chatExclusive }, chatStatus, home, hist.list, twitch, kick, privacy, changelog, viewerData] = await Promise.all([
-      api('GET', '/api/settings'), api('GET', '/api/samples'), api('GET', '/api/goals'), api('GET', '/api/chat/styles'), api('GET', '/api/chat/status'), api('GET', '/api/home'), api('GET', '/api/history'),
-      api('GET', '/api/twitch'), api('GET', '/api/kick'), fetch('/i18n/privacy.json').then((r) => r.json()), fetch('/i18n/changelog.json').then((r) => r.json()).then((l) => l.filter((c) => c.version !== 'unreleased')), api('GET', '/api/viewers'),
+    [
+      settings,
+      samples,
+      goalData,
+      { styles: chatStyles, fonts: chatFonts, exclusive: chatExclusive },
+      chatStatus,
+      home,
+      hist.list,
+      twitch,
+      kick,
+      privacy,
+      changelog,
+      viewerData,
+    ] = await Promise.all([
+      api('GET', '/api/settings'),
+      api('GET', '/api/samples'),
+      api('GET', '/api/goals'),
+      api('GET', '/api/chat/styles'),
+      api('GET', '/api/chat/status'),
+      api('GET', '/api/home'),
+      api('GET', '/api/history'),
+      api('GET', '/api/twitch'),
+      api('GET', '/api/kick'),
+      fetch('/i18n/privacy.json').then((r) => r.json()),
+      fetch('/i18n/changelog.json')
+        .then((r) => r.json())
+        .then((l) => l.filter((c) => c.version !== 'unreleased')),
+      api('GET', '/api/viewers'),
     ]);
   } catch (err) {
     return toast(err.message, true);
   }
   build();
-  if (settings.lang !== S.lang) api('PATCH', '/api/settings', { lang: S.lang }).then((s) => (settings = s), () => {}); // a crypto alert's hidden name, in this language
+  if (settings.lang !== S.lang)
+    api('PATCH', '/api/settings', { lang: S.lang }).then(
+      (s) => (settings = s),
+      () => {},
+    ); // a crypto alert's hidden name, in this language
   // Back from a language switch: open what was open.
   let back;
   try {
@@ -3567,7 +5133,12 @@ artRun();
   } catch {}
   const [v, key] = back ?? [location.hash.slice(1)]; // or a page in the address (/#connections: back from Kick's login)
   if (location.hash) history.replaceState(null, '', location.pathname);
-  const ok = v === 'alert' ? key in settings.alerts : v === 'goal' ? key in settings.goals : v === 'theme' || v === 'news' || $$('.nav-item').some((b) => b.dataset.view === v);
+  const ok =
+    v === 'alert'
+      ? key in settings.alerts
+      : v === 'goal'
+        ? key in settings.goals
+        : v === 'theme' || v === 'news' || $$('.nav-item').some((b) => b.dataset.view === v);
   select(ok ? v : 'home', ok ? key : undefined);
   followUpdates(); // after that first page: What's new by itself after an update
   // The welcome tour: the first run, or back from its language pick (at that step). Else a newer Privacy Policy than

@@ -56,7 +56,10 @@ function enrich(platform, parts) {
   if (!global.size && !channels[platform]?.emotes.size) return parts;
   const out = [];
   for (const p of parts) {
-    if (p.t !== 'text') { out.push(p); continue; }
+    if (p.t !== 'text') {
+      out.push(p);
+      continue;
+    }
     for (const piece of p.v.split(/(\s+)/)) {
       const e = piece && find(platform, piece);
       if (e) out.push({ t: 'emote', name: e.name, src: e.src, still: e.still, provider: '7tv' });

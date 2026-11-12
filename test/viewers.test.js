@@ -15,7 +15,9 @@ const viewers = require('../core/viewers');
 
 test('counts are asked while a viewers page is open; a failed ask keeps the last numbers; 15 minutes are kept', async (t) => {
   t.mock.timers.enable({ apis: ['setInterval', 'Date'], now: 1e9 });
-  let kick = { live: true, viewers: 120 }, twitch = null, asked = 0; // no Twitch account
+  let kick = { live: true, viewers: 120 },
+    twitch = null,
+    asked = 0; // no Twitch account
   t.mock.method(kickAccount, 'stream', async () => {
     asked++;
     if (kick instanceof Error) throw kick;
@@ -48,7 +50,10 @@ test('counts are asked while a viewers page is open; a failed ask keeps the last
     await flush();
   }
   const { history } = viewers.state();
-  assert.ok(history.every((e) => e[0] > Date.now() - viewers.KEEP_MS), 'older than 15 minutes: gone');
+  assert.ok(
+    history.every((e) => e[0] > Date.now() - viewers.KEEP_MS),
+    'older than 15 minutes: gone',
+  );
   assert.deepEqual(history.at(-1).slice(1), [null, 30], 'not live: null');
 
   viewers.watch(-1);
@@ -66,7 +71,10 @@ test("Kick's and Twitch's stream: viewers while live, 0 offline, null without an
   // The Kick channel answer kick-account reads (website API): its livestream while live.
   const k = kickChat.kickGet;
   t.after(() => (kickChat.kickGet = k));
-  fs.writeFileSync(path.join(process.env.JARCHI_DATA_DIR, 'kick.json'), JSON.stringify({ refresh: 'r', access: 'a', login: 'Some_One', expires: Date.now() + 3600e3 }));
+  fs.writeFileSync(
+    path.join(process.env.JARCHI_DATA_DIR, 'kick.json'),
+    JSON.stringify({ refresh: 'r', access: 'a', login: 'Some_One', expires: Date.now() + 3600e3 }),
+  );
   delete require.cache[require.resolve('../connectors/kick-account')];
   const fresh = require('../connectors/kick-account');
   const asked = [];
@@ -84,7 +92,7 @@ test('viewers settings: a style starts from its own look, the rest stays; Jarchi
   assert.equal(settings.get().viewers.style, 'gold');
   let v = settings.update({ viewers: { numberColor: '#123456', font: 'Bangers', anim: 'flip', chartMinutes: 15 } }).viewers;
   assert.deepEqual([v.numberColor, v.font, v.anim, v.chartMinutes], ['#d6a83e', 'Bangers', 'flip', 15], "Jarchi gold: Jarchi's colors, its font can change");
-  v = settings.update({ viewers: { style: 'chart' } }).viewers;
+  settings.update({ viewers: { style: 'chart' } });
   v = settings.update({ viewers: { numberColor: '#123456' } }).viewers;
   assert.equal(v.numberColor, '#123456', 'other styles: the color picked');
   v = settings.update({ viewers: { style: 'comic' } }).viewers;

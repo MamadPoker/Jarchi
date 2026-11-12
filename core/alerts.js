@@ -20,7 +20,9 @@ const OUT_MS = 600; // the overlay's exit animation
 const GRACE_MS = 3000; // the last overlay left less than this before the end: a refresh, the alert counts as seen
 // A crypto donor who hid the name, in the panel's language (settings.lang).
 const ANONYMOUS = { en: require('../i18n/en.json').crypto.anonymous, fa: require('../i18n/fa.json').crypto.anonymous };
-const MAX_WAITING = 200, HISTORY = 10, FEED = 1000; // ponytail: feed.json is rewritten whole per event; an append-only log if more than 1000 ever matters
+const MAX_WAITING = 200,
+  HISTORY = 10,
+  FEED = 1000; // ponytail: feed.json is rewritten whole per event; an append-only log if more than 1000 ever matters
 
 const alerts = new EventEmitter(); // 'play' ({ id, ev, left }), 'skip' (id), 'state' (state())
 const queue = []; // { id, ev }
@@ -103,7 +105,8 @@ function next() {
 
 function ended(lane) {
   const { id, ev } = lane.playing;
-  if (!lane.overlays && Date.now() - lane.goneAt > GRACE_MS) queue.unshift({ id, ev }); // OBS was closed: play it again when it's back
+  if (!lane.overlays && Date.now() - lane.goneAt > GRACE_MS)
+    queue.unshift({ id, ev }); // OBS was closed: play it again when it's back
   else played(lane.playing);
   lane.playing = null;
   rest(lane, 0);
@@ -112,13 +115,20 @@ function ended(lane) {
 // The gap between alerts, then the next one.
 function rest(lane, extraMs) {
   changed();
-  lane.timer = setTimeout(() => { lane.busy = false; next(); }, extraMs + settings.get().alertGap * 1000);
+  lane.timer = setTimeout(
+    () => {
+      lane.busy = false;
+      next();
+    },
+    extraMs + settings.get().alertGap * 1000,
+  );
 }
 
 // An alerts overlay connected (to its link's lane): send it what's playing there now (if enough is left to be worth
 // showing), then go on.
 function join(send, name = 'all') {
-  const lane = lanes[name], now = current(lane);
+  const lane = lanes[name],
+    now = current(lane);
   lane.overlays++;
   if (now?.left > 1000) send({ ...now, late: true });
   next();
@@ -170,11 +180,13 @@ function pause(on) {
 // sub waits a moment for a gift that may name the viewer); queue = waiting for the alert before it and the gap, an open
 // overlay or a resume; overlay = from here to the overlay starting it. r: { id, shown, where } from the overlay.
 function shown(r, transport) {
-  const at = Number(r?.shown), playing = Object.values(lanes).find((l) => l.playing?.id === r?.id)?.playing;
+  const at = Number(r?.shown),
+    playing = Object.values(lanes).find((l) => l.playing?.id === r?.id)?.playing;
   if (!playing || playing.id !== playing.ev.id || !Number.isFinite(at)) return null;
   const { ev, started } = playing;
-  const line = `${ev.type} ${ev.user.replace(/\p{Cc}/gu, ' ')}  received ${clock(ev.received)}  check ${step(ev.received, ev.time)}  queue ${step(ev.time, started)}  `
-    + `overlay ${step(started, at)}  total ${step(ev.received, at)}  ${['OBS', 'browser'].includes(r.where) ? r.where : '?'}/${transport}`;
+  const line =
+    `${ev.type} ${ev.user.replace(/\p{Cc}/gu, ' ')}  received ${clock(ev.received)}  check ${step(ev.received, ev.time)}  queue ${step(ev.time, started)}  ` +
+    `overlay ${step(started, at)}  total ${step(ev.received, at)}  ${['OBS', 'browser'].includes(r.where) ? r.where : '?'}/${transport}`;
   console.log(`alert timing  ${ev.platform.padEnd(6)} ${line}`);
   logIncoming(ev.platform, 'timing', line);
   return line;

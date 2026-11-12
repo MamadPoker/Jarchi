@@ -24,8 +24,11 @@ const failed = (status, code) => Object.assign(new Error(code), { status, code: 
 // CSS that can only draw: no @import, no escapes (a backslash could spell anything), nothing that runs or loads from
 // elsewhere; url() only to Jarchi's own /assets or a data: image or font.
 const URL_OK = /url\(\s*(["']?)(\/assets\/(?:[\w-]+\/)*[\w-]+(?:\.[\w-]+)*|data:(?:image|font)\/[\w.+-]+;base64,[A-Za-z0-9+/=]+)\1\s*\)/gi;
-const cssOk = (css) => typeof css === 'string' && css.length <= CSS_MAX && !/[\\<]|@import|expression\s*\(|javascript:|behavior\s*:|-moz-binding/i.test(css)
-  && !/url\(|image-set\(|src\(/i.test(css.replace(URL_OK, ''));
+const cssOk = (css) =>
+  typeof css === 'string' &&
+  css.length <= CSS_MAX &&
+  !/[\\<]|@import|expression\s*\(|javascript:|behavior\s*:|-moz-binding/i.test(css) &&
+  !/url\(|image-set\(|src\(/i.test(css.replace(URL_OK, ''));
 const nameOk = (n) => !!n && ['en', 'fa'].every((k) => typeof n[k] === 'string' && n[k].trim() && n[k].length <= 40 && !/[<>]/.test(n[k]));
 
 // A design (from the relay or from disk) -> kept and a chat style; false: not one Jarchi takes.
@@ -36,10 +39,13 @@ function use(d) {
 }
 if (fs.existsSync(DIR)) for (const f of fs.readdirSync(DIR)) if (f.endsWith('.json')) use(store.load(path.join(DIR, f)));
 
-const ask = (p, method = 'GET', body = undefined) => fetch(`${RELAY}/designs${p}`, {
-  method, body: body && JSON.stringify(body), signal: AbortSignal.timeout(15000),
-  headers: { 'x-jarchi-install': settings.installId(), ...(body && { 'content-type': 'application/json' }) },
-});
+const ask = (p, method = 'GET', body = undefined) =>
+  fetch(`${RELAY}/designs${p}`, {
+    method,
+    body: body && JSON.stringify(body),
+    signal: AbortSignal.timeout(15000),
+    headers: { 'x-jarchi-install': settings.installId(), ...(body && { 'content-type': 'application/json' }) },
+  });
 // One of this install's designs from the relay, kept. false: not there, or not one Jarchi takes.
 async function download(id) {
   const r = await ask(`/${id}`);

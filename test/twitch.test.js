@@ -16,7 +16,10 @@ fs.writeFileSync(path.join(dataDir, 'twitch.json'), JSON.stringify({ clientId: '
 // Fake Twitch. Access token A1 is refused by the Helix API (401), so the first subscriptions refresh it; a refresh token
 // works once, like a Public app's.
 const calls = [];
-let tokenDown = false, pending = 1, issued = 0, verifyAt = 'https://www.twitch.tv/activate?public=true&device-code=ABCDEFGH'; // what /oauth2/device says
+let tokenDown = false,
+  pending = 1,
+  issued = 0,
+  verifyAt = 'https://www.twitch.tv/activate?public=true&device-code=ABCDEFGH'; // what /oauth2/device says
 globalThis.fetch = async (url, init = {}) => {
   const u = new URL(url);
   const body = init.body instanceof URLSearchParams ? Object.fromEntries(init.body) : init.body ? JSON.parse(init.body) : null;
@@ -26,29 +29,42 @@ globalThis.fetch = async (url, init = {}) => {
   if (tokenDown && u.pathname === '/oauth2/token') throw new TypeError('fetch failed'); // Twitch out of reach for Jarchi
   if (u.pathname.startsWith('/helix/') && auth === 'Bearer A1') return json(401, { message: 'Invalid OAuth token' });
   switch (u.pathname) {
-    case '/oauth2/device': return json(200, { device_code: 'DEV', user_code: 'ABCD-EFGH', verification_uri: verifyAt, expires_in: 1800, interval: 0.01 });
+    case '/oauth2/device':
+      return json(200, { device_code: 'DEV', user_code: 'ABCD-EFGH', verification_uri: verifyAt, expires_in: 1800, interval: 0.01 });
     case '/oauth2/token':
       if (body.grant_type.endsWith('device_code') && pending-- > 0) return json(400, { status: 400, message: 'authorization_pending' });
       if (body.grant_type === 'refresh_token' && body.refresh_token !== `R${issued}`) return json(400, { status: 400, message: 'Invalid refresh token' });
       issued++;
       return json(200, { access_token: `A${issued}`, refresh_token: `R${issued}`, expires_in: 14400, scope: [], token_type: 'bearer' });
-    case '/oauth2/validate': return json(200, { client_id: 'abc123', login: 'mamad', user_id: '42', scopes: [], expires_in: 14000 });
-    case '/helix/eventsub/subscriptions': return json(202, { data: [{ id: 'sub', status: 'enabled' }] });
-    case '/helix/goals': return json(200, { data: [{ id: 'g1', type: 'follower', description: 'Road to 10', current_amount: 5, target_amount: 10 }] }); // Twitch's API: 'follower'
-    case '/helix/users': return json(200, { data: [{ id: '42', login: 'mamad', display_name: 'Mamad', profile_image_url: 'https://static-cdn.jtvnw.net/jtv_user_pictures/mamad-300x300.png' }] });
-    case '/oauth2/revoke': return new Response(null, { status: 200 });
+    case '/oauth2/validate':
+      return json(200, { client_id: 'abc123', login: 'mamad', user_id: '42', scopes: [], expires_in: 14000 });
+    case '/helix/eventsub/subscriptions':
+      return json(202, { data: [{ id: 'sub', status: 'enabled' }] });
+    case '/helix/goals':
+      return json(200, { data: [{ id: 'g1', type: 'follower', description: 'Road to 10', current_amount: 5, target_amount: 10 }] }); // Twitch's API: 'follower'
+    case '/helix/users':
+      return json(200, {
+        data: [{ id: '42', login: 'mamad', display_name: 'Mamad', profile_image_url: 'https://static-cdn.jtvnw.net/jtv_user_pictures/mamad-300x300.png' }],
+      });
+    case '/oauth2/revoke':
+      return new Response(null, { status: 200 });
   }
   return json(404, {});
 };
 const sockets = [];
 globalThis.WebSocket = class {
-  constructor(url) { this.url = url; sockets.push(this); }
+  constructor(url) {
+    this.url = url;
+    sockets.push(this);
+  }
   close() {
     if (this.closed) return;
     this.closed = true;
     setImmediate(() => this.onclose?.());
   }
-  say(type, payload) { this.onmessage({ data: JSON.stringify({ metadata: { message_type: type }, payload }) }); }
+  say(type, payload) {
+    this.onmessage({ data: JSON.stringify({ metadata: { message_type: type }, payload }) });
+  }
 };
 
 const account = require('../connectors/twitch-account');
@@ -89,7 +105,11 @@ test('Twitch account: code login, refresh, follows, goals, reconnect, disconnect
   assert.equal(file().refresh, 'R2');
   assert.deepEqual(account.status().goals, [{ id: 'g1', type: 'follow', description: 'Road to 10', current: 5, target: 10 }], 'the same type as EventSub says');
   assert.deepEqual([account.status().login, connectedPlatforms()], ['mamad', ['twitch']]);
-  assert.deepEqual([account.status().name, account.status().picture], ['Mamad', 'https://static-cdn.jtvnw.net/jtv_user_pictures/mamad-300x300.png'], 'for the profile chip');
+  assert.deepEqual(
+    [account.status().name, account.status().picture],
+    ['Mamad', 'https://static-cdn.jtvnw.net/jtv_user_pictures/mamad-300x300.png'],
+    'for the profile chip',
+  );
 
   // A follow is a Twitch Follow alert, once per viewer (follow / unfollow spam alerts once).
   const events = [];
@@ -97,14 +117,26 @@ test('Twitch account: code login, refresh, follows, goals, reconnect, disconnect
   const follow = { user_id: '7', user_login: 'ava', user_name: 'Ava', broadcaster_user_id: '42', followed_at: '2026-10-18T12:00:00Z' };
   notify(sockets[0], 'channel.follow', follow);
   notify(sockets[0], 'channel.follow', follow);
-  assert.deepEqual(events.map((e) => [e.platform, e.type, e.user]), [['twitch', 'follow', 'Ava']]);
+  assert.deepEqual(
+    events.map((e) => [e.platform, e.type, e.user]),
+    [['twitch', 'follow', 'Ava']],
+  );
 
   // Goals follow Twitch: progress, a new one, an ended one.
   notify(sockets[0], 'channel.goal.progress', { id: 'g1', type: 'follow', description: '', current_amount: 6, target_amount: 10 });
   notify(sockets[0], 'channel.goal.begin', { id: 'g2', type: 'new_subscription_count', description: 'Road to 50', current_amount: 0, target_amount: 50 });
-  assert.deepEqual(account.status().goals.map((g) => [g.id, g.current]), [['g1', 6], ['g2', 0]]);
+  assert.deepEqual(
+    account.status().goals.map((g) => [g.id, g.current]),
+    [
+      ['g1', 6],
+      ['g2', 0],
+    ],
+  );
   notify(sockets[0], 'channel.goal.end', { id: 'g1', type: 'follow', is_achieved: false, current_amount: 6, target_amount: 10 });
-  assert.deepEqual(account.status().goals.map((g) => g.description), ['Road to 50']);
+  assert.deepEqual(
+    account.status().goals.map((g) => g.description),
+    ['Road to 50'],
+  );
 
   // Twitch's reconnect: a second socket; the first goes once that one says welcome. Nothing is subscribed again.
   sockets[0].say('session_reconnect', { session: { id: 'S1', reconnect_url: 'wss://eventsub.wss.twitch.tv/ws?reconnect' } });
@@ -124,7 +156,11 @@ test('Twitch account: code login, refresh, follows, goals, reconnect, disconnect
   await waitFor(() => sockets.length === 3, 'new socket');
   sockets[2].say('session_welcome', { session: { id: 'S3', keepalive_timeout_seconds: 10 } });
   await waitFor(() => account.status().state === 'connected', 'connected again');
-  assert.ok(subscriptions().slice(4).every((c) => c.body.transport.session_id === 'S3'));
+  assert.ok(
+    subscriptions()
+      .slice(4)
+      .every((c) => c.body.transport.session_id === 'S3'),
+  );
 
   // Disconnect: Twitch is told, the tokens go, the Client ID stays.
   const off = await account.disconnect();

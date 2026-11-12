@@ -126,7 +126,8 @@ window.JarchiSounds = (() => {
     bus.gain.value = volume * LEVEL * v.gain;
     bus.connect(out);
     out.connect(master);
-    if (v.echo) { // soft echo: each repeat is quieter and darker
+    if (v.echo) {
+      // soft echo: each repeat is quieter and darker
       const delay = ctx.createDelay();
       const fb = ctx.createGain();
       const dark = ctx.createBiquadFilter();
@@ -139,7 +140,8 @@ window.JarchiSounds = (() => {
     }
 
     let t = ctx.currentTime + 0.03;
-    if (type === 'raid') { // a soft drum roll that builds up, then the tune
+    if (type === 'raid') {
+      // a soft drum roll that builds up, then the tune
       for (let i = 0; i < 8; i++) thump(bus, t + i * 0.11, 0.15 + i * 0.06);
       t += 0.95;
       thump(bus, t, 0.8);
@@ -168,7 +170,8 @@ window.JarchiSounds = (() => {
   // ('coin' | 'hologram'; null: none, an uploaded file plays then). Their own path, not the themes' soft one: one
   // compressor straight to the speakers.
   function beep(out, at, f, len, type, gain, attack = 0.004) {
-    const o = ctx.createOscillator(), g = ctx.createGain();
+    const o = ctx.createOscillator(),
+      g = ctx.createGain();
     o.type = type;
     o.frequency.setValueAtTime(f, at);
     g.gain.setValueAtTime(0, at);
@@ -184,7 +187,8 @@ window.JarchiSounds = (() => {
     ctx.resume().catch(() => {});
     const out = ctx.createDynamicsCompressor();
     out.connect(ctx.destination);
-    const at = ctx.currentTime + 0.05, step = 0.031;
+    const at = ctx.currentTime + 0.05,
+      step = 0.031;
     // The signature: 22 steps of 31 ms rising by 1.13, every third a fifth up, sawtooth and square in turn (about 0.7 s).
     for (let i = 0; i < 22; i++) beep(out, at + i * step, 300 * 1.13 ** i * (i % 3 ? 1 : 1.5), step * 1.25, i % 2 ? 'square' : 'sawtooth', 0.085, 0.003);
     const t = at + 0.75;

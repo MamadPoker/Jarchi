@@ -11,7 +11,12 @@ const WIDE = 1.75; // a source this many times wider than tall (16:9 too) gets t
 // The user's Custom CSS (Advanced box), after the page's own CSS so it wins. Set as text, so nothing in it is ever HTML
 // (a "</style>" can't end it).
 const userCss = document.head.appendChild(document.createElement('style'));
-let settings, cfg, look = '', state = { current: 0, reached: false }, shown = 0, tween;
+let settings,
+  cfg,
+  look = '',
+  state = { current: 0, reached: false },
+  shown = 0,
+  tween;
 
 const h = (tag, props, ...kids) => {
   const el = Object.assign(document.createElement(tag), props);
@@ -57,19 +62,39 @@ if (params.has('thumb')) {
 function draw() {
   if (!cfg) return;
   root.hidden = !cfg.enabled && !params.has('preview') && !params.has('thumb');
-  const spot = cfg.titlePos === 'hidden' ? HIDDEN_SPOT[cfg.style] ?? 'above' : cfg.titlePos;
+  const spot = cfg.titlePos === 'hidden' ? (HIDDEN_SPOT[cfg.style] ?? 'above') : cfg.titlePos;
   root.className = [
-    'goal', `style-${cfg.style}`, `spot-${spot}`, `bg-${cfg.bg}`,
-    cfg.border && 'bordered', cfg.titlePos === 'hidden' && 'no-title', !cfg.showNumbers && 'no-nums', !cfg.showPercent && 'no-pct',
-  ].filter(Boolean).join(' ');
+    'goal',
+    `style-${cfg.style}`,
+    `spot-${spot}`,
+    `bg-${cfg.bg}`,
+    cfg.border && 'bordered',
+    cfg.titlePos === 'hidden' && 'no-title',
+    !cfg.showNumbers && 'no-nums',
+    !cfg.showPercent && 'no-pct',
+  ]
+    .filter(Boolean)
+    .join(' ');
   const vars = {
-    '--bar': cfg.barColor, '--bar-bg': cfg.barBg, '--text': cfg.textColor, '--full': cfg.fullColor,
-    '--bg': rgba(cfg.bgColor, cfg.bgOpacity), '--bd': cfg.borderColor, '--bw': `${cfg.borderWidth}px`,
-    '--radius': `${cfg.radius}px`, '--font': `"${cfg.font}", "Segoe UI", system-ui, sans-serif`,
+    '--bar': cfg.barColor,
+    '--bar-bg': cfg.barBg,
+    '--text': cfg.textColor,
+    '--full': cfg.fullColor,
+    '--bg': rgba(cfg.bgColor, cfg.bgOpacity),
+    '--bd': cfg.borderColor,
+    '--bw': `${cfg.borderWidth}px`,
+    '--radius': `${cfg.radius}px`,
+    '--font': `"${cfg.font}", "Segoe UI", system-ui, sans-serif`,
   };
   for (const [k, v] of Object.entries(vars)) root.style.setProperty(k, v);
 
-  const label = h('div', { className: 'label' }, h('span', { className: 'title', textContent: cfg.title }), h('span', { className: 'nums' }), h('span', { className: 'pct' }));
+  const label = h(
+    'div',
+    { className: 'label' },
+    h('span', { className: 'title', textContent: cfg.title }),
+    h('span', { className: 'nums' }),
+    h('span', { className: 'pct' }),
+  );
   let viz = null;
   if (cfg.style === 'circle') viz = ring();
   else if (cfg.style === 'retro') viz = h('div', { className: 'blocks' }, ...Array.from({ length: BLOCKS }, (_, i) => h('i', { style: `--i:${i}` })));
@@ -90,16 +115,21 @@ function fit() {
   // Circle: the ring is the unit and the text keeps its size to it (Auto: a fifth of the ring), smaller only where it
   // wouldn't fit. A wide source: the ring at its full height, title + count beside it no taller; else under it, at most
   // half a ring. The percentage is inside the ring either way.
-  const shape = innerWidth / innerHeight, circle = cfg.style === 'circle';
+  const shape = innerWidth / innerHeight,
+    circle = cfg.style === 'circle';
   const wide = circle && shape >= WIDE && !root.classList.contains('spot-inside');
   root.classList.toggle('wide', wide);
   root.style.width = circle ? `${RING * (wide ? shape : Math.max(shape, 1))}px` : '';
   const room = !circle ? root.offsetWidth / shape : wide ? RING : RING * 1.5;
   const fits = (fs) => {
     root.style.setProperty('--fs', `${fs}px`);
-    return root.offsetHeight <= room + 0.5 && [...root.querySelectorAll('.label, .ring-pct')].every((e) => e.scrollWidth <= e.clientWidth + 1 && e.scrollHeight <= e.clientHeight + 1);
+    return (
+      root.offsetHeight <= room + 0.5 &&
+      [...root.querySelectorAll('.label, .ring-pct')].every((e) => e.scrollWidth <= e.clientWidth + 1 && e.scrollHeight <= e.clientHeight + 1)
+    );
   };
-  let lo = 8, hi = cfg.autoSize === false ? cfg.fontSize : circle ? RING / 5 : 200;
+  let lo = 8,
+    hi = cfg.autoSize === false ? cfg.fontSize : circle ? RING / 5 : 200;
   if (!fits(hi)) {
     while (hi - lo > 0.5) {
       const mid = (lo + hi) / 2;
@@ -148,7 +178,9 @@ function update(reached = false, instant = false) {
 
 function countTo(to, instant) {
   cancelAnimationFrame(tween);
-  const from = shown, start = performance.now(), ms = instant ? 0 : 700;
+  const from = shown,
+    start = performance.now(),
+    ms = instant ? 0 : 700;
   const step = (now) => {
     const t = ms ? Math.min((now - start) / ms, 1) : 1;
     shown = Math.round(from + (to - from) * (1 - (1 - t) ** 3));

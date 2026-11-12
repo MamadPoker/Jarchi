@@ -5,7 +5,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { DatabaseSync } = require('node:sqlite');
 
-const RELAY = path.join(__dirname, '..', 'relay'), MIGRATIONS = path.join(RELAY, 'migrations');
+const RELAY = path.join(__dirname, '..', 'relay'),
+  MIGRATIONS = path.join(RELAY, 'migrations');
 
 function d1() {
   const db = new DatabaseSync(':memory:');
@@ -38,11 +39,14 @@ function d1() {
 
 function kv() {
   const map = new Map();
-  return { map, KV: {
-    put: async (k, v) => void map.set(k, new Uint8Array(v)),
-    get: async (k) => (map.has(k) ? map.get(k).slice().buffer : null), // as get(k, 'arrayBuffer')
-    delete: async (k) => void map.delete(k),
-  } };
+  return {
+    map,
+    KV: {
+      put: async (k, v) => void map.set(k, new Uint8Array(v)),
+      get: async (k) => (map.has(k) ? map.get(k).slice().buffer : null), // as get(k, 'arrayBuffer')
+      delete: async (k) => void map.delete(k),
+    },
+  };
 }
 
 module.exports = { d1, kv };

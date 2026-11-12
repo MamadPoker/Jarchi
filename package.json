@@ -12,6 +12,12 @@
     "start": "node server/index.js",
     "app": "electron .",
     "test": "node --test",
+    "typecheck": "tsc -p .",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "check": "npm run format:check && npm run lint && npm run typecheck && npm test",
+    "prepare": "husky",
     "dist": "node build/notes.js && electron-builder --win --publish never"
   },
   "engines": {
@@ -30,12 +36,19 @@
     "undici": "^8.12.4"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@semantic-release/git": "11.0.1",
     "@semantic-release/release-notes-generator": "14.1.1",
+    "@types/node": "^22.20.5",
     "conventional-changelog-conventionalcommits": "9.3.1",
     "electron": "^45.2.3",
     "electron-builder": "^26.18.0",
-    "semantic-release": "25.0.9"
+    "eslint": "^10.14.0",
+    "globals": "^17.14.0",
+    "husky": "^9.1.7",
+    "prettier": "^3.10.1",
+    "semantic-release": "25.0.9",
+    "typescript": "^7.0.2"
   },
   "overrides": {
     "minimatch@>=7.0.0 <11.0.1": "^11.0.1"

@@ -23,7 +23,23 @@ const THEMES = ['neon', 'minimal', 'fun', 'retro', 'glass', 'fire', 'ice', 'gala
 // seenNew: the sidebar pages marked NEW (panel.js NEW_PAGES) the streamer has opened: never marked again.
 // eyesSeen: the panel showed where its hidden 👀 is (the first Ctrl+Shift+E): never again.
 // proxyAsk: Auto may offer the VPN app it finds by itself (core/vpn.js); false after a No, true again when the streamer looks.
-const GLOBAL = { theme: 'neon', showBadge: true, alertGap: 0.5, proxyMode: 'off', proxyType: 'http', proxyHost: '', proxyPort: 0, kickGoalSync: true, twitchGoalSync: true, welcomed: false, privacyAccepted: 0, lang: 'en', seenNew: [], eyesSeen: false, proxyAsk: true };
+const GLOBAL = {
+  theme: 'neon',
+  showBadge: true,
+  alertGap: 0.5,
+  proxyMode: 'off',
+  proxyType: 'http',
+  proxyHost: '',
+  proxyPort: 0,
+  kickGoalSync: true,
+  twitchGoalSync: true,
+  welcomed: false,
+  privacyAccepted: 0,
+  lang: 'en',
+  seenNew: [],
+  eyesSeen: false,
+  proxyAsk: true,
+};
 const PROXY_HOST = /^[a-z0-9.:[\]_-]{0,253}$/i;
 const proxyPort = (v) => Number.isInteger(v) && v >= 0 && v <= 65535;
 const GLOBAL_RULES = {
@@ -49,8 +65,16 @@ const GLOBAL_RULES = {
 // Kick's own Kicks gifts (web.kick.com/api/v1/kicks/gifts; the same table is in kick.com's web app). Their images are
 // in assets/kick-gifts/<id>.webp. If Kick adds a gift: add it here, its image there and its name in i18n kickGifts.
 const KICK_GIFTS = [
-  { amount: 1, id: 'hell_yeah' }, { amount: 10, id: 'hype' }, { amount: 50, id: 'skull_emoji' }, { amount: 100, id: 'full_send' }, { amount: 500, id: 'rage_quit' },
-  { amount: 1000, id: 'pack_it_up' }, { amount: 2000, id: 'yap' }, { amount: 5000, id: 'stomp' }, { amount: 10000, id: 'flex' }, { amount: 50000, id: 'boooom' },
+  { amount: 1, id: 'hell_yeah' },
+  { amount: 10, id: 'hype' },
+  { amount: 50, id: 'skull_emoji' },
+  { amount: 100, id: 'full_send' },
+  { amount: 500, id: 'rage_quit' },
+  { amount: 1000, id: 'pack_it_up' },
+  { amount: 2000, id: 'yap' },
+  { amount: 5000, id: 'stomp' },
+  { amount: 10000, id: 'flex' },
+  { amount: 50000, id: 'boooom' },
 ];
 // Bits: Twitch's own cheer gems (gray, purple, green, blue, red), in assets/twitch-bits/<amount>.gif.
 const TIER_AMOUNTS = { gift_sub: [1, 5, 10, 20, 50, 100], kicks: KICK_GIFTS.map((g) => g.amount), bits: [1, 100, 1000, 5000, 10000] };
@@ -65,45 +89,53 @@ const PER_TYPE = {
   bits: { duration: 6, fontSize: 46, minAmount: 0, ...TIERED },
   raid: { duration: 9, fontSize: 54 },
 };
-const DEFAULTS = Object.fromEntries(TYPES.map((t) => [t, {
-  enabled: true,
-  template: strings.templates[t],
-  volume: 0.7,
-  image: null, // { file, name } once uploaded
-  videoSound: 'off',
-  sound: null,
-  soundMode: 'theme',
-  frame: 'theme',
-  frameBg: '#14141c',
-  frameOpacity: 0.85,
-  frameBorder: '#8b5cf6',
-  frameRadius: 16,
-  textPos: 'below',
-  textAlign: 'center',
-  size: 1, // how much of the Browser Source the alert fills (0.5-1; Style tab)
-  // Text style (Text tab; Reset text style restores these). The viewer's name (name*) and the rest of the text (text*)
-  // each have a color (null = the theme's), a font ('theme' or one of ALERT_FONTS), bold (true = the theme's weight)
-  // and the theme's outline/shadow (or none). One size for the whole line: autoSize, the biggest that fits; off:
-  // fontSize from PER_TYPE, smaller only if it wouldn't fit.
-  nameColor: null,
-  nameFont: 'theme',
-  nameBold: true,
-  nameShadow: true,
-  textColor: null,
-  textFont: 'theme',
-  textBold: true,
-  textShadow: true,
-  autoSize: true,
-  theme: null, // null = the main theme
-  customCss: '', // the user's own CSS on top of this alert's look (Advanced, under the tabs); not part of its text style
-  ...PER_TYPE[t],
-}]));
+const DEFAULTS = Object.fromEntries(
+  TYPES.map((t) => [
+    t,
+    {
+      enabled: true,
+      template: strings.templates[t],
+      volume: 0.7,
+      image: null, // { file, name } once uploaded
+      videoSound: 'off',
+      sound: null,
+      soundMode: 'theme',
+      frame: 'theme',
+      frameBg: '#14141c',
+      frameOpacity: 0.85,
+      frameBorder: '#8b5cf6',
+      frameRadius: 16,
+      textPos: 'below',
+      textAlign: 'center',
+      size: 1, // how much of the Browser Source the alert fills (0.5-1; Style tab)
+      // Text style (Text tab; Reset text style restores these). The viewer's name (name*) and the rest of the text (text*)
+      // each have a color (null = the theme's), a font ('theme' or one of ALERT_FONTS), bold (true = the theme's weight)
+      // and the theme's outline/shadow (or none). One size for the whole line: autoSize, the biggest that fits; off:
+      // fontSize from PER_TYPE, smaller only if it wouldn't fit.
+      nameColor: null,
+      nameFont: 'theme',
+      nameBold: true,
+      nameShadow: true,
+      textColor: null,
+      textFont: 'theme',
+      textBold: true,
+      textShadow: true,
+      autoSize: true,
+      theme: null, // null = the main theme
+      customCss: '', // the user's own CSS on top of this alert's look (Advanced, under the tabs); not part of its text style
+      ...PER_TYPE[t],
+    },
+  ]),
+);
 const TEXT_STYLE = ['nameColor', 'nameFont', 'nameBold', 'nameShadow', 'textColor', 'textFont', 'textBold', 'textShadow', 'autoSize', 'fontSize'];
 // Bundled fonts (assets/fonts) with both Latin and Persian letters. The panel lists them in index.html (Text tab, Font).
 const ALERT_FONTS = ['Vazirmatn', 'Lalezar', 'Changa', 'Lemonada', 'Markazi Text'];
 
 const num = (min, max) => (v) => typeof v === 'number' && v >= min && v <= max;
-const oneOf = (...list) => (v) => list.includes(v);
+const oneOf =
+  (...list) =>
+  (v) =>
+    list.includes(v);
 const hex = (v) => typeof v === 'string' && /^#[0-9a-f]{6}$/i.test(v);
 // Custom CSS (each widget's Advanced box): plain text, which the widget sets as its <style> element's text, never as HTML.
 const css = (v) => typeof v === 'string' && v.length <= 20000;
@@ -146,26 +178,139 @@ const FONTS = ['Segoe UI', 'Arial Black', 'Impact', 'Trebuchet MS', 'Georgia', '
 // Each style is a complete set of look values; users then tweak any of them. Picking a style or "Reset style" restores these.
 // Circle draws no box (its bg, border and radius go unused) and its fontSize is for its 200 px ring.
 const GOAL_STYLES = {
-  classic: { barColor: '#8b5cf6', barBg: '#2b2e3b', textColor: '#ffffff', fullColor: '#22c55e', bg: 'color', bgColor: '#14141c', bgOpacity: 0.85, border: false, borderColor: '#8b5cf6', borderWidth: 2, radius: 14, scale: 1, font: 'Segoe UI', fontSize: 26, titlePos: 'above', showPercent: false, showNumbers: true },
-  pill: { barColor: '#ff5fa2', barBg: '#3a2333', textColor: '#ffffff', fullColor: '#22c55e', bg: 'off', bgColor: '#14141c', bgOpacity: 0.85, border: false, borderColor: '#ffffff', borderWidth: 2, radius: 60, scale: 1, font: 'Segoe UI', fontSize: 24, titlePos: 'inside', showPercent: true, showNumbers: true },
-  neon: { barColor: '#00f0ff', barBg: '#0b1530', textColor: '#ffffff', fullColor: '#ff2bd6', bg: 'color', bgColor: '#0a0620', bgOpacity: 0.85, border: true, borderColor: '#00f0ff', borderWidth: 2, radius: 16, scale: 1, font: 'Segoe UI', fontSize: 26, titlePos: 'above', showPercent: true, showNumbers: true },
-  circle: { barColor: '#8b5cf6', barBg: '#2b2e3b', textColor: '#ffffff', fullColor: '#22c55e', bg: 'off', bgColor: '#14141c', bgOpacity: 0.85, border: false, borderColor: '#ffffff', borderWidth: 2, radius: 24, scale: 1, font: 'Segoe UI', fontSize: 40, titlePos: 'below', showPercent: true, showNumbers: true },
-  text: { barColor: '#8b5cf6', barBg: '#2b2e3b', textColor: '#ffffff', fullColor: '#22c55e', bg: 'off', bgColor: '#14141c', bgOpacity: 0.85, border: false, borderColor: '#ffffff', borderWidth: 2, radius: 12, scale: 1, font: 'Segoe UI', fontSize: 40, titlePos: 'above', showPercent: false, showNumbers: true },
-  retro: { barColor: '#ffe14d', barBg: '#2d2d5a', textColor: '#ffffff', fullColor: '#4dd2ff', bg: 'color', bgColor: '#1b1b3a', bgOpacity: 1, border: true, borderColor: '#ffffff', borderWidth: 4, radius: 0, scale: 1, font: 'Consolas', fontSize: 24, titlePos: 'above', showPercent: false, showNumbers: true },
+  classic: {
+    barColor: '#8b5cf6',
+    barBg: '#2b2e3b',
+    textColor: '#ffffff',
+    fullColor: '#22c55e',
+    bg: 'color',
+    bgColor: '#14141c',
+    bgOpacity: 0.85,
+    border: false,
+    borderColor: '#8b5cf6',
+    borderWidth: 2,
+    radius: 14,
+    scale: 1,
+    font: 'Segoe UI',
+    fontSize: 26,
+    titlePos: 'above',
+    showPercent: false,
+    showNumbers: true,
+  },
+  pill: {
+    barColor: '#ff5fa2',
+    barBg: '#3a2333',
+    textColor: '#ffffff',
+    fullColor: '#22c55e',
+    bg: 'off',
+    bgColor: '#14141c',
+    bgOpacity: 0.85,
+    border: false,
+    borderColor: '#ffffff',
+    borderWidth: 2,
+    radius: 60,
+    scale: 1,
+    font: 'Segoe UI',
+    fontSize: 24,
+    titlePos: 'inside',
+    showPercent: true,
+    showNumbers: true,
+  },
+  neon: {
+    barColor: '#00f0ff',
+    barBg: '#0b1530',
+    textColor: '#ffffff',
+    fullColor: '#ff2bd6',
+    bg: 'color',
+    bgColor: '#0a0620',
+    bgOpacity: 0.85,
+    border: true,
+    borderColor: '#00f0ff',
+    borderWidth: 2,
+    radius: 16,
+    scale: 1,
+    font: 'Segoe UI',
+    fontSize: 26,
+    titlePos: 'above',
+    showPercent: true,
+    showNumbers: true,
+  },
+  circle: {
+    barColor: '#8b5cf6',
+    barBg: '#2b2e3b',
+    textColor: '#ffffff',
+    fullColor: '#22c55e',
+    bg: 'off',
+    bgColor: '#14141c',
+    bgOpacity: 0.85,
+    border: false,
+    borderColor: '#ffffff',
+    borderWidth: 2,
+    radius: 24,
+    scale: 1,
+    font: 'Segoe UI',
+    fontSize: 40,
+    titlePos: 'below',
+    showPercent: true,
+    showNumbers: true,
+  },
+  text: {
+    barColor: '#8b5cf6',
+    barBg: '#2b2e3b',
+    textColor: '#ffffff',
+    fullColor: '#22c55e',
+    bg: 'off',
+    bgColor: '#14141c',
+    bgOpacity: 0.85,
+    border: false,
+    borderColor: '#ffffff',
+    borderWidth: 2,
+    radius: 12,
+    scale: 1,
+    font: 'Segoe UI',
+    fontSize: 40,
+    titlePos: 'above',
+    showPercent: false,
+    showNumbers: true,
+  },
+  retro: {
+    barColor: '#ffe14d',
+    barBg: '#2d2d5a',
+    textColor: '#ffffff',
+    fullColor: '#4dd2ff',
+    bg: 'color',
+    bgColor: '#1b1b3a',
+    bgOpacity: 1,
+    border: true,
+    borderColor: '#ffffff',
+    borderWidth: 4,
+    radius: 0,
+    scale: 1,
+    font: 'Consolas',
+    fontSize: 24,
+    titlePos: 'above',
+    showPercent: false,
+    showNumbers: true,
+  },
 };
 const GOAL_LOOK = Object.keys(GOAL_STYLES.classic); // the fields a style sets
-const GOAL_DEFAULTS = Object.fromEntries(GOAL_IDS.map((id) => [id, {
-  enabled: id === 'subs' || id === 'kicks', // the later ones: off, so the Home page doesn't ask existing users to add them to OBS
-  title: strings.goals[id].title,
-  target: { subs: 50, kicks: 1000, followers: 100, twitchSubs: 50, bits: 1000, twitchFollowers: 100 }[id],
-  style: 'classic',
-  celebrate: true,
-  celebrateSound: 'theme',
-  sound: null, // { file, name } once uploaded
-  volume: 0.7,
-  autoSize: true, // text: the biggest that fits (off: the style's fontSize, smaller only if it wouldn't fit). Kept when the style changes
-  customCss: '', // the user's own CSS on top of the look: kept when the style changes too
-}]));
+const GOAL_DEFAULTS = Object.fromEntries(
+  GOAL_IDS.map((id) => [
+    id,
+    {
+      enabled: id === 'subs' || id === 'kicks', // the later ones: off, so the Home page doesn't ask existing users to add them to OBS
+      title: strings.goals[id].title,
+      target: { subs: 50, kicks: 1000, followers: 100, twitchSubs: 50, bits: 1000, twitchFollowers: 100 }[id],
+      style: 'classic',
+      celebrate: true,
+      celebrateSound: 'theme',
+      sound: null, // { file, name } once uploaded
+      volume: 0.7,
+      autoSize: true, // text: the biggest that fits (off: the style's fontSize, smaller only if it wouldn't fit). Kept when the style changes
+      customCss: '', // the user's own CSS on top of the look: kept when the style changes too
+    },
+  ]),
+);
 const bool = (v) => typeof v === 'boolean';
 const GOAL_RULES = {
   enabled: bool,
@@ -199,12 +344,63 @@ const GOAL_RULES = {
 // ---------- Chat ----------
 // The Classic look. Every chat style is this plus a few changes; users then tweak any value. Reset style restores them.
 const CHAT_BASE = {
-  showPlatform: true, showBadges: true, badgeMode: 'important', badgeSize: 1, badgeBroadcaster: true, badgeMod: true, badgeVip: true, badgeSub: true, badgeOther: true, showTime: false, showColon: true,
-  emotesAnimated: true, emoteSize: 28, bigEmotes: true, bigEmoteSize: 56,
-  font: 'Segoe UI', fontSize: 18, nameSize: 18, nameColorMode: 'user', readableNames: true, nameColor: '#8b5cf6', textColor: '#ffffff', namePos: 'inline', textShadow: true, textDir: 'auto',
-  bg: 'color', bgColor: '#14141c', bgOpacity: 0.6, bubbles: false, border: false, borderColor: '#8b5cf6', borderWidth: 2, radius: 12, padding: 12, gap: 6, width: 420, height: 600,
-  layout: 'vertical', tickerDir: 'rtl', tickerSpeed: 120, newAt: 'bottom', maxMessages: 30, hideAfter: 0, enterAnim: 'slide', exitAnim: 'fade', animSpeed: 1, fadeZone: 80, fade: true,
-  fxSubGlow: true, fxFirst: true, fxRainbowVip: true, fxMention: true, fxCombo: true, avatars: false, blur: 0, typewriter: false, typeSound: false,
+  showPlatform: true,
+  showBadges: true,
+  badgeMode: 'important',
+  badgeSize: 1,
+  badgeBroadcaster: true,
+  badgeMod: true,
+  badgeVip: true,
+  badgeSub: true,
+  badgeOther: true,
+  showTime: false,
+  showColon: true,
+  emotesAnimated: true,
+  emoteSize: 28,
+  bigEmotes: true,
+  bigEmoteSize: 56,
+  font: 'Segoe UI',
+  fontSize: 18,
+  nameSize: 18,
+  nameColorMode: 'user',
+  readableNames: true,
+  nameColor: '#8b5cf6',
+  textColor: '#ffffff',
+  namePos: 'inline',
+  textShadow: true,
+  textDir: 'auto',
+  bg: 'color',
+  bgColor: '#14141c',
+  bgOpacity: 0.6,
+  bubbles: false,
+  border: false,
+  borderColor: '#8b5cf6',
+  borderWidth: 2,
+  radius: 12,
+  padding: 12,
+  gap: 6,
+  width: 420,
+  height: 600,
+  layout: 'vertical',
+  tickerDir: 'rtl',
+  tickerSpeed: 120,
+  newAt: 'bottom',
+  maxMessages: 30,
+  hideAfter: 0,
+  enterAnim: 'slide',
+  exitAnim: 'fade',
+  animSpeed: 1,
+  fadeZone: 80,
+  fade: true,
+  fxSubGlow: true,
+  fxFirst: true,
+  fxRainbowVip: true,
+  fxMention: true,
+  fxCombo: true,
+  avatars: false,
+  blur: 0,
+  typewriter: false,
+  typeSound: false,
   tickerLoop: false,
   replies: 'line', // a reply: line ("↩ replying to name: …" above it) | name ("@name" before it) | quote (a small box above) | off
   borderColorMode: 'custom', // each message's own border: custom (borderColor) | user (the sender's name color; none: borderColor)
@@ -212,38 +408,237 @@ const CHAT_BASE = {
 // What the horizontal styles share: a 1920-wide bar that keeps looping the recent messages when chat is quiet.
 const BAR = { layout: 'horizontal', width: 1920, height: 64, radius: 0, padding: 10, maxMessages: 15, fadeZone: 120, tickerLoop: true };
 // The chat style's look values. The style-<id> CSS class adds what options can't (tails, tape, scanlines, frames...).
-const CHAT_STYLES = Object.fromEntries(Object.entries({
-  // Kick's own chat: its panel width (340), font (Inter 14px), dark surface (#181b1f), plain lines, no motion.
-  kick: { font: 'Inter', fontSize: 14, nameSize: 14, bgColor: '#181b1f', bgOpacity: 0.95, radius: 4, padding: 8, gap: 0, width: 340, textShadow: false,
-    showPlatform: false, bigEmotes: false, enterAnim: 'none', exitAnim: 'none', fade: false },
-  classic: { bgColor: '#121218', bgOpacity: 0.78, radius: 14, padding: 14 },
-  bubbles: { bubbles: true, bgColor: '#ffffff', bgOpacity: 1, textColor: '#1f2330', textShadow: false, namePos: 'above', fontSize: 16, nameSize: 13, radius: 18, padding: 10, gap: 12, enterAnim: 'float' },
-  floating: { bg: 'off', padding: 0, gap: 10, fontSize: 22, nameSize: 22, fadeZone: 240, enterAnim: 'fade' },
-  neon: { bgColor: '#07031a', bgOpacity: 0.82, border: true, borderColor: '#00f0ff', borderWidth: 2, radius: 14, textColor: '#e8fbff' },
-  terminal: { font: 'Consolas', fontSize: 16, nameSize: 16, bgColor: '#0c0c0c', bgOpacity: 0.92, border: true, borderColor: '#3a3a3a', borderWidth: 1, radius: 8, textColor: '#c8ffc8', showTime: true, textShadow: false, emoteSize: 24, enterAnim: 'fade' },
-  retro: { font: 'Press Start 2P', fontSize: 12, nameSize: 12, bgColor: '#1b1b3a', bgOpacity: 0.95, border: true, borderColor: '#ffffff', borderWidth: 4, radius: 0, padding: 16, gap: 10, textShadow: false, emoteSize: 24 },
-  glass: { bgColor: '#ffffff', bgOpacity: 0.16, border: true, borderColor: '#ffffff', borderWidth: 1, radius: 20, blur: 14 },
-  popin: { bubbles: true, bgColor: '#20232e', bgOpacity: 0.92, radius: 22, padding: 10, gap: 8, enterAnim: 'pop', animSpeed: 0.9 },
-  side: { bg: 'off', border: true, borderColor: '#8b5cf6', borderWidth: 3, width: 300, height: 900, namePos: 'above', nameSize: 15, gap: 14, padding: 0 },
-  ticker: { layout: 'horizontal', width: 1920, height: 64, bgOpacity: 0.85, radius: 0, padding: 10, maxMessages: 15, fadeZone: 120 },
-  cyberpunk: { bubbles: true, bgColor: '#0a0a0c', bgOpacity: 0.92, border: true, borderColor: '#fcee0a', borderWidth: 3, radius: 0, padding: 9, gap: 8, textColor: '#e9e9e9', textShadow: false, fontSize: 17, nameSize: 16, enterAnim: 'fade' },
-  comic: { bubbles: true, bgColor: '#ffffff', bgOpacity: 1, border: true, borderColor: '#111111', borderWidth: 3, radius: 16, padding: 10, gap: 8, textColor: '#111111', textShadow: false, namePos: 'above', fontSize: 16, nameSize: 21, showColon: false, enterAnim: 'pop' },
-  hud: { bgColor: '#04121c', bgOpacity: 0.6, borderColor: '#00e5ff', radius: 2, padding: 18, textColor: '#d8f6ff', nameColor: '#5ff3ff', nameSize: 15, showColon: false },
-  sticky: { bubbles: true, bgColor: '#fff27a', bgOpacity: 1, textColor: '#2b2b2b', textShadow: false, nameColor: '#1f1f1f', namePos: 'above', fontSize: 16, nameSize: 15, radius: 3, padding: 12, gap: 16, enterAnim: 'drop' },
-  pastel: { bubbles: true, bgColor: '#dccbff', bgOpacity: 1, textColor: '#3b3355', textShadow: false, nameColor: '#2d2546', font: 'Fredoka', fontSize: 17, nameSize: 17, radius: 40, padding: 9, gap: 8, enterAnim: 'bounce' },
-  galaxy: { bgColor: '#0b0920', bgOpacity: 0.88, radius: 18, padding: 16, textColor: '#ece8ff', enterAnim: 'float' },
-  rpg: { bubbles: true, bgColor: '#13207a', bgOpacity: 0.94, border: true, borderColor: '#ffffff', borderWidth: 3, radius: 6, padding: 12, gap: 24, font: 'Press Start 2P', fontSize: 12, nameSize: 10, textColor: '#ffffff', textShadow: false, namePos: 'above', nameColor: '#ffe066', emoteSize: 24, enterAnim: 'fade', typewriter: true },
-  // Horizontal (ticker) styles
-  news: { ...BAR, bgColor: '#ffffff', bgOpacity: 1, height: 56, textColor: '#1a1a1a', textShadow: false, padding: 10, fadeZone: 60, tickerSpeed: 110 },
-  neonstrip: { ...BAR, bgColor: '#07031a', bgOpacity: 0.9, borderColor: '#ff2bd6', textColor: '#f2e9ff' },
-  pills: { ...BAR, bubbles: true, bgColor: '#16161f', bgOpacity: 0.88, radius: 40, padding: 8, gap: 18, fadeZone: 100 },
-  minimal: { ...BAR, bg: 'off', height: 72, fontSize: 26, nameSize: 26, padding: 0, tickerSpeed: 70 },
-  led: { ...BAR, bgColor: '#050505', bgOpacity: 0.95, radius: 4, font: 'Consolas', fontSize: 22, nameSize: 22, textColor: '#ffb000', textShadow: false, fadeZone: 80 },
-  cyberbar: { ...BAR, bgColor: '#0a0a0c', bgOpacity: 0.92, border: true, borderColor: '#fcee0a', borderWidth: 3, textColor: '#0b0b0b', textShadow: false, nameColor: '#0b0b0b', fontSize: 17, nameSize: 16, fadeZone: 80 },
-  candy: { ...BAR, bgColor: '#ffffff', bgOpacity: 1, radius: 40, padding: 8, font: 'Fredoka', fontSize: 18, nameSize: 18, textColor: '#3b3355', textShadow: false, nameColor: '#2d2546', tickerDir: 'ltr', fadeZone: 60 },
-  glassbar: { ...BAR, bgColor: '#ffffff', bgOpacity: 0.16, border: true, borderColor: '#ffffff', borderWidth: 1, radius: 32, blur: 12, fadeZone: 160 },
-  persian: { bgColor: '#0d1b3d', bgOpacity: 0.92, border: true, borderColor: '#d4af37', borderWidth: 8, radius: 6, padding: 20, font: 'Vazirmatn', fontSize: 18, nameSize: 17, textColor: '#f3ead3' },
-}).map(([id, change]) => [id, { ...CHAT_BASE, ...change }]));
+const CHAT_STYLES = Object.fromEntries(
+  Object.entries({
+    // Kick's own chat: its panel width (340), font (Inter 14px), dark surface (#181b1f), plain lines, no motion.
+    kick: {
+      font: 'Inter',
+      fontSize: 14,
+      nameSize: 14,
+      bgColor: '#181b1f',
+      bgOpacity: 0.95,
+      radius: 4,
+      padding: 8,
+      gap: 0,
+      width: 340,
+      textShadow: false,
+      showPlatform: false,
+      bigEmotes: false,
+      enterAnim: 'none',
+      exitAnim: 'none',
+      fade: false,
+    },
+    classic: { bgColor: '#121218', bgOpacity: 0.78, radius: 14, padding: 14 },
+    bubbles: {
+      bubbles: true,
+      bgColor: '#ffffff',
+      bgOpacity: 1,
+      textColor: '#1f2330',
+      textShadow: false,
+      namePos: 'above',
+      fontSize: 16,
+      nameSize: 13,
+      radius: 18,
+      padding: 10,
+      gap: 12,
+      enterAnim: 'float',
+    },
+    floating: { bg: 'off', padding: 0, gap: 10, fontSize: 22, nameSize: 22, fadeZone: 240, enterAnim: 'fade' },
+    neon: { bgColor: '#07031a', bgOpacity: 0.82, border: true, borderColor: '#00f0ff', borderWidth: 2, radius: 14, textColor: '#e8fbff' },
+    terminal: {
+      font: 'Consolas',
+      fontSize: 16,
+      nameSize: 16,
+      bgColor: '#0c0c0c',
+      bgOpacity: 0.92,
+      border: true,
+      borderColor: '#3a3a3a',
+      borderWidth: 1,
+      radius: 8,
+      textColor: '#c8ffc8',
+      showTime: true,
+      textShadow: false,
+      emoteSize: 24,
+      enterAnim: 'fade',
+    },
+    retro: {
+      font: 'Press Start 2P',
+      fontSize: 12,
+      nameSize: 12,
+      bgColor: '#1b1b3a',
+      bgOpacity: 0.95,
+      border: true,
+      borderColor: '#ffffff',
+      borderWidth: 4,
+      radius: 0,
+      padding: 16,
+      gap: 10,
+      textShadow: false,
+      emoteSize: 24,
+    },
+    glass: { bgColor: '#ffffff', bgOpacity: 0.16, border: true, borderColor: '#ffffff', borderWidth: 1, radius: 20, blur: 14 },
+    popin: { bubbles: true, bgColor: '#20232e', bgOpacity: 0.92, radius: 22, padding: 10, gap: 8, enterAnim: 'pop', animSpeed: 0.9 },
+    side: { bg: 'off', border: true, borderColor: '#8b5cf6', borderWidth: 3, width: 300, height: 900, namePos: 'above', nameSize: 15, gap: 14, padding: 0 },
+    ticker: { layout: 'horizontal', width: 1920, height: 64, bgOpacity: 0.85, radius: 0, padding: 10, maxMessages: 15, fadeZone: 120 },
+    cyberpunk: {
+      bubbles: true,
+      bgColor: '#0a0a0c',
+      bgOpacity: 0.92,
+      border: true,
+      borderColor: '#fcee0a',
+      borderWidth: 3,
+      radius: 0,
+      padding: 9,
+      gap: 8,
+      textColor: '#e9e9e9',
+      textShadow: false,
+      fontSize: 17,
+      nameSize: 16,
+      enterAnim: 'fade',
+    },
+    comic: {
+      bubbles: true,
+      bgColor: '#ffffff',
+      bgOpacity: 1,
+      border: true,
+      borderColor: '#111111',
+      borderWidth: 3,
+      radius: 16,
+      padding: 10,
+      gap: 8,
+      textColor: '#111111',
+      textShadow: false,
+      namePos: 'above',
+      fontSize: 16,
+      nameSize: 21,
+      showColon: false,
+      enterAnim: 'pop',
+    },
+    hud: {
+      bgColor: '#04121c',
+      bgOpacity: 0.6,
+      borderColor: '#00e5ff',
+      radius: 2,
+      padding: 18,
+      textColor: '#d8f6ff',
+      nameColor: '#5ff3ff',
+      nameSize: 15,
+      showColon: false,
+    },
+    sticky: {
+      bubbles: true,
+      bgColor: '#fff27a',
+      bgOpacity: 1,
+      textColor: '#2b2b2b',
+      textShadow: false,
+      nameColor: '#1f1f1f',
+      namePos: 'above',
+      fontSize: 16,
+      nameSize: 15,
+      radius: 3,
+      padding: 12,
+      gap: 16,
+      enterAnim: 'drop',
+    },
+    pastel: {
+      bubbles: true,
+      bgColor: '#dccbff',
+      bgOpacity: 1,
+      textColor: '#3b3355',
+      textShadow: false,
+      nameColor: '#2d2546',
+      font: 'Fredoka',
+      fontSize: 17,
+      nameSize: 17,
+      radius: 40,
+      padding: 9,
+      gap: 8,
+      enterAnim: 'bounce',
+    },
+    galaxy: { bgColor: '#0b0920', bgOpacity: 0.88, radius: 18, padding: 16, textColor: '#ece8ff', enterAnim: 'float' },
+    rpg: {
+      bubbles: true,
+      bgColor: '#13207a',
+      bgOpacity: 0.94,
+      border: true,
+      borderColor: '#ffffff',
+      borderWidth: 3,
+      radius: 6,
+      padding: 12,
+      gap: 24,
+      font: 'Press Start 2P',
+      fontSize: 12,
+      nameSize: 10,
+      textColor: '#ffffff',
+      textShadow: false,
+      namePos: 'above',
+      nameColor: '#ffe066',
+      emoteSize: 24,
+      enterAnim: 'fade',
+      typewriter: true,
+    },
+    // Horizontal (ticker) styles
+    news: { ...BAR, bgColor: '#ffffff', bgOpacity: 1, height: 56, textColor: '#1a1a1a', textShadow: false, padding: 10, fadeZone: 60, tickerSpeed: 110 },
+    neonstrip: { ...BAR, bgColor: '#07031a', bgOpacity: 0.9, borderColor: '#ff2bd6', textColor: '#f2e9ff' },
+    pills: { ...BAR, bubbles: true, bgColor: '#16161f', bgOpacity: 0.88, radius: 40, padding: 8, gap: 18, fadeZone: 100 },
+    minimal: { ...BAR, bg: 'off', height: 72, fontSize: 26, nameSize: 26, padding: 0, tickerSpeed: 70 },
+    led: {
+      ...BAR,
+      bgColor: '#050505',
+      bgOpacity: 0.95,
+      radius: 4,
+      font: 'Consolas',
+      fontSize: 22,
+      nameSize: 22,
+      textColor: '#ffb000',
+      textShadow: false,
+      fadeZone: 80,
+    },
+    cyberbar: {
+      ...BAR,
+      bgColor: '#0a0a0c',
+      bgOpacity: 0.92,
+      border: true,
+      borderColor: '#fcee0a',
+      borderWidth: 3,
+      textColor: '#0b0b0b',
+      textShadow: false,
+      nameColor: '#0b0b0b',
+      fontSize: 17,
+      nameSize: 16,
+      fadeZone: 80,
+    },
+    candy: {
+      ...BAR,
+      bgColor: '#ffffff',
+      bgOpacity: 1,
+      radius: 40,
+      padding: 8,
+      font: 'Fredoka',
+      fontSize: 18,
+      nameSize: 18,
+      textColor: '#3b3355',
+      textShadow: false,
+      nameColor: '#2d2546',
+      tickerDir: 'ltr',
+      fadeZone: 60,
+    },
+    glassbar: { ...BAR, bgColor: '#ffffff', bgOpacity: 0.16, border: true, borderColor: '#ffffff', borderWidth: 1, radius: 32, blur: 12, fadeZone: 160 },
+    persian: {
+      bgColor: '#0d1b3d',
+      bgOpacity: 0.92,
+      border: true,
+      borderColor: '#d4af37',
+      borderWidth: 8,
+      radius: 6,
+      padding: 20,
+      font: 'Vazirmatn',
+      fontSize: 18,
+      nameSize: 17,
+      textColor: '#f3ead3',
+    },
+  }).map(([id, change]) => [id, { ...CHAT_BASE, ...change }]),
+);
 // The chat can also use these bundled fonts (assets/fonts).
 const CHAT_FONTS = [...FONTS, 'Press Start 2P', 'Bangers', 'Fredoka', 'Vazirmatn', 'Inter', 'Manrope'];
 const CHAT_LOOK = Object.keys(CHAT_BASE); // the fields a style sets
@@ -251,9 +646,39 @@ const CHAT_LOOK = Object.keys(CHAT_BASE); // the fields a style sets
 // these (saved.chat.looks holds the designs not picked), so switching away and back brings them back. The rest of the
 // look (text and emote sizes, what a line shows, badges, effects, how long and how many messages) is shared by all
 // designs: it stays as it is when the design changes.
-const CHAT_OWN = ['font', 'textColor', 'textShadow', 'nameColor', 'namePos', 'showColon', 'bg', 'bgColor', 'bgOpacity', 'bubbles', 'border', 'borderColor',
-  'borderColorMode', 'borderWidth', 'radius', 'padding', 'gap', 'width', 'height', 'blur', 'layout', 'tickerDir', 'tickerSpeed', 'tickerLoop', 'enterAnim', 'exitAnim', 'animSpeed',
-  'fade', 'fadeZone', 'typewriter', 'typeSound'];
+const CHAT_OWN = [
+  'font',
+  'textColor',
+  'textShadow',
+  'nameColor',
+  'namePos',
+  'showColon',
+  'bg',
+  'bgColor',
+  'bgOpacity',
+  'bubbles',
+  'border',
+  'borderColor',
+  'borderColorMode',
+  'borderWidth',
+  'radius',
+  'padding',
+  'gap',
+  'width',
+  'height',
+  'blur',
+  'layout',
+  'tickerDir',
+  'tickerSpeed',
+  'tickerLoop',
+  'enterAnim',
+  'exitAnim',
+  'animSpeed',
+  'fade',
+  'fadeZone',
+  'typewriter',
+  'typeSound',
+];
 const CHAT_SHARED = CHAT_LOOK.filter((k) => !CHAT_OWN.includes(k));
 const pick = (o, keys) => Object.fromEntries(keys.filter((k) => k in o).map((k) => [k, o[k]]));
 // The panel's style thumbnails: each design's own look, over the user's shared values (what picking it gives).
@@ -269,17 +694,35 @@ const CHAT_DEFAULTS = {
   kickChannel: '',
   twitchChannel: '',
   style: 'kick', // new users; earlier users keep the style they had (see the v3 -> v4 migration)
-  emotesKick: true, emotesTwitch: true, emotes7tv: true,
-  hideCommands: true, hideBots: true, bots: 'botrix, kickbot', hiddenUsers: '', blockedWords: '', hideLinks: false, source: 'both',
+  emotesKick: true,
+  emotesTwitch: true,
+  emotes7tv: true,
+  hideCommands: true,
+  hideBots: true,
+  bots: 'botrix, kickbot',
+  hiddenUsers: '',
+  blockedWords: '',
+  hideLinks: false,
+  source: 'both',
   rainbowUsers: '',
-  ogHat: true, hatStyle: 'cap', hatPos: 'first', // Kick's OG viewers get a hat (assets/og-hats): kept when the style changes
+  ogHat: true,
+  hatStyle: 'cap',
+  hatPos: 'first', // Kick's OG viewers get a hat (assets/og-hats): kept when the style changes
   badgeBg: 'auto', // a dark tile behind the platforms' role badges: auto (light backgrounds only) | always | off; kept when the style changes
   tickerPos: 'top', // where a bar sits in the OBS source: kept when the style changes
   showTiming: false, // debug: how late each message shows (a label in the chat, a line in the server output)
   // Events: special lines for what happened (Kicks, subs and resubs, gifted subs, bits, raids), each on or off and some
   // from an amount up; their look (card | glow | line); "Keep special lines longer". Kept when the style changes.
-  eventKicks: true, eventKicksMin: 0, eventSubs: true, eventGifts: true, eventGiftsMin: 0, eventBits: true, eventBitsMin: 0, eventRaids: false,
-  eventLook: 'card', eventLonger: false,
+  eventKicks: true,
+  eventKicksMin: 0,
+  eventSubs: true,
+  eventGifts: true,
+  eventGiftsMin: 0,
+  eventBits: true,
+  eventBitsMin: 0,
+  eventRaids: false,
+  eventLook: 'card',
+  eventLonger: false,
   customCss: '', // the user's own CSS on top of the look, this chat's (not a design's): kept when the style changes
 };
 const words = (v) => typeof v === 'string' && v.length <= 1000;
@@ -290,30 +733,106 @@ const CHAT_RULES = {
   kickChannel: (v) => typeof v === 'string' && /^[a-z0-9_-]{0,40}$/i.test(v),
   twitchChannel: (v) => typeof v === 'string' && /^[a-z0-9_]{0,25}$/i.test(v),
   style: (v) => v in CHAT_STYLES,
-  emotesKick: bool, emotesTwitch: bool, emotes7tv: bool,
-  hideCommands: bool, hideBots: bool, bots: words, hiddenUsers: words, blockedWords: words, hideLinks: bool, source: oneOf('both', 'kick', 'twitch'),
+  emotesKick: bool,
+  emotesTwitch: bool,
+  emotes7tv: bool,
+  hideCommands: bool,
+  hideBots: bool,
+  bots: words,
+  hiddenUsers: words,
+  blockedWords: words,
+  hideLinks: bool,
+  source: oneOf('both', 'kick', 'twitch'),
   rainbowUsers: words,
-  ogHat: bool, hatStyle: oneOf('cap', 'beanie', 'fedora'), hatPos: oneOf('first', 'last', 'badge', 'avatar'), badgeBg: oneOf('auto', 'always', 'off'),
-  showPlatform: bool, showBadges: bool, badgeMode: oneOf('important', 'all'), badgeSize: num(0.5, 2), badgeBroadcaster: bool, badgeMod: bool, badgeVip: bool, badgeSub: bool, badgeOther: bool, showTime: bool, showColon: bool,
-  emotesAnimated: bool, emoteSize: num(12, 112), bigEmotes: bool, bigEmoteSize: num(16, 160),
-  font: oneOf(...CHAT_FONTS), fontSize: num(10, 72), nameSize: num(10, 72), nameColorMode: oneOf('user', 'custom', 'style'), readableNames: bool, nameColor: hex, textColor: hex,
-  namePos: oneOf('inline', 'above'), textShadow: bool, textDir: oneOf('auto', 'ltr', 'rtl'),
-  bg: oneOf('color', 'transparent', 'off'), bgColor: hex, bgOpacity: num(0, 1), bubbles: bool, border: bool, borderColor: hex, borderColorMode: oneOf('custom', 'user'), borderWidth: num(1, 12),
-  radius: num(0, 40), padding: num(0, 60), gap: num(0, 40), width: num(200, 1920), height: num(40, 1080),
-  layout: oneOf('vertical', 'horizontal'), tickerDir: oneOf('rtl', 'ltr'), tickerSpeed: num(20, 600), newAt: oneOf('bottom', 'top'),
-  maxMessages: (v) => Number.isInteger(v) && v >= 1 && v <= 100, hideAfter: num(0, 600),
-  enterAnim: oneOf('slide', 'fade', 'pop', 'float', 'bounce', 'drop', 'none'), exitAnim: oneOf('fade', 'slide', 'none'), animSpeed: num(0.25, 3), fadeZone: num(0, 400), fade: bool,
-  fxSubGlow: bool, fxFirst: bool, fxRainbowVip: bool, fxMention: bool, fxCombo: bool, avatars: bool, blur: num(0, 40), typewriter: bool, typeSound: bool,
-  tickerLoop: bool, tickerPos: oneOf('top', 'bottom'), showTiming: bool, replies: oneOf('line', 'name', 'quote', 'off'),
-  eventKicks: bool, eventKicksMin: amount, eventSubs: bool, eventGifts: bool, eventGiftsMin: amount, eventBits: bool, eventBitsMin: amount, eventRaids: bool,
-  eventLook: oneOf('card', 'glow', 'line'), eventLonger: bool,
+  ogHat: bool,
+  hatStyle: oneOf('cap', 'beanie', 'fedora'),
+  hatPos: oneOf('first', 'last', 'badge', 'avatar'),
+  badgeBg: oneOf('auto', 'always', 'off'),
+  showPlatform: bool,
+  showBadges: bool,
+  badgeMode: oneOf('important', 'all'),
+  badgeSize: num(0.5, 2),
+  badgeBroadcaster: bool,
+  badgeMod: bool,
+  badgeVip: bool,
+  badgeSub: bool,
+  badgeOther: bool,
+  showTime: bool,
+  showColon: bool,
+  emotesAnimated: bool,
+  emoteSize: num(12, 112),
+  bigEmotes: bool,
+  bigEmoteSize: num(16, 160),
+  font: oneOf(...CHAT_FONTS),
+  fontSize: num(10, 72),
+  nameSize: num(10, 72),
+  nameColorMode: oneOf('user', 'custom', 'style'),
+  readableNames: bool,
+  nameColor: hex,
+  textColor: hex,
+  namePos: oneOf('inline', 'above'),
+  textShadow: bool,
+  textDir: oneOf('auto', 'ltr', 'rtl'),
+  bg: oneOf('color', 'transparent', 'off'),
+  bgColor: hex,
+  bgOpacity: num(0, 1),
+  bubbles: bool,
+  border: bool,
+  borderColor: hex,
+  borderColorMode: oneOf('custom', 'user'),
+  borderWidth: num(1, 12),
+  radius: num(0, 40),
+  padding: num(0, 60),
+  gap: num(0, 40),
+  width: num(200, 1920),
+  height: num(40, 1080),
+  layout: oneOf('vertical', 'horizontal'),
+  tickerDir: oneOf('rtl', 'ltr'),
+  tickerSpeed: num(20, 600),
+  newAt: oneOf('bottom', 'top'),
+  maxMessages: (v) => Number.isInteger(v) && v >= 1 && v <= 100,
+  hideAfter: num(0, 600),
+  enterAnim: oneOf('slide', 'fade', 'pop', 'float', 'bounce', 'drop', 'none'),
+  exitAnim: oneOf('fade', 'slide', 'none'),
+  animSpeed: num(0.25, 3),
+  fadeZone: num(0, 400),
+  fade: bool,
+  fxSubGlow: bool,
+  fxFirst: bool,
+  fxRainbowVip: bool,
+  fxMention: bool,
+  fxCombo: bool,
+  avatars: bool,
+  blur: num(0, 40),
+  typewriter: bool,
+  typeSound: bool,
+  tickerLoop: bool,
+  tickerPos: oneOf('top', 'bottom'),
+  showTiming: bool,
+  replies: oneOf('line', 'name', 'quote', 'off'),
+  eventKicks: bool,
+  eventKicksMin: amount,
+  eventSubs: bool,
+  eventGifts: bool,
+  eventGiftsMin: amount,
+  eventBits: bool,
+  eventBitsMin: amount,
+  eventRaids: bool,
+  eventLook: oneOf('card', 'glow', 'line'),
+  eventLonger: bool,
   customCss: css,
 };
 // An exclusive design (core/designs.js) becomes a chat style like the others: its look is only a design's own values
 // (CHAT_OWN), each one valid. false: not taken.
 function addChatDesign(id, look) {
-  if (!/^x-[a-z0-9-]{1,30}$/.test(id) || !look || typeof look !== 'object' || Array.isArray(look)
-    || !Object.entries(look).every(([k, v]) => CHAT_OWN.includes(k) && CHAT_RULES[k](v))) return false;
+  if (
+    !/^x-[a-z0-9-]{1,30}$/.test(id) ||
+    !look ||
+    typeof look !== 'object' ||
+    Array.isArray(look) ||
+    !Object.entries(look).every(([k, v]) => CHAT_OWN.includes(k) && CHAT_RULES[k](v))
+  )
+    return false;
   CHAT_STYLES[id] = { ...CHAT_BASE, ...look };
   CHAT_DESIGNS[id] = pick(CHAT_STYLES[id], CHAT_OWN);
   return true;
@@ -340,7 +859,9 @@ const VIEWER_RULES = {
   anim: oneOf('roll', 'flip', 'fade', 'pop'),
   size: num(0.5, 1),
   font: oneOf(...CHAT_FONTS),
-  numberColor: hex, bgColor: hex, accentColor: hex,
+  numberColor: hex,
+  bgColor: hex,
+  accentColor: hex,
   customCss: css,
 };
 
@@ -374,8 +895,23 @@ const bad = (code = 'bad_request') => Object.assign(new Error(code), { status: 4
 // the ones undone since (future), only while Jarchi runs. Each is JSON without what isn't a setting (KEEP: those stay as
 // they are). A file a change replaced or removed stays in uploads until no step has it any more (gone, sweep()).
 const UNDO_MAX = 5;
-const KEEP = ['version', 'installId', 'supportToken', 'obsSize', 'connect', 'welcomed', 'privacyAccepted', 'privacyAcceptedAt', 'lang', 'seenNew', 'eyesSeen', 'proxyAsk'];
-let past = [], future = [], last; // last: the settings now, as JSON (once loaded)
+const KEEP = [
+  'version',
+  'installId',
+  'supportToken',
+  'obsSize',
+  'connect',
+  'welcomed',
+  'privacyAccepted',
+  'privacyAcceptedAt',
+  'lang',
+  'seenNew',
+  'eyesSeen',
+  'proxyAsk',
+];
+let past = [],
+  future = [],
+  last; // last: the settings now, as JSON (once loaded)
 const gone = new Set();
 const plain = () => JSON.stringify({ ...saved, ...Object.fromEntries(KEEP.map((k) => [k])) }); // undefined: left out
 const files = (json) => [...json.matchAll(/"file":"([^"]+)"/g)].map((m) => path.basename(m[1]));
@@ -396,7 +932,13 @@ if (from < 3) {
     const fixed = {};
     for (const old of o.tiers) {
       const tier = (fixed[amounts.findLast((a) => a <= old.min) ?? amounts[0]] ??= { on: true });
-      for (const [kind, files] of [['image', old.images], ['sound', old.sounds]]) for (const f of files ?? []) if (tier[kind]) removeFile(f); else tier[kind] = f;
+      for (const [kind, files] of [
+        ['image', old.images],
+        ['sound', old.sounds],
+      ])
+        for (const f of files ?? [])
+          if (tier[kind]) removeFile(f);
+          else tier[kind] = f;
     }
     o.tiers = fixed;
   }
@@ -409,10 +951,15 @@ if (from < 4 && Object.keys(saved).length) {
 if (from < 5) {
   // v4 -> v5: the bits tiers became Twitch's gems (1, 100, 1000, 5000, 10000). The old 500 tier's files move to the 100
   // tier where it has none of that kind (else they go), and turn it on if the 500 tier was on.
-  const tiers = saved.alerts?.bits?.tiers, old = tiers?.[500];
+  const tiers = saved.alerts?.bits?.tiers,
+    old = tiers?.[500];
   if (old) {
     const to = (tiers[100] ??= {});
-    for (const kind of ['image', 'sound']) if (old[kind]) { if (to[kind]) removeFile(old[kind]); else to[kind] = old[kind]; }
+    for (const kind of ['image', 'sound'])
+      if (old[kind]) {
+        if (to[kind]) removeFile(old[kind]);
+        else to[kind] = old[kind];
+      }
     to.on ||= !!old.on;
     delete tiers[500];
   }
@@ -451,7 +998,15 @@ if (from < 10) {
   // v9 -> v10: the default proxy mode is Off (was Auto), so an install that never chose one is Off now. Auto with the
   // VPN app the streamer said Yes to (proxyFound) is Manual with that proxy: what Yes sets from now on.
   const f = saved.proxyFound;
-  if (saved.proxyMode === 'auto' && f && proxyPort(f.port) && f.port > 0 && typeof f.host === 'string' && PROXY_HOST.test(f.host) && ['http', 'socks5'].includes(f.type)) {
+  if (
+    saved.proxyMode === 'auto' &&
+    f &&
+    proxyPort(f.port) &&
+    f.port > 0 &&
+    typeof f.host === 'string' &&
+    PROXY_HOST.test(f.host) &&
+    ['http', 'socks5'].includes(f.type)
+  ) {
     Object.assign(saved, { proxyMode: 'manual', proxyType: f.type, proxyHost: f.host, proxyPort: f.port });
   }
   delete saved.proxyFound;
@@ -564,7 +1119,11 @@ function alert(t) {
   const cfg = Object.fromEntries(Object.entries(DEFAULTS[t]).map(([k, d]) => [k, k in o ? o[k] : d]));
   if (TIER_AMOUNTS[t]) {
     cfg.tiers = TIER_AMOUNTS[t].map((amount) => ({
-      amount, on: false, image: null, sound: null, ...o.tiers?.[amount],
+      amount,
+      on: false,
+      image: null,
+      sound: null,
+      ...o.tiers?.[amount],
       ...(t === 'kicks' && { gift: KICK_GIFTS.find((g) => g.amount === amount) }),
     }));
   }
@@ -645,7 +1204,8 @@ function update(patch, undoable = true) {
   }
   for (const [key, chatFields] of chats) {
     const o = (saved[key] ??= {});
-    const from = chat(key).style, to = chatFields.style;
+    const from = chat(key).style,
+      to = chatFields.style;
     if (to && to !== from) {
       // Another design: the shared look stays as it was (the old design's value where the user never changed it); the
       // old design's own changes are put away and the new one's come back.
@@ -788,7 +1348,8 @@ function addCryptoTier(min) {
   return { settings: get(), id };
 }
 function removeCryptoTier(id) {
-  const tiers = saved.crypto?.tiers ?? [], i = tiers.findIndex((t) => t.id === id);
+  const tiers = saved.crypto?.tiers ?? [],
+    i = tiers.findIndex((t) => t.id === id);
   if (i < 0) throw bad();
   removeFile(tiers[i].image);
   removeFile(tiers[i].sound);
@@ -897,7 +1458,8 @@ function reset(type) {
   for (const t of type ? [type] : TYPES) {
     removeFile(saved.alerts?.[t]?.image);
     removeFile(saved.alerts?.[t]?.sound);
-    for (const tier of Object.values(saved.alerts?.[t]?.tiers ?? {})) [tier.image, tier.sound, ...(tier.images ?? []), ...(tier.sounds ?? [])].forEach(removeFile); // old free tiers too
+    for (const tier of Object.values(saved.alerts?.[t]?.tiers ?? {}))
+      [tier.image, tier.sound, ...(tier.images ?? []), ...(tier.sounds ?? [])].forEach(removeFile); // old free tiers too
     delete saved.alerts?.[t];
   }
   if (!type) {
@@ -905,16 +1467,64 @@ function reset(type) {
     removeFile(saved.profile?.picture);
     const c = saved.crypto ?? {};
     [c.sound, c.custom?.image, c.custom?.sound, ...(c.tiers ?? []).flatMap((t) => [t.image, t.sound])].forEach(removeFile);
-    saved = { version: VERSION, installId: saved.installId, supportToken: saved.supportToken, obsSize: saved.obsSize, connect: saved.connect, lang: saved.lang, seenNew: saved.seenNew, eyesSeen: saved.eyesSeen }; // still the same install, OBS and panel (none yet: left out)
+    saved = {
+      version: VERSION,
+      installId: saved.installId,
+      supportToken: saved.supportToken,
+      obsSize: saved.obsSize,
+      connect: saved.connect,
+      lang: saved.lang,
+      seenNew: saved.seenNew,
+      eyesSeen: saved.eyesSeen,
+    }; // still the same install, OBS and panel (none yet: left out)
   }
   persist(!!type); // Reset everything can't be undone
   return get();
 }
 
 module.exports = {
-  get, update, saveUpload, removeUpload, reset, saveGoalSound, removeGoalSound, saveProfilePicture, resetGoalStyle, resetChatStyle, addChat, removeChat,
-  resetAlertText, setTier, saveTierFile, removeTierFile, sniff, installId, privacyAcceptedAt, supportToken, obsSize, setObsSize,
-  connectState, setConnectState, undo, redo, canUndo, forget,
-  cryptoPick, cryptoDuration, setCryptoLook, addCryptoTier, removeCryptoTier, saveCryptoFile, removeCryptoFile, CRYPTO_FONTS,
-  GOAL_IDS, GOAL_STYLES, CHAT_DESIGNS, CHAT_FONTS, FONTS, KICK_GIFTS, VIEWER_STYLES, addChatDesign,
+  get,
+  update,
+  saveUpload,
+  removeUpload,
+  reset,
+  saveGoalSound,
+  removeGoalSound,
+  saveProfilePicture,
+  resetGoalStyle,
+  resetChatStyle,
+  addChat,
+  removeChat,
+  resetAlertText,
+  setTier,
+  saveTierFile,
+  removeTierFile,
+  sniff,
+  installId,
+  privacyAcceptedAt,
+  supportToken,
+  obsSize,
+  setObsSize,
+  connectState,
+  setConnectState,
+  undo,
+  redo,
+  canUndo,
+  forget,
+  cryptoPick,
+  cryptoDuration,
+  setCryptoLook,
+  addCryptoTier,
+  removeCryptoTier,
+  saveCryptoFile,
+  removeCryptoFile,
+  CRYPTO_FONTS,
+  GOAL_IDS,
+  GOAL_STYLES,
+  CHAT_DESIGNS,
+  CHAT_FONTS,
+  FONTS,
+  KICK_GIFTS,
+  VIEWER_STYLES,
+  addChatDesign,
 };

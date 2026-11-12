@@ -17,8 +17,9 @@ const GENERIC = { types: ['improve'], en: ['Small fixes and improvements'], fa: 
 // The two top entries as written by hand (types on one line, each change on its own line); the rest stays as it is.
 const J = JSON.stringify;
 const lines = (a) => (a.length ? `[\n${a.map((s) => `      ${J(s)}`).join(',\n')}\n    ]` : '[]');
-const entry = (c) => `  {\n    "version": ${J(c.version)},\n${c.types ? `    "types": [${c.types.map(J).join(', ')}],\n` : ''}`
-  + `    "en": ${lines(c.en)},\n    "fa": ${lines(c.fa)}\n  }`;
+const entry = (c) =>
+  `  {\n    "version": ${J(c.version)},\n${c.types ? `    "types": [${c.types.map(J).join(', ')}],\n` : ''}` +
+  `    "en": ${lines(c.en)},\n    "fa": ${lines(c.fa)}\n  }`;
 
 // The log after releasing version: a new empty Unreleased entry, then the old one with its version.
 function stamp(log, version) {
@@ -43,7 +44,11 @@ async function generateNotes(_, context) {
 
 function prepare(_, { nextRelease: { version } }) {
   fs.writeFileSync(FILE, rewrite(read(), version));
-  execFileSync('npm', ['version', version, '--no-git-tag-version', '--allow-same-version'], { cwd: ROOT, stdio: 'inherit', shell: process.platform === 'win32' });
+  execFileSync('npm', ['version', version, '--no-git-tag-version', '--allow-same-version'], {
+    cwd: ROOT,
+    stdio: 'inherit',
+    shell: process.platform === 'win32',
+  });
 }
 
 // A PR with the big-update label makes a minor release (1.0.9 → 1.1.0); everything else is a patch at most

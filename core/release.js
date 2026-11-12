@@ -6,7 +6,8 @@
 const { EventEmitter } = require('node:events');
 const { version, build } = require('../package.json');
 
-const FIRST_MS = 60 * 1000, EVERY_MS = 6 * 3600 * 1000;
+const FIRST_MS = 60 * 1000,
+  EVERY_MS = 6 * 3600 * 1000;
 const events = new EventEmitter(); // 'found' { version, url }
 let latest = null; // the newest release, when it's newer than this copy: { version, url (its page) }
 
@@ -23,7 +24,8 @@ async function check() {
   try {
     // GitHub's latest: the newest published release, never a draft or a pre-release
     const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/releases/latest`, {
-      headers: { accept: 'application/vnd.github+json', 'user-agent': 'jarchi' }, signal: AbortSignal.timeout(10000),
+      headers: { accept: 'application/vnd.github+json', 'user-agent': 'jarchi' },
+      signal: AbortSignal.timeout(10000),
     });
     if (!res.ok) return;
     const r = await res.json();

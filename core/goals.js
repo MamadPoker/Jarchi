@@ -22,15 +22,27 @@ const COUNT = {
 };
 const KICK_TYPES = { followers: 'followers', subscriptions: 'subs', kicks: 'kicks' }; // Kick's goal type -> ours
 // Twitch's goal type -> ours. Its four sub goals (points or subs, all or only new ones) are each the Twitch Sub goal.
-const TWITCH_TYPES = { follow: 'twitchFollowers', subscription: 'twitchSubs', subscription_count: 'twitchSubs', new_subscription: 'twitchSubs', new_subscription_count: 'twitchSubs', new_bit: 'bits' };
+const TWITCH_TYPES = {
+  follow: 'twitchFollowers',
+  subscription: 'twitchSubs',
+  subscription_count: 'twitchSubs',
+  new_subscription: 'twitchSubs',
+  new_subscription_count: 'twitchSubs',
+  new_bit: 'bits',
+};
 const SHOWN = ['active', 'achieved']; // what kick.com still shows; canceled and expired ones go
 
 const goals = new EventEmitter(); // 'change' (idThatJustReachedItsTarget | null)
 const saved = store.load(FILE);
-const state = Object.fromEntries(settings.GOAL_IDS.map((id) => [id, {
-  current: Math.max(0, Math.round(Number(saved[id]?.current) || 0)),
-  reached: saved[id]?.reached === true,
-}]));
+const state = Object.fromEntries(
+  settings.GOAL_IDS.map((id) => [
+    id,
+    {
+      current: Math.max(0, Math.round(Number(saved[id]?.current) || 0)),
+      reached: saved[id]?.reached === true,
+    },
+  ]),
+);
 const on = { kick: {}, twitch: {} }; // platform -> our goal id -> { goalId, current, target }: the channel's goals, as last read
 // Home's Kick tab: every goal on the Kick channel as Kick lists it, [{ id, type, current, target }], whatever the syncs do.
 // (Twitch's list is connectors/twitch-account.js's.) 'kick' is emitted when it changes.
@@ -49,13 +61,16 @@ function synced(id) {
 }
 // What widgets and the panel show, per goal: { current, target, reached, kick / twitch (its numbers are that platform's),
 // onKick / onTwitch (set there) }.
-const all = () => Object.fromEntries(settings.GOAL_IDS.map((id) => {
-  const p = synced(id);
-  const marks = { kick: p === 'kick', twitch: p === 'twitch', onKick: !!on.kick[id], onTwitch: !!on.twitch[id] };
-  if (!p) return [id, { ...state[id], target: settings.get().goals[id].target, ...marks }];
-  const { current, target } = on[p][id];
-  return [id, { current, target, reached: current >= target, ...marks }];
-}));
+const all = () =>
+  Object.fromEntries(
+    settings.GOAL_IDS.map((id) => {
+      const p = synced(id);
+      const marks = { kick: p === 'kick', twitch: p === 'twitch', onKick: !!on.kick[id], onTwitch: !!on.twitch[id] };
+      if (!p) return [id, { ...state[id], target: settings.get().goals[id].target, ...marks }];
+      const { current, target } = on[p][id];
+      return [id, { current, target, reached: current >= target, ...marks }];
+    }),
+  );
 
 // "Reached" latches: the bar stays full until the count goes back to 0 or the target changes.
 function set(id, value) {
@@ -97,24 +112,35 @@ function kickGoals(list) {
   const next = {};
   for (const g of list ?? []) {
     const id = KICK_TYPES[g?.type];
-    if (id && SHOWN.includes(g.status) && !next[id]) next[id] = { goalId: g.id, current: count(g.current_value), target: Math.max(1, count(g.target_value, 1)) };
+    if (id && SHOWN.includes(g.status) && !next[id])
+      next[id] = { goalId: g.id, current: count(g.current_value), target: Math.max(1, count(g.target_value, 1)) };
   }
   platformChanged('kick', next);
-  setKickList((list ?? []).filter((g) => SHOWN.includes(g?.status)).map((g) => ({ id: g.id, type: String(g.type ?? ''), current: count(g.current_value), target: Math.max(1, count(g.target_value, 1)) })));
+  setKickList(
+    (list ?? [])
+      .filter((g) => SHOWN.includes(g?.status))
+      .map((g) => ({ id: g.id, type: String(g.type ?? ''), current: count(g.current_value), target: Math.max(1, count(g.target_value, 1)) })),
+  );
 }
 // One goal from a live Kick event (created, updated, progress, achieved, canceled). Found by type, or by its id.
 function kickGoal(g) {
   // Home's Kick tab: the goal as Kick has it now, in its place in the list; gone when canceled or expired.
   const was = kickList.find((k) => k.id === g?.id);
-  const now = SHOWN.includes(g?.status ?? 'active') && (was || g?.type)
-    && { id: g.id, type: String(g.type ?? was.type), current: count(g.current_value, was?.current), target: Math.max(1, count(g.target_value, was?.target ?? 1)) };
+  const now = SHOWN.includes(g?.status ?? 'active') &&
+    (was || g?.type) && {
+      id: g.id,
+      type: String(g.type ?? was.type),
+      current: count(g.current_value, was?.current),
+      target: Math.max(1, count(g.target_value, was?.target ?? 1)),
+    };
   setKickList(was ? kickList.flatMap((k) => (k !== was ? [k] : now ? [now] : [])) : now ? [...kickList, now] : kickList);
   // The goal it syncs to.
   const id = KICK_TYPES[g?.type] ?? Object.keys(on.kick).find((k) => on.kick[k].goalId === g?.id);
   if (!id) return;
   const next = { ...on.kick };
   const old = on.kick[id] ?? { current: 0, target: 1 };
-  if (SHOWN.includes(g.status ?? 'active')) next[id] = { goalId: g.id ?? old.goalId, current: count(g.current_value, old.current), target: Math.max(1, count(g.target_value, old.target)) };
+  if (SHOWN.includes(g.status ?? 'active'))
+    next[id] = { goalId: g.id ?? old.goalId, current: count(g.current_value, old.current), target: Math.max(1, count(g.target_value, old.target)) };
   else delete next[id];
   platformChanged('kick', next);
 }

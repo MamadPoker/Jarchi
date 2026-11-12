@@ -6,7 +6,11 @@ const RTL = '<div dir="rtl">';
 const list = (items) => items.map((s) => `- ${s}`).join('\n');
 const text = ({ en, fa }) => `${list(en)}\n\n${RTL}\n\n${list(fa)}\n\n</div>\n`;
 function parse(notes) {
-  const items = (part = '') => part.split(/\r?\n/).filter((l) => l.startsWith('- ')).map((l) => l.slice(2).trim());
+  const items = (part = '') =>
+    part
+      .split(/\r?\n/)
+      .filter((l) => l.startsWith('- '))
+      .map((l) => l.slice(2).trim());
   const [en, fa] = notes.split(RTL);
   return { en: items(en), fa: items(fa) };
 }

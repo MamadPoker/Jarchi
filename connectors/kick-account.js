@@ -21,7 +21,10 @@ const JARCHI_RELAY = 'https://jarchi-kick.thejarchi.workers.dev';
 const RELAY = (process.env.KICK_RELAY_URL || JARCHI_RELAY).replace(/\/+$/, '');
 const API = 'https://api.kick.com/public/v1';
 // Follows; and subs, renewals and gifted subs as a second source beside the public chat socket (kick-chat official()).
-const EVENTS = ['channel.followed', 'channel.subscription.new', 'channel.subscription.renewal', 'channel.subscription.gifts'].map((name) => ({ name, version: 1 }));
+const EVENTS = ['channel.followed', 'channel.subscription.new', 'channel.subscription.renewal', 'channel.subscription.gifts'].map((name) => ({
+  name,
+  version: 1,
+}));
 const LOGIN_MS = 10 * 60 * 1000; // the Kick login page waits this long for the streamer
 const QUIET_MS = 90 * 1000; // we ping every 30 s; no pong for this long means the socket is dead
 
@@ -34,7 +37,7 @@ let saved = store.load(FILE, SECRET); // { access, refresh, expires, userId, log
 // (core/net.js); only the browser's own steps (Kick's page, the way back to /api/kick/callback) don't.
 let st = { state: saved.refresh && RELAY ? 'connecting' : 'off', error: '', why: '', uri: '' };
 // picture: the account's, for the profile chip (Edit profile; Kick's login is already the name as written).
-const status = () => ({ ...st, login: saved.refresh ? saved.login ?? '' : '', picture: saved.refresh ? saved.picture ?? '' : '' });
+const status = () => ({ ...st, login: saved.refresh ? (saved.login ?? '') : '', picture: saved.refresh ? (saved.picture ?? '') : '' });
 function set(next) {
   st = { ...st, uri: '', why: '', ...next };
   account.emit('status', status());
@@ -42,10 +45,12 @@ function set(next) {
 const fail = (code) => Object.assign(new Error(code), { code });
 const RELAY_HOST = URL.canParse(RELAY) ? new URL(RELAY).host : '';
 // A failed request -> { error, why }: an HTTP answer (403: Kick refusing this network) or no answer at all (net.why()).
-const reason = (err, host) => (err.status
-  ? { error: err.status === 403 ? 'blocked' : 'network', why: `${err.host ?? host}: HTTP ${err.status}` }
-  : { error: 'network', why: `${err.host ?? host}: ${err.why ?? net.why(err)}` });
-const post = (url, body) => fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body), signal: AbortSignal.timeout(10000) });
+const reason = (err, host) =>
+  err.status
+    ? { error: err.status === 403 ? 'blocked' : 'network', why: `${err.host ?? host}: HTTP ${err.status}` }
+    : { error: 'network', why: `${err.host ?? host}: ${err.why ?? net.why(err)}` };
+const post = (url, body) =>
+  fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body), signal: AbortSignal.timeout(10000) });
 // ponytail: a Kick channel's slug is its account name made lowercase, _ as -, like kick.com does; if one ever doesn't
 // match, ask Kick for it (GET /public/v1/channels).
 const slug = (name) => name.toLowerCase().replace(/_/g, '-');
@@ -57,7 +62,11 @@ const keepTokens = (j) => keep({ access: j.access_token, refresh: j.refresh_toke
 
 // Every run (a login, a connection) carries the run number it started with; stop() moves on, so whatever is still
 // under way from before ends quietly.
-let run = 0, ws = null, retry = 0, timer = null, pending = null; // pending: the login waiting for Kick { state, verifier, my }
+let run = 0,
+  ws = null,
+  retry = 0,
+  timer = null,
+  pending = null; // pending: the login waiting for Kick { state, verifier, my }
 function stop() {
   run++;
   clearTimeout(timer);
@@ -74,7 +83,8 @@ async function login() {
     return status();
   }
   stop();
-  const my = run, random = (n) => crypto.randomBytes(n).toString('base64url');
+  const my = run,
+    random = (n) => crypto.randomBytes(n).toString('base64url');
   pending = { state: `${PORT}.${random(24)}`, verifier: random(48), my };
   const challenge = crypto.createHash('sha256').update(pending.verifier).digest('base64url');
   timer = setTimeout(() => my === run && set({ state: 'off', error: 'timeout' }), LOGIN_MS);
@@ -133,35 +143,47 @@ async function disconnect() {
     } catch {}
   }
   forget();
-  if (access) await fetch(`https://id.kick.com/oauth/revoke?${new URLSearchParams({ token: access, token_hint_type: 'access_token' })}`, { method: 'POST', signal: AbortSignal.timeout(10000) }).catch(() => {});
+  if (access)
+    await fetch(`https://id.kick.com/oauth/revoke?${new URLSearchParams({ token: access, token_hint_type: 'access_token' })}`, {
+      method: 'POST',
+      signal: AbortSignal.timeout(10000),
+    }).catch(() => {});
   return status();
 }
 
 // ---------- Tokens: refreshed (through the relay) before they run out and when Kick says 401 ----------
 let refreshing = null;
-const refresh = () => (refreshing ??= (async () => {
-  try {
-    const res = await post(`${RELAY}/token`, { refresh_token: saved.refresh }).catch((err) => { throw Object.assign(err, { host: RELAY_HOST }); });
-    if (res.status === 400 || res.status === 401) {
-      forget('expired');
-      throw fail('expired');
+const refresh = () =>
+  (refreshing ??= (async () => {
+    try {
+      const res = await post(`${RELAY}/token`, { refresh_token: saved.refresh }).catch((err) => {
+        throw Object.assign(err, { host: RELAY_HOST });
+      });
+      if (res.status === 400 || res.status === 401) {
+        forget('expired');
+        throw fail('expired');
+      }
+      if (!res.ok) throw Object.assign(fail('network'), { status: res.status, host: RELAY_HOST });
+      keepTokens(await res.json());
+    } finally {
+      refreshing = null;
     }
-    if (!res.ok) throw Object.assign(fail('network'), { status: res.status, host: RELAY_HOST });
-    keepTokens(await res.json());
-  } finally {
-    refreshing = null;
-  }
-})());
+  })());
 
 async function authed(url, init = {}, again = true) {
   if (Date.now() > saved.expires - 60000) await refresh();
-  const res = await fetch(url, { ...init, headers: { authorization: `Bearer ${saved.access}`, 'content-type': 'application/json' }, signal: AbortSignal.timeout(10000) });
+  const res = await fetch(url, {
+    ...init,
+    headers: { authorization: `Bearer ${saved.access}`, 'content-type': 'application/json' },
+    signal: AbortSignal.timeout(10000),
+  });
   if (res.status === 401 && again) {
     await refresh();
     return authed(url, init, false);
   }
   const body = await res.text().catch(() => '');
-  if (!res.ok) throw Object.assign(new Error(`Kick ${new URL(url).pathname} ${res.status} ${body.slice(0, 200)}`), { status: res.status, host: new URL(url).host });
+  if (!res.ok)
+    throw Object.assign(new Error(`Kick ${new URL(url).pathname} ${res.status} ${body.slice(0, 200)}`), { status: res.status, host: new URL(url).host });
   return body ? JSON.parse(body) : null;
 }
 
@@ -205,7 +227,7 @@ function later(my, r = { error: 'network', why: `${RELAY_HOST}: no connection` }
 
 function open(my) {
   // The relay asks Kick whose token this is, so it hands this socket this channel's events only.
-  const s = new WebSocket(`${RELAY.replace(/^http/, 'ws')}/ws`, { headers: { authorization: `Bearer ${saved.access}` } });
+  const s = new WebSocket(`${RELAY.replace(/^http/, 'ws')}/ws`, /** @type {any} */ ({ headers: { authorization: `Bearer ${saved.access}` } })); // Node's WebSocket (undici) takes headers; the DOM type doesn't
   let quiet;
   const watch = () => {
     clearTimeout(quiet);
@@ -223,7 +245,11 @@ function open(my) {
     if (my !== run) return s.close();
     watch();
     let m;
-    try { m = JSON.parse(e.data); } catch { return; } // "pong"
+    try {
+      m = JSON.parse(e.data);
+    } catch {
+      return;
+    } // "pong"
     handle(m.type, m.data);
   };
   s.onclose = () => {
@@ -239,7 +265,8 @@ function open(my) {
 function handle(type, d) {
   if (String(d?.broadcaster?.user_id) !== String(saved.userId)) return;
   logIncoming('kick', type, d);
-  if (type === 'channel.followed') return emitEvent({ platform: 'kick', type: 'follow', user: d.follower?.username, key: `kick:follow:${d.follower?.user_id}` });
+  if (type === 'channel.followed')
+    return emitEvent({ platform: 'kick', type: 'follow', user: d.follower?.username, key: `kick:follow:${d.follower?.user_id}` });
   kickChat.official(type, d, { onAlert: (a) => emitEvent({ ...a, platform: 'kick' }) });
 }
 
@@ -253,7 +280,11 @@ async function stream() {
   return { live: on, viewers: on ? Number(json.livestream.viewer_count) || 0 : 0 };
 }
 // Live now? null when Kick doesn't say.
-const live = () => stream().then((s) => s?.live ?? null, () => null);
+const live = () =>
+  stream().then(
+    (s) => s?.live ?? null,
+    () => null,
+  );
 
 setInterval(() => ws?.readyState === WebSocket.OPEN && ws.send('ping'), 30000).unref();
 // Every hour: the login still works (one Kick no longer takes ends it: refresh() -> forget()), and still subscribed.

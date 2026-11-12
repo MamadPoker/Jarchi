@@ -11,15 +11,21 @@ const sharp = require('sharp');
 const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'jarchi-'));
 fs.mkdirSync(path.join(dataDir, 'uploads'));
 fs.writeFileSync(path.join(dataDir, 'uploads', 'sub-sound-1.wav'), 'RIFF\0\0\0\0WAVE');
-fs.writeFileSync(path.join(dataDir, 'settings.json'), JSON.stringify({
-  theme: 'fun',
-  alertSize: 0.8, // before v9: one size for every alert
-  alerts: { sub: { volume: 0.4, sound: { file: 'sub-sound-1.wav', name: 'old.wav' } }, raid: { font: 'Lalezar', textShadow: false } }, // raid: before v8
-  goals: { subs: { title: 'Road to 50', countTwitch: true, source: 'twitch' }, followers: { source: 'both' } }, // before v6
-  chat: { fontSize: 24, bgColor: '#101010' }, // from before each chat design kept its own changes
-}));
+fs.writeFileSync(
+  path.join(dataDir, 'settings.json'),
+  JSON.stringify({
+    theme: 'fun',
+    alertSize: 0.8, // before v9: one size for every alert
+    alerts: { sub: { volume: 0.4, sound: { file: 'sub-sound-1.wav', name: 'old.wav' } }, raid: { font: 'Lalezar', textShadow: false } }, // raid: before v8
+    goals: { subs: { title: 'Road to 50', countTwitch: true, source: 'twitch' }, followers: { source: 'both' } }, // before v6
+    chat: { fontSize: 24, bgColor: '#101010' }, // from before each chat design kept its own changes
+  }),
+);
 // The Home page's feed and today's numbers from before a restart (a broken feed entry is dropped).
-fs.writeFileSync(path.join(dataDir, 'feed.json'), JSON.stringify([{ id: 'old', time: 1, platform: 'kick', type: 'sub', user: 'Saved', amount: 0, months: 0, message: '', test: false }, { type: 'nope' }]));
+fs.writeFileSync(
+  path.join(dataDir, 'feed.json'),
+  JSON.stringify([{ id: 'old', time: 1, platform: 'kick', type: 'sub', user: 'Saved', amount: 0, months: 0, message: '', test: false }, { type: 'nope' }]),
+);
 fs.writeFileSync(path.join(dataDir, 'today.json'), JSON.stringify({ date: new Date().toDateString(), alerts: 5, chat: 7 }));
 process.env.JARCHI_DATA_DIR = dataDir;
 process.env.JARCHI_PORT = '3999';
@@ -33,11 +39,12 @@ const settings = require('../core/settings');
 test.after(() => io.close());
 
 const base = 'http://127.0.0.1:3999';
-const call = (method, url, body, headers = {}) => fetch(base + url, {
-  method,
-  headers: { 'x-jarchi': '1', ...(body && !Buffer.isBuffer(body) && { 'content-type': 'application/json' }), ...headers },
-  body: Buffer.isBuffer(body) ? body : body && JSON.stringify(body),
-});
+const call = (method, url, body, headers = {}) =>
+  fetch(base + url, {
+    method,
+    headers: { 'x-jarchi': '1', ...(body && !Buffer.isBuffer(body) && { 'content-type': 'application/json' }), ...headers },
+    body: Buffer.isBuffer(body) ? body : body && JSON.stringify(body),
+  });
 const upload = (type, kind, buf) => call('POST', `/api/upload/${type}/${kind}`, buf, { 'content-type': 'application/octet-stream', 'x-filename': 'party.gif' });
 const patch = (fields) => call('PATCH', '/api/settings', { alerts: { follow: fields } });
 
@@ -56,7 +63,17 @@ test('migration, settings, uploads, reset, events', async () => {
   // Background art: no channels set, no profile pictures (and no lookups).
   assert.deepEqual(await (await call('GET', '/api/streamer')).json(), { kick: null, twitch: null });
   // Twitch account: not connected, nothing runs. Its Client ID isn't shown or set from the panel.
-  assert.deepEqual(await (await call('GET', '/api/twitch')).json(), { state: 'off', error: '', why: '', code: '', uri: '', login: '', goals: [], name: '', picture: '' });
+  assert.deepEqual(await (await call('GET', '/api/twitch')).json(), {
+    state: 'off',
+    error: '',
+    why: '',
+    code: '',
+    uri: '',
+    login: '',
+    goals: [],
+    name: '',
+    picture: '',
+  });
   assert.equal((await call('PATCH', '/api/twitch', { clientId: 'abc123' })).status, 404);
   assert.equal(s.theme, 'fun');
   assert.equal(s.alerts.sub.soundMode, 'custom');
@@ -78,7 +95,10 @@ test('migration, settings, uploads, reset, events', async () => {
   assert.deepEqual((await (await call('PATCH', '/api/settings', { seenNew: ['donations'] })).json()).seenNew, ['donations']);
   assert.equal((await call('PATCH', '/api/settings', { seenNew: ['../x'] })).status, 400);
   // v5 -> v6: the Sub and Followers goals stay (as Kick's), without "Also count Twitch subs" and Source.
-  assert.deepEqual([s.goals.subs.title, 'countTwitch' in s.goals.subs, 'source' in s.goals.subs, 'source' in s.goals.followers], ['Road to 50', false, false, false]);
+  assert.deepEqual(
+    [s.goals.subs.title, 'countTwitch' in s.goals.subs, 'source' in s.goals.subs, 'source' in s.goals.followers],
+    ['Road to 50', false, false, false],
+  );
   assert.equal(s.chat.style, 'classic', 'an earlier user who never picked a chat style keeps Classic (Kick default is for new users)');
   // Their chat changes are kept: the text size through another design, Classic's own box color when it's picked again.
   let c = (await (await call('PATCH', '/api/settings', { chat: { style: 'neon' } })).json()).chat;
@@ -96,11 +116,14 @@ test('migration, settings, uploads, reset, events', async () => {
   assert.deepEqual((await (await call('GET', '/api/settings')).json()).connected, ['kick']);
   setConnected('kick', false);
 
-  assert.equal(s.alerts.kicks.minAmount, 10, "Kicks: 1-Kick taps stay out of the queue by default");
+  assert.equal(s.alerts.kicks.minAmount, 10, 'Kicks: 1-Kick taps stay out of the queue by default');
   assert.ok(!('minAmount' in s.alerts.follow));
   assert.ok(s.alerts.raid.fontSize > s.alerts.follow.fontSize, 'raid is bigger than follow');
 
-  let r = await call('PATCH', '/api/settings', { theme: 'galaxy', alerts: { follow: { volume: 0.3, frame: 'custom', frameBg: '#112233', textPos: 'over', textColor: '#ffffff' } } });
+  let r = await call('PATCH', '/api/settings', {
+    theme: 'galaxy',
+    alerts: { follow: { volume: 0.3, frame: 'custom', frameBg: '#112233', textPos: 'over', textColor: '#ffffff' } },
+  });
   s = await r.json();
   assert.equal(s.theme, 'galaxy');
   assert.deepEqual([s.alerts.follow.volume, s.alerts.follow.frame, s.alerts.follow.frameBg, s.alerts.follow.textPos], [0.3, 'custom', '#112233', 'over']);
@@ -115,7 +138,16 @@ test('migration, settings, uploads, reset, events', async () => {
   assert.equal((await (await patch({ theme: 'none' })).json()).alerts.follow.theme, 'none', 'None: no box, background or effects');
   await patch({ theme: 'ice' });
 
-  for (const bad of [{ volume: 5 }, { minAmount: 5 }, { frameBg: 'red' }, { soundMode: 'loud' }, { textPos: 'left' }, { fontSize: 500 }, { theme: 'casino' }, { textAlign: 'justify' }]) {
+  for (const bad of [
+    { volume: 5 },
+    { minAmount: 5 },
+    { frameBg: 'red' },
+    { soundMode: 'loud' },
+    { textPos: 'left' },
+    { fontSize: 500 },
+    { theme: 'casino' },
+    { textAlign: 'justify' },
+  ]) {
     assert.equal((await patch(bad)).status, 400, JSON.stringify(bad));
   }
   assert.equal((await call('PATCH', '/api/settings', { theme: 'casino' })).status, 400);
@@ -124,13 +156,38 @@ test('migration, settings, uploads, reset, events', async () => {
   // Text style (Text tab): checked, and its Reset puts back only these (the text position set above stays).
   assert.equal(s.alerts.follow.autoSize, true, 'text size: Auto by default');
   const style = (a) => [a.nameColor, a.nameFont, a.nameBold, a.nameShadow, a.textColor, a.textFont, a.textBold, a.textShadow, a.autoSize, a.fontSize];
-  s = await (await patch({ nameColor: '#ff0000', nameFont: 'Lalezar', nameBold: false, nameShadow: false, textColor: '#00ff00', textFont: 'Changa', textBold: false, textShadow: false, autoSize: false, fontSize: 60 })).json();
-  assert.deepEqual(style(s.alerts.follow), ['#ff0000', 'Lalezar', false, false, '#00ff00', 'Changa', false, false, false, 60], 'the name and the message each have their own style');
-  for (const bad of [{ nameFont: 'Comic Sans' }, { textFont: 'Comic Sans' }, { font: 'Lalezar' }, { nameColor: 'red' }, { nameBold: 1 }, { textShadow: 'no' }, { autoSize: 'yes' }]) {
+  s = await (
+    await patch({
+      nameColor: '#ff0000',
+      nameFont: 'Lalezar',
+      nameBold: false,
+      nameShadow: false,
+      textColor: '#00ff00',
+      textFont: 'Changa',
+      textBold: false,
+      textShadow: false,
+      autoSize: false,
+      fontSize: 60,
+    })
+  ).json();
+  assert.deepEqual(
+    style(s.alerts.follow),
+    ['#ff0000', 'Lalezar', false, false, '#00ff00', 'Changa', false, false, false, 60],
+    'the name and the message each have their own style',
+  );
+  for (const bad of [
+    { nameFont: 'Comic Sans' },
+    { textFont: 'Comic Sans' },
+    { font: 'Lalezar' },
+    { nameColor: 'red' },
+    { nameBold: 1 },
+    { textShadow: 'no' },
+    { autoSize: 'yes' },
+  ]) {
     assert.equal((await patch(bad)).status, 400, JSON.stringify(bad));
   }
   s = await (await call('POST', '/api/alerts/follow/reset-text')).json();
-  assert.deepEqual(style(s.alerts.follow), [null, 'theme', true, true, null, 'theme', true, true, true, 38], 'Reset: the theme\'s look again');
+  assert.deepEqual(style(s.alerts.follow), [null, 'theme', true, true, null, 'theme', true, true, true, 38], "Reset: the theme's look again");
   assert.equal(s.alerts.follow.textPos, 'over', 'Reset keeps the text position');
   assert.equal((await call('POST', '/api/alerts/nope/reset-text')).status, 400);
   // v8 -> v9: Alert size is each alert's own (how much of the source it fills, 50% to 100%), starting from the old one.
@@ -154,7 +211,9 @@ test('migration, settings, uploads, reset, events', async () => {
   assert.equal((await upload('follow', 'image', Buffer.alloc(11 * 1024 * 1024))).status, 413, 'over 10 MB');
 
   // A big image is shrunk to 512 px on the way in; "Paste a link" (x-link) downloads the file once and treats it the same.
-  const big = await sharp({ create: { width: 1000, height: 600, channels: 4, background: '#0f0' } }).png().toBuffer();
+  const big = await sharp({ create: { width: 1000, height: 600, channels: 4, background: '#0f0' } })
+    .png()
+    .toBuffer();
   const files = http.createServer((req, res) => (req.url === '/big.png' ? res.end(big) : res.writeHead(404).end()));
   await new Promise((done) => files.listen(0, '127.0.0.1', done));
   const link = (url, kind = 'image') => call('POST', `/api/upload/follow/${kind}`, null, { 'x-link': url });
@@ -177,7 +236,9 @@ test('migration, settings, uploads, reset, events', async () => {
   assert.equal((await call('PATCH', '/api/settings', { profile: { nameFrom: 'youtube' } })).status, 400);
   assert.equal((await call('PATCH', '/api/settings', { profile: { picture: { file: '../settings.json' } } })).status, 400, 'a picture is only uploaded');
   assert.equal((await call('POST', '/api/profile/picture', Buffer.from('GIF89a', 'latin1'))).status, 400);
-  s = await (await call('POST', '/api/profile/picture', Buffer.from('89504e470d0a1a0a', 'hex'), { 'content-type': 'image/png', 'x-filename': 'profile.png' })).json();
+  s = await (
+    await call('POST', '/api/profile/picture', Buffer.from('89504e470d0a1a0a', 'hex'), { 'content-type': 'image/png', 'x-filename': 'profile.png' })
+  ).json();
   const pic = s.profile.picture.file;
   assert.equal(s.profile.pictureFrom, 'upload');
   assert.equal((await fetch(`${base}/uploads/${pic}`)).status, 200);
@@ -201,7 +262,11 @@ test('migration, settings, uploads, reset, events', async () => {
   assert.equal(settings.setObsSize({ w: 1920, h: 1080 }), false, 'the same size again: nothing to save or tell');
 
   s = await (await call('POST', '/api/reset')).json();
-  assert.deepEqual(JSON.parse(fs.readFileSync(path.join(dataDir, 'settings.json'))).obsSize, { w: 1920, h: 1080 }, 'Reset everything keeps the OBS size, on disk for the next start');
+  assert.deepEqual(
+    JSON.parse(fs.readFileSync(path.join(dataDir, 'settings.json'))).obsSize,
+    { w: 1920, h: 1080 },
+    'Reset everything keeps the OBS size, on disk for the next start',
+  );
   assert.equal(s.obsSize, undefined, 'not a setting');
   assert.equal(s.theme, 'neon');
   assert.ok(!fs.existsSync(path.join(dataDir, 'uploads', 'sub-sound-1.wav')));
@@ -276,7 +341,9 @@ test('goals: count from events, latch when reached, saved, styles', async () => 
   }
 
   // Celebration sound upload selects it.
-  s = await (await call('POST', '/api/goals/kicks/sound', Buffer.from('RIFF\0\0\0\0WAVE', 'latin1'), { 'content-type': 'audio/wav', 'x-filename': 'yay.wav' })).json();
+  s = await (
+    await call('POST', '/api/goals/kicks/sound', Buffer.from('RIFF\0\0\0\0WAVE', 'latin1'), { 'content-type': 'audio/wav', 'x-filename': 'yay.wav' })
+  ).json();
   assert.deepEqual([s.goals.kicks.celebrateSound, s.goals.kicks.sound.name], ['custom', 'yay.wav']);
 
   // One OBS page per goal.
@@ -310,7 +377,10 @@ test("Kick goals: a goal set on Kick shows Kick's numbers (live events too), the
   const cb = { onGoal: (g) => got.push(g) };
   kick.handle('GoalProgressUpdateEvent', JSON.stringify({ id: 'g1', current_value: 375 }), 'me', {}, cb);
   kick.handle('App\\Events\\GoalCanceledEvent', { id: 'g2' }, 'me', {}, cb);
-  assert.deepEqual(got, [{ id: 'g1', current_value: 375 }, { id: 'g2', status: 'canceled' }]);
+  assert.deepEqual(got, [
+    { id: 'g1', current_value: 375 },
+    { id: 'g2', status: 'canceled' },
+  ]);
 
   // kick.com/api/v2/channels/<slug>/goals, as it answered for a real channel (2026-10-17), plus a canceled one.
   goals.kickGoals([
@@ -321,7 +391,10 @@ test("Kick goals: a goal set on Kick shows Kick's numbers (live events too), the
   let a = goals.all();
   assert.deepEqual([a.followers.current, a.followers.target, a.followers.kick, a.kicks.kick, a.subs.kick], [374, 500, true, true, false]);
   // Home's Kick tab: Kick's own list as it is (the canceled one left out), also in /api/home.
-  const kickTab = [{ id: 'g1', type: 'followers', current: 374, target: 500 }, { id: 'g2', type: 'kicks', current: 330, target: 10000 }];
+  const kickTab = [
+    { id: 'g1', type: 'followers', current: 374, target: 500 },
+    { id: 'g2', type: 'kicks', current: 330, target: 10000 },
+  ];
   assert.deepEqual([goals.kickList(), (await (await call('GET', '/api/home')).json()).kickGoals], [kickTab, kickTab]);
   const subs = a.subs.current;
   emitEvent({ platform: 'kick', type: 'sub', user: 'x' });
@@ -330,7 +403,14 @@ test("Kick goals: a goal set on Kick shows Kick's numbers (live events too), the
 
   // Live: a progress event with only the number, then the goal reached celebrates once; canceled -> manual again.
   goals.kickGoal({ id: 'g1', current_value: 499 });
-  assert.deepEqual(goals.kickList().map((g) => [g.id, g.current]), [['g1', 499], ['g2', 330]], 'in its place');
+  assert.deepEqual(
+    goals.kickList().map((g) => [g.id, g.current]),
+    [
+      ['g1', 499],
+      ['g2', 330],
+    ],
+    'in its place',
+  );
   assert.deepEqual([goals.all().followers.current, goals.all().followers.target], [499, 500]);
   goals.kickGoal({ id: 'g1', type: 'followers', status: 'achieved', current_value: 500, target_value: 500 });
   assert.deepEqual([goals.all().followers.reached, reached.at(-1)], [true, 'followers']);
@@ -346,7 +426,14 @@ test("Kick goals: a goal set on Kick shows Kick's numbers (live events too), the
   assert.equal((await call('PATCH', '/api/settings', { kickGoalSync: false })).status, 200);
   a = goals.all();
   assert.deepEqual([a.followers.kick, a.followers.onKick, a.followers.target, reached.length], [false, true, 100, before + 1]);
-  assert.deepEqual(goals.kickList(), [{ id: 'g1', type: 'followers', current: 500, target: 500 }, { id: 'g9', type: 'watch_hours', current: 3, target: 10 }], "Home's list: whatever the sync does");
+  assert.deepEqual(
+    goals.kickList(),
+    [
+      { id: 'g1', type: 'followers', current: 500, target: 500 },
+      { id: 'g9', type: 'watch_hours', current: 3, target: 10 },
+    ],
+    "Home's list: whatever the sync does",
+  );
   await call('PATCH', '/api/settings', { kickGoalSync: true });
   // No Kick channel any more: no Kick goals.
   goals.kickGoals(null);
@@ -354,7 +441,7 @@ test("Kick goals: a goal set on Kick shows Kick's numbers (live events too), the
   assert.deepEqual(goals.kickList(), []);
   goals.events.off('change', onChange);
 });
-test('Twitch goals: Sync from Twitch shows Twitch\'s numbers in the Twitch goals only, never in Kick\'s', async () => {
+test("Twitch goals: Sync from Twitch shows Twitch's numbers in the Twitch goals only, never in Kick's", async () => {
   const reached = [];
   const onChange = (id) => reached.push(id);
   goals.events.on('change', onChange);
@@ -386,11 +473,17 @@ test('Twitch goals: Sync from Twitch shows Twitch\'s numbers in the Twitch goals
   assert.deepEqual([goals.all().bits.reached, reached.at(-1)], [true, 'bits']);
 
   // Sync from Twitch off: the Twitch goals their own counts again (Twitch's still known); Kick's untouched.
-  goals.twitchGoals([{ id: 't1', type: 'follow', current: 40, target: 100 }, { id: 't3', type: 'new_bit', current: 1000, target: 1000 }]);
+  goals.twitchGoals([
+    { id: 't1', type: 'follow', current: 40, target: 100 },
+    { id: 't3', type: 'new_bit', current: 1000, target: 1000 },
+  ]);
   assert.equal((await call('PATCH', '/api/settings', { twitchGoalSync: false })).status, 200);
   a = goals.all();
   assert.deepEqual(marks(a.followers), [300, 500, true, false]);
-  assert.deepEqual([a.twitchFollowers.twitch, a.twitchFollowers.onTwitch, a.bits.twitch, a.bits.onTwitch, a.bits.current], [false, true, false, true, bitsBefore + 250]);
+  assert.deepEqual(
+    [a.twitchFollowers.twitch, a.twitchFollowers.onTwitch, a.bits.twitch, a.bits.onTwitch, a.bits.current],
+    [false, true, false, true, bitsBefore + 250],
+  );
   await call('PATCH', '/api/settings', { twitchGoalSync: true });
   // Not connected (no goals) and no Kick channel: all manual.
   goals.twitchGoals([]);
@@ -445,9 +538,15 @@ test("custom CSS: each alert's, goal's and chat's own, empty at first, kept thro
   let s = await json(call('POST', '/api/reset'));
   assert.deepEqual([s.alerts.sub.customCss, s.goals.subs.customCss, s.chat.customCss], ['', '', '']);
   const css = '.msg { color: red } </style><script>alert(1)</script>'; // kept as typed: the widgets set it as text
-  s = await patch({ alerts: { sub: { customCss: '.box { color: red }' } }, goals: { subs: { customCss: '.fill { background: gold }' } }, chat: { customCss: css } });
-  assert.deepEqual([s.alerts.sub.customCss, s.alerts.follow.customCss, s.goals.subs.customCss, s.goals.kicks.customCss, s.chat.customCss],
-    ['.box { color: red }', '', '.fill { background: gold }', '', css]);
+  s = await patch({
+    alerts: { sub: { customCss: '.box { color: red }' } },
+    goals: { subs: { customCss: '.fill { background: gold }' } },
+    chat: { customCss: css },
+  });
+  assert.deepEqual(
+    [s.alerts.sub.customCss, s.alerts.follow.customCss, s.goals.subs.customCss, s.goals.kicks.customCss, s.chat.customCss],
+    ['.box { color: red }', '', '.fill { background: gold }', '', css],
+  );
   // A new style, Reset style and Reset text style keep it.
   await patch({ chat: { style: 'neon' }, goals: { subs: { style: 'pill' } } });
   await json(call('POST', '/api/chat/reset-style', {}));
