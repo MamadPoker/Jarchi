@@ -3552,7 +3552,7 @@ artRun();
   try {
     [settings, samples, goalData, { styles: chatStyles, fonts: chatFonts, exclusive: chatExclusive }, chatStatus, home, hist.list, twitch, kick, privacy, changelog, viewerData] = await Promise.all([
       api('GET', '/api/settings'), api('GET', '/api/samples'), api('GET', '/api/goals'), api('GET', '/api/chat/styles'), api('GET', '/api/chat/status'), api('GET', '/api/home'), api('GET', '/api/history'),
-      api('GET', '/api/twitch'), api('GET', '/api/kick'), fetch('/i18n/privacy.json').then((r) => r.json()), fetch('/i18n/changelog.json').then((r) => r.json()), api('GET', '/api/viewers'),
+      api('GET', '/api/twitch'), api('GET', '/api/kick'), fetch('/i18n/privacy.json').then((r) => r.json()), fetch('/i18n/changelog.json').then((r) => r.json()).then((l) => l.filter((c) => c.version !== 'unreleased')), api('GET', '/api/viewers'),
     ]);
   } catch (err) {
     return toast(err.message, true);

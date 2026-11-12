@@ -1,0 +1,123 @@
+# Release: by hand only (Actions -> Release -> Run workflow, on main). Nothing runs on push.
+#   1. action: release           semantic-release (release.config.js) picks the version from the squashed PR titles since
+#                                the last tag, stamps the Unreleased What's new entry, commits "chore(release): x.y.z"
+#                                to main, tags it and makes the GitHub release as a DRAFT. dry-run: shows the version
+#                                and the text, changes nothing.
+#   2. action: build-installers  builds the Windows installer from that tag (blank version = the newest tag), uploads
+#                                Jarchi-Setup.exe, its .blockmap and latest.yml into the draft, checks all three are
+#                                there and publishes it. Only then do downloads and installed apps see the release (a
+#                                published release without latest.yml would break every installed app's update check).
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: What to run
+        type: choice
+        options: [release, build-installers]
+        default: release
+      dry-run:
+        description: 'release: only show the next version and its text'
+        type: boolean
+        default: false
+      version:
+        description: 'build-installers: the version (e.g. 1.1.0); blank = the newest tag'
+        type: string
+        required: false
+
+permissions: {}
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    # main only. The real guard is the "release" environment: its deployment-branch policy (main) is what hands out
+    # RELEASE_DEPLOY_KEY, so a copy of this file on another branch, with this if taken out, still gets no key.
+    if: inputs.action == 'release' && github.ref == 'refs/heads/main'
+    environment: release
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write # the release commit, the tag and the draft release
+      pull-requests: read # which PRs have the big-update label (build/release.js)
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          # The deploy key is the only thing main's ruleset lets push (the release commit and its tag).
+          ssh-key: ${{ secrets.RELEASE_DEPLOY_KEY }}
+      - name: 🟢 Setup Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+      - name: 📦 Install (no install scripts)
+        run: npm ci --ignore-scripts # no dependency's install script runs while the deploy key is on disk
+      - name: ⚙️ Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+      # The checkout's own remote (SSH, the deploy key) rather than package.json's https address, for the push.
+      - name: 🏷️ semantic-release
+        run: npx semantic-release --repository-url "$(git remote get-url origin)" $([ "$DRY_RUN" = true ] && echo --dry-run)
+        env:
+          DRY_RUN: ${{ inputs.dry-run }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-installers:
+    if: inputs.action == 'build-installers' && github.ref == 'refs/heads/main'
+    environment: release
+    runs-on: windows-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write # upload into the draft release and publish it
+    defaults:
+      run:
+        shell: bash
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }} # electron-builder and gh
+      GH_REPO: ${{ github.repository }}
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false' # not signed (no certificate yet)
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: 🏷️ Pick the tag
+        id: tag
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          tag=${VERSION:+v${VERSION#v}}
+          tag=${tag:-$(git tag --list 'v*' --sort=-v:refname | head -1)}
+          [[ $tag =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::No release tag '$tag'"; exit 1; }
+          [ "$(gh release view "$tag" --json isDraft -q .isDraft)" = true ] \
+            || { echo "::error::$tag has no draft release (already published, or run action: release first)"; exit 1; }
+          git checkout "$tag"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+      - name: 🟢 Setup Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+      - name: 📦 Install
+        run: npm ci
+      - name: 📝 Release notes (latest.yml)
+        run: node build/notes.js
+      - name: 🏗️ Build and upload the installer
+        run: npx electron-builder --win --publish always
+      - name: 🚀 Publish (all three files are there)
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          assets=$(gh release view "$TAG" --json assets -q '.assets[].name')
+          for f in Jarchi-Setup.exe Jarchi-Setup.exe.blockmap latest.yml; do
+            grep -qx "$f" <<<"$assets" || { echo "::error::$f is missing from the $TAG draft"; exit 1; }
+          done
+          gh release edit "$TAG" --draft=false --latest
+          echo "Published $TAG: https://github.com/$GH_REPO/releases/tag/$TAG" >> "$GITHUB_STEP_SUMMARY"

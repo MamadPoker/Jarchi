@@ -35,53 +35,74 @@ test("What's new: every version in English and Persian, newest first; this versi
   const NEWS_TYPES = [...drawn.matchAll(/\n  (\w+): (?:'<svg|CAT_ICON\.)/g)].map((m) => m[1]);
   assert.deepEqual(NEWS_TYPES, ['feature', 'improve', 'fix', 'security']);
   assert.ok(NEWS_TYPES.every((t) => en.panel[`news_${t}`] && fa.panel[`news_${t}`]), 'every type has its name');
+  // On top, the Unreleased entry: the changes merged since the last release (build/release.js), maybe none yet.
+  assert.equal(log[0].version, 'unreleased');
   const order = (v) => v.split('.').map((n) => n.padStart(6, '0')).join('.'); // 1.10.0 after 1.9.0
-  log.slice(1).forEach((c, i) => assert.ok(order(log[i].version) > order(c.version), `${log[i].version} before ${c.version}`));
+  log.slice(2).forEach((c, i) => assert.ok(order(log[i + 1].version) > order(c.version), `${log[i + 1].version} before ${c.version}`));
   for (const c of log) {
-    assert.match(c.version, /^\d+\.\d+\.\d+$/);
-    assert.ok(c.en.length && c.en.length === c.fa.length, `${c.version}: the same changes in both languages`);
+    if (c !== log[0]) assert.match(c.version, /^\d+\.\d+\.\d+$/);
+    assert.ok((c.en.length || c === log[0]) && c.en.length === c.fa.length, `${c.version}: the same changes in both languages`);
     assert.ok([...c.en, ...c.fa].every((s) => s.trim() && !s.includes('\n')), `${c.version}: one line each`);
     // types (optional): one per line, each one the panel draws (an empty one: the line's dot)
     if (c.types) assert.ok(c.types.length === c.en.length && c.types.every((t) => !t || NEWS_TYPES.includes(t)), `${c.version}: one known type per line`);
   }
   const mine = log.find((c) => c.version === JSON.parse(read('package.json')).version);
-  assert.ok(mine, "package.json's version has its notes (npm run release needs them)");
+  assert.ok(mine, "package.json's version has its notes (build/notes.js needs them)");
   assert.deepEqual(parse(text(mine)), { en: mine.en, fa: mine.fa }); // what an installed app reads back from the update
 });
 
-test('npm run release makes the one draft itself, before electron-builder (which would make one per file)', () => {
-  const { spawnSync } = require('node:child_process');
-  const os = require('node:os');
-  const { version } = JSON.parse(read('package.json'));
-  const tag = `v${version}`;
-  // GitHub stand-in: the GET answers RELEASES, every call is printed.
-  const fake = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'jarchi-notes-')), 'fetch.js');
-  fs.writeFileSync(fake, `globalThis.fetch = async (url, init = {}) => {
-    console.log(JSON.stringify({ url, method: init.method ?? 'GET', body: init.body && JSON.parse(init.body) }));
-    return { ok: true, json: async () => (init.method ? {} : JSON.parse(process.env.RELEASES)), text: async () => '' };
-  };`);
-  const run = (releases) => {
-    const r = spawnSync(process.execPath, ['-r', fake, path.join(__dirname, '../build/notes.js'), '--github'],
-      { env: { ...process.env, GH_TOKEN: 'test', RELEASES: JSON.stringify(releases) }, encoding: 'utf8' });
-    return { status: r.status, calls: r.stdout.trim().split('\n').filter(Boolean).map((l) => JSON.parse(l)), err: r.stderr };
-  };
-  const notes = text(JSON.parse(read('i18n/changelog.json')).find((c) => c.version === version));
-  const release = { tag_name: tag, name: `Jarchi ${tag}`, body: notes, draft: true };
-  const { owner, repo } = JSON.parse(read('package.json')).build.publish; // where releases go
-  const api = `https://api.github.com/repos/${owner}/${repo}/releases`;
+test('release: the Unreleased entry gets the version under a new empty one; the rest of changelog.json stays as it is', () => {
+  const { stamp, rewrite } = require('../build/release');
+  const src = read('i18n/changelog.json').replace(/\r\n/g, '\n'), log = JSON.parse(src);
+  const after = rewrite(src, '9.0.0');
+  assert.deepEqual(JSON.parse(after), stamp(log, '9.0.0'));
+  assert.ok(after.endsWith(src.slice(src.indexOf('\n  }') + 4)), 'the released entries stay as they are, byte for byte');
+  const next = { version: 'unreleased', types: ['fix'], en: ['A fix'], fa: ['یک اصلاح'] };
+  const [top, mine, ...rest] = stamp([next, ...log.slice(1)], '9.0.0');
+  assert.deepEqual(top, { version: 'unreleased', types: [], en: [], fa: [] });
+  assert.deepEqual(mine, { ...next, version: '9.0.0' });
+  assert.deepEqual(rest, log.slice(1));
+  // Only no-notes PRs: one plain line in both languages, never an empty version.
+  const [, plain] = stamp([{ version: 'unreleased', types: [], en: [], fa: [] }], '9.0.1');
+  assert.ok(plain.en.length === 1 && plain.fa.length === 1 && plain.types.length === 1);
+  assert.throws(() => stamp(log.slice(1), '9.0.0'), /must be "unreleased"/);
+});
 
-  let r = run([{ id: 1, tag_name: 'v0.0.1', draft: false }]);
-  assert.equal(r.status, 0, r.err);
-  assert.deepEqual(r.calls.slice(1), [{ url: api, method: 'POST', body: release }]);
-  r = run([{ id: 7, tag_name: tag, draft: true, body: 'old' }]);
-  assert.deepEqual(r.calls.slice(1), [{ url: `${api}/7`, method: 'PATCH', body: release }]); // tag_name kept
-  r = run([{ id: 7, tag_name: tag, draft: false }]);
-  assert.equal(r.status, 1);
-  assert.match(r.err, /already published/);
-  r = run([{ id: 7, tag_name: tag, draft: true }, { id: 8, tag_name: tag, draft: true }]);
-  assert.equal(r.status, 1);
-  assert.match(r.err, /2 draft releases/);
-  assert.equal(r.calls.length, 1); // nothing changed on GitHub
+test('release version: feat / fix / perf, even breaking, are a patch; only a big-update PR is a minor', async () => {
+  const { analyzeCommits: analyzer } = await import('@semantic-release/commit-analyzer');
+  const [[, config]] = require('../release.config').plugins;
+  const logger = { log() {} }, cwd = process.cwd();
+  const bump = (...messages) => analyzer(config, { commits: messages.map((message, i) => ({ message, hash: `${i}` })), logger, cwd });
+  assert.equal(await bump('feat: x'), 'patch');
+  assert.equal(await bump('feat!: x', 'fix: y'), 'patch');
+  assert.equal(await bump('perf(panel): x\n\nBREAKING CHANGE: y'), 'patch');
+  assert.equal(await bump('chore: x', 'docs: y'), null);
+
+  const { analyzeCommits } = require('../build/release');
+  const fetch = globalThis.fetch, asked = [];
+  const env = { GITHUB_REPOSITORY: 'o/r', GITHUB_TOKEN: 't' };
+  const prs = { a: [{ labels: [{ name: 'panel' }] }], b: [{ labels: [{ name: 'big-update' }] }] };
+  try {
+    globalThis.fetch = async (url) => (asked.push(url), Response.json(prs[url.split('/').at(-2)] ?? []));
+    assert.equal(await analyzeCommits({}, { commits: [{ hash: 'a' }], env }), null);
+    assert.equal(await analyzeCommits({}, { commits: [{ hash: 'a' }, { hash: 'b' }], env }), 'minor');
+    assert.equal(asked[0], 'https://api.github.com/repos/o/r/commits/a/pulls');
+    globalThis.fetch = async () => new Response('', { status: 403 });
+    await assert.rejects(analyzeCommits({}, { commits: [{ hash: 'a' }], env }), /403/, 'a failed ask fails the release');
+  } finally { globalThis.fetch = fetch; }
+});
+
+test('PR rules: a conventional title; feat / fix / perf add What\'s new lines in both languages, or no-notes', () => {
+  const { problems } = require('../build/check-pr');
+  const base = [{ version: 'unreleased', en: ['old'], fa: ['قدیم'] }, { version: '1.0.0', en: ['x'], fa: ['ی'] }];
+  const added = [{ version: 'unreleased', en: ['old', 'new'], fa: ['قدیم', 'جدید'] }, base[1]];
+  for (const t of ['feat: x', 'fix(relay): x', 'perf!: x', 'chore(deps): x', 'ci: x']) assert.deepEqual(problems(t, [], base, added), [], t);
+  for (const t of ['Relay: revoke a code', 'feat:x', 'feature: x', 'fix x', '1.0.8: the code field']) assert.equal(problems(t, [], base, base).length, 1, t);
+  assert.equal(problems('feat: x', [], base, base).length, 2, 'neither language');
+  assert.equal(problems('fix: x', [], base, [{ ...added[0], fa: ['قدیم'] }, base[1]]).length, 1, 'English only');
+  assert.deepEqual(problems('fix: x', ['no-notes'], base, base), []);
+  assert.deepEqual(problems('refactor: x', [], base, base), []);
+  assert.deepEqual(problems('fix: x', [], base, [{ ...base[0], en: ['old, reworded'], fa: ['قدیم، بازنویسی'] }, base[1]]), [], 'a reworded line counts');
 });
 
 // An on-handler property (el.onkeydown = ...) that returns false cancels its event: "e.key === 'Enter' && go()" did

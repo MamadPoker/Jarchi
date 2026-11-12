@@ -1,5 +1,11 @@
 # Jarchi
 
+[![CI](https://github.com/MamadPoker/Jarchi/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/MamadPoker/Jarchi/actions/workflows/ci.yml)
+[![Security](https://github.com/MamadPoker/Jarchi/actions/workflows/security.yml/badge.svg?branch=main)](https://github.com/MamadPoker/Jarchi/actions/workflows/security.yml)
+[![Release](https://github.com/MamadPoker/Jarchi/actions/workflows/release.yml/badge.svg)](https://github.com/MamadPoker/Jarchi/actions/workflows/release.yml)
+[![Deploy relay](https://github.com/MamadPoker/Jarchi/actions/workflows/relay.yml/badge.svg)](https://github.com/MamadPoker/Jarchi/actions/workflows/relay.yml)
+[![Latest release](https://img.shields.io/github/v/release/MamadPoker/Jarchi)](https://github.com/MamadPoker/Jarchi/releases/latest)
+
 Stream alerts for OBS that run locally on your own PC. No account, no central server. Real Kick and Twitch alerts come from your channels' public chat (just the channel names, no login). Every alert can also be fired with the **Test** buttons.
 
 ## Setup
@@ -198,10 +204,11 @@ assets/              official platform logos (platform-logos), Kick badge icons 
 widgets/<name>/      each widget is a folder, served at /widgets/<name>
 panel/               settings panel (served at /)
 electron/            the desktop app: window, tray, updates (main.js), the panel's update bridge (preload.js)
-build/               installer additions (installer.nsh), its pictures (installerSidebar.bmp, installerHeader.bmp) and notes.js, which makes the release's text (release-notes.md, not in git) from i18n/changelog.json
+build/               installer additions (installer.nsh), its pictures (installerSidebar.bmp, installerHeader.bmp), notes.js, which makes the release's text (release-notes.md, not in git) from i18n/changelog.json, release.js (semantic-release's step) and check-pr.js (CI's PR rules)
+.github/             workflows: CI (ci.yml), Release (release.yml), Deploy relay (relay.yml), Security (security.yml), PR Labeler (labeler.yml, paths in labeler.yml); PULL_REQUEST_TEMPLATE.md, ISSUE_TEMPLATE/ (bug report, feature request)
 i18n/en.json         every UI string, panel and overlay (overlays always use it)
 i18n/fa.json         the panel in Persian (same keys)
-i18n/changelog.json  What's new: each version's changes in English and Persian, newest first
+i18n/changelog.json  What's new: each version's changes in English and Persian, newest first, under the "unreleased" one
 ```
 
 Every event, whatever its source, looks like this:
@@ -216,11 +223,19 @@ Connectors only call `emitEvent()` (with an optional `key`: a repeat of the same
 ## Windows installer and updates
 
 ```sh
-npm run dist      # builds dist/Jarchi-Setup.exe on this PC
-npm run release   # builds it and uploads it to a DRAFT release on github.com/MamadPoker/Jarchi
+npm run dist      # builds dist/Jarchi-Setup.exe on this PC (to try it; releases are built on GitHub)
 ```
 
-For a release: raise `version` in `package.json`, add that version's changes on top of `i18n/changelog.json` (`en` and `fa`: the same changes in both, one plain line each), then run `npm run release` with a GitHub token in `GH_TOKEN` (PowerShell: `$env:GH_TOKEN = "github_pat_…"; npm run release`). The token is a fine-grained one with access to the releases repo only (`package.json` `build.publish`: MamadPoker/Jarchi), **Contents: Read and write**. Never put it in a file in this repo. It makes one draft release `v<version>`, "Jarchi v<version>", whose text is those changes (English, then Persian right to left), with the installer, its `.blockmap` and `latest.yml` (all three are needed for updates). `build/notes.js` makes that draft (or updates it on a second run) before electron-builder uploads into it: left to itself, electron-builder makes one draft per file that's ready at once. It stops when that version has two drafts (delete all but one first). The installer's name has no version (`Jarchi-Setup.exe`), so https://github.com/MamadPoker/Jarchi-releases/releases/latest/download/Jarchi-Setup.exe always gets the newest one; updates still find each version's files by its tag. Check it on GitHub, then **Publish release**: only then do downloads and installed apps see it, and GitHub makes the tag on Jarchi's `main` as it is then (publish when `main` is the commit you built). A version that already has a published release stops `npm run release` before the build: raise the version first.
+Every change reaches `main` as a pull request, squashed into one commit whose message is the PR's title: a conventional commit (`feat: …`, `fix(relay): …`, `chore: …`; CI checks it, `build/check-pr.js`). A `feat`, `fix` or `perf` PR also adds its change on top of `i18n/changelog.json`, in the `"unreleased"` entry (`en` and `fa`: the same change in both, one plain line each, and its `types`), or gets the `no-notes` label when streamers see no difference. Never raise `version` or tag by hand.
+
+For a release, two runs of **Actions → Release → Run workflow** on `main` (`.github/workflows/release.yml`):
+
+1. **action: release** (tick **dry-run** first to see the version and the text). semantic-release (`release.config.js`, `build/release.js`) picks the version from the PR titles since the last release (`feat`, `fix` or `perf` → 1.0.9, a PR with the `big-update` label → 1.1.0, anything else makes no release; the label can still be added after merging, before the release), gives the `"unreleased"` entry that version (with one plain line if no PR had notes) under a new empty one, commits `chore(release): <version>` to `main`, tags it and makes a draft release "v<version>". Its text is the What's new (English, then Persian right to left), then the PR titles folded under **Developer changes**.
+2. **action: build-installers** (version blank = the newest tag). It builds the installer from that tag on Windows and uploads `Jarchi-Setup.exe`, its `.blockmap` and `latest.yml` into the draft (all three are needed for updates; `latest.yml` carries the What's new only, `build/notes.js`), checks all three are there and publishes the release. Only then do downloads and installed apps see it.
+
+No token on anyone's PC: the workflow uses GitHub's own, and pushes the release commit with the `RELEASE_DEPLOY_KEY` deploy key (the only push `main`'s ruleset allows). The installer isn't signed yet. Its name has no version (`Jarchi-Setup.exe`), so https://github.com/MamadPoker/Jarchi/releases/latest/download/Jarchi-Setup.exe always gets the newest one; updates still find each version's files by its tag.
+
+The relay deploys the same way, by hand: **Actions → Deploy relay** (`.github/workflows/relay.yml`) applies the new `relay/migrations` and then deploys the worker (**dry-run**: lists them and builds it). PRs that change `relay/` check it builds; `.github/workflows/security.yml` runs CodeQL and flags risky new dependencies; Dependabot opens one grouped PR a week.
 
 Up to v1.0.2 the releases were on MamadPoker/Jarchi-releases, and v1.0.1 and older still look for updates there (their built-in `app-update.yml`). So v1.0.2 is published there too, with the very same three files from `dist/` (one build: `latest.yml`'s checksum must match the installer), and it stays there for good: from it, those copies update to v1.0.2, which looks on MamadPoker/Jarchi. Never delete Jarchi-releases or its v1.0.2.
 
