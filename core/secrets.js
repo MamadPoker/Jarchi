@@ -26,7 +26,8 @@ const remember = (v) => {
 // to another field. open(): the value, or undefined when this run can't read it.
 function seal(name, value, key = KEY) {
   remember(value);
-  const iv = crypto.randomBytes(12), c = crypto.createCipheriv('aes-256-gcm', key, iv).setAAD(Buffer.from(name));
+  const iv = crypto.randomBytes(12),
+    c = crypto.createCipheriv('aes-256-gcm', key, iv).setAAD(Buffer.from(name));
   const body = Buffer.concat([c.update(value, 'utf8'), c.final()]);
   return SEALED + Buffer.concat([iv, c.getAuthTag(), body]).toString('base64');
 }
@@ -45,7 +46,8 @@ function open(name, sealed, key = KEY) {
 // from before, or a dev run's), which store.load seals at once when this run has the key.
 let told = false;
 function openFields(data, fields, file) {
-  const value = { ...data }, lost = [];
+  const value = { ...data },
+    lost = [];
   let plain = false;
   for (const k of fields) {
     const v = value[k];
@@ -58,7 +60,8 @@ function openFields(data, fields, file) {
       lost.push(k);
     }
   }
-  if (lost.length) console.warn(`${file}: ${lost.join(', ')} sealed with ${KEY ? 'another key' : "the installed app's key"}, can't be read here: not connected`);
+  if (lost.length)
+    console.warn(`${file}: ${lost.join(', ')} sealed with ${KEY ? 'another key' : "the installed app's key"}, can't be read here: not connected`);
   if (plain && !KEY && !told) {
     told = true;
     console.log('Dev run (no key from the installed app): the Kick and Twitch logins stay unencrypted in the data folder');
@@ -74,7 +77,8 @@ function sealFields(data, fields) {
 
 // Authorization headers' values, and JSON / form / query fields named like a secret.
 const AUTH = /\b(Bearer|OAuth|Basic)\s+[\w.~+/-]+=*/gi;
-const FIELD = /(\b(?:access_token|refresh_token|id_token|device_code|client_secret|code_verifier|supportToken|password|secret|token|access|refresh)["']?\s*[:=]\s*["']?)[^\s"'&,;}]+/gi;
+const FIELD =
+  /(\b(?:access_token|refresh_token|id_token|device_code|client_secret|code_verifier|supportToken|password|secret|token|access|refresh)["']?\s*[:=]\s*["']?)[^\s"'&,;}]+/gi;
 function redact(text) {
   let s = String(text);
   for (const v of known) s = s.replaceAll(v, '[redacted]');

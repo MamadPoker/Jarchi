@@ -20,11 +20,18 @@ const closed = new Set(store.load(FILE).closed ?? []);
 let list = [];
 
 const set = (l) => events.emit('change', (list = l));
-const ask = (p, method = 'GET') => fetch(`${RELAY}/messages${p}?version=${encodeURIComponent(version)}&installed=${stats.INSTALLED ? 1 : 0}`, {
-  method, headers: { 'x-jarchi-install': settings.installId() }, signal: AbortSignal.timeout(15000),
-});
+const ask = (p, method = 'GET') =>
+  fetch(`${RELAY}/messages${p}?version=${encodeURIComponent(version)}&installed=${stats.INSTALLED ? 1 : 0}`, {
+    method,
+    headers: { 'x-jarchi-install': settings.installId() },
+    signal: AbortSignal.timeout(15000),
+  });
 // seen | closed -> told the relay (false: offline, or the relay doesn't have it any more).
-const mark = (id, what) => ask(`/${id}/${what}`, 'POST').then((r) => r.ok, () => false);
+const mark = (id, what) =>
+  ask(`/${id}/${what}`, 'POST').then(
+    (r) => r.ok,
+    () => false,
+  );
 
 async function load() {
   if (!stats.accepted()) return set([]);

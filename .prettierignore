@@ -1,0 +1,14 @@
+# Written by tools, not by hand: npm (package.json, package-lock.json), build/release.js (i18n/changelog.json, its exact layout)
+package.json
+package-lock.json
+i18n/
+# Not ours / not in git
+assets/
+data/
+dist/
+.wrangler/
+graphify-out/
+.codegraph/
+build/release-notes.md
+# Prose: Prettier pads tables and reflows lists, which makes every docs edit a big diff
+*.md

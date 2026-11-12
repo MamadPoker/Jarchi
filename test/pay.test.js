@@ -13,7 +13,12 @@ const KEY = crypto.randomBytes(32).toString('base64'); // as electron/main.js ha
 const PAY = 'https://pay.test';
 const TOKEN = `jpa_${'x'.repeat(43)}`;
 const WALLETS = { bep20: null, trc20: null, pending: null };
-const disk = () => fs.readdirSync(dir).filter((f) => f.endsWith('.json')).map((f) => fs.readFileSync(path.join(dir, f), 'utf8')).join('\n');
+const disk = () =>
+  fs
+    .readdirSync(dir)
+    .filter((f) => f.endsWith('.json'))
+    .map((f) => fs.readFileSync(path.join(dir, f), 'utf8'))
+    .join('\n');
 const settingsFile = (s) => fs.writeFileSync(path.join(dir, 'settings.json'), JSON.stringify({ version: 9, ...s }));
 // Jarchi started afresh on this data folder, with the installed app's key or none (a dev run).
 function start(key = '') {
@@ -25,7 +30,8 @@ function start(key = '') {
 // Jarchi Pay: this install's request (status: its token goes out once), whether the token still works, every call.
 const jp = { status: { status: 'none' }, live: true, down: false, asked: [], fresh: [], cursor: 7, since: [] }; // fresh: paid since the last ask
 globalThis.fetch = async (url, init = {}) => {
-  const u = new URL(url), at = `${init.method ?? 'GET'} ${u.pathname}`;
+  const u = new URL(url),
+    at = `${init.method ?? 'GET'} ${u.pathname}`;
   assert.equal(u.origin, PAY);
   jp.asked.push({ at, auth: init.headers?.authorization ?? null, body: init.body && (Buffer.isBuffer(init.body) ? init.body : JSON.parse(init.body)) });
   if (jp.down) throw new TypeError('fetch failed');
@@ -40,12 +46,14 @@ globalThis.fetch = async (url, init = {}) => {
   if (at === 'GET /api/app/wallets') return json(WALLETS);
   if (at === 'GET /api/app/donations') return json({ search: u.search });
   if (at === 'GET /api/app/donations/new') jp.since.push(u.search);
-  if (at === 'GET /api/app/donations/new') return json(u.searchParams.has('since') ? { donations: jp.fresh.splice(0), cursor: jp.cursor += 2 } : { donations: [], cursor: jp.cursor });
+  if (at === 'GET /api/app/donations/new')
+    return json(u.searchParams.has('since') ? { donations: jp.fresh.splice(0), cursor: (jp.cursor += 2) } : { donations: [], cursor: jp.cursor });
   if (at === 'POST /api/app/wallets/link') return json({ url: 'https://elsewhere.test/wallet/1' }, 201);
   if (at === 'PUT /api/app/page' && JSON.parse(init.body).socials?.kick === 'no/pe') return json({ error: 'bad', field: 'socials.kick' }, 400);
   if (at.startsWith('PUT /api/app/page/') && jp.uploads >= 10) return json({ error: 'rate' }, 429);
   if (at.startsWith('PUT /api/app/page/')) jp.uploads = (jp.uploads ?? 0) + 1;
-  if (/^(GET|PUT|DELETE) \/api\/app\/page(\/(avatar|banner))?$/.test(at)) return json({ bio: 'hi', socials: {}, links: {}, avatar: { url: null, custom: false }, banner: { url: null, custom: false } });
+  if (/^(GET|PUT|DELETE) \/api\/app\/page(\/(avatar|banner))?$/.test(at))
+    return json({ bio: 'hi', socials: {}, links: {}, avatar: { url: null, custom: false }, banner: { url: null, custom: false } });
   return json({ error: 'not_found' }, 404);
 };
 
@@ -84,7 +92,10 @@ test('Jarchi Pay: request, token once and sealed, 401 = not active, dev runs nev
   pay = start(KEY);
   const n = jp.asked.length;
   assert.equal((await pay.refresh()).state, 'active');
-  assert.deepEqual(jp.asked.slice(n).map((c) => [c.at, c.auth]), [['GET /api/app/wallets', `Bearer ${TOKEN}`]]);
+  assert.deepEqual(
+    jp.asked.slice(n).map((c) => [c.at, c.auth]),
+    [['GET /api/app/wallets', `Bearer ${TOKEN}`]],
+  );
   assert.deepEqual(await pay.donations({ today: '5', week: '1', cursor: '7_x', other: 'y' }), { search: '?cursor=7_x&today=5&week=1' });
   await assert.rejects(pay.walletLink(), { code: 'crypto_failed' }); // a link that isn't Jarchi Pay's is never opened
   jp.down = true; // offline: still active, says why
@@ -127,16 +138,39 @@ test('crypto alerts: cursor, once each, hidden names and private messages, the l
   await pay.pollNew();
   assert.deepEqual(got, [], 'no cursor yet: only the cursor, nothing from before');
   jp.fresh = [
-    { id: 'a', name: null, amount: '10.0371', network: 'trc20', paidAt: Date.now(), txHash: 'abc123', message: 'for you only', private: true, platform: 'kick' },
+    {
+      id: 'a',
+      name: null,
+      amount: '10.0371',
+      network: 'trc20',
+      paidAt: Date.now(),
+      txHash: 'abc123',
+      message: 'for you only',
+      private: true,
+      platform: 'kick',
+    },
     { id: 'b', name: 'Late', amount: '70.0000', network: 'bep20', paidAt: Date.now() - 11 * 60e3, message: 'old', private: false },
     { id: 'c', name: 'Sara', amount: '60.0000', network: 'bep20', paidAt: Date.now(), txHash: '0xdef', message: 'hi', private: false, platform: 'twitch' },
   ];
   await pay.pollNew();
   assert.equal(asks().at(-1).auth, `Bearer ${TOKEN}`);
-  assert.deepEqual(got.map(({ user, amount, network, message, txHash, from, type, platform, test }) => ({ user, amount, network, message, txHash, from, type, platform, test })), [
-    { user: '', amount: '10.0371', network: 'trc20', message: '', txHash: 'abc123', from: 'kick', type: 'crypto', platform: 'crypto', test: false },
-    { user: 'Sara', amount: '60.0000', network: 'bep20', message: 'hi', txHash: '0xdef', from: 'twitch', type: 'crypto', platform: 'crypto', test: false },
-  ]);
+  assert.deepEqual(
+    got.map(({ user, amount, network, message, txHash, from, type, platform, test }) => ({
+      user,
+      amount,
+      network,
+      message,
+      txHash,
+      from,
+      type,
+      platform,
+      test,
+    })),
+    [
+      { user: '', amount: '10.0371', network: 'trc20', message: '', txHash: 'abc123', from: 'kick', type: 'crypto', platform: 'crypto', test: false },
+      { user: 'Sara', amount: '60.0000', network: 'bep20', message: 'hi', txHash: '0xdef', from: 'twitch', type: 'crypto', platform: 'crypto', test: false },
+    ],
+  );
   const cursor = jp.cursor;
   assert.match(fs.readFileSync(path.join(dir, 'pay.json'), 'utf8'), new RegExp(`"cursor": ${cursor}`));
 
@@ -151,7 +185,8 @@ test('crypto alerts: cursor, once each, hidden names and private messages, the l
   assert.deepEqual(got, []);
 
   // The look: the highest amount alert reached, else the card; its own time on screen.
-  const settings = require('../core/settings'), queue = require('../core/alerts');
+  const settings = require('../core/settings'),
+    queue = require('../core/alerts');
   assert.throws(() => settings.update({ crypto: { design: 'rainbow' } }));
   assert.throws(() => settings.saveCryptoFile('main', 'image', Buffer.from('GIF89a')));
   settings.update({ crypto: { design: 'coin', duration: 6 } });

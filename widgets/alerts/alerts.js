@@ -6,7 +6,9 @@
 const params = new URLSearchParams(location.search);
 const stage = document.getElementById('stage');
 const sounds = new Set();
-let settings, S, gen = 0;
+let settings,
+  S,
+  gen = 0;
 let onNow = null; // live: { id, end() } of the alert on screen, so the panel's Skip can end it
 let onStage = null; // the alert element on screen, for fit()
 let cssType = null; // the type of the alert on screen, whose Custom CSS is on
@@ -57,7 +59,7 @@ function applySettings(s) {
 // The alert's Custom CSS while it's on screen (none: no alert).
 function setCss(type) {
   cssType = type;
-  userCss.textContent = type ? settings.alerts[type].customCss ?? '' : '';
+  userCss.textContent = type ? (settings.alerts[type].customCss ?? '') : '';
 }
 
 // The alert fills the Browser Source, whatever its size or shape: #stage is a page as big as the source, in units of an
@@ -71,13 +73,20 @@ function setCss(type) {
 const PAD = 16; // around the alert: room for the platform badge, the shake and a frame's shadow
 function fit() {
   if (!document.documentElement.offsetWidth || !innerHeight) return; // no layout yet: a hidden preview
-  const W = innerWidth, H = innerHeight, a = Math.min(onStage?.dataset.size ?? 1, 1), k = Math.min(W / 800, H / 600);
-  const w = W / k, h = H / k;
+  const W = innerWidth,
+    H = innerHeight,
+    a = Math.min(onStage?.dataset.size ?? 1, 1),
+    k = Math.min(W / 800, H / 600);
+  const w = W / k,
+    h = H / k;
   stage.style.cssText = `width:${w}px;height:${h}px;--f:${Math.min(w / 1920, h / 1080)};transform:translate(${(W * (1 - a)) / 2}px,${(H * (1 - a)) / 2}px) scale(${k * a})`;
   const el = onStage;
   if (!el) return;
-  const iw = w - 2 * PAD, ih = h - 2 * PAD, over = el.classList.contains('pos-over');
-  const pic = !el.classList.contains('no-media'), gap = pic ? ih * 0.04 : 0;
+  const iw = w - 2 * PAD,
+    ih = h - 2 * PAD,
+    over = el.classList.contains('pos-over');
+  const pic = !el.classList.contains('no-media'),
+    gap = pic ? ih * 0.04 : 0;
   const m = !pic ? 0 : Math.min(iw, over ? ih : ih * 0.58); // the picture's square; text on top of it gets a band across its middle
   el.style.setProperty('--m', `${m}px`);
   el.style.setProperty('--mw', `${Math.min(iw, m * (el.dataset.r > 1.2 ? el.dataset.r : 1))}px`); // an uploaded file's area: wider when it's wide
@@ -94,7 +103,9 @@ new IntersectionObserver((seen) => seen.some((e) => e.isIntersecting) && fit()).
 // line, or `own` (px) when that fits. A name too long for its line gets a smaller font of its own instead. Layout sizes
 // only (offset*): the words' entry animations scale them, which scroll sizes would count.
 function sizeText(el, th, own) {
-  const box = el.querySelector('.box, .kick-text'), text = box.querySelector('.text'), name = text.querySelector('[data-k=user]');
+  const box = el.querySelector('.box, .kick-text'),
+    text = box.querySelector('.text'),
+    name = text.querySelector('[data-k=user]');
   const words = [...text.querySelectorAll('.w')];
   const fits = (fs) => {
     el.style.setProperty('--fs', `${fs}px`);
@@ -104,7 +115,8 @@ function sizeText(el, th, own) {
     }
     return box.offsetHeight <= th && words.every((w) => w.offsetWidth <= text.clientWidth + 1);
   };
-  let lo = 6, hi = own || th;
+  let lo = 6,
+    hi = own || th;
   if (fits(hi)) return;
   while (hi - lo > 0.5) {
     const mid = (lo + hi) / 2;
@@ -145,7 +157,9 @@ if (params.has('preview')) {
     // It's on the page now: for the server's alert timing line (not again when this overlay joined in the middle).
     if (!a.late) socket.emit('alertShown', { id: a.id, shown: Date.now(), where: window.obsstudio ? 'OBS' : 'browser' });
   });
-  socket.on('alertSkip', (id) => { if (onNow?.id === id) onNow.end(); });
+  socket.on('alertSkip', (id) => {
+    if (onNow?.id === id) onNow.end();
+  });
 }
 
 // Cut whatever is playing so the next alert starts right away.
@@ -193,7 +207,11 @@ async function show(ev, { muted = false, hold = false, ms, id } = {}) {
   stage.append(scope);
   onStage = el;
   fit();
-  const sound = muted ? null : kickLook ? playSound(cfg, files.sound, 'kick_gift', 0, !!video, 'kick') : playSound(cfg, files.sound, ev.type, tier, !!video, theme);
+  const sound = muted
+    ? null
+    : kickLook
+      ? playSound(cfg, files.sound, 'kick_gift', 0, !!video, 'kick')
+      : playSound(cfg, files.sound, ev.type, tier, !!video, theme);
   if (video) {
     video.muted = muted || cfg.videoSound === 'off';
     video.volume = cfg.volume;
@@ -208,7 +226,13 @@ async function show(ev, { muted = false, hold = false, ms, id } = {}) {
   // On screen for ms (Skip ends it early), then the exit animation.
   await new Promise((done) => {
     const t = setTimeout(done, ms ?? (cfg.duration + (grows ? (tier - 1) * 1.5 : 0)) * 1000);
-    onNow = { id, end: () => { clearTimeout(t); done(); } };
+    onNow = {
+      id,
+      end: () => {
+        clearTimeout(t);
+        done();
+      },
+    };
   });
   if (my !== gen) return;
   onNow = null;
@@ -240,7 +264,9 @@ function textStyle(el, cfg) {
 function themed(cfg, ev, v, files, theme, tier, grows) {
   // Bits without a file of their own: Twitch's gem for the amount (the bits tiers are Twitch's gem amounts).
   const gem = ev.type === 'bits' && !files.image && ([...cfg.tiers].reverse().find((t) => t.amount <= ev.amount) ?? cfg.tiers[0]).amount;
-  const media = gem ? h('div', { className: 'media gem' }, h('img', { src: `/assets/twitch-bits/${gem}.gif`, alt: '' })) : mediaEl(files.image, fill(S.emblems[ev.type], v));
+  const media = gem
+    ? h('div', { className: 'media gem' }, h('img', { src: `/assets/twitch-bits/${gem}.gif`, alt: '' }))
+    : mediaEl(files.image, fill(S.emblems[ev.type], v));
   const video = media.querySelector('video');
   media.append(particles(tier, theme));
   for (let i = 0; i < RINGS[tier]; i++) media.append(h('b', { className: 'ring', style: `--delay:${0.1 + i * 0.22}s` }));
@@ -253,8 +279,13 @@ function themed(cfg, ev, v, files, theme, tier, grows) {
 
   // None draws no emblem of its own: without the user's picture (or bits' gem) the text has the whole box.
   const bare = theme === 'none' && !files.image && !gem;
-  const el = h('div', { className: `alert tier-${tier} type-${ev.type} plat-${ev.platform} pos-${cfg.textPos} align-${cfg.textAlign} frame-${cfg.frame}${bare ? ' no-media' : ''}` },
-    h('div', { className: 'inner' }, media, box));
+  const el = h(
+    'div',
+    {
+      className: `alert tier-${tier} type-${ev.type} plat-${ev.platform} pos-${cfg.textPos} align-${cfg.textAlign} frame-${cfg.frame}${bare ? ' no-media' : ''}`,
+    },
+    h('div', { className: 'inner' }, media, box),
+  );
   // The theme CSS keys off [data-theme] on an ancestor, so each alert gets its own (layout-neutral) theme wrapper.
   const scope = h('div', { className: 'theme-scope' }, el);
   scope.dataset.theme = theme;
@@ -277,26 +308,38 @@ function kickAlert(cfg, ev, v, files) {
   const amount = words.querySelector('[data-k=amount]');
   amount?.classList.add('green');
   if (amount?.nextElementSibling && !amount.nextElementSibling.classList.contains('hl')) amount.nextElementSibling.classList.add('green');
-  const el = h('div', { className: 'kick-alert' }, media, h('div', { className: 'kick-text' }, words, ev.message ? h('div', { className: 'msg', textContent: ev.message }) : ''));
+  const el = h(
+    'div',
+    { className: 'kick-alert' },
+    media,
+    h('div', { className: 'kick-text' }, words, ev.message ? h('div', { className: 'msg', textContent: ev.message }) : ''),
+  );
   return { el, scope: el, video: media.querySelector('video') };
 }
 
 // Custom image/GIF/video, or the theme's CSS-only emblem (e1/e2 are spare layers the themes decorate).
 function mediaEl(image, label) {
   if (!image) {
-    return h('div', { className: 'media' },
-      h('div', { className: 'emblem' }, h('i', { className: 'e1' }), h('i', { className: 'e2' }), h('span', { textContent: label })));
+    return h(
+      'div',
+      { className: 'media' },
+      h('div', { className: 'emblem' }, h('i', { className: 'e1' }), h('i', { className: 'e2' }), h('span', { textContent: label })),
+    );
   }
   const src = '/uploads/' + encodeURIComponent(image.file);
-  return h('div', { className: 'media custom' },
-    isVideo(image.file) ? h('video', { muted: true, loop: true, playsInline: true, src }) : h('img', { src, alt: '' }));
+  return h(
+    'div',
+    { className: 'media custom' },
+    isVideo(image.file) ? h('video', { muted: true, loop: true, playsInline: true, src }) : h('img', { src, alt: '' }),
+  );
 }
 
 // An image's or video's width / height, as soon as it's known (it loads before it's on the page); 1 (square) for a
 // broken file or one that takes over a second to tell.
 function shape(file) {
   const r = () => {
-    const w = file.videoWidth || file.naturalWidth, h = file.videoHeight || file.naturalHeight;
+    const w = file.videoWidth || file.naturalWidth,
+      h = file.videoHeight || file.naturalHeight;
     return w && h ? w / h : 0;
   };
   return new Promise((done) => {
@@ -319,8 +362,7 @@ function text(tpl, v) {
       const w = h('span', { className: 'w hl', textContent: v[k], style: `--i:${i++}` });
       w.dataset.k = k;
       el.append(w);
-    }
-    else el.append(h('span', { className: 'w', textContent: part, style: `--i:${i++}` }));
+    } else el.append(h('span', { className: 'w', textContent: part, style: `--i:${i++}` }));
   }
   return el;
 }
@@ -331,27 +373,42 @@ function text(tpl, v) {
 // alert's id (the streamer's own: an image and the text by it); one that's gone meanwhile: the card picked. Each one
 // opens with Jarchi's signature sound (sounds.js crypto), then the alert's own sound.
 const NETWORK = { bep20: 'BEP20', trc20: 'TRC20' };
-const CRYPTO_FONT = { Lalezar: '"Lalezar", "Vazirmatn", Tahoma, sans-serif', Vazirmatn: '"Vazirmatn", Tahoma, sans-serif', Bangers: '"Bangers", Impact, Arial, sans-serif' };
+const CRYPTO_FONT = {
+  Lalezar: '"Lalezar", "Vazirmatn", Tahoma, sans-serif',
+  Vazirmatn: '"Vazirmatn", Tahoma, sans-serif',
+  Bangers: '"Bangers", Impact, Arial, sans-serif',
+};
 
 async function showCrypto(ev, { muted, hold, ms, id }) {
-  const my = gen, c = settings.crypto;
+  const my = gen,
+    c = settings.crypto;
   const own = ev.look === 'custom' ? c.custom : c.tiers.find((t) => t.id === ev.look);
   const design = own ? null : ['coin', 'hologram'].includes(ev.look) ? ev.look : c.design === 'custom' ? null : c.design;
   const look = own ?? (design ? null : c.custom);
-  const name = ev.user || ev.anonymous || S.crypto.anonymous, amount = `${ev.amount} USDT`, net = NETWORK[ev.network] ?? '';
+  const name = ev.user || ev.anonymous || S.crypto.anonymous,
+    amount = `${ev.amount} USDT`,
+    net = NETWORK[ev.network] ?? '';
   const el = design === 'coin' ? coinCard(ev, name, amount, net) : design === 'hologram' ? hologram(ev, name, amount, net) : ownAlert(look, ev, name, amount);
   const scope = h('div', { className: 'crypto-scope' }, el);
   stage.append(scope);
   fit();
   // The two designs: their own sound, or the one uploaded for them. The streamer's own: its sound, else the hologram's.
   const file = design ? c.sound : look.sound;
-  const sound = muted ? null : cryptoSound(file ? null : design ?? 'hologram', file);
-  el.querySelector('video')?.play().catch(() => {});
+  const sound = muted ? null : cryptoSound(file ? null : (design ?? 'hologram'), file);
+  el.querySelector('video')
+    ?.play()
+    .catch(() => {});
   if (hold) return; // a preview: stays until the next one
 
   await new Promise((done) => {
     const t = setTimeout(done, ms ?? (look ? look.duration : c.duration) * 1000);
-    onNow = { id, end: () => { clearTimeout(t); done(); } };
+    onNow = {
+      id,
+      end: () => {
+        clearTimeout(t);
+        done();
+      },
+    };
   });
   if (my !== gen) return;
   onNow = null;
@@ -367,12 +424,20 @@ async function showCrypto(ev, { muted, hold, ms, id }) {
 function cryptoSound(design, file) {
   const synth = JarchiSounds.crypto(design);
   let audio;
-  const later = file && setTimeout(() => {
-    audio = new Audio('/uploads/' + encodeURIComponent(file.file));
-    audio.volume = 0.7;
-    audio.play().catch(() => {});
-  }, 750);
-  const handle = { pause: () => { clearTimeout(later); audio?.pause(); synth.pause(); } };
+  const later =
+    file &&
+    setTimeout(() => {
+      audio = new Audio('/uploads/' + encodeURIComponent(file.file));
+      audio.volume = 0.7;
+      audio.play().catch(() => {});
+    }, 750);
+  const handle = {
+    pause: () => {
+      clearTimeout(later);
+      audio?.pause();
+      synth.pause();
+    },
+  };
   sounds.add(handle);
   return handle;
 }
@@ -387,16 +452,26 @@ function coin3() {
 
 // Design 1, coin and card: the coin drops in spinning, sparks fly, the card swings open beside it.
 function coinCard(ev, name, amount, net) {
-  const my = gen, cw = h('div', { className: 'cw' }, coin3());
-  const el = h('div', { className: 'crypto-alert d1' }, cw,
-    h('div', { className: 'card' }, h('i', { className: 'sh' }),
+  const my = gen,
+    cw = h('div', { className: 'cw' }, coin3());
+  const el = h(
+    'div',
+    { className: 'crypto-alert d1' },
+    cw,
+    h(
+      'div',
+      { className: 'card' },
+      h('i', { className: 'sh' }),
       h('div', { className: 'nm' }, h('span', { textContent: name })),
       h('div', { className: 'am' }, net ? h('i', { textContent: net }) : '', h('b', { textContent: amount })),
-      ev.message ? h('div', { className: 'cmsg', textContent: ev.message }) : ''));
+      ev.message ? h('div', { className: 'cmsg', textContent: ev.message }) : '',
+    ),
+  );
   setTimeout(() => {
     if (my !== gen) return;
     for (let i = 0; i < 26; i++) {
-      const a = Math.random() * Math.PI * 2, r = 80 + Math.random() * 120;
+      const a = Math.random() * Math.PI * 2,
+        r = 80 + Math.random() * 120;
       const s = h('i', { className: 'spark', style: `--x:${Math.cos(a) * r}px;--y:${Math.sin(a) * r}px` });
       cw.append(s);
       setTimeout(() => s.remove(), 1700);
@@ -407,12 +482,25 @@ function coinCard(ev, name, amount, net) {
 
 // Design 2, cipher hologram: a glitching card, the coin flying in, and the transaction, name and amount decoding.
 function hologram(ev, name, amount, net) {
-  const hx = h('div', { className: 'hx' }), nm = h('span'), am = h('b');
-  const el = h('div', { className: 'crypto-alert d3' }, h('div', { className: 'glow3' }), h('div', { className: 'cw' }, coin3()),
-    h('div', { className: 'hc' }, h('i', { className: 'crn a' }), h('i', { className: 'crn b' }), hx,
+  const hx = h('div', { className: 'hx' }),
+    nm = h('span'),
+    am = h('b');
+  const el = h(
+    'div',
+    { className: 'crypto-alert d3' },
+    h('div', { className: 'glow3' }),
+    h('div', { className: 'cw' }, coin3()),
+    h(
+      'div',
+      { className: 'hc' },
+      h('i', { className: 'crn a' }),
+      h('i', { className: 'crn b' }),
+      hx,
       h('div', { className: 'nm' }, nm),
       h('div', { className: 'am' }, net ? h('i', { textContent: net }) : '', am),
-      ev.message ? h('div', { className: 'cmsg', textContent: ev.message }) : ''));
+      ev.message ? h('div', { className: 'cmsg', textContent: ev.message }) : '',
+    ),
+  );
   const tx = ev.txHash ? `${ev.txHash.slice(0, 6)}…${ev.txHash.slice(-4)}` : 'TEST';
   decode(hx, `TX ${tx} · CONFIRMED`, 500, 700);
   decode(nm, name, 800, 500);
@@ -421,11 +509,15 @@ function hologram(ev, name, amount, net) {
 }
 // Text that comes out of random signs, letter by letter, after `wait` ms, over `ms`.
 function decode(el, txt, wait, ms) {
-  const signs = '0123456789ABCDEF#@$%&*', letters = [...txt], t0 = performance.now() + wait, my = gen;
+  const signs = '0123456789ABCDEF#@$%&*',
+    letters = [...txt],
+    t0 = performance.now() + wait,
+    my = gen;
   (function frame(now) {
     if (my !== gen) return;
     const k = (now - t0) / ms;
-    el.textContent = k < 0 ? '' : k >= 1 ? txt : letters.map((ch, i) => (ch === ' ' || i / letters.length < k ? ch : signs[(Math.random() * signs.length) | 0])).join('');
+    el.textContent =
+      k < 0 ? '' : k >= 1 ? txt : letters.map((ch, i) => (ch === ' ' || i / letters.length < k ? ch : signs[(Math.random() * signs.length) | 0])).join('');
     if (k < 1) requestAnimationFrame(frame);
   })(performance.now());
 }
@@ -433,12 +525,25 @@ function decode(el, txt, wait, ms) {
 // The streamer's own: their image, GIF or video (none: Jarchi Pay's coin) with the name, amount and message above,
 // below or beside it, in their font.
 function ownAlert(look, ev, name, amount) {
-  const f = look.image, src = f && '/uploads/' + encodeURIComponent(f.file);
-  const pic = !f ? h('img', { src: '/assets/brand/jarchi-pay-coin.webp', alt: '' })
-    : isVideo(f.file) ? h('video', { muted: true, loop: true, playsInline: true, src }) : h('img', { src, alt: '' });
-  const el = h('div', { className: `crypto-alert own pos-${look.pos}` }, h('div', { className: 'img' }, pic),
-    h('div', { className: 'tx' }, h('div', { className: 't1' }, h('span', { textContent: name })), h('div', { className: 't2', textContent: amount }),
-      ev.message ? h('div', { className: 't3', textContent: ev.message }) : ''));
+  const f = look.image,
+    src = f && '/uploads/' + encodeURIComponent(f.file);
+  const pic = !f
+    ? h('img', { src: '/assets/brand/jarchi-pay-coin.webp', alt: '' })
+    : isVideo(f.file)
+      ? h('video', { muted: true, loop: true, playsInline: true, src })
+      : h('img', { src, alt: '' });
+  const el = h(
+    'div',
+    { className: `crypto-alert own pos-${look.pos}` },
+    h('div', { className: 'img' }, pic),
+    h(
+      'div',
+      { className: 'tx' },
+      h('div', { className: 't1' }, h('span', { textContent: name })),
+      h('div', { className: 't2', textContent: amount }),
+      ev.message ? h('div', { className: 't3', textContent: ev.message }) : '',
+    ),
+  );
   el.style.fontFamily = CRYPTO_FONT[look.font] ?? CRYPTO_FONT.Lalezar;
   return el;
 }
@@ -465,20 +570,35 @@ function particles(tier, theme) {
   const count = PARTICLES[tier] * (theme === 'minimal' ? 0.4 : 1);
   const r = (a, b) => a + Math.random() * (b - a);
   for (let i = 0; i < count; i++) {
-    let sx = 0, sy = 0, ex, ey;
+    let sx = 0,
+      sy = 0,
+      ex,
+      ey;
     if (motion === 'burst') {
-      const a = r(0, 2 * Math.PI), d = r(120, 380) * SCALE[tier];
+      const a = r(0, 2 * Math.PI),
+        d = r(120, 380) * SCALE[tier];
       ex = Math.cos(a) * d;
       ey = Math.sin(a) * d;
     } else if (motion === 'fall') {
-      sx = r(-760, 760); sy = r(-420, -160); ex = sx + r(-140, 140); ey = sy + r(650, 950);
+      sx = r(-760, 760);
+      sy = r(-420, -160);
+      ex = sx + r(-140, 140);
+      ey = sy + r(650, 950);
     } else if (motion === 'rise') {
-      sx = r(-540, 540); sy = r(40, 260); ex = sx + r(-100, 100); ey = sy - r(420, 760);
+      sx = r(-540, 540);
+      sy = r(40, 260);
+      ex = sx + r(-100, 100);
+      ey = sy - r(420, 760);
     } else {
-      sx = ex = r(-820, 820); sy = ey = r(-200, 460);
+      sx = ex = r(-820, 820);
+      sy = ey = r(-200, 460);
     }
     const delay = r(0, 0.6) + (tier === 4 && i % 2 ? 1.2 : 0); // raid fires a second wave
-    fx.append(h('i', { style: `--sx:${sx}px;--sy:${sy}px;--ex:${ex}px;--ey:${ey}px;--r:${r(-540, 540)}deg;--z:${r(0.5, 1.3)};--d:${r(1.2, 2.4)}s;--delay:${delay}s;--pc:var(--c${1 + (i % 3)})` }));
+    fx.append(
+      h('i', {
+        style: `--sx:${sx}px;--sy:${sy}px;--ex:${ex}px;--ey:${ey}px;--r:${r(-540, 540)}deg;--z:${r(0.5, 1.3)};--d:${r(1.2, 2.4)}s;--delay:${delay}s;--pc:var(--c${1 + (i % 3)})`,
+      }),
+    );
   }
   return fx;
 }

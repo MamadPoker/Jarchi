@@ -34,32 +34,53 @@ const COUNT = 'INSERT INTO requests (day, count, active_installed, active_dev) V
 
 export default {
   async fetch(req, env, ctx) {
-    ctx.waitUntil(env.DB.prepare(COUNT).bind(new Date().toISOString().slice(0, 10)).run().catch(() => {}));
+    ctx.waitUntil(
+      env.DB.prepare(COUNT)
+        .bind(new Date().toISOString().slice(0, 10))
+        .run()
+        .catch(() => {}),
+    );
     const url = new URL(req.url);
     if (url.pathname === '/admin' || url.pathname.startsWith('/admin/')) return admin(req, url, env);
     if (url.pathname.startsWith('/support/')) return support(req, url, env);
     if (url.pathname === '/messages' || url.pathname.startsWith('/messages/')) return teamMessages(req, url, env);
     if (url.pathname === '/designs' || url.pathname.startsWith('/designs/')) return designs(req, url, env);
     switch (url.pathname) {
-      case '/': return text('Jarchi Kick relay: running.');
-      case '/login': return login(url, env);
-      case '/callback': return callback(url);
-      case '/token': return req.method === 'POST' ? token(req, url, env) : text('POST only', 405);
-      case '/webhook': return req.method === 'POST' ? webhook(req, env) : text('POST only', 405);
-      case '/ws': return socket(req, env);
-      case '/ping': return req.method === 'POST' ? ping(req, env) : text('POST only', 405);
+      case '/':
+        return text('Jarchi Kick relay: running.');
+      case '/login':
+        return login(url, env);
+      case '/callback':
+        return callback(url);
+      case '/token':
+        return req.method === 'POST' ? token(req, url, env) : text('POST only', 405);
+      case '/webhook':
+        return req.method === 'POST' ? webhook(req, env) : text('POST only', 405);
+      case '/ws':
+        return socket(req, env);
+      case '/ping':
+        return req.method === 'POST' ? ping(req, env) : text('POST only', 405);
     }
     return text('Not found', 404);
   },
 };
 
 function login(url, env) {
-  const state = url.searchParams.get('state') ?? '', challenge = url.searchParams.get('challenge') ?? '';
+  const state = url.searchParams.get('state') ?? '',
+    challenge = url.searchParams.get('challenge') ?? '';
   if (!STATE.test(state) || !/^[\w-]{43}$/.test(challenge)) return text('Bad request', 400);
-  return Response.redirect(`${KICK_ID}/oauth/authorize?${new URLSearchParams({
-    response_type: 'code', client_id: env.KICK_CLIENT_ID, redirect_uri: `${url.origin}/callback`, scope: SCOPES,
-    code_challenge: challenge, code_challenge_method: 'S256', state,
-  })}`, 302);
+  return Response.redirect(
+    `${KICK_ID}/oauth/authorize?${new URLSearchParams({
+      response_type: 'code',
+      client_id: env.KICK_CLIENT_ID,
+      redirect_uri: `${url.origin}/callback`,
+      scope: SCOPES,
+      code_challenge: challenge,
+      code_challenge_method: 'S256',
+      state,
+    })}`,
+    302,
+  );
 }
 
 // Only ever back to this PC (127.0.0.1), so this is no open redirect. Jarchi checks the state itself.
@@ -88,7 +109,9 @@ async function publicKey(again) {
   if (key.value && Date.now() - key.at < (again ? 60000 : 3600000)) return key.value;
   const body = await (await fetch(`${KICK_API}/public-key`)).text();
   let pem = body;
-  try { pem = JSON.parse(body).data.public_key; } catch {}
+  try {
+    pem = JSON.parse(body).data.public_key;
+  } catch {}
   const der = Uint8Array.from(atob(pem.replace(/-----[^-]+-----|\s/g, '')), (c) => c.charCodeAt(0));
   key = { at: Date.now(), value: await crypto.subtle.importKey('spki', der, { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['verify']) };
   return key.value;
@@ -96,26 +119,43 @@ async function publicKey(again) {
 
 // Kick signs "<message id>.<timestamp>.<raw body>" (RSA, SHA-256), base64 in Kick-Event-Signature.
 async function signed(h, body) {
-  const id = h.get('kick-event-message-id'), time = h.get('kick-event-message-timestamp'), sig = h.get('kick-event-signature');
+  const id = h.get('kick-event-message-id'),
+    time = h.get('kick-event-message-timestamp'),
+    sig = h.get('kick-event-signature');
   if (!id || !time || !sig) return false;
   let bytes;
-  try { bytes = Uint8Array.from(atob(sig), (c) => c.charCodeAt(0)); } catch { return false; }
+  try {
+    bytes = Uint8Array.from(atob(sig), (c) => c.charCodeAt(0));
+  } catch {
+    return false;
+  }
   const data = new TextEncoder().encode(`${id}.${time}.${body}`);
   for (const again of [false, true]) if (await crypto.subtle.verify('RSASSA-PKCS1-v1_5', await publicKey(again), bytes, data)) return true;
   return false;
 }
 
 async function webhook(req, env) {
-  const body = await req.text(), h = req.headers;
+  const body = await req.text(),
+    h = req.headers;
   if (!(await signed(h, body))) return text('Bad signature', 403);
   if (Math.abs(Date.now() - Date.parse(h.get('kick-event-message-timestamp'))) > STALE_MS) return text('ok'); // not again either
   let data;
-  try { data = JSON.parse(body); } catch { return text('ok'); }
+  try {
+    data = JSON.parse(body);
+  } catch {
+    return text('ok');
+  }
   const channel = data?.broadcaster?.user_id;
   if (channel) {
-    await room(env, channel).fetch('https://room/event', { method: 'POST', body: JSON.stringify({
-      type: h.get('kick-event-type'), version: h.get('kick-event-version'), id: h.get('kick-event-message-id'), data,
-    }) });
+    await room(env, channel).fetch('https://room/event', {
+      method: 'POST',
+      body: JSON.stringify({
+        type: h.get('kick-event-type'),
+        version: h.get('kick-event-version'),
+        id: h.get('kick-event-message-id'),
+        data,
+      }),
+    });
   }
   return text('ok');
 }
@@ -139,24 +179,49 @@ async function socket(req, env) {
 // anything else is refused. Each install gets PING_MAX pings in
 // PING_WINDOW_MS (Jarchi sends one every 5 minutes, plus start and quit), and at most NEW_MAX installs are new in the
 // last NEW_WINDOW_MS, so made-up ids can't flood the database. Times are ISO 8601 in UTC.
-const PING_BYTES = 2048, PING_MAX = 10, PING_WINDOW_MS = 10 * 60 * 1000;
-const NEW_MAX = 100, NEW_WINDOW_MS = 60 * 60 * 1000;
+const PING_BYTES = 2048,
+  PING_MAX = 10,
+  PING_WINDOW_MS = 10 * 60 * 1000;
+const NEW_MAX = 100,
+  NEW_WINDOW_MS = 60 * 60 * 1000;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const ISO = /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$/;
 const VERSION = /^\d{1,4}\.\d{1,4}\.\d{1,4}(-[\w.]{1,20})?$/;
-const exactly = (o, keys) => !!o && typeof o === 'object' && !Array.isArray(o) && Object.keys(o).length === keys.length && keys.every((k) => Object.hasOwn(o, k));
+const exactly = (o, keys) =>
+  !!o && typeof o === 'object' && !Array.isArray(o) && Object.keys(o).length === keys.length && keys.every((k) => Object.hasOwn(o, k));
 const bool = (v) => typeof v === 'boolean';
-const channelOk = (c) => c === null || (exactly(c, ['name', 'picture', 'live']) && typeof c.name === 'string' && /^[^\p{C}]{1,50}$/u.test(c.name)
-  && typeof c.picture === 'string' && (c.picture === '' || /^https:\/\/\S{1,490}$/.test(c.picture)) && (c.live === null || bool(c.live)));
+const channelOk = (c) =>
+  c === null ||
+  (exactly(c, ['name', 'picture', 'live']) &&
+    typeof c.name === 'string' &&
+    /^[^\p{C}]{1,50}$/u.test(c.name) &&
+    typeof c.picture === 'string' &&
+    (c.picture === '' || /^https:\/\/\S{1,490}$/.test(c.picture)) &&
+    (c.live === null || bool(c.live)));
 const PING_KEYS = ['id', 'version', 'installed', 'open', 'kick', 'twitch', 'privacy'];
 const connectOk = (s, why) => ['never', 'ok', 'failed'].includes(s) && (s === 'failed' ? ['network', 'denied', 'other'].includes(why) : why === null);
-const diagOk = (d) => exactly(d, ['kick', 'kickReason', 'twitch', 'twitchReason', 'proxy', 'vpn']) && connectOk(d.kick, d.kickReason)
-  && connectOk(d.twitch, d.twitchReason) && ['off', 'auto', 'manual'].includes(d.proxy) && (d.vpn === null || bool(d.vpn));
-const pingOk = (p) => (exactly(p, PING_KEYS) || (exactly(p, [...PING_KEYS, 'diag']) && diagOk(p.diag))) && typeof p.id === 'string' && UUID.test(p.id)
-  && typeof p.version === 'string' && VERSION.test(p.version) && bool(p.installed) && bool(p.open)
-  && channelOk(p.kick) && channelOk(p.twitch) && exactly(p.privacy, ['version', 'acceptedAt']) && Number.isInteger(p.privacy.version)
-  && p.privacy.version >= 1 && p.privacy.version <= 1000
-  && (p.privacy.acceptedAt === null || (typeof p.privacy.acceptedAt === 'string' && ISO.test(p.privacy.acceptedAt) && !Number.isNaN(Date.parse(p.privacy.acceptedAt))));
+const diagOk = (d) =>
+  exactly(d, ['kick', 'kickReason', 'twitch', 'twitchReason', 'proxy', 'vpn']) &&
+  connectOk(d.kick, d.kickReason) &&
+  connectOk(d.twitch, d.twitchReason) &&
+  ['off', 'auto', 'manual'].includes(d.proxy) &&
+  (d.vpn === null || bool(d.vpn));
+const pingOk = (p) =>
+  (exactly(p, PING_KEYS) || (exactly(p, [...PING_KEYS, 'diag']) && diagOk(p.diag))) &&
+  typeof p.id === 'string' &&
+  UUID.test(p.id) &&
+  typeof p.version === 'string' &&
+  VERSION.test(p.version) &&
+  bool(p.installed) &&
+  bool(p.open) &&
+  channelOk(p.kick) &&
+  channelOk(p.twitch) &&
+  exactly(p.privacy, ['version', 'acceptedAt']) &&
+  Number.isInteger(p.privacy.version) &&
+  p.privacy.version >= 1 &&
+  p.privacy.version <= 1000 &&
+  (p.privacy.acceptedAt === null ||
+    (typeof p.privacy.acceptedAt === 'string' && ISO.test(p.privacy.acceptedAt) && !Number.isNaN(Date.parse(p.privacy.acceptedAt))));
 // New install: first_seen = last_seen = now, unless NEW_MAX are new since ?17 already. Known one: everything but
 // first_seen, unless it's over its pings in this window. Either way nothing changes then: no row changed means 429.
 // A ping without diag leaves its columns NULL.
@@ -187,7 +252,8 @@ const DEV = 'installed = 0 AND kick_connect IS NOT NULL'; // the same for a row:
 async function capped(req, max) {
   if (Number(req.headers.get('content-length')) > max) return null;
   if (!req.body) return new Uint8Array();
-  const reader = req.body.getReader(), parts = [];
+  const reader = req.body.getReader(),
+    parts = [];
   let size = 0;
   for (;;) {
     const { done, value } = await reader.read();
@@ -208,17 +274,51 @@ async function ping(req, env) {
   const body = await capped(req, PING_BYTES);
   if (body === null) return text('Too large', 413);
   let p;
-  try { p = JSON.parse(new TextDecoder().decode(body)); } catch { return text('Bad request', 400); }
+  try {
+    p = JSON.parse(new TextDecoder().decode(body));
+  } catch {
+    return text('Bad request', 400);
+  }
   if (!pingOk(p)) return text('Bad request', 400);
-  const now = Date.now(), at = new Date(now).toISOString(), bit = (v) => (v === null || v === undefined ? null : Number(v)), d = p.diag;
+  const now = Date.now(),
+    at = new Date(now).toISOString(),
+    bit = (v) => (v === null || v === undefined ? null : Number(v)),
+    d = p.diag;
   const seen = await env.DB.prepare('SELECT last_seen FROM installs WHERE id = ?1').bind(p.id).first();
-  const { meta } = await env.DB.prepare(UPSERT).bind(p.id, at, now, p.version, bit(p.installed), bit(p.open),
-    p.kick?.name ?? null, p.kick?.picture ?? null, bit(p.kick?.live), p.twitch?.name ?? null, p.twitch?.picture ?? null, bit(p.twitch?.live),
-    p.privacy.version, p.privacy.acceptedAt, PING_WINDOW_MS, PING_MAX, new Date(now - NEW_WINDOW_MS).toISOString(), NEW_MAX,
-    d?.kick ?? null, d?.kickReason ?? null, d?.twitch ?? null, d?.twitchReason ?? null, d?.proxy ?? null, bit(d?.vpn)).run();
+  const { meta } = await env.DB.prepare(UPSERT)
+    .bind(
+      p.id,
+      at,
+      now,
+      p.version,
+      bit(p.installed),
+      bit(p.open),
+      p.kick?.name ?? null,
+      p.kick?.picture ?? null,
+      bit(p.kick?.live),
+      p.twitch?.name ?? null,
+      p.twitch?.picture ?? null,
+      bit(p.twitch?.live),
+      p.privacy.version,
+      p.privacy.acceptedAt,
+      PING_WINDOW_MS,
+      PING_MAX,
+      new Date(now - NEW_WINDOW_MS).toISOString(),
+      NEW_MAX,
+      d?.kick ?? null,
+      d?.kickReason ?? null,
+      d?.twitch ?? null,
+      d?.twitchReason ?? null,
+      d?.proxy ?? null,
+      bit(d?.vpn),
+    )
+    .run();
   if (!meta.changes) return text('Too many pings', 429);
   const day = at.slice(0, 10);
-  if (!(seen?.last_seen >= day)) await env.DB.prepare(ACTIVE).bind(day, bit(p.installed), Number(isDev(p))).run();
+  if (!(seen?.last_seen >= day))
+    await env.DB.prepare(ACTIVE)
+      .bind(day, bit(p.installed), Number(isDev(p)))
+      .run();
   return text('ok');
 }
 
@@ -252,8 +352,11 @@ async function ping(req, env) {
 //   DELETE /admin/codes/<id>     revokes it: never redeemed again (an install that has it keeps its design)
 //   GET    /admin/designs        every design: id, name, createdAt (never its look or CSS)
 // "Online" = open and seen in ONLINE_MS (Jarchi pings every 5 minutes); "live" = online and live on Kick or Twitch.
-const FAIL_MAX = 10, FAIL_MS = 60 * 60 * 1000;
-const ONLINE_MS = 10 * 60 * 1000, DAY_MS = 24 * 60 * 60 * 1000, RELEASES_MS = 10 * 60 * 1000;
+const FAIL_MAX = 10,
+  FAIL_MS = 60 * 60 * 1000;
+const ONLINE_MS = 10 * 60 * 1000,
+  DAY_MS = 24 * 60 * 60 * 1000,
+  RELEASES_MS = 10 * 60 * 1000;
 const FREE_REQUESTS = 100000; // Cloudflare's free plan, a day (UTC)
 const REPOS = ['MamadPoker/Jarchi', 'MamadPoker/Jarchi-releases']; // v1.0.2 on; v1.0.2 and before
 // Only the installer is a download: latest.yml and the .blockmap are fetched by Jarchi's own update check.
@@ -296,10 +399,14 @@ async function admin(req, url, env) {
   const get = req.method === 'GET';
   if (url.pathname === '/admin/designs') return get ? designsAdmin(env) : fail('method', 405);
   switch (url.pathname) {
-    case '/admin/stats': return get ? stats(url, env, now) : text('GET only', 405);
-    case '/admin/history': return get ? history(env, now) : text('GET only', 405);
-    case '/admin/installs': return get ? installs(url, env, now) : text('GET only', 405);
-    case '/admin/downloads': return get ? downloads() : text('GET only', 405);
+    case '/admin/stats':
+      return get ? stats(url, env, now) : text('GET only', 405);
+    case '/admin/history':
+      return get ? history(env, now) : text('GET only', 405);
+    case '/admin/installs':
+      return get ? installs(url, env, now) : text('GET only', 405);
+    case '/admin/downloads':
+      return get ? downloads() : text('GET only', 405);
   }
   const one = /^\/admin\/installs\/([^/]+)$/.exec(url.pathname)?.[1];
   if (one) return req.method === 'DELETE' ? remove(env, one) : text('DELETE only', 405);
@@ -321,7 +428,9 @@ async function stats(url, env, now) {
   if (!Number.isInteger(tz) || Math.abs(tz) > 14 * 60) return text('Bad tz', 400);
   const today = Math.floor((now + tz * 60000) / DAY_MS) * DAY_MS - tz * 60000; // midnight there
   const [counts, versions, days] = await Promise.all([
-    env.DB.prepare(COUNTS).bind(iso(now - ONLINE_MS), iso(today), iso(now - 7 * DAY_MS)).first(),
+    env.DB.prepare(COUNTS)
+      .bind(iso(now - ONLINE_MS), iso(today), iso(now - 7 * DAY_MS))
+      .first(),
     env.DB.prepare('SELECT version, COUNT(*) AS installs FROM installs GROUP BY version ORDER BY installs DESC, version DESC').all(),
     env.DB.prepare('SELECT day, count FROM requests ORDER BY day DESC LIMIT 30').all(),
   ]);
@@ -332,21 +441,33 @@ async function history(env, now) {
   const days = Array.from({ length: 30 }, (_, i) => iso(now - (29 - i) * DAY_MS).slice(0, 10));
   const { results } = await env.DB.prepare('SELECT * FROM requests WHERE day >= ?1').bind(days[0]).all();
   const of = new Map(results.map((r) => [r.day, r]));
-  return json({ days: days.map((day) => {
-    const r = of.get(day);
-    return { day, installed: r?.active_installed ?? null, dev: r?.active_dev ?? null, requests: r?.count ?? null };
-  }) });
+  return json({
+    days: days.map((day) => {
+      const r = of.get(day);
+      return { day, installed: r?.active_installed ?? null, dev: r?.active_dev ?? null, requests: r?.count ?? null };
+    }),
+  });
 }
 
 // Shaped like a ping: { id, version, installed, open, kick, twitch, privacy, diag } (diag null: its last ping had none)
 // plus online, live, firstSeen, lastSeen.
 const channel = (name, picture, live) => (name === null ? null : { name, picture, live: live === null ? null : live === 1 });
-const diag = (r) => (r.kick_connect === null ? null : { kick: r.kick_connect, kickReason: r.kick_reason, twitch: r.twitch_connect,
-  twitchReason: r.twitch_reason, proxy: r.proxy_mode, vpn: r.vpn_found === null ? null : r.vpn_found === 1 });
+const diag = (r) =>
+  r.kick_connect === null
+    ? null
+    : {
+        kick: r.kick_connect,
+        kickReason: r.kick_reason,
+        twitch: r.twitch_connect,
+        twitchReason: r.twitch_reason,
+        proxy: r.proxy_mode,
+        vpn: r.vpn_found === null ? null : r.vpn_found === 1,
+      };
 const LIST = `SELECT * FROM installs WHERE ?1 = '' OR kick_name LIKE ?2 ESCAPE '\\' OR twitch_name LIKE ?2 ESCAPE '\\'`;
 
 async function installs(url, env, now) {
-  const q = (url.searchParams.get('q') ?? '').trim().slice(0, 50), like = `%${q.replace(/[\\%_]/g, '\\$&')}%`;
+  const q = (url.searchParams.get('q') ?? '').trim().slice(0, 50),
+    like = `%${q.replace(/[\\%_]/g, '\\$&')}%`;
   const limit = Math.min(200, Math.max(1, Number.parseInt(url.searchParams.get('limit'), 10) || 50));
   const offset = Math.max(0, Number.parseInt(url.searchParams.get('offset'), 10) || 0);
   const [total, rows] = await Promise.all([
@@ -354,25 +475,43 @@ async function installs(url, env, now) {
     env.DB.prepare(`${LIST} ORDER BY first_seen DESC, id LIMIT ?3 OFFSET ?4`).bind(q, like, limit, offset).all(),
   ]);
   const since = iso(now - ONLINE_MS);
-  return json({ total: total.n, limit, offset, installs: rows.results.map((r) => {
-    const online = r.is_open === 1 && r.last_seen > since;
-    return {
-      id: r.id, version: r.version, installed: r.installed === 1, open: r.is_open === 1, online,
-      live: online && (r.kick_live === 1 || r.twitch_live === 1),
-      kick: channel(r.kick_name, r.kick_picture, r.kick_live), twitch: channel(r.twitch_name, r.twitch_picture, r.twitch_live),
-      firstSeen: r.first_seen, lastSeen: r.last_seen, privacy: { version: r.privacy_version, acceptedAt: r.privacy_accepted_at }, diag: diag(r),
-    };
-  }) });
+  return json({
+    total: total.n,
+    limit,
+    offset,
+    installs: rows.results.map((r) => {
+      const online = r.is_open === 1 && r.last_seen > since;
+      return {
+        id: r.id,
+        version: r.version,
+        installed: r.installed === 1,
+        open: r.is_open === 1,
+        online,
+        live: online && (r.kick_live === 1 || r.twitch_live === 1),
+        kick: channel(r.kick_name, r.kick_picture, r.kick_live),
+        twitch: channel(r.twitch_name, r.twitch_picture, r.twitch_live),
+        firstSeen: r.first_seen,
+        lastSeen: r.last_seen,
+        privacy: { version: r.privacy_version, acceptedAt: r.privacy_accepted_at },
+        diag: diag(r),
+      };
+    }),
+  });
 }
 
 // One repo's releases; downloads: the installer's.
 async function github(repo) {
-  const r = await fetch(`https://api.github.com/repos/${repo}/releases?per_page=100`,
-    { headers: { accept: 'application/vnd.github+json', 'user-agent': 'jarchi-relay' } }).catch(() => null);
+  const r = await fetch(`https://api.github.com/repos/${repo}/releases?per_page=100`, {
+    headers: { accept: 'application/vnd.github+json', 'user-agent': 'jarchi-relay' },
+  }).catch(() => null);
   const list = r?.ok ? await r.json().catch(() => null) : null;
   if (!Array.isArray(list)) throw new Error(`GitHub (${repo}): ${r ? r.status : 'unreachable'}`);
   return list.map((rel) => ({
-    repo, tag: rel.tag_name, name: rel.name, publishedAt: rel.published_at, prerelease: rel.prerelease,
+    repo,
+    tag: rel.tag_name,
+    name: rel.name,
+    publishedAt: rel.published_at,
+    prerelease: rel.prerelease,
     downloads: rel.assets.filter((a) => a.name === INSTALLER).reduce((n, a) => n + a.download_count, 0),
     files: rel.assets.map((a) => ({ name: a.name, size: a.size, downloads: a.download_count })),
   }));
@@ -393,8 +532,10 @@ async function downloads() {
 }
 
 async function remove(env, id) {
-  const [, { meta }] = await env.DB.batch([env.DB.prepare('DELETE FROM team_message_views WHERE install_id = ?1').bind(id),
-    env.DB.prepare('DELETE FROM installs WHERE id = ?1').bind(id)]);
+  const [, { meta }] = await env.DB.batch([
+    env.DB.prepare('DELETE FROM team_message_views WHERE install_id = ?1').bind(id),
+    env.DB.prepare('DELETE FROM installs WHERE id = ?1').bind(id),
+  ]);
   return meta.changes ? json({ deleted: id }) : text('Not found', 404);
 }
 
@@ -420,13 +561,20 @@ async function remove(env, id) {
 // not_closed, ticket_limit, message_limit, storage (KV refused it).
 // ponytail: KV's free plan takes 1,000 writes a day (one per screenshot) and 1 GB in all; past that its puts fail
 // ("storage") until the next day / until old tickets are deleted in the admin app.
-const CATEGORIES = ['bug', 'suggestion', 'question', 'data', 'crypto'], STATUSES = ['open', 'progress', 'closed'];
-const TICKETS_MAX = 5, MESSAGES_MAX = 30, HOUR_MS = 60 * 60 * 1000;
-const SUBJECT_MAX = 120, TEXT_MAX = 5000, SHOTS_MAX = 3, SHOT_BYTES = 2 * 1024 * 1024;
+const CATEGORIES = ['bug', 'suggestion', 'question', 'data', 'crypto'],
+  STATUSES = ['open', 'progress', 'closed'];
+const TICKETS_MAX = 5,
+  MESSAGES_MAX = 30,
+  HOUR_MS = 60 * 60 * 1000;
+const SUBJECT_MAX = 120,
+  TEXT_MAX = 5000,
+  SHOTS_MAX = 3,
+  SHOT_BYTES = 2 * 1024 * 1024;
 const FORM_BYTES = SHOTS_MAX * SHOT_BYTES + 64 * 1024; // the screenshots, the text and the form's own lines
 const TICKET_PATH = /^\/(?:support|admin)\/tickets(?:\/([0-9A-F]{8})(?:\/(messages)|\/images\/([0-9a-f]{32}\.(?:png|jpg|webp)))?)?$/;
 const SHOT_TYPES = { png: 'image/png', jpg: 'image/jpeg', webp: 'image/webp' };
-const MAGIC = { // each type's first bytes (null: any)
+const MAGIC = {
+  // each type's first bytes (null: any)
   png: [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a],
   jpg: [0xff, 0xd8, 0xff],
   webp: [0x52, 0x49, 0x46, 0x46, null, null, null, null, 0x57, 0x45, 0x42, 0x50],
@@ -436,14 +584,17 @@ const fail = (error, status = 400) => json({ error }, status);
 const random = (bytes) => hex(crypto.getRandomValues(new Uint8Array(bytes)));
 
 async function support(req, url, env) {
-  const install = req.headers.get('x-jarchi-install') ?? '', token = /^Bearer ([0-9a-f]{64})$/.exec(req.headers.get('authorization') ?? '')?.[1];
+  const install = req.headers.get('x-jarchi-install') ?? '',
+    token = /^Bearer ([0-9a-f]{64})$/.exec(req.headers.get('authorization') ?? '')?.[1];
   if (!UUID.test(install) || !token) return fail('unauthorized', 401);
   return tickets(req, url, env, { install, token: hex(await sha256(token)) });
 }
 
 // Both sides' addresses. me: the asking install { install, token (its SHA-256) }, or null: the admin.
 async function tickets(req, url, env, me) {
-  const m = TICKET_PATH.exec(url.pathname), side = me ? 'user' : 'admin', method = req.method;
+  const m = TICKET_PATH.exec(url.pathname),
+    side = me ? 'user' : 'admin',
+    method = req.method;
   if (!m) return fail('not_found', 404);
   const [, id, messages, shot] = m;
   if (!id) {
@@ -451,7 +602,8 @@ async function tickets(req, url, env, me) {
     return method === 'POST' && me ? create(req, env, me) : fail('method', 405);
   }
   const t = await env.DB.prepare(`SELECT * FROM tickets WHERE id = ?1${me ? ' AND install_id = ?2 AND token_hash = ?3' : ''}`)
-    .bind(...(me ? [id, me.install, me.token] : [id])).first();
+    .bind(...(me ? [id, me.install, me.token] : [id]))
+    .first();
   if (!t) return fail('not_found', 404);
   if (messages) return method === 'POST' ? reply(req, env, t, side) : fail('method', 405);
   if (shot) return method === 'GET' ? image(env, id, shot) : fail('method', 405);
@@ -463,13 +615,25 @@ async function tickets(req, url, env, me) {
 
 // A ticket as a side sees it (the admin also sees whose it is). A list row also has its messages' count and unread: a
 // message from the other side newer than this side last opened it; and who wrote the last message and when.
-const UNREAD = (side) => `EXISTS (SELECT 1 FROM ticket_messages m WHERE m.ticket_id = t.id AND m.author != '${side}' AND m.created_at > COALESCE(t.${side}_read_at, ''))`;
+const UNREAD = (side) =>
+  `EXISTS (SELECT 1 FROM ticket_messages m WHERE m.ticket_id = t.id AND m.author != '${side}' AND m.created_at > COALESCE(t.${side}_read_at, ''))`;
 const LAST = (column) => `(SELECT m.${column} FROM ticket_messages m WHERE m.ticket_id = t.id ORDER BY m.id DESC LIMIT 1)`;
 const TICKET_LIST = (side) => `SELECT t.*, (SELECT COUNT(*) FROM ticket_messages m WHERE m.ticket_id = t.id) AS messages, ${UNREAD(side)} AS unread,
   ${LAST('author')} AS last_author, ${LAST('created_at')} AS last_message_at FROM tickets t`;
 const ticketOf = (r, side) => ({
-  id: r.id, category: r.category, subject: r.subject, status: r.status, createdAt: r.created_at, updatedAt: r.updated_at,
-  ...(side === 'admin' && { installId: r.install_id, kick: r.kick_name, twitch: r.twitch_name, hiddenByUser: !!r.hidden_by_user_at, hiddenByUserAt: r.hidden_by_user_at }),
+  id: r.id,
+  category: r.category,
+  subject: r.subject,
+  status: r.status,
+  createdAt: r.created_at,
+  updatedAt: r.updated_at,
+  ...(side === 'admin' && {
+    installId: r.install_id,
+    kick: r.kick_name,
+    twitch: r.twitch_name,
+    hiddenByUser: !!r.hidden_by_user_at,
+    hiddenByUserAt: r.hidden_by_user_at,
+  }),
   ...('unread' in r && { messages: r.messages, unread: r.unread === 1, lastAuthor: r.last_author, lastMessageAt: r.last_message_at }),
   // The install's read receipt: when the team last opened it in the admin app (GET /admin/tickets/<id>), null: never.
   // ponytail: the latest opening, not the first after the install's message; a column of its own if that matters.
@@ -477,17 +641,23 @@ const ticketOf = (r, side) => ({
 });
 
 async function mine(env, me) {
-  const { results } = await env.DB.prepare(`${TICKET_LIST('user')} WHERE t.install_id = ?1 AND t.token_hash = ?2 AND t.hidden_by_user_at IS NULL ORDER BY t.updated_at DESC, t.id`)
-    .bind(me.install, me.token).all();
+  const { results } = await env.DB.prepare(
+    `${TICKET_LIST('user')} WHERE t.install_id = ?1 AND t.token_hash = ?2 AND t.hidden_by_user_at IS NULL ORDER BY t.updated_at DESC, t.id`,
+  )
+    .bind(me.install, me.token)
+    .all();
   return json(results.map((r) => ticketOf(r, 'user')));
 }
 
 // ponytail: every ticket in one answer; page it (?limit, ?offset like /admin/installs) if there are ever thousands.
 async function all(url, env) {
-  const status = url.searchParams.get('status') || null, category = url.searchParams.get('category') || null;
+  const status = url.searchParams.get('status') || null,
+    category = url.searchParams.get('category') || null;
   if ((status && !STATUSES.includes(status)) || (category && !CATEGORIES.includes(category))) return fail('bad_request');
   const [{ results }, unread] = await Promise.all([
-    env.DB.prepare(`${TICKET_LIST('admin')} WHERE (?1 IS NULL OR t.status = ?1) AND (?2 IS NULL OR t.category = ?2) ORDER BY t.updated_at DESC, t.id`).bind(status, category).all(),
+    env.DB.prepare(`${TICKET_LIST('admin')} WHERE (?1 IS NULL OR t.status = ?1) AND (?2 IS NULL OR t.category = ?2) ORDER BY t.updated_at DESC, t.id`)
+      .bind(status, category)
+      .all(),
     env.DB.prepare(`SELECT COUNT(*) AS n FROM tickets t WHERE ${UNREAD('admin')}`).first(),
   ]);
   return json({ unread: unread.n, tickets: results.map((r) => ticketOf(r, 'admin')) });
@@ -498,14 +668,18 @@ const LIMITS = `SELECT EXISTS (SELECT 1 FROM installs WHERE id = ?1) AS known,
   EXISTS (SELECT 1 FROM tickets WHERE install_id = ?1 AND token_hash != ?2) AS taken,
   (SELECT COUNT(*) FROM tickets WHERE install_id = ?1 AND created_at > ?3) AS tickets,
   (SELECT COUNT(*) FROM ticket_messages m JOIN tickets t ON t.id = m.ticket_id WHERE t.install_id = ?1 AND m.author = 'user' AND m.created_at > ?4) AS messages`;
-const limits = (env, install, token, now) => env.DB.prepare(LIMITS).bind(install, token, iso(now - DAY_MS), iso(now - HOUR_MS)).first();
+const limits = (env, install, token, now) =>
+  env.DB.prepare(LIMITS)
+    .bind(install, token, iso(now - DAY_MS), iso(now - HOUR_MS))
+    .first();
 // A new ticket, with the install's channels from its last ping.
 const NEW_TICKET = `INSERT INTO tickets (id, install_id, token_hash, kick_name, twitch_name, category, subject, status, created_at, updated_at)
 SELECT ?1, id, ?3, kick_name, twitch_name, ?4, ?5, 'open', ?6, ?6 FROM installs WHERE id = ?2`;
 const NEW_MESSAGE = 'INSERT INTO ticket_messages (ticket_id, author, body, images, created_at) VALUES (?1, ?2, ?3, ?4, ?5)';
 
 async function create(req, env, me) {
-  const now = Date.now(), l = await limits(env, me.install, me.token, now);
+  const now = Date.now(),
+    l = await limits(env, me.install, me.token, now);
   if (!l.known) return fail('unknown_install', 403);
   if (l.taken) return fail('unauthorized', 401);
   if (l.tickets >= TICKETS_MAX) return fail('ticket_limit', 429);
@@ -539,11 +713,16 @@ async function form(req, names) {
   const body = await capped(req, FORM_BYTES);
   if (body === null) return fail('too_large', 413);
   let data;
-  try { data = await new Response(body, { headers: { 'content-type': type } }).formData(); } catch { return fail('bad_request'); }
+  try {
+    data = await new Response(body, { headers: { 'content-type': type } }).formData();
+  } catch {
+    return fail('bad_request');
+  }
   const f = { shots: [] };
   for (const [k, v] of data) {
     if (k === 'image' && typeof v !== 'string') {
-      const bytes = new Uint8Array(await v.arrayBuffer()), ext = shotType(bytes);
+      const bytes = new Uint8Array(await v.arrayBuffer()),
+        ext = shotType(bytes);
       if (bytes.length > SHOT_BYTES) return fail('image_too_large', 413);
       if (!ext) return fail('bad_image');
       f.shots.push({ bytes, ext });
@@ -557,15 +736,19 @@ async function form(req, names) {
 // then `first` (a new ticket's row) and the message together. Nothing is kept when either fails. -> null, or the
 // error's Response.
 async function save(env, id, author, body, shots, first = []) {
-  const names = shots.map((s) => `${random(16)}.${s.ext}`), at = iso(Date.now());
+  const names = shots.map((s) => `${random(16)}.${s.ext}`),
+    at = iso(Date.now());
   try {
     await Promise.all(shots.map((s, i) => env.SHOTS.put(`${id}/${names[i]}`, s.bytes)));
   } catch {
     await dropShots(env, id, names);
     return fail('storage', 503);
   }
-  await env.DB.batch([...first, env.DB.prepare(NEW_MESSAGE).bind(id, author, body, JSON.stringify(names), at),
-    env.DB.prepare('UPDATE tickets SET updated_at = ?2 WHERE id = ?1').bind(id, at)]).catch(async (err) => {
+  await env.DB.batch([
+    ...first,
+    env.DB.prepare(NEW_MESSAGE).bind(id, author, body, JSON.stringify(names), at),
+    env.DB.prepare('UPDATE tickets SET updated_at = ?2 WHERE id = ?1').bind(id, at),
+  ]).catch(async (err) => {
     await dropShots(env, id, names);
     throw err;
   });
@@ -586,9 +769,13 @@ async function thread(env, id, side) {
 async function image(env, id, name) {
   const body = await env.SHOTS.get(`${id}/${name}`, 'arrayBuffer');
   if (!body) return fail('not_found', 404);
-  return new Response(body, { headers: {
-    'content-type': SHOT_TYPES[name.split('.')[1]], 'x-content-type-options': 'nosniff', 'cache-control': 'private, max-age=31536000, immutable',
-  } });
+  return new Response(body, {
+    headers: {
+      'content-type': SHOT_TYPES[name.split('.')[1]],
+      'x-content-type-options': 'nosniff',
+      'cache-control': 'private, max-age=31536000, immutable',
+    },
+  });
 }
 
 async function setStatus(req, env, id) {
@@ -596,7 +783,8 @@ async function setStatus(req, env, id) {
   if (!exactly(b, ['status']) || !STATUSES.includes(b.status)) return fail('bad_request');
   // Hidden only while closed: reopened, it's back on the install's list.
   await env.DB.prepare("UPDATE tickets SET status = ?2, updated_at = ?3, hidden_by_user_at = CASE WHEN ?2 = 'closed' THEN hidden_by_user_at END WHERE id = ?1")
-    .bind(id, b.status, iso(Date.now())).run();
+    .bind(id, b.status, iso(Date.now()))
+    .run();
   return thread(env, id, 'admin');
 }
 
@@ -611,8 +799,15 @@ async function hide(req, env, t) {
 
 async function deleteTicket(env, id) {
   const { results } = await env.DB.prepare('SELECT images FROM ticket_messages WHERE ticket_id = ?1').bind(id).all();
-  await dropShots(env, id, results.flatMap((m) => JSON.parse(m.images)));
-  await env.DB.batch([env.DB.prepare('DELETE FROM ticket_messages WHERE ticket_id = ?1').bind(id), env.DB.prepare('DELETE FROM tickets WHERE id = ?1').bind(id)]);
+  await dropShots(
+    env,
+    id,
+    results.flatMap((m) => JSON.parse(m.images)),
+  );
+  await env.DB.batch([
+    env.DB.prepare('DELETE FROM ticket_messages WHERE ticket_id = ?1').bind(id),
+    env.DB.prepare('DELETE FROM tickets WHERE id = ?1').bind(id),
+  ]);
   return json({ deleted: id });
 }
 
@@ -635,7 +830,8 @@ async function deleteTicket(env, id) {
 // ever gets it. A Jarchi older than DESIGN_FROM gets it as a gift (its code and Copy), the style it knows. Plain text only: < > and control characters (but a body's
 // line ends) are refused, so no HTML is ever stored or sent; trimmed, line ends \n, a title or label on one line.
 // ponytail: every message in one admin answer, no paging; page it like /admin/installs if there are ever hundreds.
-const STYLES = ['info', 'update', 'warning', 'gift', 'design'], MESSAGE_KEYS = ['title', 'body', 'style', 'target', 'link', 'code', 'expiresAt'];
+const STYLES = ['info', 'update', 'warning', 'gift', 'design'],
+  MESSAGE_KEYS = ['title', 'body', 'style', 'target', 'link', 'code', 'expiresAt'];
 const DESIGN_FROM = [1, 0, 8]; // the first Jarchi that knows a design message
 // "1.0.7" (or "1.0.8-beta") is older than [1, 0, 8]?
 const older = (v, than) => {
@@ -643,9 +839,13 @@ const older = (v, than) => {
   const i = n.findIndex((x, k) => x !== than[k]);
   return i >= 0 && n[i] < than[i];
 };
-const TITLE_MAX = 120, BODY_MAX = 2000, LABEL_MAX = 40, CODE_MAX = 64;
+const TITLE_MAX = 120,
+  BODY_MAX = 2000,
+  LABEL_MAX = 40,
+  CODE_MAX = 64;
 const HTTPS = /^https:\/\/[^\s<>"]{1,490}$/;
-const ADMIN_MESSAGE = /^\/admin\/messages(?:\/(\d{1,15}))?$/, MY_MESSAGE = /^\/messages(?:\/(\d{1,15})\/(seen|closed))?$/;
+const ADMIN_MESSAGE = /^\/admin\/messages(?:\/(\d{1,15}))?$/,
+  MY_MESSAGE = /^\/messages(?:\/(\d{1,15})\/(seen|closed))?$/;
 const is = (re, v) => typeof v === 'string' && re.test(v);
 // A text as stored, or null: not a string, empty, too long, HTML (< >) or control characters (but \n in a body).
 const plain = (v, max, oneLine) => {
@@ -659,13 +859,28 @@ const both = (o, max, oneLine) => (exactly(o, ['en', 'fa']) ? [plain(o.en, max, 
 // expires, code), or null.
 function messageIn(b) {
   if (!b || typeof b !== 'object' || Array.isArray(b) || !Object.keys(b).every((k) => MESSAGE_KEYS.includes(k))) return null;
-  const t = b.target, l = b.link ?? null, expires = b.expiresAt ?? null, code = b.code ?? null;
-  const target = t === 'all' || t === 'dev' ? [t, null]
-    : exactly(t, ['version']) && is(VERSION, t.version) ? ['version', t.version]
-    : exactly(t, ['install']) && is(UUID, t.install) ? ['install', t.install] : null;
-  if (!target || !STYLES.includes(b.style) || (l !== null && !(exactly(l, ['label', 'url']) && is(HTTPS, l.url)))
-    || (expires !== null && !(is(ISO, expires) && !Number.isNaN(Date.parse(expires))))) return null;
-  const title = both(b.title, TITLE_MAX, true), body = both(b.body, BODY_MAX, false), label = l ? both(l.label, LABEL_MAX, true) : [null, null];
+  const t = b.target,
+    l = b.link ?? null,
+    expires = b.expiresAt ?? null,
+    code = b.code ?? null;
+  const target =
+    t === 'all' || t === 'dev'
+      ? [t, null]
+      : exactly(t, ['version']) && is(VERSION, t.version)
+        ? ['version', t.version]
+        : exactly(t, ['install']) && is(UUID, t.install)
+          ? ['install', t.install]
+          : null;
+  if (
+    !target ||
+    !STYLES.includes(b.style) ||
+    (l !== null && !(exactly(l, ['label', 'url']) && is(HTTPS, l.url))) ||
+    (expires !== null && !(is(ISO, expires) && !Number.isNaN(Date.parse(expires))))
+  )
+    return null;
+  const title = both(b.title, TITLE_MAX, true),
+    body = both(b.body, BODY_MAX, false),
+    label = l ? both(l.label, LABEL_MAX, true) : [null, null];
   const kept = code === null ? null : plain(code, CODE_MAX, true);
   if ([...title, ...body, ...(l ? label : [])].includes(null) || (code !== null && kept === null)) return null;
   if (b.style === 'design' && (target[0] !== 'install' || kept === null)) return null; // one install's, with its code
@@ -673,13 +888,23 @@ function messageIn(b) {
 }
 
 const teamMessageOf = (r) => ({
-  id: r.id, title: { en: r.title_en, fa: r.title_fa }, body: { en: r.body_en, fa: r.body_fa },
+  id: r.id,
+  title: { en: r.title_en, fa: r.title_fa },
+  body: { en: r.body_en, fa: r.body_fa },
   link: r.link_url === null ? null : { label: { en: r.link_label_en, fa: r.link_label_fa }, url: r.link_url },
-  code: r.code, style: r.style, createdAt: r.created_at, expiresAt: r.expires_at,
+  code: r.code,
+  style: r.style,
+  createdAt: r.created_at,
+  expiresAt: r.expires_at,
 });
 // The admin also sees whom it's for, whether it's active and how many installs saw / closed it.
-const teamAdminOf = (r) => ({ ...teamMessageOf(r), target: r.target_value === null ? r.target : { [r.target]: r.target_value },
-  active: r.active === 1, seenBy: r.seen_by, closedBy: r.closed_by });
+const teamAdminOf = (r) => ({
+  ...teamMessageOf(r),
+  target: r.target_value === null ? r.target : { [r.target]: r.target_value },
+  active: r.active === 1,
+  seenBy: r.seen_by,
+  closedBy: r.closed_by,
+});
 const VIEWS = `SELECT m.*, COUNT(v.install_id) AS seen_by, COUNT(v.closed_at) AS closed_by FROM team_messages m
   LEFT JOIN team_message_views v ON v.message_id = m.id`;
 const NEW_TEAM_MESSAGE = `INSERT INTO team_messages (title_en, title_fa, body_en, body_fa, link_label_en, link_label_fa, link_url,
@@ -688,14 +913,22 @@ const NEW_TEAM_MESSAGE = `INSERT INTO team_messages (title_en, title_fa, body_en
 const teamMessage = async (env, id) => json(teamAdminOf(await env.DB.prepare(`${VIEWS} WHERE m.id = ?1 GROUP BY m.id`).bind(id).first()));
 
 async function teamAdmin(req, url, env) {
-  const m = ADMIN_MESSAGE.exec(url.pathname), method = req.method;
+  const m = ADMIN_MESSAGE.exec(url.pathname),
+    method = req.method;
   if (!m) return fail('not_found', 404);
   if (m[1] === undefined) {
     if (method === 'GET') return json((await env.DB.prepare(`${VIEWS} GROUP BY m.id ORDER BY m.id DESC`).all()).results.map(teamAdminOf));
     if (method !== 'POST') return fail('method', 405);
     const cols = messageIn(await req.json().catch(() => null));
     if (!cols) return fail('bad_request');
-    return teamMessage(env, (await env.DB.prepare(NEW_TEAM_MESSAGE).bind(...cols, iso(Date.now())).first()).id);
+    return teamMessage(
+      env,
+      (
+        await env.DB.prepare(NEW_TEAM_MESSAGE)
+          .bind(...cols, iso(Date.now()))
+          .first()
+      ).id,
+    );
   }
   const id = Number(m[1]);
   if (method === 'PATCH') {
@@ -705,8 +938,10 @@ async function teamAdmin(req, url, env) {
     return meta.changes ? teamMessage(env, id) : fail('not_found', 404);
   }
   if (method !== 'DELETE') return fail('method', 405);
-  const [, { meta }] = await env.DB.batch([env.DB.prepare('DELETE FROM team_message_views WHERE message_id = ?1').bind(id),
-    env.DB.prepare('DELETE FROM team_messages WHERE id = ?1').bind(id)]);
+  const [, { meta }] = await env.DB.batch([
+    env.DB.prepare('DELETE FROM team_message_views WHERE message_id = ?1').bind(id),
+    env.DB.prepare('DELETE FROM team_messages WHERE id = ?1').bind(id),
+  ]);
   return meta.changes ? json({ deleted: id }) : fail('not_found', 404);
 }
 
@@ -724,12 +959,23 @@ async function teamMessages(req, url, env) {
   const m = MY_MESSAGE.exec(url.pathname);
   if (!m) return fail('not_found', 404);
   if (req.method !== (m[1] ? 'POST' : 'GET')) return fail('method', 405);
-  const install = req.headers.get('x-jarchi-install') ?? '', version = url.searchParams.get('version') ?? '', installed = url.searchParams.get('installed');
+  const install = req.headers.get('x-jarchi-install') ?? '',
+    version = url.searchParams.get('version') ?? '',
+    installed = url.searchParams.get('installed');
   if (!UUID.test(install) || !VERSION.test(version) || !['0', '1'].includes(installed)) return fail('bad_request');
   const me = [install, version, Number(installed), iso(Date.now())];
   const style = (s) => (s === 'design' && older(version, DESIGN_FROM) ? 'gift' : s);
-  if (!m[1]) return json((await env.DB.prepare(MINE).bind(...me).all()).results.map((r) => ({ ...teamMessageOf(r), style: style(r.style), seen: r.seen_at !== null })));
-  const { meta } = await env.DB.prepare(MARK).bind(...me, Number(m[1]), m[2] === 'closed' ? me[3] : null).run();
+  if (!m[1])
+    return json(
+      (
+        await env.DB.prepare(MINE)
+          .bind(...me)
+          .all()
+      ).results.map((r) => ({ ...teamMessageOf(r), style: style(r.style), seen: r.seen_at !== null })),
+    );
+  const { meta } = await env.DB.prepare(MARK)
+    .bind(...me, Number(m[1]), m[2] === 'closed' ? me[3] : null)
+    .run();
   return meta.changes ? json({ [m[2]]: Number(m[1]) }) : fail('not_found', 404);
 }
 
@@ -753,8 +999,10 @@ async function teamMessages(req, url, env) {
 // A code: 8 of CODE_CHARS, shown as XXXX-XXXX; - and spaces don't count, nor does upper or lower case. Errors are JSON
 // { error }: bad_request, unknown_install, bad_code, rate, not_found, method.
 const CODE_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; // 31, no 0 O 1 I L
-const REDEEM_MAX = 10, NOTE_MAX = 80;
-const DESIGN_PATH = /^\/designs(?:\/(redeem|x-[a-z0-9-]{1,30}))?$/, ADMIN_CODE = /^\/admin\/codes(?:\/([0-9a-f]{12}))?$/;
+const REDEEM_MAX = 10,
+  NOTE_MAX = 80;
+const DESIGN_PATH = /^\/designs(?:\/(redeem|x-[a-z0-9-]{1,30}))?$/,
+  ADMIN_CODE = /^\/admin\/codes(?:\/([0-9a-f]{12}))?$/;
 const codeOf = (v) => (typeof v === 'string' ? v.toUpperCase().replace(/[\s-]/g, '') : '');
 const codeOk = (c) => c.length === 8 && [...c].every((ch) => CODE_CHARS.includes(ch));
 function newCode() {
@@ -766,7 +1014,15 @@ function newCode() {
   return `${c.slice(0, 4)}-${c.slice(4)}`;
 }
 const nameOf = (r) => ({ en: r.name_en, fa: r.name_fa });
-const codeRowOf = (r) => ({ id: r.code_hash.slice(0, 12), design: r.design_id, note: r.note, createdAt: r.created_at, install: r.install_id, redeemedAt: r.redeemed_at, revokedAt: r.revoked_at });
+const codeRowOf = (r) => ({
+  id: r.code_hash.slice(0, 12),
+  design: r.design_id,
+  note: r.note,
+  createdAt: r.created_at,
+  install: r.install_id,
+  redeemedAt: r.redeemed_at,
+  revokedAt: r.revoked_at,
+});
 const MINE_DESIGN = 'EXISTS (SELECT 1 FROM design_codes c WHERE c.design_id = d.id AND c.install_id = ?1)';
 // A try counted in the install's window (a new one once an hour has passed); the count after it.
 const TRY = `INSERT INTO redeem_tries (install_id, window_start, tries) VALUES (?1, ?2, 1)
@@ -780,21 +1036,31 @@ const REDEEM = `UPDATE design_codes SET install_id = ?1, redeemed_at = COALESCE(
 WHERE code_hash = ?2 AND (install_id IS NULL OR install_id = ?1) AND revoked_at IS NULL RETURNING design_id`;
 
 async function designs(req, url, env) {
-  const m = DESIGN_PATH.exec(url.pathname), install = req.headers.get('x-jarchi-install') ?? '';
+  const m = DESIGN_PATH.exec(url.pathname),
+    install = req.headers.get('x-jarchi-install') ?? '';
   if (!m) return fail('not_found', 404);
   if (req.method !== (m[1] === 'redeem' ? 'POST' : 'GET')) return fail('method', 405);
   if (!UUID.test(install)) return fail('bad_request');
   if (!(await env.DB.prepare('SELECT 1 FROM installs WHERE id = ?1').bind(install).first())) return fail('unknown_install', 403);
   if (m[1] === 'redeem') {
-    const now = Date.now(), { tries } = await env.DB.prepare(TRY).bind(install, now, HOUR_MS).first();
+    const now = Date.now(),
+      { tries } = await env.DB.prepare(TRY).bind(install, now, HOUR_MS).first();
     if (tries > REDEEM_MAX) return fail('rate', 429);
     const code = codeOf((await req.json().catch(() => null))?.code);
     if (!codeOk(code)) return fail('bad_code', 404);
-    const got = await env.DB.prepare(REDEEM).bind(install, hex(await sha256(code)), iso(now)).first();
+    const got = await env.DB.prepare(REDEEM)
+      .bind(install, hex(await sha256(code)), iso(now))
+      .first();
     const d = got && (await env.DB.prepare('SELECT * FROM designs WHERE id = ?1').bind(got.design_id).first());
     return d ? json({ id: d.id, name: nameOf(d) }) : fail('bad_code', 404);
   }
-  if (!m[1]) return json((await env.DB.prepare(`SELECT d.* FROM designs d WHERE ${MINE_DESIGN} ORDER BY d.id`).bind(install).all()).results.map((d) => ({ id: d.id, name: nameOf(d) })));
+  if (!m[1])
+    return json(
+      (await env.DB.prepare(`SELECT d.* FROM designs d WHERE ${MINE_DESIGN} ORDER BY d.id`).bind(install).all()).results.map((d) => ({
+        id: d.id,
+        name: nameOf(d),
+      })),
+    );
   const d = await env.DB.prepare(`SELECT d.* FROM designs d WHERE d.id = ?2 AND ${MINE_DESIGN}`).bind(install, m[1]).first();
   if (!d) return fail('not_found', 404);
   const { look, css } = JSON.parse(d.data);
@@ -807,22 +1073,43 @@ async function codesAdmin(req, url, env) {
   if (id[1]) {
     if (req.method !== 'DELETE') return fail('method', 405);
     const r = await env.DB.prepare('UPDATE design_codes SET revoked_at = COALESCE(revoked_at, ?2) WHERE substr(code_hash, 1, 12) = ?1 RETURNING *')
-      .bind(id[1], iso(Date.now())).first();
+      .bind(id[1], iso(Date.now()))
+      .first();
     return r ? json(codeRowOf(r)) : fail('not_found', 404);
   }
   if (req.method === 'GET') return json((await env.DB.prepare('SELECT * FROM design_codes ORDER BY created_at DESC, code_hash').all()).results.map(codeRowOf));
   if (req.method !== 'POST') return fail('method', 405);
-  const b = await req.json().catch(() => null), note = b?.note ?? null;
+  const b = await req.json().catch(() => null),
+    note = b?.note ?? null;
   const kept = note === null ? null : plain(note, NOTE_MAX, true);
-  if (!b || typeof b !== 'object' || !Object.keys(b).every((k) => ['design', 'note'].includes(k)) || (note !== null && kept === null)
-    || !(typeof b.design === 'string' && (await env.DB.prepare('SELECT 1 FROM designs WHERE id = ?1').bind(b.design).first()))) return fail('bad_request');
-  const code = newCode(), hash = hex(await sha256(codeOf(code))), row = [hash, b.design, kept, iso(Date.now())];
-  await env.DB.prepare('INSERT INTO design_codes (code_hash, design_id, note, created_at) VALUES (?1, ?2, ?3, ?4)').bind(...row).run();
-  return json({ code, ...codeRowOf({ code_hash: hash, design_id: b.design, note: kept, created_at: row[3], install_id: null, redeemed_at: null, revoked_at: null }) });
+  if (
+    !b ||
+    typeof b !== 'object' ||
+    !Object.keys(b).every((k) => ['design', 'note'].includes(k)) ||
+    (note !== null && kept === null) ||
+    !(typeof b.design === 'string' && (await env.DB.prepare('SELECT 1 FROM designs WHERE id = ?1').bind(b.design).first()))
+  )
+    return fail('bad_request');
+  const code = newCode(),
+    hash = hex(await sha256(codeOf(code))),
+    row = [hash, b.design, kept, iso(Date.now())];
+  await env.DB.prepare('INSERT INTO design_codes (code_hash, design_id, note, created_at) VALUES (?1, ?2, ?3, ?4)')
+    .bind(...row)
+    .run();
+  return json({
+    code,
+    ...codeRowOf({ code_hash: hash, design_id: b.design, note: kept, created_at: row[3], install_id: null, redeemed_at: null, revoked_at: null }),
+  });
 }
 
-const designsAdmin = async (env) => json((await env.DB.prepare('SELECT id, name_en, name_fa, created_at FROM designs ORDER BY created_at DESC, id').all())
-  .results.map((d) => ({ id: d.id, name: nameOf(d), createdAt: d.created_at })));
+const designsAdmin = async (env) =>
+  json(
+    (await env.DB.prepare('SELECT id, name_en, name_fa, created_at FROM designs ORDER BY created_at DESC, id').all()).results.map((d) => ({
+      id: d.id,
+      name: nameOf(d),
+      createdAt: d.created_at,
+    })),
+  );
 
 // One channel: the Jarchi sockets open for it (usually one), handed each of its events. Hibernates between them; the
 // keepalive ("ping" -> "pong") is answered without waking it.
@@ -840,7 +1127,9 @@ export class Room {
     }
     const event = await req.text();
     for (const ws of this.ctx.getWebSockets()) {
-      try { ws.send(event); } catch {} // one closing just now
+      try {
+        ws.send(event);
+      } catch {} // one closing just now
     }
     return text('ok');
   }
@@ -848,6 +1137,8 @@ export class Room {
   webSocketMessage() {} // Jarchi sends nothing else
 
   webSocketClose(ws) {
-    try { ws.close(); } catch {}
+    try {
+      ws.close();
+    } catch {}
   }
 }

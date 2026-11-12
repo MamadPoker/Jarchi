@@ -30,7 +30,11 @@ function parseWindows(enable, server) {
   if (!enable || !server) return null;
   if (!server.includes('=')) return { type: 'http', ...hostPort(server) };
   const by = Object.fromEntries(server.split(';').map((kv) => kv.split('=').map((s) => s.trim().toLowerCase())));
-  for (const [scheme, type] of [['https', 'http'], ['http', 'http'], ['socks', 'socks5']]) {
+  for (const [scheme, type] of [
+    ['https', 'http'],
+    ['http', 'http'],
+    ['socks', 'socks5'],
+  ]) {
     const hp = by[scheme] && hostPort(by[scheme]);
     if (hp) return { type, ...hp };
   }
@@ -64,7 +68,11 @@ function connect(host, port) {
   return new Promise((resolve, reject) => {
     const s = net.connect({ host, port });
     s.setTimeout(TIMEOUT, () => s.destroy(fail('ETIMEDOUT', 'timeout')));
-    s.once('connect', () => { s.setTimeout(0); s.off('error', reject).on('error', () => {}); resolve(s); }); // later errors reach TLS / undici
+    s.once('connect', () => {
+      s.setTimeout(0);
+      s.off('error', reject).on('error', () => {});
+      resolve(s);
+    }); // later errors reach TLS / undici
     s.once('error', reject);
   });
 }
@@ -94,7 +102,12 @@ function reply(sock, size) {
 async function httpConnect(sock, host, port) {
   const target = net.isIPv6(host) ? `[${host}]:${port}` : `${host}:${port}`;
   sock.write(`CONNECT ${target} HTTP/1.1\r\nHost: ${target}\r\n\r\n`);
-  const head = (await reply(sock, (b) => { const i = b.indexOf('\r\n\r\n'); return i < 0 ? 0 : i + 4; })).toString('latin1');
+  const head = (
+    await reply(sock, (b) => {
+      const i = b.indexOf('\r\n\r\n');
+      return i < 0 ? 0 : i + 4;
+    })
+  ).toString('latin1');
   if (!/^HTTP\/1\.[01] 2\d\d/.test(head)) throw fail('proxy_refused', `proxy answered: ${head.split('\r\n')[0]}`);
 }
 
@@ -119,7 +132,9 @@ const LOCAL = /^(localhost|127(\.\d+){3}|::1)$/i;
 async function tunnel(host, port, via) {
   const p = LOCAL.test(host) ? null : via === undefined ? await current() : via;
   if (!p) return connect(host, port);
-  const sock = await connect(p.host, p.port).catch((err) => { throw fail('proxy_down', `can't reach the proxy at ${p.host}:${p.port} (${err.code ?? err.message})`); });
+  const sock = await connect(p.host, p.port).catch((err) => {
+    throw fail('proxy_down', `can't reach the proxy at ${p.host}:${p.port} (${err.code ?? err.message})`);
+  });
   try {
     await (p.type === 'socks5' ? socks5(sock, host, port) : httpConnect(sock, host, port));
   } catch (err) {
@@ -134,21 +149,32 @@ async function secure(host, port, alpn, via) {
   const raw = await tunnel(host, port, via);
   return new Promise((resolve, reject) => {
     const s = tls.connect({ socket: raw, servername: host, ALPNProtocols: alpn });
-    const failed = (err) => { raw.destroy(); reject(err); };
+    const failed = (err) => {
+      raw.destroy();
+      reject(err);
+    };
     s.setTimeout(TIMEOUT, () => s.destroy(fail('ETIMEDOUT', 'timeout'))); // filtered networks often drop the TLS hello
-    s.once('secureConnect', () => { s.setTimeout(0); s.off('error', failed); resolve(s); });
+    s.once('secureConnect', () => {
+      s.setTimeout(0);
+      s.off('error', failed);
+      resolve(s);
+    });
     s.once('error', failed);
   });
 }
 
 // fetch() and WebSocket everywhere in the app connect through tunnel(), in one pool of kept-open connections.
-const pool = () => new Agent({
-  connect(opts, cb) {
-    const https = opts.protocol === 'https:' || opts.protocol === 'wss:';
-    const port = Number(opts.port) || (https ? 443 : 80);
-    (https ? secure(opts.hostname, port, ['http/1.1']) : tunnel(opts.hostname, port)).then((s) => cb(null, s), (err) => cb(err, null));
-  },
-});
+const pool = () =>
+  new Agent({
+    connect(opts, cb) {
+      const https = opts.protocol === 'https:' || opts.protocol === 'wss:';
+      const port = Number(opts.port) || (https ? 443 : 80);
+      (https ? secure(opts.hostname, port, ['http/1.1']) : tunnel(opts.hostname, port)).then(
+        (s) => cb(null, s),
+        (err) => cb(err, null),
+      );
+    },
+  });
 let agent = pool();
 setGlobalDispatcher(agent);
 // The proxy setting changed: new requests take a new pool (the new setting); the old pool closes its kept-open connections
@@ -176,7 +202,9 @@ function hangUp(ws, ms = 3000) {
     fired = true;
     onclose?.call(ws, e);
   };
-  try { ws.close(); } catch {}
+  try {
+    ws.close();
+  } catch {}
   setTimeout(() => ws.onclose({ code: 1006, reason: 'no answer' }), ms).unref?.();
 }
 

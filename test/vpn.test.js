@@ -17,7 +17,10 @@ process.env.JARCHI_PORT = '3993';
 process.env.KICK_RELAY_URL = 'http://127.0.0.1:9'; // nothing there
 process.env.JARCHI_PAY_URL = 'http://127.0.0.1:9';
 // A 1.0.7 dev install that said Yes to v2rayN (Auto + proxyFound, settings v9).
-fs.writeFileSync(path.join(dataDir, 'settings.json'), JSON.stringify({ version: 9, proxyMode: 'auto', proxyFound: { app: 'v2rayN', type: 'socks5', host: '127.0.0.1', port: 10808 } }));
+fs.writeFileSync(
+  path.join(dataDir, 'settings.json'),
+  JSON.stringify({ version: 9, proxyMode: 'auto', proxyFound: { app: 'v2rayN', type: 'socks5', host: '127.0.0.1', port: 10808 } }),
+);
 
 test('help only offers: 30 s out of reach -> VPN offered; Yes checks, then Manual; No stops asking; none -> the guide', async (t) => {
   const { server, io } = require('../server');
@@ -30,7 +33,10 @@ test('help only offers: 30 s out of reach -> VPN offered; Yes checks, then Manua
   });
 
   // v9 -> v10: the Yes from before is Manual with that proxy; nothing else of it is kept.
-  const mode = () => { const s = settings.get(); return [s.proxyMode, s.proxyType, s.proxyHost, s.proxyPort]; };
+  const mode = () => {
+    const s = settings.get();
+    return [s.proxyMode, s.proxyType, s.proxyHost, s.proxyPort];
+  };
   assert.deepEqual(mode(), ['manual', 'socks5', '127.0.0.1', 10808]);
   assert.ok(!('proxyFound' in JSON.parse(fs.readFileSync(path.join(dataDir, 'settings.json'), 'utf8'))));
   settings.update({ proxyMode: 'off', proxyHost: '', proxyPort: 0 }, false);
@@ -43,29 +49,45 @@ test('help only offers: 30 s out of reach -> VPN offered; Yes checks, then Manua
   assert.match(page.headers.get('content-security-policy'), /default-src 'none'/);
 
   // What counts (server/index.js -> vpn.status): blocked and connecting do; not_found doesn't.
-  const told = [], status = vpn.status;
+  const told = [],
+    status = vpn.status;
   vpn.status = (...a) => told.push(a);
   const st = (kick) => chat.events.emit('status', { kick, twitch: { state: 'off', detail: '' } });
   st({ state: 'error', detail: 'blocked' });
   st({ state: 'connecting', detail: '' });
   st({ state: 'error', detail: 'not_found' });
   st({ state: 'connected', detail: '' });
-  assert.deepEqual(told.filter(([s]) => s === 'kick'), [['kick', false, true], ['kick', false, true], ['kick', false, false], ['kick', true, false]]);
+  assert.deepEqual(
+    told.filter(([s]) => s === 'kick'),
+    [
+      ['kick', false, true],
+      ['kick', false, true],
+      ['kick', false, false],
+      ['kick', true, false],
+    ],
+  );
   vpn.status = status;
   // From here on the test alone says how the connections are (this server has no channel, so it keeps saying off).
   for (const c of [chat, require('../connectors/kick-account'), require('../connectors/twitch-account')]) c.events.removeAllListeners('status');
 
   // Stand-ins: Kick refuses this network directly; through v2rayN's proxy it answers.
   const V2 = { app: 'v2rayN', type: 'socks5', host: '127.0.0.1', port: 10808 };
-  let through = null, look = { found: V2, system: null };
-  for (const s of Object.keys(vpn.CHECKS)) vpn.CHECKS[s] = async (via) => { if (!via || JSON.stringify(via) !== JSON.stringify(through)) throw new Error('blocked'); };
+  let through = null,
+    look = { found: V2, system: null };
+  for (const s of Object.keys(vpn.CHECKS))
+    vpn.CHECKS[s] = async (via) => {
+      if (!via || JSON.stringify(via) !== JSON.stringify(through)) throw new Error('blocked');
+    };
   vpn.find = async () => look;
-  require('../core/net').current = async () => { // not this PC's Windows proxy
+  require('../core/net').current = async () => {
+    // not this PC's Windows proxy
     const s = settings.get();
     return s.proxyMode === 'manual' ? { type: s.proxyType, host: s.proxyHost, port: s.proxyPort } : null;
   };
   const tick = () => new Promise((r) => setImmediate(r));
-  const flush = async () => { for (let i = 0; i < 20; i++) await tick(); };
+  const flush = async () => {
+    for (let i = 0; i < 20; i++) await tick();
+  };
   t.mock.timers.enable({ apis: ['setTimeout', 'Date'], now: Date.now() });
 
   // Off: still offered (help only), and nothing changes until Yes.

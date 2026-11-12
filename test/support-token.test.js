@@ -39,7 +39,8 @@ test("ticket token sealed at rest, never lost or replaced by a run that can't op
   // A run without that key: no token, no new one, the relay never asked; every save writes it back as it was.
   settings = start();
   assert.deepEqual([settings.supportToken(), settings.supportToken(true)], [null, null]);
-  const support = require('../core/support'), real = globalThis.fetch;
+  const support = require('../core/support'),
+    real = globalThis.fetch;
   globalThis.fetch = () => assert.fail('nothing goes to the relay');
   await assert.rejects(support.call('POST', '/support/tickets'), { code: 'support_failed' });
   assert.deepEqual(await (await support.call('GET', '/support/tickets')).json(), []);

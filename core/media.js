@@ -99,16 +99,20 @@ function tenor(url, html) {
 // that isn't an image, GIF, video or sound).
 async function download(link) {
   let url;
-  try { url = new URL(link); } catch {}
+  try {
+    url = new URL(link);
+  } catch {}
   if (!url || !/^https?:$/.test(url.protocol)) throw bad('bad_link');
   let name;
-  try { name = decodeURIComponent(url.pathname.split('/').filter(Boolean).pop() ?? ''); } catch {}
+  try {
+    name = decodeURIComponent(url.pathname.split('/').filter(Boolean).pop() ?? '');
+  } catch {}
   name ||= url.hostname;
   let files = giphy(url);
   if (!files) {
     const got = await get(url);
     if (sniff(got.buf)) return { buf: got.buf, name };
-    files = /html/i.test(got.type) ? giphy(got.url) ?? tenor(got.url, got.buf.toString('utf8')) : null; // a short link can end up on a page
+    files = /html/i.test(got.type) ? (giphy(got.url) ?? tenor(got.url, got.buf.toString('utf8'))) : null; // a short link can end up on a page
     if (!files?.length) throw bad('not_media');
   }
   // The page's GIF, else its video: the first one that downloads within 10 MB.

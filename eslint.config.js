@@ -11,6 +11,7 @@ module.exports = [
       'no-empty': ['error', { allowEmptyCatch: true }], // catch {}: "can't, and that's fine" (localStorage, a closed socket)
       'no-unused-vars': ['error', { args: 'none', caughtErrors: 'none', varsIgnorePattern: '^_', ignoreRestSiblings: true }], // Express knows an error handler by its 4 arguments
       'no-redeclare': ['error', { builtinGlobals: false }], // a top-level let open / viewport in a classic script is fine
+      'no-unexpected-multiline': 'off', // Prettier puts a long chain's [key]() on its own line (eslint-config-prettier turns it off too)
     },
   },
   {

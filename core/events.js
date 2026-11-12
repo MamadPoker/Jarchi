@@ -33,7 +33,10 @@ function emitEvent(e) {
   if (!PLATFORMS.includes(e.platform) || !TYPES.includes(e.type)) throw new Error(`bad event: ${e.platform}/${e.type}`);
   if (e.key) {
     const now = Date.now();
-    for (const [k, t] of seen) { if (now - t < DEDUPE_MS && seen.size < 5000) break; seen.delete(k); }
+    for (const [k, t] of seen) {
+      if (now - t < DEDUPE_MS && seen.size < 5000) break;
+      seen.delete(k);
+    }
     if (seen.has(e.key)) return null;
     seen.set(e.key, now);
   }
@@ -115,17 +118,28 @@ function chatMessage(m) {
     reply: m.reply?.name ? { name: String(m.reply.name).slice(0, 64), text: String(m.reply.text ?? '').slice(0, 300) } : null,
     user: {
       id: String(u.id ?? ''),
-      login: String(u.login ?? u.name ?? '').toLowerCase().slice(0, 64),
+      login: String(u.login ?? u.name ?? '')
+        .toLowerCase()
+        .slice(0, 64),
       name: String(u.name ?? u.login ?? '').slice(0, 64),
       color: /^#[0-9a-f]{6}$/i.test(u.color) ? u.color : null,
       avatar: https(u.avatar) ? u.avatar : null,
-      badges: (u.badges ?? []).slice(0, 8).map((b) => ({ type: b.type, name: String(b.name ?? ''), img: badgeImg(b.img) ? b.img : null, title: String(b.title ?? b.name ?? '') })),
+      badges: (u.badges ?? [])
+        .slice(0, 8)
+        .map((b) => ({ type: b.type, name: String(b.name ?? ''), img: badgeImg(b.img) ? b.img : null, title: String(b.title ?? b.name ?? '') })),
     },
-    parts: (m.parts ?? [{ t: 'text', v: m.text ?? '' }]).filter((p) => (p.t === 'emote' ? https(p.src) : p.t === 'cheer' ? Number.isInteger(p.gem) && Number.isInteger(p.amount) : p.t === 'text')).slice(0, 300),
-    event: CHAT_EVENTS.includes(m.event?.type) ? {
-      type: m.event.type, amount: count0(m.event.amount), months: count0(m.event.months),
-      gift: /^[a-z0-9_]{1,40}$/.test(m.event.gift ?? '') ? m.event.gift : null, name: String(m.event.name ?? '').slice(0, 40),
-    } : null,
+    parts: (m.parts ?? [{ t: 'text', v: m.text ?? '' }])
+      .filter((p) => (p.t === 'emote' ? https(p.src) : p.t === 'cheer' ? Number.isInteger(p.gem) && Number.isInteger(p.amount) : p.t === 'text'))
+      .slice(0, 300),
+    event: CHAT_EVENTS.includes(m.event?.type)
+      ? {
+          type: m.event.type,
+          amount: count0(m.event.amount),
+          months: count0(m.event.months),
+          gift: /^[a-z0-9_]{1,40}$/.test(m.event.gift ?? '') ? m.event.gift : null,
+          name: String(m.event.name ?? '').slice(0, 40),
+        }
+      : null,
   };
 }
 // { platform, messageId }: one message. { platform, userId }: everything a user said (ban / timeout). { platform }: the whole chat.
@@ -154,7 +168,9 @@ function logIncoming(platform, name, data) {
     const now = new Date();
     const time = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 23).replace('T', ' ');
     let lines = [];
-    try { lines = fs.readFileSync(LOG_FILE, 'utf8').split('\n').filter(Boolean); } catch {} // none yet
+    try {
+      lines = fs.readFileSync(LOG_FILE, 'utf8').split('\n').filter(Boolean);
+    } catch {} // none yet
     lines.push(redact(`${time} ${platform} ${name} ${typeof data === 'string' ? data : JSON.stringify(data)}`));
     fs.mkdirSync(path.dirname(LOG_FILE), { recursive: true });
     // ponytail: rewrites the whole (500-line) file per event; append and trim every ~100 lines if Kicks floods make it slow.
@@ -171,7 +187,8 @@ function logIncoming(platform, name, data) {
 let ahead = null; // [lowest, highest]
 function serverTime(sent, got, date) {
   if (!Number.isFinite(date)) return;
-  const low = sent - date - 1000, high = got - date;
+  const low = sent - date - 1000,
+    high = got - date;
   ahead = ahead && low <= ahead[1] && high >= ahead[0] ? [Math.max(low, ahead[0]), Math.min(high, ahead[1])] : [low, high];
 }
 const clockAhead = () => (ahead ? Math.round((ahead[0] + ahead[1]) / 2) : 0);
@@ -180,4 +197,20 @@ const clockAhead = () => (ahead ? Math.round((ahead[0] + ahead[1]) / 2) : 0);
 const clock = (t) => new Date(t - new Date(t).getTimezoneOffset() * 60000).toISOString().slice(11, 23);
 const step = (a, b) => `${b >= a ? '+' : '-'}${(Math.abs(b - a) / 1000).toFixed(2)}s`;
 
-module.exports = { bus, emitEvent, emitChat, chatMessage, emitChatClear, setConnected, connectedPlatforms, logIncoming, serverTime, clockAhead, today, clock, step, TYPES, PLATFORMS };
+module.exports = {
+  bus,
+  emitEvent,
+  emitChat,
+  chatMessage,
+  emitChatClear,
+  setConnected,
+  connectedPlatforms,
+  logIncoming,
+  serverTime,
+  clockAhead,
+  today,
+  clock,
+  step,
+  TYPES,
+  PLATFORMS,
+};

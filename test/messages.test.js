@@ -20,11 +20,19 @@ const ctx = { waitUntil() {} };
 
 test('relay team messages: targets, plain text, seen / closed, deactivate, expiry, delete', async (t) => {
   const { default: worker } = await import('../relay/worker.mjs');
-  const { db, DB } = d1(), env = { DB, ADMIN_KEY: KEY };
+  const { db, DB } = d1(),
+    env = { DB, ADMIN_KEY: KEY };
   t.mock.timers.enable({ apis: ['Date'], now: Date.parse('2026-11-07T10:00:00.000Z') });
-  const call = (p, { method = 'GET', headers = {}, body } = {}) => worker.fetch(new Request(`https://relay.test${p}`, {
-    method, headers: { 'content-type': 'application/json', ...headers }, body: body === undefined ? undefined : JSON.stringify(body),
-  }), env, ctx);
+  const call = (p, { method = 'GET', headers = {}, body } = {}) =>
+    worker.fetch(
+      new Request(`https://relay.test${p}`, {
+        method,
+        headers: { 'content-type': 'application/json', ...headers },
+        body: body === undefined ? undefined : JSON.stringify(body),
+      }),
+      env,
+      ctx,
+    );
   const admin = (p, o = {}) => call(`/admin/messages${p}`, { ...o, headers: { authorization: `Bearer ${KEY}`, 'cf-connecting-ip': '10.0.0.1' } });
   const ok = async (r) => {
     const body = await r.json();
@@ -32,18 +40,28 @@ test('relay team messages: targets, plain text, seen / closed, deactivate, expir
     return body;
   };
   const refused = async (r, status, error) => assert.deepEqual([r.status, await r.json()], [status, { error }]);
-  const views = () => db.prepare('SELECT message_id, install_id, closed_at IS NOT NULL AS closed FROM team_message_views ORDER BY message_id, install_id').all()
-    .map((v) => ({ ...v }));
+  const views = () =>
+    db
+      .prepare('SELECT message_id, install_id, closed_at IS NOT NULL AS closed FROM team_message_views ORDER BY message_id, install_id')
+      .all()
+      .map((v) => ({ ...v }));
 
   // Three installs: x the installed 1.0.4, y a 1.0.3 dev run, both pinged; z never pinged (no accepted Privacy Policy).
   const [x, y, z] = ['1', '2', '3'].map((n) => `${n.repeat(8)}-1111-4111-8111-111111111111`);
-  for (const [id, version, installed] of [[x, '1.0.4', true], [y, '1.0.3', false]]) {
+  for (const [id, version, installed] of [
+    [x, '1.0.4', true],
+    [y, '1.0.3', false],
+  ]) {
     const ping = { id, version, installed, open: true, kick: null, twitch: null, privacy: { version: 1, acceptedAt: null } };
     assert.equal((await call('/ping', { method: 'POST', body: ping })).status, 200);
   }
-  const as = (install, version, installed) => (p = '', method = 'GET') =>
-    call(`/messages${p}?version=${version}&installed=${installed}`, { method, headers: { 'x-jarchi-install': install } });
-  const X = as(x, '1.0.4', 1), Y = as(y, '1.0.3', 0), Z = as(z, '1.0.4', 1);
+  const as =
+    (install, version, installed) =>
+    (p = '', method = 'GET') =>
+      call(`/messages${p}?version=${version}&installed=${installed}`, { method, headers: { 'x-jarchi-install': install } });
+  const X = as(x, '1.0.4', 1),
+    Y = as(y, '1.0.3', 0),
+    Z = as(z, '1.0.4', 1);
   const ids = async (who) => (await ok(await who())).map((m) => m.id);
 
   // Admin only.
@@ -56,35 +74,81 @@ test('relay team messages: targets, plain text, seen / closed, deactivate, expir
   const link = { label: { en: 'Download', fa: 'دانلود' }, url: 'https://github.com/MamadPoker/Jarchi/releases' };
   const all = await ok(await admin('', { method: 'POST', body: msg('all', { link }) }));
   assert.deepEqual(all, {
-    id: 1, title: { en: 'New version', fa }, body: { en: 'Line 1\nLine 2', fa }, link, code: null, style: 'update',
-    createdAt: '2026-11-07T10:00:00.000Z', expiresAt: null, target: 'all', active: true, seenBy: 0, closedBy: 0,
+    id: 1,
+    title: { en: 'New version', fa },
+    body: { en: 'Line 1\nLine 2', fa },
+    link,
+    code: null,
+    style: 'update',
+    createdAt: '2026-11-07T10:00:00.000Z',
+    expiresAt: null,
+    target: 'all',
+    active: true,
+    seenBy: 0,
+    closedBy: 0,
   });
 
   // Refused: HTML or control characters anywhere, missing or extra fields, bad style / target / link / expiry.
   const bad = [
-    msg('all', { title: { en: '<b>Hi</b>', fa } }), msg('all', { body: { en: 'a > b', fa } }), msg('all', { body: { en: 'a\u0007', fa } }),
-    msg('all', { link: { ...link, label: { en: '<img>', fa: 'x' } } }), msg('all', { title: { en: 'Hi' } }), msg('all', { title: { en: ' ', fa } }),
-    msg('all', { body: { en: 'x'.repeat(2001), fa } }), msg('all', { style: 'danger' }), msg('everyone'), msg({ version: '1.0' }),
-    msg({ install: 'nope' }), msg({ version: ['1.0.4'] }), msg('all', { link: { ...link, url: 'http://example.com' } }),
-    msg('all', { link: { ...link, url: 'javascript:alert(1)' } }), msg('all', { link: { url: link.url } }), msg('all', { expiresAt: 'tomorrow' }),
-    msg('all', { html: '<b>' }), msg('all', { code: '<b>' }), msg('all', { code: 'a\u0007' }), msg('all', { code: ' ' }),
-    msg('all', { code: 'x'.repeat(65) }), msg('all', { code: 123 }), msg('all', { code: { en: 'A' } }), msg('all', { style: 'Gift' }), [], null,
+    msg('all', { title: { en: '<b>Hi</b>', fa } }),
+    msg('all', { body: { en: 'a > b', fa } }),
+    msg('all', { body: { en: 'a\u0007', fa } }),
+    msg('all', { link: { ...link, label: { en: '<img>', fa: 'x' } } }),
+    msg('all', { title: { en: 'Hi' } }),
+    msg('all', { title: { en: ' ', fa } }),
+    msg('all', { body: { en: 'x'.repeat(2001), fa } }),
+    msg('all', { style: 'danger' }),
+    msg('everyone'),
+    msg({ version: '1.0' }),
+    msg({ install: 'nope' }),
+    msg({ version: ['1.0.4'] }),
+    msg('all', { link: { ...link, url: 'http://example.com' } }),
+    msg('all', { link: { ...link, url: 'javascript:alert(1)' } }),
+    msg('all', { link: { url: link.url } }),
+    msg('all', { expiresAt: 'tomorrow' }),
+    msg('all', { html: '<b>' }),
+    msg('all', { code: '<b>' }),
+    msg('all', { code: 'a\u0007' }),
+    msg('all', { code: ' ' }),
+    msg('all', { code: 'x'.repeat(65) }),
+    msg('all', { code: 123 }),
+    msg('all', { code: { en: 'A' } }),
+    msg('all', { style: 'Gift' }),
+    [],
+    null,
   ];
   for (const body of bad) await refused(await admin('', { method: 'POST', body }), 400, 'bad_request');
   assert.equal(db.prepare('SELECT COUNT(*) AS n FROM team_messages').get().n, 1, 'nothing refused was stored');
 
   // One for each target, an expiring one, and one already expired.
   const make = async (target, more) => (await ok(await admin('', { method: 'POST', body: msg(target, more) }))).id;
-  const v104 = await make({ version: '1.0.4' }), dev = await make('dev'), forX = await make({ install: x }), forY = await make({ install: y });
-  const soon = await make('all', { expiresAt: '2026-11-07T11:00:00.000Z' }), gone = await make('all', { expiresAt: '2026-11-07T09:00:00.000Z' });
+  const v104 = await make({ version: '1.0.4' }),
+    dev = await make('dev'),
+    forX = await make({ install: x }),
+    forY = await make({ install: y });
+  const soon = await make('all', { expiresAt: '2026-11-07T11:00:00.000Z' }),
+    gone = await make('all', { expiresAt: '2026-11-07T09:00:00.000Z' });
 
   // Each install gets only its own, newest first; one that never pinged gets none.
   assert.deepEqual(await ids(X), [soon, forX, v104, all.id]);
   assert.deepEqual(await ids(Y), [soon, forY, dev, all.id]);
   assert.deepEqual(await ids(Z), []);
   const [first] = await ok(await X());
-  assert.deepEqual(first, { id: soon, title: all.title, body: all.body, link: null, code: null, style: 'update', createdAt: all.createdAt,
-    expiresAt: '2026-11-07T11:00:00.000Z', seen: false }, 'no target, active or counts for the install');
+  assert.deepEqual(
+    first,
+    {
+      id: soon,
+      title: all.title,
+      body: all.body,
+      link: null,
+      code: null,
+      style: 'update',
+      createdAt: all.createdAt,
+      expiresAt: '2026-11-07T11:00:00.000Z',
+      seen: false,
+    },
+    'no target, active or counts for the install',
+  );
 
   // Who's asking must be clear.
   for (const p of ['?version=1.0.4', '?version=1.0&installed=1', '?version=1.0.4&installed=2']) {
@@ -100,7 +164,10 @@ test('relay team messages: targets, plain text, seen / closed, deactivate, expir
   assert.deepEqual(await ok(await X(`/${forX}/seen`, 'POST')), { seen: forX }, 'again: still once');
   for (const id of [forY, dev, gone, 999]) await refused(await X(`/${id}/seen`, 'POST'), 404, 'not_found');
   await refused(await Z(`/${all.id}/closed`, 'POST'), 404, 'not_found');
-  assert.deepEqual((await ok(await X())).map((m) => m.seen), [false, true, false, false]);
+  assert.deepEqual(
+    (await ok(await X())).map((m) => m.seen),
+    [false, true, false, false],
+  );
   assert.deepEqual(await ok(await X(`/${all.id}/closed`, 'POST')), { closed: all.id });
   const closedAt = db.prepare('SELECT closed_at FROM team_message_views WHERE message_id = ?').get(all.id).closed_at;
   t.mock.timers.tick(60000);
@@ -109,14 +176,26 @@ test('relay team messages: targets, plain text, seen / closed, deactivate, expir
   assert.deepEqual(await ids(X), [soon, forX, v104], 'closed: off its list');
   assert.deepEqual(await ids(Y), [soon, forY, dev, all.id], 'still on the others');
   await ok(await Y(`/${all.id}/seen`, 'POST'));
-  assert.deepEqual(views(), [{ message_id: all.id, install_id: x, closed: 1 }, { message_id: all.id, install_id: y, closed: 0 }, { message_id: forX, install_id: x, closed: 0 }]);
+  assert.deepEqual(views(), [
+    { message_id: all.id, install_id: x, closed: 1 },
+    { message_id: all.id, install_id: y, closed: 0 },
+    { message_id: forX, install_id: x, closed: 0 },
+  ]);
 
   // The admin's list: newest first, how many installs saw / closed each.
   const list = await ok(await admin(''));
-  assert.deepEqual(list.map((m) => [m.id, m.target, m.seenBy, m.closedBy]), [
-    [gone, 'all', 0, 0], [soon, 'all', 0, 0], [forY, { install: y }, 0, 0], [forX, { install: x }, 1, 0], [dev, 'dev', 0, 0],
-    [v104, { version: '1.0.4' }, 0, 0], [all.id, 'all', 2, 1],
-  ]);
+  assert.deepEqual(
+    list.map((m) => [m.id, m.target, m.seenBy, m.closedBy]),
+    [
+      [gone, 'all', 0, 0],
+      [soon, 'all', 0, 0],
+      [forY, { install: y }, 0, 0],
+      [forX, { install: x }, 1, 0],
+      [dev, 'dev', 0, 0],
+      [v104, { version: '1.0.4' }, 0, 0],
+      [all.id, 'all', 2, 1],
+    ],
+  );
 
   // Deactivate (and back), expiry.
   for (const body of [{ active: 'no' }, { active: false, x: 1 }, null]) await refused(await admin(`/${v104}`, { method: 'PATCH', body }), 400, 'bad_request');
@@ -142,38 +221,92 @@ test('relay team messages: targets, plain text, seen / closed, deactivate, expir
 
 test('relay team messages: a gift with a code (one line, plain text)', async () => {
   const { default: worker } = await import('../relay/worker.mjs');
-  const { DB } = d1(), env = { DB, ADMIN_KEY: KEY }, x = crypto.randomUUID();
-  const call = (p, method, headers, body) => worker.fetch(new Request(`https://relay.test${p}`, {
-    method, headers: { 'content-type': 'application/json', ...headers }, body: body && JSON.stringify(body) }), env, ctx);
+  const { DB } = d1(),
+    env = { DB, ADMIN_KEY: KEY },
+    x = crypto.randomUUID();
+  const call = (p, method, headers, body) =>
+    worker.fetch(
+      new Request(`https://relay.test${p}`, {
+        method,
+        headers: { 'content-type': 'application/json', ...headers },
+        body: body && JSON.stringify(body),
+      }),
+      env,
+      ctx,
+    );
   const ping = { id: x, version: '1.0.4', installed: true, open: true, kick: null, twitch: null, privacy: { version: 1, acceptedAt: null } };
   assert.equal((await call('/ping', 'POST', {}, ping)).status, 200);
-  const gift = { title: { en: 'A gift', fa: 'یک هدیه' }, body: { en: 'For you.', fa: 'برای شما.' }, style: 'gift', target: 'all', code: '  JARCHI-2026   VIP \n' };
+  const gift = {
+    title: { en: 'A gift', fa: 'یک هدیه' },
+    body: { en: 'For you.', fa: 'برای شما.' },
+    style: 'gift',
+    target: 'all',
+    code: '  JARCHI-2026   VIP \n',
+  };
   const admin = { authorization: `Bearer ${KEY}`, 'cf-connecting-ip': '10.0.0.2' };
   const made = await (await call('/admin/messages', 'POST', admin, gift)).json();
   assert.deepEqual([made.style, made.code], ['gift', 'JARCHI-2026 VIP'], 'trimmed, on one line');
   const none = await (await call('/admin/messages', 'POST', admin, { ...gift, code: null })).json();
   assert.equal(none.code, null);
   const mine = await (await call('/messages?version=1.0.4&installed=1', 'GET', { 'x-jarchi-install': x })).json();
-  assert.deepEqual(mine.map((m) => [m.id, m.style, m.code]), [[none.id, 'gift', null], [made.id, 'gift', 'JARCHI-2026 VIP']]);
+  assert.deepEqual(
+    mine.map((m) => [m.id, m.style, m.code]),
+    [
+      [none.id, 'gift', null],
+      [made.id, 'gift', 'JARCHI-2026 VIP'],
+    ],
+  );
 });
 
 // A design code: one install's only (target install, code needed); Jarchi 1.0.8 on gets style design, an older one a gift.
 test('relay team messages: a design code for one install; an older Jarchi gets it as a gift', async () => {
   const { default: worker } = await import('../relay/worker.mjs');
-  const { DB } = d1(), env = { DB, ADMIN_KEY: KEY }, [x, y] = [crypto.randomUUID(), crypto.randomUUID()];
-  const call = (p, method, headers, body) => worker.fetch(new Request(`https://relay.test${p}`, {
-    method, headers: { 'content-type': 'application/json', ...headers }, body: body && JSON.stringify(body) }), env, ctx);
+  const { DB } = d1(),
+    env = { DB, ADMIN_KEY: KEY },
+    [x, y] = [crypto.randomUUID(), crypto.randomUUID()];
+  const call = (p, method, headers, body) =>
+    worker.fetch(
+      new Request(`https://relay.test${p}`, {
+        method,
+        headers: { 'content-type': 'application/json', ...headers },
+        body: body && JSON.stringify(body),
+      }),
+      env,
+      ctx,
+    );
   for (const id of [x, y]) {
-    assert.equal((await call('/ping', 'POST', {}, { id, version: '1.0.8', installed: true, open: true, kick: null, twitch: null, privacy: { version: 1, acceptedAt: null } })).status, 200);
+    assert.equal(
+      (
+        await call(
+          '/ping',
+          'POST',
+          {},
+          { id, version: '1.0.8', installed: true, open: true, kick: null, twitch: null, privacy: { version: 1, acceptedAt: null } },
+        )
+      ).status,
+      200,
+    );
   }
   const admin = { authorization: `Bearer ${KEY}`, 'cf-connecting-ip': '10.0.0.3' };
-  const design = { title: { en: 'A design for you', fa: 'یک طرح برای شما' }, body: { en: 'Use it.', fa: 'استفاده کنید.' }, style: 'design', target: { install: x }, code: 'ABCD-EFGH' };
-  for (const bad of [{ ...design, target: 'all' }, { ...design, target: { version: '1.0.8' } }, { ...design, code: null }, { ...design, code: undefined }]) {
+  const design = {
+    title: { en: 'A design for you', fa: 'یک طرح برای شما' },
+    body: { en: 'Use it.', fa: 'استفاده کنید.' },
+    style: 'design',
+    target: { install: x },
+    code: 'ABCD-EFGH',
+  };
+  for (const bad of [
+    { ...design, target: 'all' },
+    { ...design, target: { version: '1.0.8' } },
+    { ...design, code: null },
+    { ...design, code: undefined },
+  ]) {
     assert.equal((await call('/admin/messages', 'POST', admin, bad)).status, 400, JSON.stringify(bad));
   }
   const made = await (await call('/admin/messages', 'POST', admin, design)).json();
   assert.deepEqual([made.style, made.code, made.target], ['design', 'ABCD-EFGH', { install: x }]);
-  const of = async (id, version) => (await (await call(`/messages?version=${version}&installed=1`, 'GET', { 'x-jarchi-install': id })).json()).map((m) => [m.style, m.code]);
+  const of = async (id, version) =>
+    (await (await call(`/messages?version=${version}&installed=1`, 'GET', { 'x-jarchi-install': id })).json()).map((m) => [m.style, m.code]);
   assert.deepEqual(await of(x, '1.0.8'), [['design', 'ABCD-EFGH']]);
   assert.deepEqual(await of(x, '1.0.9-beta'), [['design', 'ABCD-EFGH']]);
   assert.deepEqual(await of(x, '1.0.7'), [['gift', 'ABCD-EFGH']], 'an older Jarchi: the gift it knows');
@@ -183,8 +316,10 @@ test('relay team messages: a design code for one install; an older Jarchi gets i
 
 test('Jarchi: team messages from the relay, to the panel only; seen, closed for good (offline too)', async (t) => {
   const { default: worker } = await import('../relay/worker.mjs');
-  const { db, DB } = d1(), env = { DB, ADMIN_KEY: KEY };
-  const real = globalThis.fetch, asked = [];
+  const { db, DB } = d1(),
+    env = { DB, ADMIN_KEY: KEY };
+  const real = globalThis.fetch,
+    asked = [];
   let down = false;
   globalThis.fetch = async (url, init = {}) => {
     const u = new URL(url);
@@ -210,25 +345,49 @@ test('Jarchi: team messages from the relay, to the panel only; seen, closed for 
     for (let i = 0; i < 300 && !ok(); i++) await new Promise((r) => setTimeout(r, 10));
     assert.ok(ok(), what);
   };
-  const post = async (body) => (await (await worker.fetch(new Request('https://relay.test/admin/messages', {
-    method: 'POST', headers: { authorization: `Bearer ${KEY}`, 'content-type': 'application/json' }, body: JSON.stringify(body),
-  }), env, ctx)).json()).id;
+  const post = async (body) =>
+    (
+      await (
+        await worker.fetch(
+          new Request('https://relay.test/admin/messages', {
+            method: 'POST',
+            headers: { authorization: `Bearer ${KEY}`, 'content-type': 'application/json' },
+            body: JSON.stringify(body),
+          }),
+          env,
+          ctx,
+        )
+      ).json()
+    ).id;
   const msg = (target) => ({ title: { en: 'Hi', fa: 'سلام' }, body: { en: 'Text', fa: 'متن' }, style: 'info', target });
-  const views = () => db.prepare('SELECT message_id AS id, closed_at IS NOT NULL AS closed FROM team_message_views ORDER BY id').all().map((v) => ({ ...v }));
+  const views = () =>
+    db
+      .prepare('SELECT message_id AS id, closed_at IS NOT NULL AS closed FROM team_message_views ORDER BY id')
+      .all()
+      .map((v) => ({ ...v }));
   const ids = () => messages.list().map((m) => m.id);
 
   // The team's messages: this dev run (npm start / npm run app) gets all, its version's and dev runs'; never the others.
-  const all = await post(msg('all')), dev = await post(msg('dev')), mine = await post(msg({ version }));
+  const all = await post(msg('all')),
+    dev = await post(msg('dev')),
+    mine = await post(msg({ version }));
   await post(msg({ install: crypto.randomUUID() }));
   await post(msg({ version: '0.0.1' }));
 
   // Nothing asked before the Privacy Policy is accepted.
   await new Promise((r) => setTimeout(r, 50));
   assert.deepEqual([asked.length, ids()], [0, []]);
-  await real('http://127.0.0.1:3995/api/settings', { method: 'PATCH', headers: { 'x-jarchi': '1', 'content-type': 'application/json' }, body: '{"privacyAccepted":1}' });
+  await real('http://127.0.0.1:3995/api/settings', {
+    method: 'PATCH',
+    headers: { 'x-jarchi': '1', 'content-type': 'application/json' },
+    body: '{"privacyAccepted":1}',
+  });
   await until(() => ids().length === 3, 'loaded after the first ping');
   assert.deepEqual(ids(), [mine, dev, all]);
-  assert.deepEqual(asked.map((a) => a.at), ['POST /ping', `GET /messages?version=${version}&installed=0`]);
+  assert.deepEqual(
+    asked.map((a) => a.at),
+    ['POST /ping', `GET /messages?version=${version}&installed=0`],
+  );
   assert.equal(asked[1].install, settings.installId());
 
   // Only the panel's socket gets them: never a widget's (OBS).
@@ -245,14 +404,23 @@ test('Jarchi: team messages from the relay, to the panel only; seen, closed for 
   const sockets = [sio('panel', '42["panelJoin"]'), sio('widget', '42["widgetJoin","chat"]')];
   t.after(() => sockets.forEach((ws) => ws.close()));
   await until(() => got.panel.length === 1, 'the panel gets the list');
-  assert.deepEqual(got.panel[0], [[mine, false], [dev, false], [all, false]]);
+  assert.deepEqual(got.panel[0], [
+    [mine, false],
+    [dev, false],
+    [all, false],
+  ]);
 
   // Shown (the panel's message window) = seen, on the relay once.
   assert.deepEqual(await call(`/messages/${all}/seen`), [200, messages.list()]);
   await until(() => views().length === 1, 'seen on the relay');
   assert.deepEqual(views(), [{ id: all, closed: 0 }]);
-  assert.deepEqual(got.panel.at(-1), [[mine, false], [dev, false], [all, true]]);
-  for (const p of ['/messages/999/seen', `/messages/${all}/read`, `/messages/${all}/constructor`]) assert.deepEqual(await call(p), [404, { error: 'not_found' }], p);
+  assert.deepEqual(got.panel.at(-1), [
+    [mine, false],
+    [dev, false],
+    [all, true],
+  ]);
+  for (const p of ['/messages/999/seen', `/messages/${all}/read`, `/messages/${all}/constructor`])
+    assert.deepEqual(await call(p), [404, { error: 'not_found' }], p);
 
   // Closed with the relay out of reach: gone here at once and kept on disk; the relay is told when it's back.
   down = true;
@@ -267,6 +435,9 @@ test('Jarchi: team messages from the relay, to the panel only; seen, closed for 
   await until(() => views().some((v) => v.id === dev && v.closed), 'closed on the relay');
   await messages.load();
   assert.deepEqual(ids(), [mine, all], 'the relay leaves it out now');
-  assert.deepEqual(got.panel.at(-1), [[mine, false], [all, true]]);
+  assert.deepEqual(got.panel.at(-1), [
+    [mine, false],
+    [all, true],
+  ]);
   assert.deepEqual(got.widget, [], 'never to a widget');
 });

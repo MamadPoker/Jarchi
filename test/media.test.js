@@ -12,15 +12,26 @@ const media = require('../core/media');
 
 const GIF = Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64'); // 1 x 1
 const MP4 = Buffer.from('\0\0\0\x18ftypisom\0\0\0\0', 'latin1');
-const frame = (color, width = 1000, height = 600) => sharp({ create: { width, height, channels: 4, background: color } }).png().toBuffer();
+const frame = (color, width = 1000, height = 600) =>
+  sharp({ create: { width, height, channels: 4, background: color } })
+    .png()
+    .toBuffer();
 
 test('shrink: over 512 px -> 512 on the longest side, same format; animated stays animated; small ones untouched', async () => {
   let m = await sharp(await media.shrink(await frame('#f00'))).metadata();
   assert.deepEqual([m.format, m.width, m.height], ['png', 512, 307]);
-  m = await sharp(await media.shrink(await sharp(await frame('#f00', 600, 2000)).jpeg().toBuffer())).metadata();
+  m = await sharp(
+    await media.shrink(
+      await sharp(await frame('#f00', 600, 2000))
+        .jpeg()
+        .toBuffer(),
+    ),
+  ).metadata();
   assert.deepEqual([m.format, m.width, m.height], ['jpeg', 154, 512]);
   for (const format of ['gif', 'webp']) {
-    const anim = await sharp([await frame('#f00'), await frame('#00f'), await frame('#0f0')], { join: { animated: true } }).toFormat(format, { delay: [100, 200, 300], loop: 0 }).toBuffer();
+    const anim = await sharp([await frame('#f00'), await frame('#00f'), await frame('#0f0')], { join: { animated: true } })
+      .toFormat(format, { delay: [100, 200, 300], loop: 0 })
+      .toBuffer();
     m = await sharp(await media.shrink(anim), { animated: true }).metadata();
     assert.deepEqual([m.format, m.width, m.pageHeight, m.pages, m.delay], [format, 512, 307, 3, [100, 200, 300]], format);
   }
@@ -52,8 +63,11 @@ test('links: a file, Giphy and Tenor pages, and what fails', async () => {
   assert.deepEqual(await media.download('https://giphy.com/gifs/cat-funny-JIX9t2j0ZTN9S'), { buf: GIF, name: 'cat-funny-JIX9t2j0ZTN9S' });
 
   // Tenor: og:image (the GIF), here over 10 MB, so og:video (the MP4).
-  web['https://tenor.com/view/cat-cute-gif-26060295'] = ['<html><head><meta class="dynamic" property="og:image" content="https://media1.tenor.com/m/abc/cat.gif">'
-    + '<meta class="dynamic" property="og:video" content="https://media.tenor.com/abc/cat.mp4"></head></html>', { 'content-type': 'text/html; charset=utf-8' }];
+  web['https://tenor.com/view/cat-cute-gif-26060295'] = [
+    '<html><head><meta class="dynamic" property="og:image" content="https://media1.tenor.com/m/abc/cat.gif">' +
+      '<meta class="dynamic" property="og:video" content="https://media.tenor.com/abc/cat.mp4"></head></html>',
+    { 'content-type': 'text/html; charset=utf-8' },
+  ];
   web['https://media1.tenor.com/m/abc/cat.gif'] = [Buffer.alloc(11 * 1024 * 1024, 1)];
   web['https://media.tenor.com/abc/cat.mp4'] = [MP4];
   assert.deepEqual((await media.download('https://tenor.com/view/cat-cute-gif-26060295')).buf, MP4);
@@ -74,7 +88,12 @@ test('shrinkOld: uploads from before the 512 px rule shrink once, under the same
   const put = (name, buf) => fs.writeFileSync(path.join(UPLOADS_DIR, name), buf);
   const read = (name) => fs.readFileSync(path.join(UPLOADS_DIR, name));
   const broken = Buffer.from('GIF89a broken', 'latin1');
-  put('raid-image-1.gif', await sharp([await frame('#f00'), await frame('#00f')], { join: { animated: true } }).gif({ delay: [100, 200], loop: 0 }).toBuffer());
+  put(
+    'raid-image-1.gif',
+    await sharp([await frame('#f00'), await frame('#00f')], { join: { animated: true } })
+      .gif({ delay: [100, 200], loop: 0 })
+      .toBuffer(),
+  );
   put('sub-image-2.png', await frame('#0f0', 600, 2000));
   put('follow-image-3.gif', GIF);
   put('kicks-image-4.gif', broken);
@@ -86,7 +105,10 @@ test('shrinkOld: uploads from before the 512 px rule shrink once, under the same
   assert.deepEqual([m.format, m.width, m.height], ['png', 154, 512]);
   assert.deepEqual([read('follow-image-3.gif'), read('kicks-image-4.gif'), read('sub-image-5.mp4')], [GIF, broken, MP4]);
   assert.ok(fs.existsSync(path.join(DATA_DIR, 'uploads-shrunk.txt')));
-  assert.deepEqual(fs.readdirSync(UPLOADS_DIR).filter((f) => f.endsWith('.tmp')), []);
+  assert.deepEqual(
+    fs.readdirSync(UPLOADS_DIR).filter((f) => f.endsWith('.tmp')),
+    [],
+  );
 
   const big = await frame('#f00');
   put('sub-image-6.png', big);

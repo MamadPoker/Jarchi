@@ -14,8 +14,11 @@ function problems(title, labels, base, head) {
   if (!/^(feat|fix|perf)\b/.test(title) || labels.includes('no-notes')) return [];
   const top = (log) => (log[0]?.version === 'unreleased' ? log[0] : { en: [], fa: [] });
   const [was, now] = [top(base), top(head)];
-  return ['en', 'fa'].filter((l) => !now[l].some((s) => !was[l].includes(s))).map((l) =>
-    `A ${title.split(/[(:!]/)[0]} PR adds its change to the "unreleased" entry of i18n/changelog.json (${l} is missing), or gets the no-notes label.`);
+  return ['en', 'fa']
+    .filter((l) => !now[l].some((s) => !was[l].includes(s)))
+    .map(
+      (l) => `A ${title.split(/[(:!]/)[0]} PR adds its change to the "unreleased" entry of i18n/changelog.json (${l} is missing), or gets the no-notes label.`,
+    );
 }
 
 if (require.main === module) {

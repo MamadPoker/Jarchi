@@ -15,7 +15,10 @@ const { parse } = require('../core/changelog');
 const ORIGIN = `http://${HOST}:${PORT}`;
 const WINDOW_FILE = path.join(DATA_DIR, 'window.json');
 
-let win, tray, server, quitting = false;
+let win,
+  tray,
+  server,
+  quitting = false;
 
 function show() {
   if (!win) return;
@@ -28,8 +31,9 @@ function show() {
 function savedBounds() {
   try {
     const b = JSON.parse(fs.readFileSync(WINDOW_FILE, 'utf8'));
-    const onScreen = screen.getAllDisplays().some(({ workArea: a }) =>
-      b.x < a.x + a.width && b.x + b.width > a.x && b.y < a.y + a.height && b.y + b.height > a.y);
+    const onScreen = screen
+      .getAllDisplays()
+      .some(({ workArea: a }) => b.x < a.x + a.width && b.x + b.width > a.x && b.y < a.y + a.height && b.y + b.height > a.y);
     return onScreen ? b : { width: b.width, height: b.height, maximized: b.maximized };
   } catch {
     return { width: 1280, height: 820 };
@@ -58,7 +62,15 @@ function tintBar(e, color) {
 
 // Crypto's pop-out (panel/crypto-popout.html): the donations list alone, small, for a second monitor. Its pin keeps it
 // on top of other windows (preload.js onTop).
-const POPOUT = { width: 380, height: 600, minWidth: 300, minHeight: 300, autoHideMenuBar: true, icon: path.join(ROOT, 'assets/brand/icons', process.platform === 'win32' ? 'jarchi.ico' : 'jarchi-256.png'), webPreferences: { preload: path.join(__dirname, 'preload.js') } };
+const POPOUT = {
+  width: 380,
+  height: 600,
+  minWidth: 300,
+  minHeight: 300,
+  autoHideMenuBar: true,
+  icon: path.join(ROOT, 'assets/brand/icons', process.platform === 'win32' ? 'jarchi.ico' : 'jarchi-256.png'),
+  webPreferences: { preload: path.join(__dirname, 'preload.js') },
+};
 ipcMain.on('window:onTop', (e, on) => BrowserWindow.fromWebContents(e.sender)?.setAlwaysOnTop(on === true));
 
 // Right-click, in every window (the panel, Crypto's pop-out): Electron has none of its own. In a text field: Cut, Copy,
@@ -66,21 +78,26 @@ ipcMain.on('window:onTop', (e, on) => BrowserWindow.fromWebContents(e.sender)?.s
 // elsewhere: Copy. In the panel's language (i18n panel.editMenu). The keys (Ctrl+X / C / V / A) work as they always do.
 const editWords = {};
 const wordsOf = (lang) => (editWords[lang] ??= JSON.parse(fs.readFileSync(path.join(ROOT, 'i18n', `${lang}.json`), 'utf8')).panel.editMenu);
-app.on('web-contents-created', (e, wc) => wc.on('context-menu', async (ev, p) => {
-  const selected = p.selectionText.trim() !== '';
-  if (!p.isEditable && !selected) return;
-  const lang = await wc.executeJavaScript("localStorage.getItem('jarchi.lang')").catch(() => null);
-  const W = wordsOf(lang === 'fa' ? 'fa' : 'en'), f = p.editFlags;
-  /** @type {Electron.MenuItemConstructorOptions[]} */
-  const items = p.isEditable ? [
-    { role: 'cut', label: W.cut, enabled: selected && f.canCut },
-    { role: 'copy', label: W.copy, enabled: selected && f.canCopy },
-    { role: 'paste', label: W.paste, enabled: f.canPaste },
-    { type: 'separator' },
-    { role: 'selectAll', label: W.selectAll, enabled: f.canSelectAll },
-  ] : [{ role: 'copy', label: W.copy }];
-  if (!wc.isDestroyed()) Menu.buildFromTemplate(items).popup({ window: BrowserWindow.fromWebContents(wc) ?? undefined });
-}));
+app.on('web-contents-created', (e, wc) =>
+  wc.on('context-menu', async (ev, p) => {
+    const selected = p.selectionText.trim() !== '';
+    if (!p.isEditable && !selected) return;
+    const lang = await wc.executeJavaScript("localStorage.getItem('jarchi.lang')").catch(() => null);
+    const W = wordsOf(lang === 'fa' ? 'fa' : 'en'),
+      f = p.editFlags;
+    /** @type {Electron.MenuItemConstructorOptions[]} */
+    const items = p.isEditable
+      ? [
+          { role: 'cut', label: W.cut, enabled: selected && f.canCut },
+          { role: 'copy', label: W.copy, enabled: selected && f.canCopy },
+          { role: 'paste', label: W.paste, enabled: f.canPaste },
+          { type: 'separator' },
+          { role: 'selectAll', label: W.selectAll, enabled: f.canSelectAll },
+        ]
+      : [{ role: 'copy', label: W.copy }];
+    if (!wc.isDestroyed()) Menu.buildFromTemplate(items).popup({ window: BrowserWindow.fromWebContents(wc) ?? undefined });
+  }),
+);
 
 function open() {
   const { maximized, ...bounds } = savedBounds();
@@ -118,12 +135,14 @@ function open() {
 
   tray = new Tray(path.join(ROOT, 'assets/brand/icons', process.platform === 'win32' ? 'jarchi.ico' : 'jarchi-32.png'));
   tray.setToolTip('Jarchi');
-  tray.setContextMenu(Menu.buildFromTemplate([
-    { label: 'Open Jarchi', click: show },
-    { label: 'Copy OBS alerts link', click: () => clipboard.writeText(`${ORIGIN}/widgets/alerts`) },
-    { type: 'separator' },
-    { label: 'Quit', click: () => app.quit() },
-  ]));
+  tray.setContextMenu(
+    Menu.buildFromTemplate([
+      { label: 'Open Jarchi', click: show },
+      { label: 'Copy OBS alerts link', click: () => clipboard.writeText(`${ORIGIN}/widgets/alerts`) },
+      { type: 'separator' },
+      { label: 'Quit', click: () => app.quit() },
+    ]),
+  );
   tray.on('click', show); // right click: the menu
   tray.on('double-click', show);
 }
@@ -199,7 +218,9 @@ function updates() {
   });
   const check = async () => {
     const proxy = await serverProxy();
-    await getNetSession().setProxy(proxy ? { mode: 'fixed_servers', proxyRules: proxy } : { mode: 'direct' }).catch(() => {});
+    await getNetSession()
+      .setProxy(proxy ? { mode: 'fixed_servers', proxyRules: proxy } : { mode: 'direct' })
+      .catch(() => {});
     updater.checkForUpdates().catch(() => {});
   };
   check();
@@ -228,7 +249,8 @@ ipcMain.on('app:uninstall', (e, keep) => {
 const KEY_FILE = path.join(DATA_DIR, 'secrets.key');
 async function secretKey() {
   if (!(await safeStorage.isAsyncEncryptionAvailable())) return '';
-  let key, fresh = false;
+  let key,
+    fresh = false;
   try {
     const { result, shouldReEncrypt } = await safeStorage.decryptStringAsync(fs.readFileSync(KEY_FILE));
     if (!shouldReEncrypt) return result;
@@ -236,7 +258,9 @@ async function secretKey() {
   } catch (err) {
     if (err.code !== 'ENOENT') {
       console.warn(`secrets.key unreadable (${err.message}): moved aside, Kick and Twitch need connecting again`);
-      try { fs.renameSync(KEY_FILE, `${KEY_FILE}.broken-${Date.now()}`); } catch {}
+      try {
+        fs.renameSync(KEY_FILE, `${KEY_FILE}.broken-${Date.now()}`);
+      } catch {}
     }
     key = crypto.randomBytes(32).toString('base64');
     fresh = true;
@@ -250,7 +274,8 @@ async function secretKey() {
   return key;
 }
 
-if (!app.requestSingleInstanceLock()) app.quit(); // one Jarchi at a time: the first one shows its window instead
+if (!app.requestSingleInstanceLock())
+  app.quit(); // one Jarchi at a time: the first one shows its window instead
 else {
   app.on('second-instance', show);
   // Quitting waits for the server's last usage ping (core/stats.js; none without the Privacy Policy), 2.5 s at most.
@@ -278,7 +303,8 @@ else {
     // in a terminal as before; with no console, Node drops it. JARCHI_INSTALLED: the usage ping says installed app or not.
     // JARCHI_SECRET_KEY: the logins' key, in the installed app only (`npm run app` shares ./data with `npm start`).
     server = utilityProcess.fork(path.join(ROOT, 'server/index.js'), [], {
-      serviceName: 'Jarchi server', stdio: ['ignore', 'pipe', 'pipe'],
+      serviceName: 'Jarchi server',
+      stdio: ['ignore', 'pipe', 'pipe'],
       env: { ...process.env, JARCHI_INSTALLED: installed() ? '1' : '', JARCHI_SECRET_KEY: key },
     });
     server.stdout.on('data', (d) => process.stdout.write(d));

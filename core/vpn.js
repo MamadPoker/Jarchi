@@ -45,33 +45,71 @@ const CHECKS = {
     await kickApi('api.kick.com', '/public/v1/users', via);
   },
 };
-const ok = (service, via) => vpn.CHECKS[service](via).then(() => true, () => false);
+const ok = (service, via) =>
+  vpn.CHECKS[service](via).then(
+    () => true,
+    () => false,
+  );
 
 // VPN apps by their program's name. A core (the part that really listens) is named after the app running it.
 const CORE = 'core';
 /** @type {[RegExp, string][]} */
 const APPS = [
-  [/^(xray|v2ray|sing-box|mihomo|verge-mihomo|clash-meta|psiphon-tunnel-core|sslocal|ss-local|hysteria2?|tuic-client|naive|trojan-go|juicity-client)(\.exe)?$/i, CORE],
-  [/^v2rayn/i, 'v2rayN'], [/^v2raya/i, 'v2rayA'], [/^nekoray/i, 'NekoRay'], [/^nekobox/i, 'NekoBox'], [/^throne/i, 'Throne'],
-  [/^hiddify/i, 'Hiddify'], [/^netmod/i, 'NetMod'], [/^karing/i, 'Karing'], [/^flclash/i, 'FlClash'], [/^mihomo.?party/i, 'Mihomo Party'],
-  [/^clash.?verge/i, 'Clash Verge'], [/^clash/i, 'Clash'], [/^outline/i, 'Outline'], [/^psiphon/i, 'Psiphon'],
-  [/^shadowsocks/i, 'Shadowsocks'], [/^lantern/i, 'Lantern'], [/^invisible.?man/i, 'Invisible Man'],
+  [
+    /^(xray|v2ray|sing-box|mihomo|verge-mihomo|clash-meta|psiphon-tunnel-core|sslocal|ss-local|hysteria2?|tuic-client|naive|trojan-go|juicity-client)(\.exe)?$/i,
+    CORE,
+  ],
+  [/^v2rayn/i, 'v2rayN'],
+  [/^v2raya/i, 'v2rayA'],
+  [/^nekoray/i, 'NekoRay'],
+  [/^nekobox/i, 'NekoBox'],
+  [/^throne/i, 'Throne'],
+  [/^hiddify/i, 'Hiddify'],
+  [/^netmod/i, 'NetMod'],
+  [/^karing/i, 'Karing'],
+  [/^flclash/i, 'FlClash'],
+  [/^mihomo.?party/i, 'Mihomo Party'],
+  [/^clash.?verge/i, 'Clash Verge'],
+  [/^clash/i, 'Clash'],
+  [/^outline/i, 'Outline'],
+  [/^psiphon/i, 'Psiphon'],
+  [/^shadowsocks/i, 'Shadowsocks'],
+  [/^lantern/i, 'Lantern'],
+  [/^invisible.?man/i, 'Invisible Man'],
 ];
 // Their usual local ports, tried even when the program isn't recognized. Most are "mixed" (either type works).
 // ponytail: defaults move between app versions; the program-name match above finds a changed port anyway.
 const PORTS = {
-  10808: ['v2rayN', 'socks5'], 10809: ['v2rayN', 'http'], 2080: ['NekoBox', 'socks5'], 2081: ['NekoBox', 'http'], 7890: ['Clash', 'http'],
-  7891: ['Clash', 'socks5'], 7897: ['Clash Verge', 'http'], 12334: ['Hiddify', 'socks5'], 2334: ['Hiddify', 'socks5'],
-  1080: ['Shadowsocks', 'socks5'], 20170: ['v2rayA', 'socks5'], 20171: ['v2rayA', 'http'], 20172: ['v2rayA', 'http'], 3067: ['Karing', 'socks5'],
+  10808: ['v2rayN', 'socks5'],
+  10809: ['v2rayN', 'http'],
+  2080: ['NekoBox', 'socks5'],
+  2081: ['NekoBox', 'http'],
+  7890: ['Clash', 'http'],
+  7891: ['Clash', 'socks5'],
+  7897: ['Clash Verge', 'http'],
+  12334: ['Hiddify', 'socks5'],
+  2334: ['Hiddify', 'socks5'],
+  1080: ['Shadowsocks', 'socks5'],
+  20170: ['v2rayA', 'socks5'],
+  20171: ['v2rayA', 'http'],
+  20172: ['v2rayA', 'http'],
+  3067: ['Karing', 'socks5'],
 };
 const types = (first) => (first === 'http' ? ['http', 'socks5'] : ['socks5', 'http']);
 const appOf = (exe) => APPS.find(([re]) => re.test(exe))?.[1];
 // System-wide VPN apps (they route the whole PC, no local proxy) by their programs' names.
 /** @type {[RegExp, string][]} */
 const SYSTEM = [
-  [/^windscribe/i, 'Windscribe'], [/^expressvpn/i, 'ExpressVPN'], [/^nordvpn/i, 'NordVPN'], [/^protonvpn/i, 'Proton VPN'],
-  [/^surfshark/i, 'Surfshark'], [/^(cloudflare warp|warp-svc)/i, 'Cloudflare WARP'], [/^mullvad/i, 'Mullvad VPN'],
-  [/^cyberghost/i, 'CyberGhost'], [/^hotspot ?shield/i, 'Hotspot Shield'], [/^pia-(client|service)/i, 'Private Internet Access'],
+  [/^windscribe/i, 'Windscribe'],
+  [/^expressvpn/i, 'ExpressVPN'],
+  [/^nordvpn/i, 'NordVPN'],
+  [/^protonvpn/i, 'Proton VPN'],
+  [/^surfshark/i, 'Surfshark'],
+  [/^(cloudflare warp|warp-svc)/i, 'Cloudflare WARP'],
+  [/^mullvad/i, 'Mullvad VPN'],
+  [/^cyberghost/i, 'CyberGhost'],
+  [/^hotspot ?shield/i, 'Hotspot Shield'],
+  [/^pia-(client|service)/i, 'Private Internet Access'],
 ];
 // tasklist output -> the first of them running, or null.
 function systemVpn(tasks) {
@@ -91,7 +129,8 @@ function candidates(netstat, tasks, sys) {
   const owner = new Map([...netstat.matchAll(LISTEN)].map((m) => [Number(m[1]), exe.get(m[2]) ?? '']));
   const gui = [...exe.values()].map(appOf).find((a) => a && a !== CORE);
   const name = (port) => {
-    const e = owner.get(port) ?? '', a = appOf(e);
+    const e = owner.get(port) ?? '',
+      a = appOf(e);
     return (a === CORE ? gui : a) ?? PORTS[port]?.[0] ?? (a === CORE ? e.replace(/\.exe$/i, '') : null);
   };
   const out = new Map();
@@ -108,13 +147,21 @@ function candidates(netstat, tasks, sys) {
 // The first candidate (in their order) that really gets through: { app, type, host, port } or null. All are tried at
 // once; a port that speaks only one type fails the other at once.
 async function firstWorking(list, through) {
-  const ok = await Promise.all(list.map(async ({ app, host, port, types }) => {
-    for (const type of types) {
-      const p = { app, type, host, port };
-      if (await through(p).then(() => true, () => false)) return p;
-    }
-    return null;
-  }));
+  const ok = await Promise.all(
+    list.map(async ({ app, host, port, types }) => {
+      for (const type of types) {
+        const p = { app, type, host, port };
+        if (
+          await through(p).then(
+            () => true,
+            () => false,
+          )
+        )
+          return p;
+      }
+      return null;
+    }),
+  );
   return ok.find(Boolean) ?? null;
 }
 
@@ -131,7 +178,9 @@ async function find(test = false) {
 // The usage ping's (core/stats.js): did the last look find a proxy; null: no look since Jarchi started.
 const looked = () => lastLook;
 
-let st = { state: 'idle' }, busy = false, toldNone = false;
+let st = { state: 'idle' },
+  busy = false,
+  toldNone = false;
 const lastAuto = {}; // service -> when its failure was last checked
 const down = {}; // service -> its WAIT_MS timer while it's out of reach
 const key = (p) => `${p.type}://${p.host}:${p.port}`;
@@ -197,10 +246,13 @@ function look() {
   busy = true;
   const service = st.service ?? null;
   set({ state: 'looking', service });
-  vpn.find().catch(() => ({ found: null, system: null })).then(({ found, system }) => {
-    busy = false;
-    set(found ? { state: 'offer', service, found } : { state: 'none', service, system, exe: EXE });
-  });
+  vpn
+    .find()
+    .catch(() => ({ found: null, system: null }))
+    .then(({ found, system }) => {
+      busy = false;
+      set(found ? { state: 'offer', service, found } : { state: 'none', service, system, exe: EXE });
+    });
   return st;
 }
 
@@ -208,7 +260,8 @@ function look() {
 // proxy becomes Manual with it. -> the new settings, or null (nothing to say Yes to, or they didn't answer: state failed).
 async function accept() {
   if (st.state !== 'offer') return null;
-  const { found, service } = st, via = { type: found.type, host: found.host, port: found.port };
+  const { found, service } = st,
+    via = { type: found.type, host: found.host, port: found.port };
   set({ state: 'checking', service, found });
   const all = (await Promise.all([...new Set(['kick', 'relay', service].filter((x) => CHECKS[x]))].map((x) => ok(x, via)))).every(Boolean);
   if (/** @type {string} */ (st.state) !== 'checking') return null; // answered in another window meanwhile (the cast: tsc can't see st change during the await)
@@ -236,4 +289,20 @@ function fine(service) {
 }
 
 // The look and the checks go through the exports, so a test can stand in for this PC's VPN apps and the network.
-const vpn = module.exports = { events, state: () => st, status, find, trouble, look, accept, dismiss, fine, looked, candidates, firstWorking, systemVpn, CHECKS, WAIT_MS };
+const vpn = (module.exports = {
+  events,
+  state: () => st,
+  status,
+  find,
+  trouble,
+  look,
+  accept,
+  dismiss,
+  fine,
+  looked,
+  candidates,
+  firstWorking,
+  systemVpn,
+  CHECKS,
+  WAIT_MS,
+});

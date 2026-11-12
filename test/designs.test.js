@@ -20,16 +20,28 @@ const ctx = { waitUntil() {} };
 const LOOK = { font: 'Manrope', namePos: 'above', bubbles: true, radius: 11, enterAnim: 'float' };
 const CSS = '.style-x-test .msg::after { content: "✦"; }\n.style-x-test .body { background: var(--bg); }';
 // A design as it's added on the relay (wrangler d1 execute, relay/README.md).
-const addDesign = (db, id, data = { look: LOOK, css: CSS }) => db.prepare('INSERT INTO designs (id, name_en, name_fa, data, created_at) VALUES (?, ?, ?, ?, ?)')
-  .run(id, 'Test', 'آزمایشی', JSON.stringify(data), '2026-11-11T10:00:00.000Z');
-const relay = (worker, env) => (p, { method = 'GET', headers = {}, body } = {}) => worker.fetch(new Request(`https://relay.test${p}`, {
-  method, headers: { 'content-type': 'application/json', ...headers }, body: body === undefined ? undefined : JSON.stringify(body),
-}), env, ctx);
+const addDesign = (db, id, data = { look: LOOK, css: CSS }) =>
+  db
+    .prepare('INSERT INTO designs (id, name_en, name_fa, data, created_at) VALUES (?, ?, ?, ?, ?)')
+    .run(id, 'Test', 'آزمایشی', JSON.stringify(data), '2026-11-11T10:00:00.000Z');
+const relay =
+  (worker, env) =>
+  (p, { method = 'GET', headers = {}, body } = {}) =>
+    worker.fetch(
+      new Request(`https://relay.test${p}`, {
+        method,
+        headers: { 'content-type': 'application/json', ...headers },
+        body: body === undefined ? undefined : JSON.stringify(body),
+      }),
+      env,
+      ctx,
+    );
 const ping = (id) => ({ id, version: '1.0.7', installed: true, open: true, kick: null, twitch: null, privacy: { version: 1, acceptedAt: null } });
 
 test('relay designs: a code shown once, one install for good, pinged installs only, tries limited', async () => {
   const { default: worker } = await import('../relay/worker.mjs');
-  const { db, DB } = d1(), call = relay(worker, { DB, ADMIN_KEY: KEY });
+  const { db, DB } = d1(),
+    call = relay(worker, { DB, ADMIN_KEY: KEY });
   const adminAt = (p, o = {}) => call(p, { ...o, headers: { authorization: `Bearer ${KEY}`, 'cf-connecting-ip': '10.0.0.1' } });
   const admin = (o = {}) => adminAt('/admin/codes', o);
   const body = async (r, status = 200) => {
@@ -40,8 +52,13 @@ test('relay designs: a code shown once, one install for good, pinged installs on
   addDesign(db, 'x-test');
   const [x, y, z] = ['1', '2', '3'].map((n) => `${n.repeat(8)}-1111-4111-8111-111111111111`);
   for (const id of [x, y]) assert.equal((await call('/ping', { method: 'POST', body: ping(id) })).status, 200);
-  const as = (install) => (p = '', o = {}) => call(`/designs${p}`, { ...o, headers: { 'x-jarchi-install': install } });
-  const X = as(x), Y = as(y), Z = as(z);
+  const as =
+    (install) =>
+    (p = '', o = {}) =>
+      call(`/designs${p}`, { ...o, headers: { 'x-jarchi-install': install } });
+  const X = as(x),
+    Y = as(y),
+    Z = as(z);
   const redeem = (who, code) => who('/redeem', { method: 'POST', body: { code } });
 
   // Codes: admin only; for a design that's there; the code itself once, its hash kept.
@@ -51,12 +68,18 @@ test('relay designs: a code shown once, one install for good, pinged installs on
   }
   const made = await body(await admin({ method: 'POST', body: { design: 'x-test', note: 'For Ali' } }));
   assert.match(made.code, /^[A-HJ-KMNP-Z2-9]{4}-[A-HJ-KMNP-Z2-9]{4}$/);
-  assert.deepEqual({ ...made, code: undefined, createdAt: undefined }, { code: undefined, id: made.id, design: 'x-test', note: 'For Ali', createdAt: undefined, install: null, redeemedAt: null, revokedAt: null });
+  assert.deepEqual(
+    { ...made, code: undefined, createdAt: undefined },
+    { code: undefined, id: made.id, design: 'x-test', note: 'For Ali', createdAt: undefined, install: null, redeemedAt: null, revokedAt: null },
+  );
   const stored = db.prepare('SELECT * FROM design_codes').all();
   assert.equal(stored.length, 1);
   assert.ok(!JSON.stringify(stored).includes(made.code.replace('-', '')), 'only its hash is kept');
   const list = await body(await admin());
-  assert.deepEqual(list.map((c) => [c.id, c.note, c.install, 'code' in c]), [[made.id, 'For Ali', null, false]]);
+  assert.deepEqual(
+    list.map((c) => [c.id, c.note, c.install, 'code' in c]),
+    [[made.id, 'For Ali', null, false]],
+  );
 
   // Redeem: a pinged install only; - spaces and case don't matter; asked again by the same install: still fine.
   assert.deepEqual(await body(await redeem(Z, made.code), 403), { error: 'unknown_install' });
@@ -96,7 +119,13 @@ test('relay designs: a code shown once, one install for good, pinged installs on
   assert.deepEqual(await body(await X()), [{ id: 'x-test', name: { en: 'Test', fa: 'آزمایشی' } }], 'kept by the install that has it');
   assert.equal((await X('/x-test')).status, 200);
   assert.equal((await body(await revoke(fresh.id))).revokedAt, gone.revokedAt, 'revoked again: the first time kept');
-  assert.deepEqual((await body(await admin())).map((c) => [c.id, !!c.revokedAt]), [[fresh.id, true], [made.id, true]]);
+  assert.deepEqual(
+    (await body(await admin())).map((c) => [c.id, !!c.revokedAt]),
+    [
+      [fresh.id, true],
+      [made.id, true],
+    ],
+  );
   assert.deepEqual(await body(await revoke('0'.repeat(12)), 404), { error: 'not_found' });
   assert.deepEqual(await body(await revoke('NOT-AN-ID'), 404), { error: 'not_found' });
   assert.deepEqual(await body(await adminAt(`/admin/codes/${made.id}`), 405), { error: 'method' });
@@ -110,7 +139,9 @@ test('relay designs: a code shown once, one install for good, pinged installs on
 
 test('Jarchi: a code unlocks a design, kept and a chat style; unsafe CSS never taken', async (t) => {
   const { default: worker } = await import('../relay/worker.mjs');
-  const { db, DB } = d1(), env = { DB, ADMIN_KEY: KEY }, call = relay(worker, env);
+  const { db, DB } = d1(),
+    env = { DB, ADMIN_KEY: KEY },
+    call = relay(worker, env);
   const real = globalThis.fetch;
   globalThis.fetch = async (url, init = {}) => (new URL(url).host === 'relay.test' ? worker.fetch(new Request(url, init), env, ctx) : real(url, init));
   const { server, io } = require('../server');
@@ -121,11 +152,16 @@ test('Jarchi: a code unlocks a design, kept and a chat style; unsafe CSS never t
   });
   if (!server.listening) await new Promise((r) => server.once('listening', r));
   const api = async (method, p, b) => {
-    const r = await real(`http://127.0.0.1:3994${p}`, { method, headers: { 'x-jarchi': '1', 'content-type': 'application/json' }, body: b && JSON.stringify(b) });
+    const r = await real(`http://127.0.0.1:3994${p}`, {
+      method,
+      headers: { 'x-jarchi': '1', 'content-type': 'application/json' },
+      body: b && JSON.stringify(b),
+    });
     return [r.status, r.headers.get('content-type'), (r.headers.get('content-type') ?? '').includes('json') ? await r.json() : await r.text()];
   };
   addDesign(db, 'x-test');
-  const code = async (design) => (await (await call('/admin/codes', { method: 'POST', headers: { authorization: `Bearer ${KEY}` }, body: { design } })).json()).code;
+  const code = async (design) =>
+    (await (await call('/admin/codes', { method: 'POST', headers: { authorization: `Bearer ${KEY}` }, body: { design } })).json()).code;
   const first = await code('x-test');
 
   // Before the Privacy Policy: nothing goes to the relay.
@@ -137,27 +173,48 @@ test('Jarchi: a code unlocks a design, kept and a chat style; unsafe CSS never t
   await until(async () => !!db.prepare('SELECT 1 FROM installs').get()); // the first ping: the relay knows this install
 
   assert.deepEqual((await api('POST', '/api/designs/redeem', { code: 'ABCD-EFGH' }))[2], { error: 'designs_bad_code' });
-  assert.deepEqual(await api('POST', '/api/designs/redeem', { code: first }), [200, 'application/json; charset=utf-8', { id: 'x-test', name: { en: 'Test', fa: 'آزمایشی' } }]);
+  assert.deepEqual(await api('POST', '/api/designs/redeem', { code: first }), [
+    200,
+    'application/json; charset=utf-8',
+    { id: 'x-test', name: { en: 'Test', fa: 'آزمایشی' } },
+  ]);
   const kept = JSON.parse(fs.readFileSync(path.join(dataDir, 'designs', 'x-test.json'), 'utf8'));
   assert.deepEqual(kept, { id: 'x-test', name: { en: 'Test', fa: 'آزمایشی' }, look: LOOK, css: CSS });
 
   // A chat style now: its look, its name for the panel, its CSS for the widget; the chat can use it.
   const [, , styles] = await api('GET', '/api/chat/styles');
-  assert.deepEqual([styles.styles['x-test'].namePos, styles.styles['x-test'].enterAnim, styles.exclusive], ['above', 'float', { 'x-test': { en: 'Test', fa: 'آزمایشی' } }]);
+  assert.deepEqual(
+    [styles.styles['x-test'].namePos, styles.styles['x-test'].enterAnim, styles.exclusive],
+    ['above', 'float', { 'x-test': { en: 'Test', fa: 'آزمایشی' } }],
+  );
   assert.ok(styles.fonts.includes('Manrope'));
   assert.deepEqual(await api('GET', '/widgets/chat/designs/x-test.css'), [200, 'text/css; charset=utf-8', CSS]);
   assert.equal((await api('GET', '/widgets/chat/designs/x-nope.css'))[0], 404);
   assert.equal((await api('PATCH', '/api/settings', { chat: { style: 'x-test' } }))[2].chat.style, 'x-test');
 
   // CSS that could load or run anything, and looks with what isn't a design's, are never taken.
-  for (const bad of ['@import "https://x.test/a.css";', '.a { background: url(https://x.test/a.png); }', '.a { background: url("/assets/../x"); }',
-    '.a { content: "\\75 rl(x)"; }', '.a { background: image-set("https://x.test/a.png" 1x); }', '</style><script>', '.a { behavior: url(x.htc); }']) {
+  for (const bad of [
+    '@import "https://x.test/a.css";',
+    '.a { background: url(https://x.test/a.png); }',
+    '.a { background: url("/assets/../x"); }',
+    '.a { content: "\\75 rl(x)"; }',
+    '.a { background: image-set("https://x.test/a.png" 1x); }',
+    '</style><script>',
+    '.a { behavior: url(x.htc); }',
+  ]) {
     assert.equal(designs.cssOk(bad), false, bad);
   }
-  for (const good of [CSS, '@font-face { font-family: X; src: url("/assets/fonts/inter/Inter-Variable.ttf"); }', '.a { background: url(data:image/png;base64,iVBORw0KGgo=); }']) {
+  for (const good of [
+    CSS,
+    '@font-face { font-family: X; src: url("/assets/fonts/inter/Inter-Variable.ttf"); }',
+    '.a { background: url(data:image/png;base64,iVBORw0KGgo=); }',
+  ]) {
     assert.equal(designs.cssOk(good), true, good);
   }
-  for (const [id, data] of [['x-css', { look: LOOK, css: '@import url(https://x.test/a.css);' }], ['x-look', { look: { fontSize: 99 }, css: CSS }]]) {
+  for (const [id, data] of [
+    ['x-css', { look: LOOK, css: '@import url(https://x.test/a.css);' }],
+    ['x-look', { look: { fontSize: 99 }, css: CSS }],
+  ]) {
     addDesign(db, id, data);
     assert.deepEqual((await api('POST', '/api/designs/redeem', { code: await code(id) }))[2], { error: 'designs_failed' }, id);
     assert.ok(!fs.existsSync(path.join(dataDir, 'designs', `${id}.json`)));

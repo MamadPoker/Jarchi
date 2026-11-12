@@ -65,16 +65,21 @@ function emoteParts(text, tag) {
 // badges "broadcaster/1,subscriber/12" (+ badge-info "subscriber/14") -> badge list. Badges we have no image for are dropped.
 function toBadges(tag, info) {
   const months = /subscriber\/(\d+)/.exec(info || '')?.[1];
-  return (tag || '').split(',').filter(Boolean).map((b) => {
-    const [set, version] = b.split('/');
-    const title = set === 'subscriber' && months ? `Subscriber (${months} months)` : set.replace(/[-_]/g, ' ');
-    return { type: ROLE[set] ?? 'other', name: set, img: badges.image(set, version), title };
-  }).filter((b) => b.img);
+  return (tag || '')
+    .split(',')
+    .filter(Boolean)
+    .map((b) => {
+      const [set, version] = b.split('/');
+      const title = set === 'subscriber' && months ? `Subscriber (${months} months)` : set.replace(/[-_]/g, ' ');
+      return { type: ROLE[set] ?? 'other', name: set, img: badges.image(set, version), title };
+    })
+    .filter((b) => b.img);
 }
 
 // A cheer in a message with bits: one of Twitch's global cheermote prefixes + a number, as its own word ("Cheer100").
 // Channels' own cheermotes need the Twitch API: they stay text. Any case, like Twitch.
-const CHEER = /(^|\s)(Cheer|BibleThump|cheerwhal|Corgo|uni|ShowLove|Party|SeemsGood|Pride|Kappa|FrankerZ|HeyGuys|DansGame|EleGiggle|TriHard|Kreygasm|4Head|SwiftRage|NotLikeThis|FailFish|VoHiYo|PJSalt|MrDestructoid|bday|RIPCheer|Shamrock)(\d+)(?=\s|$)/gi;
+const CHEER =
+  /(^|\s)(Cheer|BibleThump|cheerwhal|Corgo|uni|ShowLove|Party|SeemsGood|Pride|Kappa|FrankerZ|HeyGuys|DansGame|EleGiggle|TriHard|Kreygasm|4Head|SwiftRage|NotLikeThis|FailFish|VoHiYo|PJSalt|MrDestructoid|bday|RIPCheer|Shamrock)(\d+)(?=\s|$)/gi;
 // Twitch's default gems, by amount: assets/twitch-bits/<gem>.gif (same amounts as the bits tiers in core/settings.js).
 const GEMS = [10000, 5000, 1000, 100, 1];
 
@@ -99,9 +104,13 @@ function cheerParts(parts) {
 // Twitch's chat starts a reply with "@<who it answers> ": cut from the text and its parts, since the chat's Replies
 // setting shows who instead. names: the display name and the login (either may be the one typed).
 function unmention(text, parts, names) {
-  const at = names.filter(Boolean).map((n) => `@${n}`).find((n) => text.slice(0, n.length).toLowerCase() === n.toLowerCase() && !text[n.length]?.trim());
+  const at = names
+    .filter(Boolean)
+    .map((n) => `@${n}`)
+    .find((n) => text.slice(0, n.length).toLowerCase() === n.toLowerCase() && !text[n.length]?.trim());
   if (!at || parts[0]?.t !== 'text') return [text, parts];
-  const rest = text.slice(at.length).trimStart(), first = parts[0].v.slice(text.length - rest.length);
+  const rest = text.slice(at.length).trimStart(),
+    first = parts[0].v.slice(text.length - rest.length);
   return [rest, first ? [{ t: 'text', v: first }, ...parts.slice(1)] : parts.slice(1)];
 }
 
@@ -117,15 +126,21 @@ function alertOf(command, t, trailing) {
   if (t['source-room-id'] && t['source-room-id'] !== t['room-id']) return null; // another channel's, in a shared chat
   const user = t['display-name'] || t.login || '';
   const key = `twitch:${t.id}`;
-  if (command === 'PRIVMSG') return t.bits ? { type: 'bits', user, amount: Number(t.bits) || 0, message: (trailing ?? '').replace(CHEER, '').trim(), key } : null;
+  if (command === 'PRIVMSG')
+    return t.bits ? { type: 'bits', user, amount: Number(t.bits) || 0, message: (trailing ?? '').replace(CHEER, '').trim(), key } : null;
   if (command !== 'USERNOTICE') return null;
   const message = trailing ?? '';
   switch (t['msg-id']?.replace(/^anon/, '')) {
-    case 'sub': return { type: 'sub', user, months: 1, message, key };
-    case 'resub': return { type: 'resub', user, months: Number(t['msg-param-cumulative-months']) || 2, message, key };
-    case 'submysterygift': return { type: 'gift_sub', user, amount: Number(t['msg-param-mass-gift-count']) || 1, key };
-    case 'subgift': return t['msg-param-community-gift-id'] ? null : { type: 'gift_sub', user, amount: 1, key };
-    case 'raid': return { type: 'raid', user, amount: Number(t['msg-param-viewerCount']) || 0, key };
+    case 'sub':
+      return { type: 'sub', user, months: 1, message, key };
+    case 'resub':
+      return { type: 'resub', user, months: Number(t['msg-param-cumulative-months']) || 2, message, key };
+    case 'submysterygift':
+      return { type: 'gift_sub', user, amount: Number(t['msg-param-mass-gift-count']) || 1, key };
+    case 'subgift':
+      return t['msg-param-community-gift-id'] ? null : { type: 'gift_sub', user, amount: 1, key };
+    case 'raid':
+      return { type: 'raid', user, amount: Number(t['msg-param-viewerCount']) || 0, key };
   }
   return null;
 }
@@ -150,11 +165,33 @@ function handle(line, channel, cb) {
     let parts = emoteParts(text, t.emotes);
     const to = t['reply-parent-display-name'] || t['reply-parent-user-login']; // a reply: who it answers, and their message
     if (to) [text, parts] = unmention(text, parts, [t['reply-parent-display-name'], t['reply-parent-user-login']]);
-    cb.onMessage({ platform: 'twitch', id: t.id, channel, time: Number(t['tmi-sent-ts']) || Date.now(), text, action, first: t['first-msg'] === '1', user: user(), parts: t.bits ? cheerParts(parts) : parts, event,
-      ...(to && { reply: { name: to, text: t['reply-parent-msg-body'] ?? '' } }) });
+    cb.onMessage({
+      platform: 'twitch',
+      id: t.id,
+      channel,
+      time: Number(t['tmi-sent-ts']) || Date.now(),
+      text,
+      action,
+      first: t['first-msg'] === '1',
+      user: user(),
+      parts: t.bits ? cheerParts(parts) : parts,
+      event,
+      ...(to && { reply: { name: to, text: t['reply-parent-msg-body'] ?? '' } }),
+    });
   } else if (command === 'USERNOTICE' && (SUB_NOTICES.has(t['msg-id']) || t['msg-id'] === 'raid')) {
     const text = trailing ?? '';
-    cb.onMessage({ platform: 'twitch', id: t.id, channel, kind: t['msg-id'] === 'raid' ? 'event' : 'sub', system: t['system-msg'] || '', time: Number(t['tmi-sent-ts']) || Date.now(), text, user: user(), parts: emoteParts(text, t.emotes), event });
+    cb.onMessage({
+      platform: 'twitch',
+      id: t.id,
+      channel,
+      kind: t['msg-id'] === 'raid' ? 'event' : 'sub',
+      system: t['system-msg'] || '',
+      time: Number(t['tmi-sent-ts']) || Date.now(),
+      text,
+      user: user(),
+      parts: emoteParts(text, t.emotes),
+      event,
+    });
   } else if (command === 'CLEARMSG') {
     cb.onClear({ platform: 'twitch', messageId: t['target-msg-id'] });
   } else if (command === 'CLEARCHAT') {
@@ -167,7 +204,11 @@ function handle(line, channel, cb) {
 
 /** @param {string} channel @param {import('../core/chat').ConnectorCallbacks} cb @returns {import('../core/chat').Connection} */
 function connect(channel, cb) {
-  let ws, timer, last = Date.now(), retry = 0, stopped = false;
+  let ws,
+    timer,
+    last = Date.now(),
+    retry = 0,
+    stopped = false;
   const watchdog = setInterval(() => {
     if (Date.now() - last > QUIET_MS) return net.hangUp(ws); // no answer: connect again
     if (ws?.readyState === WebSocket.OPEN) ws.send('PING :tmi.twitch.tv');
@@ -186,19 +227,38 @@ function connect(channel, cb) {
       last = Date.now();
       for (const line of String(e.data).split('\r\n')) {
         if (!line) continue;
-        if (line.startsWith('PING')) { ws.send(line.replace('PING', 'PONG')); continue; }
+        if (line.startsWith('PING')) {
+          ws.send(line.replace('PING', 'PONG'));
+          continue;
+        }
         const cmd = parseLine(line).command;
-        if (cmd === '366') { retry = 0; cb.onStatus('connected'); } // end of the user list = joined
+        if (cmd === '366') {
+          retry = 0;
+          cb.onStatus('connected');
+        } // end of the user list = joined
         else if (cmd === 'RECONNECT') ws.close();
         else if (cmd === 'NOTICE' && /suspended|does not exist|not found/i.test(line)) cb.onStatus('error', 'not_found');
-        try { handle(line, channel, cb); } catch (err) { console.warn('Twitch chat:', err.message); }
+        try {
+          handle(line, channel, cb);
+        } catch (err) {
+          console.warn('Twitch chat:', err.message);
+        }
       }
     };
     ws.onerror = () => cb.onStatus('error', 'network');
-    ws.onclose = () => { if (!stopped) timer = setTimeout(open, Math.min(30000, 2000 * 2 ** retry++)); };
+    ws.onclose = () => {
+      if (!stopped) timer = setTimeout(open, Math.min(30000, 2000 * 2 ** retry++));
+    };
   };
   open();
-  return { stop() { stopped = true; clearTimeout(timer); clearInterval(watchdog); ws?.close(); } };
+  return {
+    stop() {
+      stopped = true;
+      clearTimeout(timer);
+      clearInterval(watchdog);
+      ws?.close();
+    },
+  };
 }
 
 module.exports = { connect, handle, parseLine, emoteParts, toBadges, cheerParts };

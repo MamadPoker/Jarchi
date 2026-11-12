@@ -20,7 +20,12 @@ const SCOPES = 'moderator:read:followers channel:read:goals channel:read:subscri
 // Jarchi's own Twitch app (Public: its Client ID is no secret), so nobody has to make one. Another one only by hand:
 // "clientId" in data/twitch.json, while disconnected (a login belongs to the app it was made with). Not in the panel.
 const CLIENT_ID = '6z5ycye2mjhj10jk1jkwkelft0l7p3';
-const SUBS = [['channel.follow', '2'], ['channel.goal.begin', '1'], ['channel.goal.progress', '1'], ['channel.goal.end', '1']];
+const SUBS = [
+  ['channel.follow', '2'],
+  ['channel.goal.begin', '1'],
+  ['channel.goal.progress', '1'],
+  ['channel.goal.end', '1'],
+];
 
 const account = new EventEmitter(); // 'status'
 let saved = store.load(FILE, SECRET); // { clientId (own app, else none), access, refresh, expires, userId, login }
@@ -33,8 +38,11 @@ let st = { state: saved.refresh ? 'connecting' : 'off', error: '', why: '', code
 const goals = new Map(); // Twitch goal id -> { id, type, description, current, target }
 // name / picture: the account's display name and picture, for the profile chip (Edit profile).
 const status = () => ({
-  ...st, login: saved.refresh ? saved.login ?? '' : '', goals: [...goals.values()],
-  name: saved.refresh ? saved.name || saved.login || '' : '', picture: saved.refresh ? saved.picture ?? '' : '',
+  ...st,
+  login: saved.refresh ? (saved.login ?? '') : '',
+  goals: [...goals.values()],
+  name: saved.refresh ? saved.name || saved.login || '' : '',
+  picture: saved.refresh ? (saved.picture ?? '') : '',
 });
 function set(next) {
   st = { ...st, code: '', uri: '', why: '', ...next };
@@ -51,7 +59,10 @@ const keepTokens = (j) => keep({ access: j.access_token, refresh: j.refresh_toke
 
 // Every run (a login, a connection) carries the run number it started with; stop() moves on, so whatever is still
 // under way from before ends quietly.
-let run = 0, ws = null, retry = 0, timer = null;
+let run = 0,
+  ws = null,
+  retry = 0,
+  timer = null;
 function stop() {
   run++;
   clearTimeout(timer);
@@ -64,7 +75,8 @@ function stop() {
 async function login() {
   if (st.state !== 'off') return status();
   stop();
-  const my = run, client = clientId();
+  const my = run,
+    client = clientId();
   let res;
   try {
     res = await form(`${ID}/device`, { client_id: client, scopes: SCOPES });
@@ -72,7 +84,8 @@ async function login() {
     set({ state: 'off', error: 'network', why: whyOf(err, 'id.twitch.tv') });
     return status();
   }
-  if (!res.ok) { // an unknown Client ID
+  if (!res.ok) {
+    // an unknown Client ID
     set({ state: 'off', error: 'client' });
     return status();
   }
@@ -82,9 +95,16 @@ async function login() {
   const poll = async () => {
     if (my !== run) return;
     if (Date.now() > until) return set({ state: 'off', error: misses ? 'network' : 'timeout', why: st.why });
-    let ok = false, j = { message: 'authorization_pending' }, lost = '';
+    let ok = false,
+      j = { message: 'authorization_pending' },
+      lost = '';
     try {
-      const r = await form(`${ID}/token`, { client_id: client, scopes: SCOPES, device_code: d.device_code, grant_type: 'urn:ietf:params:oauth:grant-type:device_code' });
+      const r = await form(`${ID}/token`, {
+        client_id: client,
+        scopes: SCOPES,
+        device_code: d.device_code,
+        grant_type: 'urn:ietf:params:oauth:grant-type:device_code',
+      });
       [ok, j] = [r.ok, await r.json()];
     } catch (err) {
       lost = whyOf(err, 'id.twitch.tv'); // asked again in a moment
@@ -123,7 +143,8 @@ function forget(error = '') {
 
 // Disconnect (also cancels a login that waits for its code). Twitch is told too, best effort.
 async function disconnect() {
-  const { access } = saved, client = clientId();
+  const { access } = saved,
+    client = clientId();
   forget();
   if (access) await form(`${ID}/revoke`, { client_id: client, token: access }).catch(() => {});
   return status();
@@ -132,19 +153,20 @@ async function disconnect() {
 // ---------- Tokens: refreshed before they run out (4 hours) and when Twitch says 401 ----------
 // A Public app's refresh token works once, so one refresh at a time. Unused for 30 days, it's gone: connect again.
 let refreshing = null;
-const refresh = () => (refreshing ??= (async () => {
-  try {
-    const res = await form(`${ID}/token`, { client_id: clientId(), grant_type: 'refresh_token', refresh_token: saved.refresh });
-    if (res.status === 400 || res.status === 401) {
-      forget('expired');
-      throw fail('expired');
+const refresh = () =>
+  (refreshing ??= (async () => {
+    try {
+      const res = await form(`${ID}/token`, { client_id: clientId(), grant_type: 'refresh_token', refresh_token: saved.refresh });
+      if (res.status === 400 || res.status === 401) {
+        forget('expired');
+        throw fail('expired');
+      }
+      if (!res.ok) throw fail('network');
+      keepTokens(await res.json());
+    } finally {
+      refreshing = null;
     }
-    if (!res.ok) throw fail('network');
-    keepTokens(await res.json());
-  } finally {
-    refreshing = null;
-  }
-})());
+  })());
 
 async function authed(url, init = {}, again = true) {
   if (Date.now() > saved.expires - 60000) await refresh();
@@ -189,8 +211,10 @@ function later(my, why = 'eventsub.wss.twitch.tv: no connection') {
 // new one says welcome, and the subscriptions come along.
 function open(url, my) {
   const s = new WebSocket(url);
-  let keepalive = 10, quiet;
-  const watch = () => { // nothing (not even a keepalive) for that long: the socket is dead
+  let keepalive = 10,
+    quiet;
+  const watch = () => {
+    // nothing (not even a keepalive) for that long: the socket is dead
     clearTimeout(quiet);
     quiet = setTimeout(() => net.hangUp(s), (keepalive + 10) * 1000);
   };
@@ -199,8 +223,13 @@ function open(url, my) {
     if (my !== run) return s.close();
     watch();
     let m;
-    try { m = JSON.parse(e.data); } catch { return; }
-    const type = m.metadata?.message_type, session = m.payload?.session;
+    try {
+      m = JSON.parse(e.data);
+    } catch {
+      return;
+    }
+    const type = m.metadata?.message_type,
+      session = m.payload?.session;
     if (type === 'session_welcome') {
       keepalive = session.keepalive_timeout_seconds || 10;
       watch();
@@ -228,11 +257,19 @@ function open(url, my) {
 // Within 10 s of the welcome: follows and goals on this socket, then the goals there are now.
 async function subscribe(session, my) {
   const me = saved.userId;
-  const done = await Promise.allSettled(SUBS.map(([type, version]) => authed(`${HELIX}/eventsub/subscriptions`, {
-    method: 'POST',
-    body: JSON.stringify({ type, version, transport: { method: 'websocket', session_id: session },
-      condition: type === 'channel.follow' ? { broadcaster_user_id: me, moderator_user_id: me } : { broadcaster_user_id: me } }),
-  })));
+  const done = await Promise.allSettled(
+    SUBS.map(([type, version]) =>
+      authed(`${HELIX}/eventsub/subscriptions`, {
+        method: 'POST',
+        body: JSON.stringify({
+          type,
+          version,
+          transport: { method: 'websocket', session_id: session },
+          condition: type === 'channel.follow' ? { broadcaster_user_id: me, moderator_user_id: me } : { broadcaster_user_id: me },
+        }),
+      }),
+    ),
+  );
   if (my !== run) return;
   done.forEach((r, i) => r.status === 'rejected' && console.warn(`Twitch ${SUBS[i][0]}:`, r.reason.message));
   if (!done.some((r) => r.status === 'fulfilled')) return ws?.close(); // try again
@@ -257,7 +294,14 @@ async function subscribe(session, my) {
 }
 
 // Twitch's API (GET /goals) calls a followers goal 'follower', its EventSub events 'follow': kept as 'follow'.
-const goal = (g) => goals.set(g.id, { id: g.id, type: g.type === 'follower' ? 'follow' : g.type, description: String(g.description ?? '').slice(0, 40), current: Number(g.current_amount) || 0, target: Number(g.target_amount) || 0 });
+const goal = (g) =>
+  goals.set(g.id, {
+    id: g.id,
+    type: g.type === 'follower' ? 'follow' : g.type,
+    description: String(g.description ?? '').slice(0, 40),
+    current: Number(g.current_amount) || 0,
+    target: Number(g.target_amount) || 0,
+  });
 
 // One EventSub event. A follow alerts once per viewer in 6 hours (core/events key), so follow / unfollow spam alerts once.
 function handle(type, e) {
@@ -283,6 +327,10 @@ async function stream() {
   return { live: !!s, viewers: Number(s?.viewer_count) || 0 };
 }
 // Live now? null when Twitch doesn't say.
-const live = () => stream().then((s) => s?.live ?? null, () => null);
+const live = () =>
+  stream().then(
+    (s) => s?.live ?? null,
+    () => null,
+  );
 
 module.exports = { status, login, disconnect, start, handle, live, stream, events: account };

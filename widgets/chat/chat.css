@@ -2,14 +2,52 @@
    so every option works with every style. Runs in OBS's built-in Chromium: stick to well-supported CSS. */
 
 /* Bundled fonts (assets/fonts, SIL Open Font License) */
-@font-face { font-family: "Press Start 2P"; src: url("/assets/fonts/press-start-2p/PressStart2P-Regular.ttf") format("truetype"); font-display: swap; }
-@font-face { font-family: "Bangers"; src: url("/assets/fonts/bangers/Bangers-Regular.ttf") format("truetype"); font-display: swap; }
-@font-face { font-family: "Fredoka"; src: url("/assets/fonts/fredoka/Fredoka-Variable.ttf") format("truetype"); font-weight: 300 700; font-display: swap; }
-@font-face { font-family: "Vazirmatn"; src: url("/assets/fonts/vazirmatn/Vazirmatn-Variable.ttf") format("truetype"); font-weight: 100 900; font-display: swap; }
-@font-face { font-family: "Inter"; src: url("/assets/fonts/inter/Inter-Variable.ttf") format("truetype"); font-weight: 100 900; font-display: swap; }
-@font-face { font-family: "Manrope"; src: url("/assets/fonts/manrope/Manrope-Variable.ttf") format("truetype"); font-weight: 200 800; font-display: swap; }
-html, body { margin: 0; height: 100%; overflow: hidden; background: transparent; }
-body.preview, body.thumb { display: grid; place-items: center; }
+@font-face {
+  font-family: 'Press Start 2P';
+  src: url('/assets/fonts/press-start-2p/PressStart2P-Regular.ttf') format('truetype');
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Bangers';
+  src: url('/assets/fonts/bangers/Bangers-Regular.ttf') format('truetype');
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Fredoka';
+  src: url('/assets/fonts/fredoka/Fredoka-Variable.ttf') format('truetype');
+  font-weight: 300 700;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Vazirmatn';
+  src: url('/assets/fonts/vazirmatn/Vazirmatn-Variable.ttf') format('truetype');
+  font-weight: 100 900;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Inter';
+  src: url('/assets/fonts/inter/Inter-Variable.ttf') format('truetype');
+  font-weight: 100 900;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Manrope';
+  src: url('/assets/fonts/manrope/Manrope-Variable.ttf') format('truetype');
+  font-weight: 200 800;
+  font-display: swap;
+}
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: transparent;
+}
+body.preview,
+body.thumb {
+  display: grid;
+  place-items: center;
+}
 
 .chat {
   position: relative;
@@ -25,135 +63,471 @@ body.preview, body.thumb { display: grid; place-items: center; }
   line-height: 1.35;
   font-synthesis: style; /* no fake bold: fonts with one weight (Impact, Bangers, Press Start 2P) stay crisp */
 }
-.chat[hidden] { display: none; }
+.chat[hidden] {
+  display: none;
+}
 /* In OBS (not the panel's preview or thumbnails), a vertical chat is as tall as its Browser Source, whatever its Height
    setting: a taller source shows more messages, a shorter one never cuts off the newest. */
-body:not(.preview):not(.thumb) .chat.layout-vertical { height: 100%; }
+body:not(.preview):not(.thumb) .chat.layout-vertical {
+  height: 100%;
+}
 /* One box around the whole chat (bubbles off) */
-.chat.boxed { padding: 0 var(--pad); border-radius: var(--radius); background: var(--bg); }
-.chat.boxed.bg-transparent { background: transparent; }
-.chat.boxed.bordered { border: var(--bw) solid var(--bd); }
-.chat.boxed.layout-vertical .viewport { margin: var(--pad) 0; }
+.chat.boxed {
+  padding: 0 var(--pad);
+  border-radius: var(--radius);
+  background: var(--bg);
+}
+.chat.boxed.bg-transparent {
+  background: transparent;
+}
+.chat.boxed.bordered {
+  border: var(--bw) solid var(--bd);
+}
+.chat.boxed.layout-vertical .viewport {
+  margin: var(--pad) 0;
+}
 /* ... or one bubble per message. A message's own border: --mbd, the sender's color with Border color "User's color" (chat.js) */
-.chat.bubbles .msg { padding: var(--pad); border-radius: var(--radius); background: var(--bg); }
-.chat.bubbles.bg-transparent .msg { background: transparent; }
-.chat.bubbles.bordered .msg { border: var(--bw) solid var(--mbd, var(--bd)); }
-.chat.bubbles.bg-off .msg { padding: 0; background: none; border: 0; }
+.chat.bubbles .msg {
+  padding: var(--pad);
+  border-radius: var(--radius);
+  background: var(--bg);
+}
+.chat.bubbles.bg-transparent .msg {
+  background: transparent;
+}
+.chat.bubbles.bordered .msg {
+  border: var(--bw) solid var(--mbd, var(--bd));
+}
+.chat.bubbles.bg-off .msg {
+  padding: 0;
+  background: none;
+  border: 0;
+}
 /* Only with a blur set: a backdrop filter puts the box on its own layer, and text on such a layer can come out soft */
-.chat.blurred.boxed, .chat.blurred.bubbles .msg { backdrop-filter: blur(var(--blur)); }
+.chat.blurred.boxed,
+.chat.blurred.bubbles .msg {
+  backdrop-filter: blur(var(--blur));
+}
 
-.viewport { position: relative; flex: 1; min-height: 0; overflow: hidden; }
-.list { position: absolute; left: 0; right: 0; bottom: 0; display: flex; flex-direction: column; }
-.new-top .list { top: 0; bottom: auto; }
-.row { box-sizing: border-box; padding-top: var(--gap); }
-.new-top .row { padding-top: 0; padding-bottom: var(--gap); }
+.viewport {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+.list {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+}
+.new-top .list {
+  top: 0;
+  bottom: auto;
+}
+.row {
+  box-sizing: border-box;
+  padding-top: var(--gap);
+}
+.new-top .row {
+  padding-top: 0;
+  padding-bottom: var(--gap);
+}
 
 /* Soft fade where messages leave: the far edge (vertical) or both edges (ticker). */
-.fade.new-bottom .viewport { -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 var(--fade)); mask-image: linear-gradient(to bottom, transparent 0, #000 var(--fade)); }
-.fade.new-top .viewport { -webkit-mask-image: linear-gradient(to top, transparent 0, #000 var(--fade)); mask-image: linear-gradient(to top, transparent 0, #000 var(--fade)); }
+.fade.new-bottom .viewport {
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 var(--fade));
+  mask-image: linear-gradient(to bottom, transparent 0, #000 var(--fade));
+}
+.fade.new-top .viewport {
+  -webkit-mask-image: linear-gradient(to top, transparent 0, #000 var(--fade));
+  mask-image: linear-gradient(to top, transparent 0, #000 var(--fade));
+}
 .fade.layout-horizontal .viewport {
   -webkit-mask-image: linear-gradient(to right, transparent 0, #000 var(--fade), #000 calc(100% - var(--fade)), transparent 100%);
   mask-image: linear-gradient(to right, transparent 0, #000 var(--fade), #000 calc(100% - var(--fade)), transparent 100%);
 }
 
 /* A message */
-.msg { overflow-wrap: anywhere; }
-.shadow .msg { text-shadow: 0 1px 1px rgba(0, 0, 0, 0.9), 0 0 2px rgba(0, 0, 0, 0.7); } /* tight, so letters keep sharp edges */
-.line { display: block; }
-.meta { margin-right: 0.3em; font-size: var(--ns); font-weight: 700; } /* the space before the message, with or without a colon */
-.meta time { margin-right: 0.35em; font-weight: 400; opacity: 0.7; font-size: 0.85em; }
+.msg {
+  overflow-wrap: anywhere;
+}
+.shadow .msg {
+  text-shadow:
+    0 1px 1px rgba(0, 0, 0, 0.9),
+    0 0 2px rgba(0, 0, 0, 0.7);
+} /* tight, so letters keep sharp edges */
+.line {
+  display: block;
+}
+.meta {
+  margin-right: 0.3em;
+  font-size: var(--ns);
+  font-weight: 700;
+} /* the space before the message, with or without a colon */
+.meta time {
+  margin-right: 0.35em;
+  font-weight: 400;
+  opacity: 0.7;
+  font-size: 0.85em;
+}
 /* "Show chat timing" (debug): how long after Kick / Twitch made the message it was drawn here. Not measured yet (or a
    message from before the page opened), it keeps its place unseen, so filling it in never moves anything. */
-.timing { display: inline-block; min-width: 3.6em; margin-right: 0.35em; padding: 0 0.3em; border-radius: 4px; background: rgba(0, 0, 0, 0.75);
-  color: #fff; font: 600 0.7em/1.5 Consolas, monospace; text-align: center; text-shadow: none; vertical-align: middle; }
-.timing:empty { visibility: hidden; }
-.timing:empty::before { content: '+0.0s'; }
+.timing {
+  display: inline-block;
+  min-width: 3.6em;
+  margin-right: 0.35em;
+  padding: 0 0.3em;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.75);
+  color: #fff;
+  font:
+    600 0.7em/1.5 Consolas,
+    monospace;
+  text-align: center;
+  text-shadow: none;
+  vertical-align: middle;
+}
+.timing:empty {
+  visibility: hidden;
+}
+.timing:empty::before {
+  content: '+0.0s';
+}
 /* Name, time and colon stay on the message's baseline; icons are as tall as the name and centered on its letters. */
 /* Platform icon: the official logo as it is, on a small dark tile so it shows on light boxes too */
-.platform { box-sizing: border-box; width: 1.1em; height: 1.1em; padding: 0.17em; margin-right: 0.3em; border-radius: 0.25em; background: #000; vertical-align: middle; }
-.platform.pl-twitch { background: #0e0e10; } /* Twitch's own dark */
-.badges { margin-right: 0.3em; }
+.platform {
+  box-sizing: border-box;
+  width: 1.1em;
+  height: 1.1em;
+  padding: 0.17em;
+  margin-right: 0.3em;
+  border-radius: 0.25em;
+  background: #000;
+  vertical-align: middle;
+}
+.platform.pl-twitch {
+  background: #0e0e10;
+} /* Twitch's own dark */
+.badges {
+  margin-right: 0.3em;
+}
 /* Badges: as tall as the name, times "Badge size" (--badge) */
-.badge { height: calc(1em * var(--badge, 1)); margin-right: 0.18em; vertical-align: middle; }
-.badge-text { display: inline-block; margin-right: 0.25em; padding: 0.1em 0.35em; border-radius: 0.3em; background: rgba(255, 255, 255, 0.18); font-size: calc(0.62em * var(--badge, 1)); font-weight: 800; letter-spacing: 0.04em; line-height: 1.3; vertical-align: middle; text-shadow: none; }
-.bt-broadcaster { background: #e5484d; color: #fff; }
-.bt-moderator { background: #2fbf71; color: #fff; }
-.bt-vip { background: #d63ad8; color: #fff; }
-.bt-subscriber { background: #8b5cf6; color: #fff; }
-.action .body { font-style: italic; }
-.emote { height: var(--emote); vertical-align: middle; margin: -0.15em 0.05em; }
-.body.big .emote { height: var(--emote-big); }
+.badge {
+  height: calc(1em * var(--badge, 1));
+  margin-right: 0.18em;
+  vertical-align: middle;
+}
+.badge-text {
+  display: inline-block;
+  margin-right: 0.25em;
+  padding: 0.1em 0.35em;
+  border-radius: 0.3em;
+  background: rgba(255, 255, 255, 0.18);
+  font-size: calc(0.62em * var(--badge, 1));
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  line-height: 1.3;
+  vertical-align: middle;
+  text-shadow: none;
+}
+.bt-broadcaster {
+  background: #e5484d;
+  color: #fff;
+}
+.bt-moderator {
+  background: #2fbf71;
+  color: #fff;
+}
+.bt-vip {
+  background: #d63ad8;
+  color: #fff;
+}
+.bt-subscriber {
+  background: #8b5cf6;
+  color: #fff;
+}
+.action .body {
+  font-style: italic;
+}
+.emote {
+  height: var(--emote);
+  vertical-align: middle;
+  margin: -0.15em 0.05em;
+}
+.body.big .emote {
+  height: var(--emote-big);
+}
 /* A cheer: Twitch's gem and the amount in the gem's color (Twitch's own colors for its default cheermotes). */
-.cheer { font-weight: 800; white-space: nowrap; }
-.gem-1 { color: #979797; }
-.gem-100 { color: #9c3ee8; }
-.gem-1000 { color: #1db2a5; }
-.gem-5000 { color: #0099fe; }
-.gem-10000 { color: #f43021; }
-.avatar { display: inline-flex; align-items: center; justify-content: center; width: 1.7em; height: 1.7em; margin-right: 0.4em; border-radius: 50%; object-fit: cover; vertical-align: middle; font-size: var(--ns); font-weight: 800; color: #fff; text-shadow: none; }
-.combo { display: inline-block; margin-left: 0.4em; color: #ffd54d; font-weight: 900; }
+.cheer {
+  font-weight: 800;
+  white-space: nowrap;
+}
+.gem-1 {
+  color: #979797;
+}
+.gem-100 {
+  color: #9c3ee8;
+}
+.gem-1000 {
+  color: #1db2a5;
+}
+.gem-5000 {
+  color: #0099fe;
+}
+.gem-10000 {
+  color: #f43021;
+}
+.avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.7em;
+  height: 1.7em;
+  margin-right: 0.4em;
+  border-radius: 50%;
+  object-fit: cover;
+  vertical-align: middle;
+  font-size: var(--ns);
+  font-weight: 800;
+  color: #fff;
+  text-shadow: none;
+}
+.combo {
+  display: inline-block;
+  margin-left: 0.4em;
+  color: #ffd54d;
+  font-weight: 900;
+}
 /* OG hat (Kick viewers with the OG badge): on a letter of the name, on the profile picture, or with the badges.
    Every size is in em of the name, so it follows "Name size". The SVGs are images, so their ids never clash. */
-.hat { filter: drop-shadow(0 0.05em 0.07em rgba(0, 0, 0, 0.5)); pointer-events: none; }
-.hat-letter { position: relative; display: inline-block; line-height: 1; }
-.hat-glue { white-space: nowrap; } /* the hat's letter (its own box) and the letter beside it: the name never breaks between them */
+.hat {
+  filter: drop-shadow(0 0.05em 0.07em rgba(0, 0, 0, 0.5));
+  pointer-events: none;
+}
+.hat-letter {
+  position: relative;
+  display: inline-block;
+  line-height: 1;
+}
+.hat-glue {
+  white-space: nowrap;
+} /* the hat's letter (its own box) and the letter beside it: the name never breaks between them */
 /* About twice the letter's width (the letter's own box), tilted, over the top of the letter */
-.hat-first, .hat-last { position: absolute; z-index: 1; bottom: 0.62em; left: 50%; width: 200%; min-width: 1.2em; max-width: 1.7em; transform: translateX(-50%) rotate(-12deg); }
-.hat-last { transform: translateX(-50%) rotate(12deg); }
-.hat-cap.hat-first { transform: translateX(-44%) rotate(-12deg); } /* the cap's crown, not its peak, over the letter */
-.hat-cap.hat-last { transform: translateX(-44%) rotate(12deg); }
+.hat-first,
+.hat-last {
+  position: absolute;
+  z-index: 1;
+  bottom: 0.62em;
+  left: 50%;
+  width: 200%;
+  min-width: 1.2em;
+  max-width: 1.7em;
+  transform: translateX(-50%) rotate(-12deg);
+}
+.hat-last {
+  transform: translateX(-50%) rotate(12deg);
+}
+.hat-cap.hat-first {
+  transform: translateX(-44%) rotate(-12deg);
+} /* the cap's crown, not its peak, over the letter */
+.hat-cap.hat-last {
+  transform: translateX(-44%) rotate(12deg);
+}
 /* Room above a hatted name, so the hat never covers the line above */
-.layout-vertical .msg.hatted .line { padding-top: calc(var(--ns) * 0.62); }
-.avatar-box { position: relative; display: inline-block; margin-right: 0.4em; font-size: var(--ns); vertical-align: middle; line-height: 0; }
-.avatar-box .avatar { margin-right: 0; }
-.name-above .avatar-box { grid-row: span 2; align-self: start; }
-.hat-avatar { position: absolute; z-index: 1; left: 50%; bottom: 1.12em; width: 2em; transform: translateX(-50%) rotate(-12deg); }
-.hat-cap.hat-avatar { transform: translateX(-44%) rotate(-12deg); }
-.hat-badge { width: auto; }
+.layout-vertical .msg.hatted .line {
+  padding-top: calc(var(--ns) * 0.62);
+}
+.avatar-box {
+  position: relative;
+  display: inline-block;
+  margin-right: 0.4em;
+  font-size: var(--ns);
+  vertical-align: middle;
+  line-height: 0;
+}
+.avatar-box .avatar {
+  margin-right: 0;
+}
+.name-above .avatar-box {
+  grid-row: span 2;
+  align-self: start;
+}
+.hat-avatar {
+  position: absolute;
+  z-index: 1;
+  left: 50%;
+  bottom: 1.12em;
+  width: 2em;
+  transform: translateX(-50%) rotate(-12deg);
+}
+.hat-cap.hat-avatar {
+  transform: translateX(-44%) rotate(-12deg);
+}
+.hat-badge {
+  width: auto;
+}
 
 /* Name above the message */
-.name-above .line { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; }
-.name-above .avatar { grid-row: span 2; align-self: start; }
-.name-above .meta, .name-above .body { grid-column: 2; }
-.name-above .meta { margin-right: 0; }
-.name-above .colon { display: none; }
+.name-above .line {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+}
+.name-above .avatar {
+  grid-row: span 2;
+  align-self: start;
+}
+.name-above .meta,
+.name-above .body {
+  grid-column: 2;
+}
+.name-above .meta {
+  margin-right: 0;
+}
+.name-above .colon {
+  display: none;
+}
 
 /* A reply (the Replies setting): who it answers, above the message. Smaller than the message and faded, in its color, so
    it reads on light and dark styles alike; the quote box is a grey tint with a bar on its start side (right in RTL). */
-.reply { margin-bottom: 0.2em; font-size: max(0.78em, 10px); font-weight: 400; line-height: 1.3; opacity: 0.65; }
-.reply-name, .reply-at { font-weight: 700; }
+.reply {
+  margin-bottom: 0.2em;
+  font-size: max(0.78em, 10px);
+  font-weight: 400;
+  line-height: 1.3;
+  opacity: 0.65;
+}
+.reply-name,
+.reply-at {
+  font-weight: 700;
+}
 /* One line: "↩ replying to name:" then their words, each cut with "…" at its own end (the head only past 75%) */
-.reply-line { display: flex; white-space: nowrap; }
-.reply-line > * { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-.reply-head { flex-shrink: 0; max-width: 75%; margin-inline-end: 0.3em; } /* the head's side: their words may run the other way */
+.reply-line {
+  display: flex;
+  white-space: nowrap;
+}
+.reply-line > * {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.reply-head {
+  flex-shrink: 0;
+  max-width: 75%;
+  margin-inline-end: 0.3em;
+} /* the head's side: their words may run the other way */
 .reply-quote {
   /* room around the words is a see-through border, not padding: a 3rd line cut off by the clamp could show in padding */
-  width: -webkit-fit-content; width: fit-content; max-width: 100%; box-sizing: border-box; padding: 0 0.35em; border: 0.25em solid transparent; border-radius: 0.35em;
-  border-inline-start: 2px solid rgba(128, 128, 128, 0.75); background: rgba(128, 128, 128, 0.18);
-  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
+  width: -webkit-fit-content;
+  width: fit-content;
+  max-width: 100%;
+  box-sizing: border-box;
+  padding: 0 0.35em;
+  border: 0.25em solid transparent;
+  border-radius: 0.35em;
+  border-inline-start: 2px solid rgba(128, 128, 128, 0.75);
+  background: rgba(128, 128, 128, 0.18);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
 }
-.reply-at { opacity: 0.7; }
+.reply-at {
+  opacity: 0.7;
+}
 /* One line (bars): before the message */
-.tick .reply { display: block; margin: 0; }
+.tick .reply {
+  display: block;
+  margin: 0;
+}
 
 /* Fancy effects */
-.tags { margin-bottom: 0.25em; }
-.tag { display: inline-block; margin-right: 0.4em; padding: 0.12em 0.5em; border-radius: 0.35em; font-size: 0.62em; font-weight: 900; letter-spacing: 0.08em; text-shadow: none; }
-.system { font-weight: 700; font-size: 0.9em; opacity: 0.95; }
-.msg.glow { padding: 0.45em 0.7em; border-radius: max(var(--radius), 8px); background: linear-gradient(135deg, rgba(255, 213, 77, 0.22), rgba(255, 170, 0, 0.1)); box-shadow: 0 0 0 2px #ffd54d, 0 0 18px rgba(255, 200, 60, 0.65); animation: sub-glow 1.8s ease-in-out infinite alternate; }
-.tag-sub { background: linear-gradient(90deg, #ffd54d, #ffb300); color: #2b1d00; }
-@keyframes sub-glow { to { box-shadow: 0 0 0 2px #ffe58a, 0 0 28px rgba(255, 200, 60, 0.9); } }
-.tag-first { background: linear-gradient(90deg, #3ee8ff, #b27bff, #3ee8ff); background-size: 200% 100%; color: #10122a; animation: shimmer 2s linear infinite; }
-.tag-first::before { content: "\2726"; display: inline-block; margin-right: 0.35em; animation: twinkle 0.9s ease-in-out infinite alternate; }
-.msg.first { box-shadow: inset 3px 0 0 #3ee8ff; padding-left: 0.5em; }
-@keyframes shimmer { to { background-position: 200% 0; } }
-@keyframes twinkle { from { transform: scale(0.7) rotate(0deg); opacity: 0.6; } to { transform: scale(1.25) rotate(45deg); opacity: 1; } }
-.msg.mention { padding: 0.3em 0.5em; border-radius: max(var(--radius), 6px); background: rgba(255, 77, 109, 0.24); box-shadow: inset 3px 0 0 #ff4d6d; }
+.tags {
+  margin-bottom: 0.25em;
+}
+.tag {
+  display: inline-block;
+  margin-right: 0.4em;
+  padding: 0.12em 0.5em;
+  border-radius: 0.35em;
+  font-size: 0.62em;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-shadow: none;
+}
+.system {
+  font-weight: 700;
+  font-size: 0.9em;
+  opacity: 0.95;
+}
+.msg.glow {
+  padding: 0.45em 0.7em;
+  border-radius: max(var(--radius), 8px);
+  background: linear-gradient(135deg, rgba(255, 213, 77, 0.22), rgba(255, 170, 0, 0.1));
+  box-shadow:
+    0 0 0 2px #ffd54d,
+    0 0 18px rgba(255, 200, 60, 0.65);
+  animation: sub-glow 1.8s ease-in-out infinite alternate;
+}
+.tag-sub {
+  background: linear-gradient(90deg, #ffd54d, #ffb300);
+  color: #2b1d00;
+}
+@keyframes sub-glow {
+  to {
+    box-shadow:
+      0 0 0 2px #ffe58a,
+      0 0 28px rgba(255, 200, 60, 0.9);
+  }
+}
+.tag-first {
+  background: linear-gradient(90deg, #3ee8ff, #b27bff, #3ee8ff);
+  background-size: 200% 100%;
+  color: #10122a;
+  animation: shimmer 2s linear infinite;
+}
+.tag-first::before {
+  content: '\2726';
+  display: inline-block;
+  margin-right: 0.35em;
+  animation: twinkle 0.9s ease-in-out infinite alternate;
+}
+.msg.first {
+  box-shadow: inset 3px 0 0 #3ee8ff;
+  padding-left: 0.5em;
+}
+@keyframes shimmer {
+  to {
+    background-position: 200% 0;
+  }
+}
+@keyframes twinkle {
+  from {
+    transform: scale(0.7) rotate(0deg);
+    opacity: 0.6;
+  }
+  to {
+    transform: scale(1.25) rotate(45deg);
+    opacity: 1;
+  }
+}
+.msg.mention {
+  padding: 0.3em 0.5em;
+  border-radius: max(var(--radius), 6px);
+  background: rgba(255, 77, 109, 0.24);
+  box-shadow: inset 3px 0 0 #ff4d6d;
+}
 /* The rainbow shows through the letters, so it's painted only where the box is: 0.2em more each side (taken back by the
    margin, so nothing moves) for slanted letters (Bangers, italics) that reach past their box. The hat's letter is a
    positioned box of its own, which the name's rainbow may not reach: it paints its own. */
-.name.rainbow { --rainbow: linear-gradient(90deg, #ff4d4d, #ffb84d, #f5ff4d, #4dff88, #4dd2ff, #9b6bff, #ff4dd8, #ff4d4d); }
-.name.rainbow, .rainbow .hat-char {
+.name.rainbow {
+  --rainbow: linear-gradient(90deg, #ff4d4d, #ffb84d, #f5ff4d, #4dff88, #4dd2ff, #9b6bff, #ff4dd8, #ff4d4d);
+}
+.name.rainbow,
+.rainbow .hat-char {
   padding: 0 0.2em;
   margin: 0 -0.2em;
   background: var(--rainbow);
@@ -166,305 +540,965 @@ body:not(.preview):not(.thumb) .chat.layout-vertical { height: 100%; }
 }
 
 /* Ticker */
-.layout-horizontal .list { top: 0; }
-.tick { position: absolute; top: 0; bottom: 0; left: 0; display: flex; align-items: center; white-space: nowrap; }
-.tick .msg { display: flex; align-items: center; gap: 0.4em; }
-.tick .tags { margin: 0; }
-.tick .line { white-space: nowrap; }
-.layout-horizontal.boxed { padding: 0; }
+.layout-horizontal .list {
+  top: 0;
+}
+.tick {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+}
+.tick .msg {
+  display: flex;
+  align-items: center;
+  gap: 0.4em;
+}
+.tick .tags {
+  margin: 0;
+}
+.tick .line {
+  white-space: nowrap;
+}
+.layout-horizontal.boxed {
+  padding: 0;
+}
 
 /* Thumbnails: no motion */
-.still *, .still *::before, .still *::after, .still::before, .still::after { animation: none !important; transition: none !important; }
+.still *,
+.still *::before,
+.still *::after,
+.still::before,
+.still::after {
+  animation: none !important;
+  transition: none !important;
+}
 
 /* Typewriter: the part not typed yet keeps its place */
-.unshown { visibility: hidden; }
+.unshown {
+  visibility: hidden;
+}
 
 /* No box: the border option draws a line beside each message */
-.chat.bg-off.bordered .msg { border-left: var(--bw) solid var(--mbd, var(--bd)); padding-left: 0.6em; }
+.chat.bg-off.bordered .msg {
+  border-left: var(--bw) solid var(--mbd, var(--bd));
+  padding-left: 0.6em;
+}
 
 /* Light boxes: dark text tags. A light name (lname) keeps its color and gets a thin, hard dark outline instead (no blur, so
    it stays sharp), here and on the other light message backgrounds (Cyberpunk bar's yellow pills, Cyberpunk's newest
    message). With "Make names readable" on, platform colors are already made to read, so this is rarely needed. */
-.light .bt-other { background: rgba(0, 0, 0, 0.12); }
+.light .bt-other {
+  background: rgba(0, 0, 0, 0.12);
+}
 /* "Badge background" (chat.js fit(): .tiled on a light background with Auto, always with Always): Kick's and Twitch's
    own role badges (.tile: OG, moderator, VIP, verified...), made for dark chats, each on a small dark tile like the
    platform logo. Subscriber badges (the channel's own pictures) and the OG hat stay as they are. */
-.tiled .badge.tile { box-sizing: border-box; height: calc(1.15em * var(--badge, 1)); padding: calc(0.13em * var(--badge, 1)); border-radius: 0.25em; background: #000; }
-.light .name.lname:not(.rainbow), .style-cyberbar .tick .name.lname,
-.chat.style-cyberpunk.new-bottom .row:last-child .name.lname, .chat.style-cyberpunk.new-top .row:first-child .name.lname, .chat.style-cyberpunk .tick:last-child .name.lname {
-  text-shadow: 1px 0 0 rgba(0, 0, 0, 0.75), -1px 0 0 rgba(0, 0, 0, 0.75), 0 1px 0 rgba(0, 0, 0, 0.75), 0 -1px 0 rgba(0, 0, 0, 0.75);
+.tiled .badge.tile {
+  box-sizing: border-box;
+  height: calc(1.15em * var(--badge, 1));
+  padding: calc(0.13em * var(--badge, 1));
+  border-radius: 0.25em;
+  background: #000;
+}
+.light .name.lname:not(.rainbow),
+.style-cyberbar .tick .name.lname,
+.chat.style-cyberpunk.new-bottom .row:last-child .name.lname,
+.chat.style-cyberpunk.new-top .row:first-child .name.lname,
+.chat.style-cyberpunk .tick:last-child .name.lname {
+  text-shadow:
+    1px 0 0 rgba(0, 0, 0, 0.75),
+    -1px 0 0 rgba(0, 0, 0, 0.75),
+    0 1px 0 rgba(0, 0, 0, 0.75),
+    0 -1px 0 rgba(0, 0, 0, 0.75);
 }
 
 /* ---------- Styles: what the options can't do ---------- */
 /* "Newest message" below = the last row (new at bottom), the first row (new at top), or the last ticker item. */
 
 /* Messages that fit their text: speech bubbles, cards, notes, pills */
-.chat.style-bubbles.bubbles .msg, .chat.style-popin.bubbles .msg, .chat.style-comic.bubbles .msg,
-.chat.style-sticky.bubbles .msg, .chat.style-pastel.bubbles .msg { width: -webkit-fit-content; width: fit-content; max-width: 100%; box-sizing: border-box; }
+.chat.style-bubbles.bubbles .msg,
+.chat.style-popin.bubbles .msg,
+.chat.style-comic.bubbles .msg,
+.chat.style-sticky.bubbles .msg,
+.chat.style-pastel.bubbles .msg {
+  width: -webkit-fit-content;
+  width: fit-content;
+  max-width: 100%;
+  box-sizing: border-box;
+}
 
 /* Kick default: Kick's own chat. Plain lines with Kick's spacing (badges 16px before the name, a colon, the message,
    emotes in the line); Kick's green (#53fc18) for mentions, subs, first messages and combos instead of the usual colors. */
-.style-kick .msg { padding: 4px 6px; border-radius: 4px; line-height: 1.5; }
-.style-kick .badge { height: calc(1.15em * var(--badge, 1)); margin-right: 4px; }
-.style-kick .badges { margin-right: 2px; }
-.chat.style-kick .msg.mention { padding-left: 9px; background: rgba(83, 252, 24, 0.12); box-shadow: inset 3px 0 0 #53fc18; }
-.chat.style-kick .msg.glow { padding: 6px 8px; background: rgba(83, 252, 24, 0.1); box-shadow: 0 0 0 1px rgba(83, 252, 24, 0.7); animation: none; }
-.chat.style-kick .msg.first { box-shadow: inset 3px 0 0 #53fc18; padding-left: 9px; }
-.style-kick .tag-sub, .style-kick .tag-first { background: #53fc18; color: #0b0e0f; animation: none; }
-.style-kick .combo { color: #53fc18; }
+.style-kick .msg {
+  padding: 4px 6px;
+  border-radius: 4px;
+  line-height: 1.5;
+}
+.style-kick .badge {
+  height: calc(1.15em * var(--badge, 1));
+  margin-right: 4px;
+}
+.style-kick .badges {
+  margin-right: 2px;
+}
+.chat.style-kick .msg.mention {
+  padding-left: 9px;
+  background: rgba(83, 252, 24, 0.12);
+  box-shadow: inset 3px 0 0 #53fc18;
+}
+.chat.style-kick .msg.glow {
+  padding: 6px 8px;
+  background: rgba(83, 252, 24, 0.1);
+  box-shadow: 0 0 0 1px rgba(83, 252, 24, 0.7);
+  animation: none;
+}
+.chat.style-kick .msg.first {
+  box-shadow: inset 3px 0 0 #53fc18;
+  padding-left: 9px;
+}
+.style-kick .tag-sub,
+.style-kick .tag-first {
+  background: #53fc18;
+  color: #0b0e0f;
+  animation: none;
+}
+.style-kick .combo {
+  color: #53fc18;
+}
 
 /* Classic box: one box, plain lines */
-.chat.style-classic.boxed { box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28); }
+.chat.style-classic.boxed {
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
+}
 
 /* Bubbles: light speech bubbles with a tail, like a messenger app */
-.chat.style-bubbles.bubbles .msg { position: relative; margin-left: 8px; max-width: calc(100% - 16px); border-bottom-left-radius: 4px; box-shadow: 0 3px 10px rgba(0, 0, 0, 0.22); }
-.chat.style-bubbles.bubbles .msg::after { content: ""; position: absolute; left: -9px; bottom: 0; width: 18px; height: 15px; background: var(--bg); clip-path: polygon(100% 0, 100% 100%, 0 100%); }
-.style-bubbles .name { font-weight: 800; }
+.chat.style-bubbles.bubbles .msg {
+  position: relative;
+  margin-left: 8px;
+  max-width: calc(100% - 16px);
+  border-bottom-left-radius: 4px;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.22);
+}
+.chat.style-bubbles.bubbles .msg::after {
+  content: '';
+  position: absolute;
+  left: -9px;
+  bottom: 0;
+  width: 18px;
+  height: 15px;
+  background: var(--bg);
+  clip-path: polygon(100% 0, 100% 100%, 0 100%);
+}
+.style-bubbles .name {
+  font-weight: 800;
+}
 
 /* Floating: no box, big text with a strong shadow */
-.chat.style-floating.shadow .msg { text-shadow: 0 2px 2px rgba(0, 0, 0, 0.95), 0 0 3px #000, 0 0 10px rgba(0, 0, 0, 0.75); }
-.style-floating .body { font-weight: 600; }
+.chat.style-floating.shadow .msg {
+  text-shadow:
+    0 2px 2px rgba(0, 0, 0, 0.95),
+    0 0 3px #000,
+    0 0 10px rgba(0, 0, 0, 0.75);
+}
+.style-floating .body {
+  font-weight: 600;
+}
 
 /* Neon: glowing border and names */
-.chat.style-neon.boxed.bordered, .chat.style-neon.bubbles.bordered .msg { box-shadow: 0 0 6px var(--bd), 0 0 20px var(--bd), inset 0 0 12px rgba(0, 240, 255, 0.18); }
-.style-neon .name { text-shadow: 0 0 6px currentColor, 0 0 14px currentColor; }
-.style-neon .body { text-shadow: 0 0 6px rgba(255, 255, 255, 0.3); }
+.chat.style-neon.boxed.bordered,
+.chat.style-neon.bubbles.bordered .msg {
+  box-shadow:
+    0 0 6px var(--bd),
+    0 0 20px var(--bd),
+    inset 0 0 12px rgba(0, 240, 255, 0.18);
+}
+.style-neon .name {
+  text-shadow:
+    0 0 6px currentColor,
+    0 0 14px currentColor;
+}
+.style-neon .body {
+  text-shadow: 0 0 6px rgba(255, 255, 255, 0.3);
+}
 
 /* Terminal: window bar with three dots, [time] */
-.bar { display: none; }
-.style-terminal .bar { display: flex; align-items: center; gap: 6px; margin: 0 calc(var(--pad) * -1); padding: 8px 12px; background: rgba(255, 255, 255, 0.08); border-bottom: 1px solid rgba(255, 255, 255, 0.12); }
-.style-terminal .bar i { width: 11px; height: 11px; border-radius: 50%; background: #ff5f57; }
-.style-terminal .bar i:nth-child(2) { background: #febc2e; }
-.style-terminal .bar i:nth-child(3) { background: #28c840; }
-.style-terminal .bar-title { flex: 1; margin-right: 40px; text-align: center; font-size: 12px; opacity: 0.6; }
-.style-terminal.bubbles .bar { margin: 0 0 4px; border-radius: var(--radius); }
-.style-terminal time::before { content: "["; }
-.style-terminal time::after { content: "]"; }
+.bar {
+  display: none;
+}
+.style-terminal .bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 calc(var(--pad) * -1);
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+.style-terminal .bar i {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: #ff5f57;
+}
+.style-terminal .bar i:nth-child(2) {
+  background: #febc2e;
+}
+.style-terminal .bar i:nth-child(3) {
+  background: #28c840;
+}
+.style-terminal .bar-title {
+  flex: 1;
+  margin-right: 40px;
+  text-align: center;
+  font-size: 12px;
+  opacity: 0.6;
+}
+.style-terminal.bubbles .bar {
+  margin: 0 0 4px;
+  border-radius: var(--radius);
+}
+.style-terminal time::before {
+  content: '[';
+}
+.style-terminal time::after {
+  content: ']';
+}
 
 /* Retro: pixel font, thick square white frame with a black edge */
-.chat.style-retro { line-height: 1.8; }
-.style-retro .msg { text-transform: uppercase; }
-.style-retro .name { text-shadow: 2px 2px 0 #000; }
-.chat.style-retro.boxed.bordered, .chat.style-retro.bubbles.bordered .msg { box-shadow: 0 0 0 3px #000, inset 0 0 0 3px #000; }
-.style-retro .emote { image-rendering: pixelated; }
+.chat.style-retro {
+  line-height: 1.8;
+}
+.style-retro .msg {
+  text-transform: uppercase;
+}
+.style-retro .name {
+  text-shadow: 2px 2px 0 #000;
+}
+.chat.style-retro.boxed.bordered,
+.chat.style-retro.bubbles.bordered .msg {
+  box-shadow:
+    0 0 0 3px #000,
+    inset 0 0 0 3px #000;
+}
+.style-retro .emote {
+  image-rendering: pixelated;
+}
 
 /* Glass: light frosted box */
-.chat.style-glass.boxed, .chat.style-glass.bubbles .msg {
+.chat.style-glass.boxed,
+.chat.style-glass.bubbles .msg {
   background-image: linear-gradient(135deg, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0.06) 55%, rgba(255, 255, 255, 0.14));
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 12px 32px rgba(0, 0, 0, 0.25);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.6),
+    0 12px 32px rgba(0, 0, 0, 0.25);
 }
 
 /* Pop-in: dark cards that spring in with a colored flash */
-.chat.style-popin.bubbles .msg { box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35); }
-.style-popin .arrive .msg:not(.glow) { animation: pop-flash 1.4s ease-out; }
-@keyframes pop-flash { 0%, 35% { box-shadow: 0 0 0 3px var(--turn), 0 0 24px var(--turn), inset 0 0 20px var(--turn); } }
+.chat.style-popin.bubbles .msg {
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35);
+}
+.style-popin .arrive .msg:not(.glow) {
+  animation: pop-flash 1.4s ease-out;
+}
+@keyframes pop-flash {
+  0%,
+  35% {
+    box-shadow:
+      0 0 0 3px var(--turn),
+      0 0 24px var(--turn),
+      inset 0 0 20px var(--turn);
+  }
+}
 
 /* Side column: a thin line beside each message, name in small caps above */
-.style-side .name { font-variant-caps: all-small-caps; letter-spacing: 0.06em; }
-.chat.style-side.bg-off.bordered .msg { padding-left: 0.7em; }
+.style-side .name {
+  font-variant-caps: all-small-caps;
+  letter-spacing: 0.06em;
+}
+.chat.style-side.bg-off.bordered .msg {
+  padding-left: 0.7em;
+}
 
 /* Ticker: a dot before each message */
-.style-ticker .tick .msg::before { content: "\2022"; margin-right: 0.5em; opacity: 0.45; }
+.style-ticker .tick .msg::before {
+  content: '\2022';
+  margin-right: 0.5em;
+  opacity: 0.45;
+}
 
 /* Cyberpunk: black strips with a cut corner, the newest one solid yellow; glitch on arrival; scanlines */
-.style-cyberpunk .msg { clip-path: polygon(0 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%); }
-.chat.style-cyberpunk.bubbles.bordered .msg { border: 0; border-left: var(--bw) solid var(--mbd, var(--bd)); }
-.style-cyberpunk .name { text-transform: uppercase; letter-spacing: 0.08em; }
-.chat.style-cyberpunk.new-bottom .row:last-child .msg, .chat.style-cyberpunk.new-top .row:first-child .msg, .chat.style-cyberpunk .tick:last-child .msg { background: var(--bd); color: #0b0b0b; }
-.style-cyberpunk .arrive .msg:not(.glow) { animation: glitch 0.55s steps(1) 1; }
-@keyframes glitch {
-  0% { transform: translate(-4px, 0); text-shadow: 3px 0 #ff2bd6, -3px 0 #00f0ff; }
-  15% { transform: translate(4px, -1px); text-shadow: -3px 0 #ff2bd6, 3px 0 #00f0ff; }
-  30% { transform: translate(-2px, 1px); text-shadow: 2px 0 #ff2bd6, -2px 0 #00f0ff; }
-  45% { transform: translate(3px, 0); text-shadow: -2px 0 #ff2bd6, 2px 0 #00f0ff; }
-  60% { transform: none; text-shadow: 1px 0 #ff2bd6, -1px 0 #00f0ff; }
-  80%, 100% { transform: none; text-shadow: none; }
+.style-cyberpunk .msg {
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%);
 }
-.style-cyberpunk::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: repeating-linear-gradient(to bottom, rgba(0, 0, 0, 0.2) 0 1px, transparent 1px 3px); }
+.chat.style-cyberpunk.bubbles.bordered .msg {
+  border: 0;
+  border-left: var(--bw) solid var(--mbd, var(--bd));
+}
+.style-cyberpunk .name {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.chat.style-cyberpunk.new-bottom .row:last-child .msg,
+.chat.style-cyberpunk.new-top .row:first-child .msg,
+.chat.style-cyberpunk .tick:last-child .msg {
+  background: var(--bd);
+  color: #0b0b0b;
+}
+.style-cyberpunk .arrive .msg:not(.glow) {
+  animation: glitch 0.55s steps(1) 1;
+}
+@keyframes glitch {
+  0% {
+    transform: translate(-4px, 0);
+    text-shadow:
+      3px 0 #ff2bd6,
+      -3px 0 #00f0ff;
+  }
+  15% {
+    transform: translate(4px, -1px);
+    text-shadow:
+      -3px 0 #ff2bd6,
+      3px 0 #00f0ff;
+  }
+  30% {
+    transform: translate(-2px, 1px);
+    text-shadow:
+      2px 0 #ff2bd6,
+      -2px 0 #00f0ff;
+  }
+  45% {
+    transform: translate(3px, 0);
+    text-shadow:
+      -2px 0 #ff2bd6,
+      2px 0 #00f0ff;
+  }
+  60% {
+    transform: none;
+    text-shadow:
+      1px 0 #ff2bd6,
+      -1px 0 #00f0ff;
+  }
+  80%,
+  100% {
+    transform: none;
+    text-shadow: none;
+  }
+}
+.style-cyberpunk::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(to bottom, rgba(0, 0, 0, 0.2) 0 1px, transparent 1px 3px);
+}
 
 /* Comic: outlined speech bubbles with a hard shadow and halftone dots, colors taking turns; comic-font names */
 .chat.style-comic.bubbles .msg {
-  position: relative; margin: 0 6px 14px 2px;
-  background-color: var(--turn, var(--bg)); background-image: radial-gradient(rgba(0, 0, 0, 0.14) 1px, transparent 1.6px); background-size: 7px 7px;
+  position: relative;
+  margin: 0 6px 14px 2px;
+  background-color: var(--turn, var(--bg));
+  background-image: radial-gradient(rgba(0, 0, 0, 0.14) 1px, transparent 1.6px);
+  background-size: 7px 7px;
   box-shadow: 4px 4px 0 #111;
 }
-.chat.style-comic.bubbles .msg::before, .chat.style-comic.bubbles .msg::after { content: ""; position: absolute; top: 100%; clip-path: polygon(0 0, 100% 0, 0 100%); }
-.chat.style-comic.bubbles .msg::before { left: 20px; width: 24px; height: 16px; background: var(--mbd, var(--bd)); } /* the tail's outline */
-.chat.style-comic.bubbles .msg::after { left: calc(20px + var(--bw)); width: calc(24px - var(--bw) * 3); height: calc(16px - var(--bw) * 2.2); background: var(--turn, var(--bg)); }
-.style-comic .name { font-family: "Bangers", Impact, sans-serif; font-weight: 400; letter-spacing: 0.05em; }
-.style-comic .body { font-weight: 600; }
+.chat.style-comic.bubbles .msg::before,
+.chat.style-comic.bubbles .msg::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  clip-path: polygon(0 0, 100% 0, 0 100%);
+}
+.chat.style-comic.bubbles .msg::before {
+  left: 20px;
+  width: 24px;
+  height: 16px;
+  background: var(--mbd, var(--bd));
+} /* the tail's outline */
+.chat.style-comic.bubbles .msg::after {
+  left: calc(20px + var(--bw));
+  width: calc(24px - var(--bw) * 3);
+  height: calc(16px - var(--bw) * 2.2);
+  background: var(--turn, var(--bg));
+}
+.style-comic .name {
+  font-family: 'Bangers', Impact, sans-serif;
+  font-weight: 400;
+  letter-spacing: 0.05em;
+}
+.style-comic .body {
+  font-weight: 600;
+}
 
 /* Gamer HUD: cyan corner brackets, a scanline moving down, names in small outlined tags */
 .style-hud::before {
-  content: ""; position: absolute; inset: 6px; z-index: 1; pointer-events: none;
+  content: '';
+  position: absolute;
+  inset: 6px;
+  z-index: 1;
+  pointer-events: none;
   background:
-    linear-gradient(var(--bd), var(--bd)) left top / 22px 2px no-repeat, linear-gradient(var(--bd), var(--bd)) left top / 2px 22px no-repeat,
-    linear-gradient(var(--bd), var(--bd)) right top / 22px 2px no-repeat, linear-gradient(var(--bd), var(--bd)) right top / 2px 22px no-repeat,
-    linear-gradient(var(--bd), var(--bd)) left bottom / 22px 2px no-repeat, linear-gradient(var(--bd), var(--bd)) left bottom / 2px 22px no-repeat,
-    linear-gradient(var(--bd), var(--bd)) right bottom / 22px 2px no-repeat, linear-gradient(var(--bd), var(--bd)) right bottom / 2px 22px no-repeat;
+    linear-gradient(var(--bd), var(--bd)) left top / 22px 2px no-repeat,
+    linear-gradient(var(--bd), var(--bd)) left top / 2px 22px no-repeat,
+    linear-gradient(var(--bd), var(--bd)) right top / 22px 2px no-repeat,
+    linear-gradient(var(--bd), var(--bd)) right top / 2px 22px no-repeat,
+    linear-gradient(var(--bd), var(--bd)) left bottom / 22px 2px no-repeat,
+    linear-gradient(var(--bd), var(--bd)) left bottom / 2px 22px no-repeat,
+    linear-gradient(var(--bd), var(--bd)) right bottom / 22px 2px no-repeat,
+    linear-gradient(var(--bd), var(--bd)) right bottom / 2px 22px no-repeat;
 }
-.style-hud::after { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 30%; pointer-events: none; background: linear-gradient(to bottom, transparent, rgba(0, 229, 255, 0.06) 80%, rgba(0, 229, 255, 0.22) 99%, transparent); animation: hud-scan 7s linear infinite; }
-.style-hud .name:not(.rainbow) { background: rgba(0, 229, 255, 0.08); } /* a rainbow name paints its own background */
-@keyframes hud-scan { from { transform: translateY(-100%); } to { transform: translateY(340%); } }
-.chat.style-hud.boxed { box-shadow: inset 0 0 40px rgba(0, 229, 255, 0.08); }
-.style-hud .name { display: inline-block; margin: 0; padding: 0.05em 0.45em; border: 1px solid var(--bd); border-radius: 2px; font-family: Consolas, "Courier New", monospace; font-size: 0.85em; line-height: 1.3; }
+.style-hud::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 30%;
+  pointer-events: none;
+  background: linear-gradient(to bottom, transparent, rgba(0, 229, 255, 0.06) 80%, rgba(0, 229, 255, 0.22) 99%, transparent);
+  animation: hud-scan 7s linear infinite;
+}
+.style-hud .name:not(.rainbow) {
+  background: rgba(0, 229, 255, 0.08);
+} /* a rainbow name paints its own background */
+@keyframes hud-scan {
+  from {
+    transform: translateY(-100%);
+  }
+  to {
+    transform: translateY(340%);
+  }
+}
+.chat.style-hud.boxed {
+  box-shadow: inset 0 0 40px rgba(0, 229, 255, 0.08);
+}
+.style-hud .name {
+  display: inline-block;
+  margin: 0;
+  padding: 0.05em 0.45em;
+  border: 1px solid var(--bd);
+  border-radius: 2px;
+  font-family: Consolas, 'Courier New', monospace;
+  font-size: 0.85em;
+  line-height: 1.3;
+}
 
 /* Sticky notes: tilted notes taking turns with colors; tape on the newest one */
-.style-sticky .list { padding: 0 10px; }
-.chat.style-sticky.bubbles .msg {
-  position: relative; min-width: 45%; max-width: 88%;
-  background: var(--turn, var(--bg)); transform: rotate(var(--tilt));
-  border-bottom-right-radius: 16px 6px; box-shadow: 0 8px 14px -6px rgba(0, 0, 0, 0.45), 0 1px 2px rgba(0, 0, 0, 0.18);
+.style-sticky .list {
+  padding: 0 10px;
 }
-.style-sticky .name { font-weight: 800; }
-.chat.style-sticky.new-bottom .row:last-child .msg::before, .chat.style-sticky.new-top .row:first-child .msg::before, .chat.style-sticky .tick:last-child .msg::before {
-  content: ""; position: absolute; top: -10px; left: 50%; width: 70px; height: 20px; margin-left: -35px;
-  background: rgba(255, 255, 255, 0.55); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15); transform: rotate(-4deg);
+.chat.style-sticky.bubbles .msg {
+  position: relative;
+  min-width: 45%;
+  max-width: 88%;
+  background: var(--turn, var(--bg));
+  transform: rotate(var(--tilt));
+  border-bottom-right-radius: 16px 6px;
+  box-shadow:
+    0 8px 14px -6px rgba(0, 0, 0, 0.45),
+    0 1px 2px rgba(0, 0, 0, 0.18);
+}
+.style-sticky .name {
+  font-weight: 800;
+}
+.chat.style-sticky.new-bottom .row:last-child .msg::before,
+.chat.style-sticky.new-top .row:first-child .msg::before,
+.chat.style-sticky .tick:last-child .msg::before {
+  content: '';
+  position: absolute;
+  top: -10px;
+  left: 50%;
+  width: 70px;
+  height: 20px;
+  margin-left: -35px;
+  background: rgba(255, 255, 255, 0.55);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  transform: rotate(-4deg);
 }
 
 /* Pastel: soft pills taking turns with pastel colors; "name · message" */
-.chat.style-pastel.bubbles .msg { background: var(--turn, var(--bg)); padding: calc(var(--pad) * 0.75) calc(var(--pad) * 1.5); box-shadow: 0 3px 10px rgba(90, 60, 160, 0.18); }
-.style-pastel .colon { margin-right: 0.1em; opacity: 0.6; }
-.style-pastel .body { font-weight: 500; }
+.chat.style-pastel.bubbles .msg {
+  background: var(--turn, var(--bg));
+  padding: calc(var(--pad) * 0.75) calc(var(--pad) * 1.5);
+  box-shadow: 0 3px 10px rgba(90, 60, 160, 0.18);
+}
+.style-pastel .colon {
+  margin-right: 0.1em;
+  opacity: 0.6;
+}
+.style-pastel .body {
+  font-weight: 500;
+}
 
 /* Galaxy: starry space box with a purple glow, a few twinkling stars, glowing names */
 .chat.style-galaxy.boxed {
   background-image:
     radial-gradient(1px 1px at 20px 30px, #fff, transparent), radial-gradient(1px 1px at 140px 80px, rgba(255, 255, 255, 0.8), transparent),
     radial-gradient(1.5px 1.5px at 90px 150px, #d9c8ff, transparent), radial-gradient(1px 1px at 200px 190px, #fff, transparent),
-    radial-gradient(1px 1px at 60px 220px, rgba(190, 210, 255, 0.9), transparent),
-    radial-gradient(ellipse at 15% 0%, rgba(140, 80, 255, 0.3), transparent 60%), radial-gradient(ellipse at 100% 100%, rgba(255, 110, 200, 0.18), transparent 55%);
-  background-size: 240px 240px, 240px 240px, 240px 240px, 240px 240px, 240px 240px, 100% 100%, 100% 100%;
-  box-shadow: 0 0 28px rgba(150, 90, 255, 0.55), inset 0 0 24px rgba(150, 90, 255, 0.25);
+    radial-gradient(1px 1px at 60px 220px, rgba(190, 210, 255, 0.9), transparent), radial-gradient(ellipse at 15% 0%, rgba(140, 80, 255, 0.3), transparent 60%),
+    radial-gradient(ellipse at 100% 100%, rgba(255, 110, 200, 0.18), transparent 55%);
+  background-size:
+    240px 240px,
+    240px 240px,
+    240px 240px,
+    240px 240px,
+    240px 240px,
+    100% 100%,
+    100% 100%;
+  box-shadow:
+    0 0 28px rgba(150, 90, 255, 0.55),
+    inset 0 0 24px rgba(150, 90, 255, 0.25);
 }
-.style-galaxy::before, .style-galaxy::after { content: ""; position: absolute; top: 0; left: 0; width: 3px; height: 3px; border-radius: 50%; background: #fff; pointer-events: none; animation: star-twinkle 2.8s ease-in-out infinite alternate; }
-.style-galaxy::before { transform: translate(30px, 90px); box-shadow: 70px 40px #fff, 260px 120px #e3d4ff, 380px 260px #fff, 150px 330px #cfe0ff, 330px 470px #fff, 40px 540px #ffd6f0; }
-.style-galaxy::after { transform: translate(110px, 20px); box-shadow: 180px 60px #cfe0ff, 30px 200px #fff, 280px 380px #ffd6f0, 90px 450px #e3d4ff, 220px 560px #fff; animation-duration: 3.6s; animation-delay: -1.5s; }
-@keyframes star-twinkle { from { opacity: 0.15; } to { opacity: 1; } }
-.style-galaxy .name { text-shadow: 0 0 10px currentColor; }
+.style-galaxy::before,
+.style-galaxy::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: #fff;
+  pointer-events: none;
+  animation: star-twinkle 2.8s ease-in-out infinite alternate;
+}
+.style-galaxy::before {
+  transform: translate(30px, 90px);
+  box-shadow:
+    70px 40px #fff,
+    260px 120px #e3d4ff,
+    380px 260px #fff,
+    150px 330px #cfe0ff,
+    330px 470px #fff,
+    40px 540px #ffd6f0;
+}
+.style-galaxy::after {
+  transform: translate(110px, 20px);
+  box-shadow:
+    180px 60px #cfe0ff,
+    30px 200px #fff,
+    280px 380px #ffd6f0,
+    90px 450px #e3d4ff,
+    220px 560px #fff;
+  animation-duration: 3.6s;
+  animation-delay: -1.5s;
+}
+@keyframes star-twinkle {
+  from {
+    opacity: 0.15;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.style-galaxy .name {
+  text-shadow: 0 0 10px currentColor;
+}
 
 /* RPG dialog: game dialog boxes, the name in a tab on the top edge, a blinking ▼ after the newest one */
-.chat.style-rpg { line-height: 1.9; }
-.style-rpg .msg { position: relative; }
-.chat.style-rpg.bubbles .msg { box-shadow: 0 0 0 3px #000, 0 6px 0 rgba(0, 0, 0, 0.35); }
-.chat.style-rpg.name-above .msg { padding-top: calc(var(--pad) + 0.5em); }
-.chat.style-rpg.name-above .meta { position: absolute; top: 0; left: 12px; transform: translateY(-62%); padding: 0.45em 0.6em; background: var(--bg); border: 2px solid var(--bd); border-radius: 4px; line-height: 1; white-space: nowrap; }
-.style-rpg .name { text-shadow: 2px 2px 0 #000; }
-.chat.style-rpg.new-bottom .row:last-child .body::after, .chat.style-rpg.new-top .row:first-child .body::after, .chat.style-rpg .tick:last-child .body::after {
-  content: "\25BC"; display: inline-block; margin-left: 0.6em; font-size: 0.75em; animation: rpg-blink 0.9s steps(1) infinite;
+.chat.style-rpg {
+  line-height: 1.9;
 }
-.style-rpg .typing .body::after { visibility: hidden; }
-@keyframes rpg-blink { 50% { opacity: 0; } }
+.style-rpg .msg {
+  position: relative;
+}
+.chat.style-rpg.bubbles .msg {
+  box-shadow:
+    0 0 0 3px #000,
+    0 6px 0 rgba(0, 0, 0, 0.35);
+}
+.chat.style-rpg.name-above .msg {
+  padding-top: calc(var(--pad) + 0.5em);
+}
+.chat.style-rpg.name-above .meta {
+  position: absolute;
+  top: 0;
+  left: 12px;
+  transform: translateY(-62%);
+  padding: 0.45em 0.6em;
+  background: var(--bg);
+  border: 2px solid var(--bd);
+  border-radius: 4px;
+  line-height: 1;
+  white-space: nowrap;
+}
+.style-rpg .name {
+  text-shadow: 2px 2px 0 #000;
+}
+.chat.style-rpg.new-bottom .row:last-child .body::after,
+.chat.style-rpg.new-top .row:first-child .body::after,
+.chat.style-rpg .tick:last-child .body::after {
+  content: '\25BC';
+  display: inline-block;
+  margin-left: 0.6em;
+  font-size: 0.75em;
+  animation: rpg-blink 0.9s steps(1) infinite;
+}
+.style-rpg .typing .body::after {
+  visibility: hidden;
+}
+@keyframes rpg-blink {
+  50% {
+    opacity: 0;
+  }
+}
 
 /* Persian tile: a turquoise-and-gold tile frame, a gold eight-point star, Persian lines right-aligned */
-.chat.style-persian.boxed.bordered { border: 0; }
+.chat.style-persian.boxed.bordered {
+  border: 0;
+}
 .chat.style-persian.bordered::before {
-  content: ""; position: absolute; inset: 0; z-index: 1; pointer-events: none; padding: var(--bw); border-radius: var(--radius);
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  padding: var(--bw);
+  border-radius: var(--radius);
   background: conic-gradient(from 45deg, var(--bd) 0 25%, #1fa89f 0 50%, var(--bd) 0 75%, #1fa89f 0) 0 0 / calc(var(--bw) * 2) calc(var(--bw) * 2);
-  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
   -webkit-mask-composite: xor;
-  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+  mask:
+    linear-gradient(#000 0 0) content-box exclude,
+    linear-gradient(#000 0 0);
 }
 .style-persian::after {
-  content: ""; position: absolute; z-index: 2; top: calc(var(--bw) + 8px); right: calc(var(--bw) + 8px); width: 20px; height: 20px; pointer-events: none;
+  content: '';
+  position: absolute;
+  z-index: 2;
+  top: calc(var(--bw) + 8px);
+  right: calc(var(--bw) + 8px);
+  width: 20px;
+  height: 20px;
+  pointer-events: none;
   background: radial-gradient(circle, #fff3c4 0 16%, var(--bd) 19%);
-  clip-path: polygon(50% 0%, 64.6% 14.6%, 85.4% 14.6%, 85.4% 35.4%, 100% 50%, 85.4% 64.6%, 85.4% 85.4%, 64.6% 85.4%, 50% 100%, 35.4% 85.4%, 14.6% 85.4%, 14.6% 64.6%, 0% 50%, 14.6% 35.4%, 14.6% 14.6%, 35.4% 14.6%);
+  clip-path: polygon(
+    50% 0%,
+    64.6% 14.6%,
+    85.4% 14.6%,
+    85.4% 35.4%,
+    100% 50%,
+    85.4% 64.6%,
+    85.4% 85.4%,
+    64.6% 85.4%,
+    50% 100%,
+    35.4% 85.4%,
+    14.6% 85.4%,
+    14.6% 64.6%,
+    0% 50%,
+    14.6% 35.4%,
+    14.6% 14.6%,
+    35.4% 14.6%
+  );
 }
-.chat.style-persian .msg[data-dir="rtl"] { direction: rtl; text-align: right; }
-.chat.style-persian .msg[data-dir="rtl"] .reply-line { justify-content: flex-end; } /* the reply line on the same side */
-.style-persian .name { text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5); }
+.chat.style-persian .msg[data-dir='rtl'] {
+  direction: rtl;
+  text-align: right;
+}
+.chat.style-persian .msg[data-dir='rtl'] .reply-line {
+  justify-content: flex-end;
+} /* the reply line on the same side */
+.style-persian .name {
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
 
 /* ---------- Fancy effects in every style ---------- */
 /* A box per message: the sub glow and the mention show as rings, so they don't fight the style's own shadow. */
-.chat.bubbles .msg.glow { outline: 2px solid #ffd54d; outline-offset: 2px; }
-.chat.bubbles .msg.mention { outline: 2px solid #ff4d6d; outline-offset: 2px; }
+.chat.bubbles .msg.glow {
+  outline: 2px solid #ffd54d;
+  outline-offset: 2px;
+}
+.chat.bubbles .msg.mention {
+  outline: 2px solid #ff4d6d;
+  outline-offset: 2px;
+}
 /* Cut-corner styles clip rings: tint the message instead */
-.chat.style-cyberpunk .msg.glow { background-image: linear-gradient(90deg, rgba(255, 213, 77, 0.35), transparent 70%); }
-.chat.style-cyberpunk .msg.mention { background: #ff2bd6; color: #0b0b0b; }
-.chat.style-cyberpunk.new-bottom .row:last-child .combo, .chat.style-cyberpunk.new-top .row:first-child .combo, .chat.style-cyberpunk .tick:last-child .combo { color: #0b0b0b; }
-.style-cyberbar .tag-sub { background: #0b0b0b; color: #fcee0a; }
+.chat.style-cyberpunk .msg.glow {
+  background-image: linear-gradient(90deg, rgba(255, 213, 77, 0.35), transparent 70%);
+}
+.chat.style-cyberpunk .msg.mention {
+  background: #ff2bd6;
+  color: #0b0b0b;
+}
+.chat.style-cyberpunk.new-bottom .row:last-child .combo,
+.chat.style-cyberpunk.new-top .row:first-child .combo,
+.chat.style-cyberpunk .tick:last-child .combo {
+  color: #0b0b0b;
+}
+.style-cyberbar .tag-sub {
+  background: #0b0b0b;
+  color: #fcee0a;
+}
 /* Light boxes: a darker rainbow and combo counter, so they stay readable */
-.light .name.rainbow { --rainbow: linear-gradient(90deg, #e03131, #e8590c, #c99700, #2b8a3e, #1971c2, #6741d9, #c2255c, #e03131); }
-.light .combo { color: #e8590c; }
+.light .name.rainbow {
+  --rainbow: linear-gradient(90deg, #e03131, #e8590c, #c99700, #2b8a3e, #1971c2, #6741d9, #c2255c, #e03131);
+}
+.light .combo {
+  color: #e8590c;
+}
 /* One line (bars): the combo counter sits on the emote, so the message doesn't get wider while it scrolls */
-.tick .msg { position: relative; }
-.tick .combo { position: absolute; top: -0.35em; right: -0.5em; margin: 0; font-size: 0.8em; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8); }
-.tick .msg.glow { padding: 0.25em 0.6em; }
+.tick .msg {
+  position: relative;
+}
+.tick .combo {
+  position: absolute;
+  top: -0.35em;
+  right: -0.5em;
+  margin: 0;
+  font-size: 0.8em;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+}
+.tick .msg.glow {
+  padding: 0.25em 0.6em;
+}
 
 /* ---------- Special lines (Events): Kicks, subs, gifted subs, bits, raids ---------- */
 /* Inside the style's own message (bubble, note, strip...): what happened, with the gift / gem / platform logo, over the
    viewer's message. --ev is the platform's color (--ev-a, --ev-b: see-through), set in chat.js. Text keeps the style's
    color, so it reads on light and dark styles alike. Card: a tinted card with a bar; Glow: a glowing ring; Simple line: words only. */
-.ev-head { font-weight: 700; }
-.ev-icon { height: 1.6em; margin: -0.2em 0.35em -0.2em 0; vertical-align: middle; }
-.ev-icon.platform { width: 1.2em; height: 1.2em; margin-top: 0; margin-bottom: 0; }
-.ev-gift { font-weight: 900; text-transform: uppercase; }
-.ev-amt { font-weight: 900; }
-.ev-msg { margin-top: 0.25em; }
-.ev-card .ev, .ev-glow .ev { padding: 0.45em 0.7em; border-radius: max(calc(var(--radius) * 0.6), 6px); background: var(--ev-a); }
-.ev-card .ev { box-shadow: inset 4px 0 0 var(--ev); }
-.ev-card [data-dir="rtl"] .ev { box-shadow: inset -4px 0 0 var(--ev); }
-.ev-glow .ev { margin: 3px; box-shadow: 0 0 0 2px var(--ev), 0 0 14px var(--ev-b); animation: ev-glow 1.8s ease-in-out infinite alternate; } /* margin: room for the ring */
-@keyframes ev-glow { to { box-shadow: 0 0 0 2px var(--ev), 0 0 24px var(--ev); } }
-.ev-line .ev-icon { height: 1.3em; }
+.ev-head {
+  font-weight: 700;
+}
+.ev-icon {
+  height: 1.6em;
+  margin: -0.2em 0.35em -0.2em 0;
+  vertical-align: middle;
+}
+.ev-icon.platform {
+  width: 1.2em;
+  height: 1.2em;
+  margin-top: 0;
+  margin-bottom: 0;
+}
+.ev-gift {
+  font-weight: 900;
+  text-transform: uppercase;
+}
+.ev-amt {
+  font-weight: 900;
+}
+.ev-msg {
+  margin-top: 0.25em;
+}
+.ev-card .ev,
+.ev-glow .ev {
+  padding: 0.45em 0.7em;
+  border-radius: max(calc(var(--radius) * 0.6), 6px);
+  background: var(--ev-a);
+}
+.ev-card .ev {
+  box-shadow: inset 4px 0 0 var(--ev);
+}
+.ev-card [data-dir='rtl'] .ev {
+  box-shadow: inset -4px 0 0 var(--ev);
+}
+.ev-glow .ev {
+  margin: 3px;
+  box-shadow:
+    0 0 0 2px var(--ev),
+    0 0 14px var(--ev-b);
+  animation: ev-glow 1.8s ease-in-out infinite alternate;
+} /* margin: room for the ring */
+@keyframes ev-glow {
+  to {
+    box-shadow:
+      0 0 0 2px var(--ev),
+      0 0 24px var(--ev);
+  }
+}
+.ev-line .ev-icon {
+  height: 1.3em;
+}
 /* One line (bars): everything in a row */
-.tick .ev { display: flex; align-items: center; gap: 0.5em; white-space: nowrap; }
-.tick .ev-msg { margin: 0; }
-.ev-card .tick .ev, .ev-glow .tick .ev { padding: 0.2em 0.6em; }
+.tick .ev {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  white-space: nowrap;
+}
+.tick .ev-msg {
+  margin: 0;
+}
+.ev-card .tick .ev,
+.ev-glow .tick .ev {
+  padding: 0.2em 0.6em;
+}
 
 /* ---------- Horizontal (bar) styles ---------- */
 /* OBS source taller than the bar: put the bar at the bottom */
-body.bar-bottom { display: flex; flex-direction: column; justify-content: flex-end; }
+body.bar-bottom {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
 
 /* News ticker: a red LIVE CHAT label with a pulsing dot, a white bar, thin dividers */
-.chat.style-news.layout-horizontal { flex-direction: row; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3); }
-.style-news .bar {
-  display: flex; flex: none; align-items: center; gap: 0.55em; padding: 0 1.4em 0 1em; background: #d61f26; color: #fff;
-  font-weight: 900; font-size: 0.85em; letter-spacing: 0.1em; white-space: nowrap; clip-path: polygon(0 0, 100% 0, calc(100% - 12px) 100%, 0 100%);
+.chat.style-news.layout-horizontal {
+  flex-direction: row;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
 }
-.style-news .bar i { width: 0.6em; height: 0.6em; border-radius: 50%; background: #fff; animation: live-pulse 1.4s ease-in-out infinite; }
-.style-news .bar i + i { display: none; }
-.style-news .bar-title { flex: none; margin: 0; font-size: inherit; opacity: 1; text-align: left; }
-@keyframes live-pulse { 50% { opacity: 0.35; transform: scale(0.7); } }
-.style-news .tick { padding-left: 18px; }
-.style-news .tick::before { content: ""; position: absolute; left: 0; top: 26%; bottom: 26%; width: 1px; background: rgba(0, 0, 0, 0.25); }
+.style-news .bar {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 0.55em;
+  padding: 0 1.4em 0 1em;
+  background: #d61f26;
+  color: #fff;
+  font-weight: 900;
+  font-size: 0.85em;
+  letter-spacing: 0.1em;
+  white-space: nowrap;
+  clip-path: polygon(0 0, 100% 0, calc(100% - 12px) 100%, 0 100%);
+}
+.style-news .bar i {
+  width: 0.6em;
+  height: 0.6em;
+  border-radius: 50%;
+  background: #fff;
+  animation: live-pulse 1.4s ease-in-out infinite;
+}
+.style-news .bar i + i {
+  display: none;
+}
+.style-news .bar-title {
+  flex: none;
+  margin: 0;
+  font-size: inherit;
+  opacity: 1;
+  text-align: left;
+}
+@keyframes live-pulse {
+  50% {
+    opacity: 0.35;
+    transform: scale(0.7);
+  }
+}
+.style-news .tick {
+  padding-left: 18px;
+}
+.style-news .tick::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 26%;
+  bottom: 26%;
+  width: 1px;
+  background: rgba(0, 0, 0, 0.25);
+}
 
 /* Neon strip: pink line on top, cyan line below, glowing names */
-.chat.style-neonstrip.layout-horizontal { box-shadow: inset 0 2px 0 var(--bd), inset 0 -2px 0 #00f0ff, 0 -4px 14px -4px var(--bd), 0 4px 14px -4px #00f0ff; }
-.style-neonstrip .name { text-shadow: 0 0 6px currentColor, 0 0 12px currentColor; }
+.chat.style-neonstrip.layout-horizontal {
+  box-shadow:
+    inset 0 2px 0 var(--bd),
+    inset 0 -2px 0 #00f0ff,
+    0 -4px 14px -4px var(--bd),
+    0 4px 14px -4px #00f0ff;
+}
+.style-neonstrip .name {
+  text-shadow:
+    0 0 6px currentColor,
+    0 0 12px currentColor;
+}
 
 /* Pills: no bar, each message its own floating pill */
-.chat.style-pills.bubbles .tick .msg { padding: calc(var(--pad) * 0.7) calc(var(--pad) * 1.6); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35); }
+.chat.style-pills.bubbles .tick .msg {
+  padding: calc(var(--pad) * 0.7) calc(var(--pad) * 1.6);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+}
 
 /* Minimal: no background, big text, strong shadow */
-.chat.style-minimal.shadow .msg { text-shadow: 0 2px 2px rgba(0, 0, 0, 0.95), 0 0 3px #000, 0 0 10px rgba(0, 0, 0, 0.75); }
-.style-minimal .body { font-weight: 600; }
+.chat.style-minimal.shadow .msg {
+  text-shadow:
+    0 2px 2px rgba(0, 0, 0, 0.95),
+    0 0 3px #000,
+    0 0 10px rgba(0, 0, 0, 0.75);
+}
+.style-minimal .body {
+  font-weight: 600;
+}
 
 /* LED board: dot-matrix black bar, amber uppercase glowing text */
 .chat.style-led.boxed {
-  background-image: radial-gradient(rgba(255, 176, 0, 0.12) 1px, transparent 1.4px); background-size: 4px 4px;
-  box-shadow: inset 0 0 0 2px #1c1c1c, inset 0 0 18px rgba(0, 0, 0, 0.9);
+  background-image: radial-gradient(rgba(255, 176, 0, 0.12) 1px, transparent 1.4px);
+  background-size: 4px 4px;
+  box-shadow:
+    inset 0 0 0 2px #1c1c1c,
+    inset 0 0 18px rgba(0, 0, 0, 0.9);
 }
-.style-led .msg { text-transform: uppercase; letter-spacing: 0.08em; text-shadow: 0 0 4px currentColor, 0 0 10px rgba(255, 150, 0, 0.55); }
-.style-led .name { text-shadow: 0 0 6px currentColor, 0 0 12px currentColor; }
+.style-led .msg {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  text-shadow:
+    0 0 4px currentColor,
+    0 0 10px rgba(255, 150, 0, 0.55);
+}
+.style-led .name {
+  text-shadow:
+    0 0 6px currentColor,
+    0 0 12px currentColor;
+}
 
 /* Cyberpunk bar: black bar with a yellow bottom line; every message a yellow tag with slanted ends */
-.chat.style-cyberbar.boxed.bordered { border: 0; box-shadow: inset 0 calc(var(--bw) * -1) 0 var(--bd), 0 6px 16px -8px var(--bd); }
+.chat.style-cyberbar.boxed.bordered {
+  border: 0;
+  box-shadow:
+    inset 0 calc(var(--bw) * -1) 0 var(--bd),
+    0 6px 16px -8px var(--bd);
+}
 /* the slanted tag is drawn behind the message, so the combo counter on top isn't cut off */
-.style-cyberbar .tick .msg { padding: 0.3em 1.2em; z-index: 0; }
-.style-cyberbar .tick .msg::before { content: ""; position: absolute; inset: 0; z-index: -1; background: var(--bd); clip-path: polygon(10px 0, 100% 0, calc(100% - 10px) 100%, 0 100%); }
-.chat.style-cyberbar .tick .msg.glow, .chat.style-cyberbar .tick .msg.first { background: none; box-shadow: none; animation: none; }
-.style-cyberbar .tick .msg.glow::before { background: linear-gradient(90deg, #ffd54d, var(--bd)); }
-.style-cyberbar .tick .msg.mention::before { background: #ff2bd6; }
-.style-cyberbar .name { text-transform: uppercase; letter-spacing: 0.06em; font-weight: 900; }
+.style-cyberbar .tick .msg {
+  padding: 0.3em 1.2em;
+  z-index: 0;
+}
+.style-cyberbar .tick .msg::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: var(--bd);
+  clip-path: polygon(10px 0, 100% 0, calc(100% - 10px) 100%, 0 100%);
+}
+.chat.style-cyberbar .tick .msg.glow,
+.chat.style-cyberbar .tick .msg.first {
+  background: none;
+  box-shadow: none;
+  animation: none;
+}
+.style-cyberbar .tick .msg.glow::before {
+  background: linear-gradient(90deg, #ffd54d, var(--bd));
+}
+.style-cyberbar .tick .msg.mention::before {
+  background: #ff2bd6;
+}
+.style-cyberbar .name {
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 900;
+}
 
 /* Pastel candy: a white rounded bar with soft pastel pills */
-.chat.style-candy.boxed { box-shadow: 0 4px 14px rgba(90, 60, 160, 0.25); }
-.style-candy .tick .msg { padding: 0.25em 0.9em; border-radius: 999px; background: var(--turn); }
-.style-candy .body { font-weight: 500; }
+.chat.style-candy.boxed {
+  box-shadow: 0 4px 14px rgba(90, 60, 160, 0.25);
+}
+.style-candy .tick .msg {
+  padding: 0.25em 0.9em;
+  border-radius: 999px;
+  background: var(--turn);
+}
+.style-candy .body {
+  font-weight: 500;
+}
 
 /* Glass bar: a frosted strip with a thin white border; messages fade at both edges */
 .chat.style-glassbar.boxed {
   background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0.06));
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 8px 24px rgba(0, 0, 0, 0.25);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.6),
+    0 8px 24px rgba(0, 0, 0, 0.25);
 }

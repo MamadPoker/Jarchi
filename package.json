@@ -14,6 +14,8 @@
     "test": "node --test",
     "typecheck": "tsc -p .",
     "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "dist": "node build/notes.js && electron-builder --win --publish never"
   },
   "engines": {

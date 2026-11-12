@@ -1,12 +1,41 @@
 /* Viewers widget: transparent page, the count in the middle, filling it: drawn at 64 px, then scaled to the Browser
    Source (--k, viewers.js fit()). The style-* class picks the look; colors come from CSS variables set in viewers.js.
    No "live" dot in any style. Runs in OBS's built-in Chromium: stick to well-supported CSS. */
-@font-face { font-family: "Press Start 2P"; src: url("/assets/fonts/press-start-2p/PressStart2P-Regular.ttf") format("truetype"); font-display: swap; }
-@font-face { font-family: "Bangers"; src: url("/assets/fonts/bangers/Bangers-Regular.ttf") format("truetype"); font-display: swap; }
-@font-face { font-family: "Fredoka"; src: url("/assets/fonts/fredoka/Fredoka-Variable.ttf") format("truetype"); font-weight: 300 700; font-display: swap; }
-@font-face { font-family: "Vazirmatn"; src: url("/assets/fonts/vazirmatn/Vazirmatn-Variable.ttf") format("truetype"); font-weight: 100 900; font-display: swap; }
-@font-face { font-family: "Inter"; src: url("/assets/fonts/inter/Inter-Variable.ttf") format("truetype"); font-weight: 100 900; font-display: swap; }
-html, body { margin: 0; height: 100%; overflow: hidden; background: transparent; }
+@font-face {
+  font-family: 'Press Start 2P';
+  src: url('/assets/fonts/press-start-2p/PressStart2P-Regular.ttf') format('truetype');
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Bangers';
+  src: url('/assets/fonts/bangers/Bangers-Regular.ttf') format('truetype');
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Fredoka';
+  src: url('/assets/fonts/fredoka/Fredoka-Variable.ttf') format('truetype');
+  font-weight: 300 700;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Vazirmatn';
+  src: url('/assets/fonts/vazirmatn/Vazirmatn-Variable.ttf') format('truetype');
+  font-weight: 100 900;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Inter';
+  src: url('/assets/fonts/inter/Inter-Variable.ttf') format('truetype');
+  font-weight: 100 900;
+  font-display: swap;
+}
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: transparent;
+}
 
 .viewers {
   position: absolute;
@@ -21,93 +50,316 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: transparent;
   white-space: nowrap;
   transform: translate(-50%, -50%) scale(var(--k, 1)); /* --k: fit() */
 }
-.viewers[hidden] { display: none; }
+.viewers[hidden] {
+  display: none;
+}
 /* Clipped, so a digit rolling in or out never shows outside the card; the padding keeps the glyphs' own edges. */
-.num { display: inline-block; min-width: 3ch; margin: -0.12em -0.08em; padding: 0.12em 0.08em; overflow: hidden; color: var(--num); font-weight: 800; font-variant-numeric: tabular-nums; text-align: center; }
-.offline .num { opacity: 0.75; }
-.outline { fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
-.kick { fill: #53fc18; }
-.twitch .f, .twitch .e { fill: #9146ff; }
-.twitch .i { fill: #fff; }
+.num {
+  display: inline-block;
+  min-width: 3ch;
+  margin: -0.12em -0.08em;
+  padding: 0.12em 0.08em;
+  overflow: hidden;
+  color: var(--num);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+.offline .num {
+  opacity: 0.75;
+}
+.outline {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.kick {
+  fill: #53fc18;
+}
+.twitch .f,
+.twitch .e {
+  fill: #9146ff;
+}
+.twitch .i {
+  fill: #fff;
+}
 
 /* The number changes (viewers.js setNumber): each changed digit is .d with the new one (.now) over the old (.was). */
-.d { position: relative; display: inline-block; }
-.d > span { display: inline-block; }
-.d .was { position: absolute; top: 0; left: 0; }
-.anim-roll .d .now { animation: v-roll-in 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
-.anim-roll .d .was { animation: v-roll-out 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
-@keyframes v-roll-in { from { opacity: 0; transform: translateY(calc(var(--dir, 1) * 0.8em)); } }
-@keyframes v-roll-out { to { opacity: 0; transform: translateY(calc(var(--dir, 1) * -0.8em)); } }
-.anim-flip .d { perspective: 2em; }
-.anim-flip .d .now { animation: v-flip-in 0.28s ease-out 0.28s both; }
-.anim-flip .d .was { animation: v-flip-out 0.28s ease-in both; }
-@keyframes v-flip-in { from { transform: rotateX(-90deg); } }
-@keyframes v-flip-out { to { transform: rotateX(90deg); } }
-.anim-fade .d .now { animation: v-fade 0.5s ease both; }
-.anim-fade .d .was { animation: v-fade 0.5s ease reverse both; }
-@keyframes v-fade { from { opacity: 0; } }
-.num.popping { animation: v-pop 0.45s cubic-bezier(0.3, 1.6, 0.5, 1); }
-@keyframes v-pop { 40% { transform: scale(1.25); } }
+.d {
+  position: relative;
+  display: inline-block;
+}
+.d > span {
+  display: inline-block;
+}
+.d .was {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+.anim-roll .d .now {
+  animation: v-roll-in 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.anim-roll .d .was {
+  animation: v-roll-out 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+@keyframes v-roll-in {
+  from {
+    opacity: 0;
+    transform: translateY(calc(var(--dir, 1) * 0.8em));
+  }
+}
+@keyframes v-roll-out {
+  to {
+    opacity: 0;
+    transform: translateY(calc(var(--dir, 1) * -0.8em));
+  }
+}
+.anim-flip .d {
+  perspective: 2em;
+}
+.anim-flip .d .now {
+  animation: v-flip-in 0.28s ease-out 0.28s both;
+}
+.anim-flip .d .was {
+  animation: v-flip-out 0.28s ease-in both;
+}
+@keyframes v-flip-in {
+  from {
+    transform: rotateX(-90deg);
+  }
+}
+@keyframes v-flip-out {
+  to {
+    transform: rotateX(90deg);
+  }
+}
+.anim-fade .d .now {
+  animation: v-fade 0.5s ease both;
+}
+.anim-fade .d .was {
+  animation: v-fade 0.5s ease reverse both;
+}
+@keyframes v-fade {
+  from {
+    opacity: 0;
+  }
+}
+.num.popping {
+  animation: v-pop 0.45s cubic-bezier(0.3, 1.6, 0.5, 1);
+}
+@keyframes v-pop {
+  40% {
+    transform: scale(1.25);
+  }
+}
 
 /* Jarchi gold: a dark card with a thin gold border, the icon on the left, the gold number, all in Jarchi's colors (Kick's
    and Twitch's logos too, their real shapes). A soft light travels round the border, one loop every 5 s (none with
    reduced motion). Offline: the icon and the text a little dimmer. "Switch": icons take turns. */
-@property --v-light { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
-.style-gold { padding: 0.15em; }
-.style-gold .card { position: relative; display: flex; align-items: center; gap: 0.32em; padding: 0.22em 0.42em; border: 2px solid var(--accent); border-radius: 0.26em; background: var(--bg); box-shadow: 0 0.06em 0.3em rgba(0, 0, 0, 0.35); }
+@property --v-light {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+.style-gold {
+  padding: 0.15em;
+}
+.style-gold .card {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.32em;
+  padding: 0.22em 0.42em;
+  border: 2px solid var(--accent);
+  border-radius: 0.26em;
+  background: var(--bg);
+  box-shadow: 0 0.06em 0.3em rgba(0, 0, 0, 0.35);
+}
 .style-gold .card::before {
-  content: "";
+  content: '';
   position: absolute;
   inset: -2px; /* over the border */
   padding: 2px; /* the border's width: the mask keeps only this ring */
   border-radius: inherit;
   background: conic-gradient(from var(--v-light), transparent 0 60%, rgba(255, 226, 150, 0.45) 80%, rgba(255, 243, 212, 0.8) 89%, transparent 97%);
-  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
   -webkit-mask-composite: xor;
   mask-composite: exclude;
   pointer-events: none;
   animation: v-light 5s linear infinite;
 }
-@keyframes v-light { to { --v-light: 360deg; } }
-@media (prefers-reduced-motion: reduce) { .style-gold .card::before { display: none; } }
-.style-gold .kick, .style-gold .twitch .f, .style-gold .twitch .e { fill: var(--num); }
-.style-gold .twitch .i { fill: none; }
-.style-gold.offline .icon { opacity: 0.75; }
-.style-gold .icon { position: relative; flex: none; width: 0.78em; height: 0.78em; color: var(--num); perspective: 3em; }
-.style-gold .icon > svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; transform: rotateY(90deg); transition: transform 0.45s ease, opacity 0.45s ease; }
-.style-gold .icon > svg.on { opacity: 1; transform: none; }
-.style-gold .icon > .twitch { width: 86%; left: 7%; } /* the Glitch is taller than wide */
+@keyframes v-light {
+  to {
+    --v-light: 360deg;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .style-gold .card::before {
+    display: none;
+  }
+}
+.style-gold .kick,
+.style-gold .twitch .f,
+.style-gold .twitch .e {
+  fill: var(--num);
+}
+.style-gold .twitch .i {
+  fill: none;
+}
+.style-gold.offline .icon {
+  opacity: 0.75;
+}
+.style-gold .icon {
+  position: relative;
+  flex: none;
+  width: 0.78em;
+  height: 0.78em;
+  color: var(--num);
+  perspective: 3em;
+}
+.style-gold .icon > svg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  transform: rotateY(90deg);
+  transition:
+    transform 0.45s ease,
+    opacity 0.45s ease;
+}
+.style-gold .icon > svg.on {
+  opacity: 1;
+  transform: none;
+}
+.style-gold .icon > .twitch {
+  width: 86%;
+  left: 7%;
+} /* the Glitch is taller than wide */
 
 /* Live chart: the number, a small line of the last minutes under it (hidden while offline). */
-.style-chart .card { display: grid; gap: 0.12em; justify-items: start; padding: 0.2em 0.36em 0.3em; border-radius: 0.2em; background: var(--bg); }
-.style-chart .num { text-align: start; }
-.chart { display: block; width: 4.4em; height: 1em; overflow: visible; }
-.chart .line { fill: none; stroke: var(--accent); stroke-width: 2.5; vector-effect: non-scaling-stroke; }
-.chart .area { fill: var(--accent); opacity: 0.18; }
-.offline .chart { display: none; }
+.style-chart .card {
+  display: grid;
+  gap: 0.12em;
+  justify-items: start;
+  padding: 0.2em 0.36em 0.3em;
+  border-radius: 0.2em;
+  background: var(--bg);
+}
+.style-chart .num {
+  text-align: start;
+}
+.chart {
+  display: block;
+  width: 4.4em;
+  height: 1em;
+  overflow: visible;
+}
+.chart .line {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2.5;
+  vector-effect: non-scaling-stroke;
+}
+.chart .area {
+  fill: var(--accent);
+  opacity: 0.18;
+}
+.offline .chart {
+  display: none;
+}
 
 /* Angled bar: a square block in the platform's color with its logo (Total: gold, the people icon), then a dark bar
    with an angled right edge holding the number. */
-.style-angled .block { display: flex; flex: none; align-items: center; justify-content: center; width: 1.34em; height: 1.34em; background: #d6a83e; color: #1b1404; }
-.style-angled.src-kick .block { background: #53fc18; }
-.style-angled.src-twitch .block { background: #9146ff; }
-.style-angled .block svg { width: 0.72em; height: 0.72em; }
-.style-angled .block .kick { fill: #000; }
-.style-angled .block .twitch { width: 0.62em; }
-.style-angled .block .twitch .f, .style-angled .block .twitch .i { fill: #fff; }
-.style-angled .bar { display: flex; align-items: center; padding: 0 0.85em 0 0.38em; background: var(--bg); clip-path: polygon(0 0, 100% 0, calc(100% - 0.5em) 100%, 0 100%); }
+.style-angled .block {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 1.34em;
+  height: 1.34em;
+  background: #d6a83e;
+  color: #1b1404;
+}
+.style-angled.src-kick .block {
+  background: #53fc18;
+}
+.style-angled.src-twitch .block {
+  background: #9146ff;
+}
+.style-angled .block svg {
+  width: 0.72em;
+  height: 0.72em;
+}
+.style-angled .block .kick {
+  fill: #000;
+}
+.style-angled .block .twitch {
+  width: 0.62em;
+}
+.style-angled .block .twitch .f,
+.style-angled .block .twitch .i {
+  fill: #fff;
+}
+.style-angled .bar {
+  display: flex;
+  align-items: center;
+  padding: 0 0.85em 0 0.38em;
+  background: var(--bg);
+  clip-path: polygon(0 0, 100% 0, calc(100% - 0.5em) 100%, 0 100%);
+}
 
 /* Comic, like the Comic chat: a white speech bubble, thick black border, hard offset shadow, halftone dots and a small
    tail; the bold number (Bangers) with an eye. Padding: room for the shadow and the tail. */
-.style-comic { padding: 0 0.14em 0.42em 0; }
+.style-comic {
+  padding: 0 0.14em 0.42em 0;
+}
 .style-comic .bubble {
-  position: relative; display: flex; align-items: center; gap: 0.22em; padding: 0.14em 0.4em 0.1em;
-  border: 0.07em solid var(--accent); border-radius: 0.3em;
-  background-color: var(--bg); background-image: radial-gradient(rgba(0, 0, 0, 0.14) 1px, transparent 1.6px); background-size: 7px 7px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.22em;
+  padding: 0.14em 0.4em 0.1em;
+  border: 0.07em solid var(--accent);
+  border-radius: 0.3em;
+  background-color: var(--bg);
+  background-image: radial-gradient(rgba(0, 0, 0, 0.14) 1px, transparent 1.6px);
+  background-size: 7px 7px;
   box-shadow: 0.09em 0.09em 0 var(--accent);
 }
-.style-comic .bubble::before, .style-comic .bubble::after { content: ""; position: absolute; top: 100%; clip-path: polygon(0 0, 100% 0, 0 100%); }
-.style-comic .bubble::before { left: 0.45em; width: 0.5em; height: 0.34em; background: var(--accent); } /* the tail's outline */
-.style-comic .bubble::after { left: 0.52em; width: 0.29em; height: 0.19em; background: var(--bg); }
-.style-comic .bubble > svg { flex: none; width: 0.66em; height: 0.66em; color: var(--num); stroke-width: 2.6; }
-.style-comic .num { font-weight: 400; letter-spacing: 0.04em; }
+.style-comic .bubble::before,
+.style-comic .bubble::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  clip-path: polygon(0 0, 100% 0, 0 100%);
+}
+.style-comic .bubble::before {
+  left: 0.45em;
+  width: 0.5em;
+  height: 0.34em;
+  background: var(--accent);
+} /* the tail's outline */
+.style-comic .bubble::after {
+  left: 0.52em;
+  width: 0.29em;
+  height: 0.19em;
+  background: var(--bg);
+}
+.style-comic .bubble > svg {
+  flex: none;
+  width: 0.66em;
+  height: 0.66em;
+  color: var(--num);
+  stroke-width: 2.6;
+}
+.style-comic .num {
+  font-weight: 400;
+  letter-spacing: 0.04em;
+}

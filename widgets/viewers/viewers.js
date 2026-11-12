@@ -10,18 +10,26 @@ const userCss = document.head.appendChild(document.createElement('style'));
 const LOGOS = { kick: ['kick'], twitch: ['twitch'], total: ['kick', 'twitch'] };
 // Icons, colored by viewers.css. Kick's and Twitch's are the shapes of their official logos (assets/platform-logos).
 const ICONS = {
-  people: '<svg class="outline" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/><circle cx="9" cy="7" r="4"/></svg>',
+  people:
+    '<svg class="outline" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/><circle cx="9" cy="7" r="4"/></svg>',
   eye: '<svg class="outline" viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>',
   kick: '<svg class="kick" viewBox="0 0 26 26"><path fill-rule="evenodd" d="M1 0H9.76711V5.79452H12.589V2.82193H15.5616V0H24.1781V8.61645H21.3561V11.589H18.3836V14.411H21.3561V17.3836H24.1781V26H15.5616V23.1781H12.589V20.2055H9.76711V26H1V0Z"/></svg>',
-  twitch: '<svg class="twitch" viewBox="0 0 2400 2800"><polygon class="i" points="2200,1300 1800,1700 1400,1700 1050,2050 1050,1700 600,1700 600,200 2200,200"/><path class="f" d="M500,0L0,500v1800h600v500l500-500h400l900-900V0H500z M2200,1300l-400,400h-400l-350,350v-350H600V200h1600V1300z"/><rect class="e" x="1700" y="550" width="200" height="600"/><rect class="e" x="1150" y="550" width="200" height="600"/></svg>',
+  twitch:
+    '<svg class="twitch" viewBox="0 0 2400 2800"><polygon class="i" points="2200,1300 1800,1700 1400,1700 1050,2050 1050,1700 600,1700 600,200 2200,200"/><path class="f" d="M500,0L0,500v1800h600v500l500-500h400l900-900V0H500z M2200,1300l-400,400h-400l-350,350v-350H600V200h1600V1300z"/><rect class="e" x="1700" y="550" width="200" height="600"/><rect class="e" x="1150" y="550" width="200" height="600"/></svg>',
 };
 const CHART = '<svg class="chart" viewBox="0 0 100 30" preserveAspectRatio="none"><path class="area"/><path class="line"/></svg>';
 const SWITCH_MS = 4000; // the "Switch" icon: the next one this often
 const SAMPLE = 1234; // thumbnails, and where Test starts while not live
 // A made-up last 15 minutes ending at n, one point per 30 s.
-const sampleHistory = (n, t = Date.now()) => Array.from({ length: 31 }, (_, i) => [t - (30 - i) * 30000, Math.max(0, n - (30 - i) * 7 + Math.round(35 * Math.sin((30 - i) / 1.6)))]);
+const sampleHistory = (n, t = Date.now()) =>
+  Array.from({ length: 31 }, (_, i) => [t - (30 - i) * 30000, Math.max(0, n - (30 - i) * 7 + Math.round(35 * Math.sin((30 - i) / 1.6)))]);
 
-let strings = {}, cfg, look = '', real = { kick: null, twitch: null, history: [] }, fake = null, text = '';
+let strings = {},
+  cfg,
+  look = '',
+  real = { kick: null, twitch: null, history: [] },
+  fake = null,
+  text = '';
 
 const h = (tag, props, ...kids) => {
   const el = Object.assign(document.createElement(tag), props);
@@ -87,7 +95,8 @@ function data() {
 
 // Test (the panel's preview): the count goes up (sometimes down) a little, from the real one while live.
 function test() {
-  const d = data(), from = d.live ? d.viewers : SAMPLE;
+  const d = data(),
+    from = d.live ? d.viewers : SAMPLE;
   const step = Math.ceil(Math.random() * Math.max(5, from * 0.06)) * (Math.random() < 0.75 ? 1 : -1);
   const n = Math.max(0, from + step) === from ? from + 1 : Math.max(0, from + step);
   const history = d.live && d.history.length ? d.history : sampleHistory(from);
@@ -122,7 +131,7 @@ function update() {
   const d = data();
   root.classList.toggle('offline', !d.live);
   root.hidden = !d.live && cfg.offline === 'hide' && !params.has('thumb');
-  setNumber(d.live ? d.viewers.toLocaleString('en-US') : strings.viewersText?.offline ?? 'Offline');
+  setNumber(d.live ? d.viewers.toLocaleString('en-US') : (strings.viewersText?.offline ?? 'Offline'));
   if (cfg.style === 'chart') drawChart(d);
   fit();
 }
@@ -130,7 +139,8 @@ function update() {
 // The number changes with the chosen animation: Roll, Flip and Fade move only the digits that changed (Roll: up when
 // the count goes up), Pop bounces the whole number. Offline <-> a count just changes.
 function setNumber(next) {
-  const num = root.querySelector('.num'), prev = text;
+  const num = root.querySelector('.num'),
+    prev = text;
   if (next === prev) return;
   text = next;
   const count = (s) => /^[\d,]+$/.test(s);
@@ -141,21 +151,41 @@ function setNumber(next) {
     void num.offsetWidth; // restart the animation
     return num.classList.add('popping');
   }
-  const was = [...prev].reverse(), n = (s) => Number(s.replace(/,/g, ''));
+  const was = [...prev].reverse(),
+    n = (s) => Number(s.replace(/,/g, ''));
   num.style.setProperty('--dir', n(next) > n(prev) ? 1 : -1);
-  num.replaceChildren(...[...next].reverse().map((ch, i) => (ch === was[i] ? ch
-    : h('span', { className: 'd' }, h('span', { className: 'now', textContent: ch }), ...(was[i] ? [h('span', { className: 'was', textContent: was[i] })] : [])))).reverse());
+  num.replaceChildren(
+    ...[...next]
+      .reverse()
+      .map((ch, i) =>
+        ch === was[i]
+          ? ch
+          : h(
+              'span',
+              { className: 'd' },
+              h('span', { className: 'now', textContent: ch }),
+              ...(was[i] ? [h('span', { className: 'was', textContent: was[i] })] : []),
+            ),
+      )
+      .reverse(),
+  );
 }
 
 // Live chart: the count over the last 10 or 15 minutes, scaled to its lowest and highest there; a gap where it wasn't live.
 function drawChart(d) {
-  const span = cfg.chartMinutes * 60000, end = Date.now(), start = end - span;
+  const span = cfg.chartMinutes * 60000,
+    end = Date.now(),
+    start = end - span;
   const pts = d.history.filter((p) => p[0] >= start);
   if (d.live) pts.push([end, d.viewers]); // the line reaches now
   const vals = pts.map((p) => p[1]).filter((v) => v !== null);
-  const lo = Math.min(...vals), hi = Math.max(...vals);
-  const x = (t) => (((t - start) / span) * 100).toFixed(2), y = (v) => (hi === lo ? 15 : 27 - ((v - lo) / (hi - lo)) * 24).toFixed(2);
-  let line = '', area = '', run = [];
+  const lo = Math.min(...vals),
+    hi = Math.max(...vals);
+  const x = (t) => (((t - start) / span) * 100).toFixed(2),
+    y = (v) => (hi === lo ? 15 : 27 - ((v - lo) / (hi - lo)) * 24).toFixed(2);
+  let line = '',
+    area = '',
+    run = [];
   const flush = () => {
     if (run.length > 1) {
       const path = run.map((p, i) => `${i ? 'L' : 'M'}${x(p[0])} ${y(p[1])}`).join('');

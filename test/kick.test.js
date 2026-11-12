@@ -15,7 +15,10 @@ const file = () => JSON.parse(fs.readFileSync(path.join(dataDir, 'kick.json'), '
 
 // Fake relay + Kick. Access token A1 is refused by Kick's API (401), so the first call refreshes it.
 const calls = [];
-let issued = 0, challenge = '', relayDown = false, kickBlocked = false; // Jarchi can't reach the relay / Kick refuses this network
+let issued = 0,
+  challenge = '',
+  relayDown = false,
+  kickBlocked = false; // Jarchi can't reach the relay / Kick refuses this network
 const subs = [];
 globalThis.fetch = async (url, init = {}) => {
   const u = new URL(url);
@@ -31,30 +34,53 @@ globalThis.fetch = async (url, init = {}) => {
       if (body.code && crypto.createHash('sha256').update(body.code_verifier).digest('base64url') !== challenge) return json(400, { error: 'Invalid request' });
       if (body.refresh_token && body.refresh_token !== `R${issued}`) return json(400, { error: 'Invalid request' });
       issued++;
-      return json(200, { access_token: `A${issued}`, refresh_token: `R${issued}`, expires_in: 7200, scope: 'user:read events:subscribe', token_type: 'Bearer' });
-    case 'GET api.kick.com/public/v1/users': return json(200, { data: [{ user_id: 42, name: 'mamad', email: '', profile_picture: 'https://files.kick.com/images/user/42/profile_image/mamad.webp' }], message: 'OK' });
-    case 'GET api.kick.com/public/v1/events/subscriptions': return json(200, { data: subs, message: 'OK' });
+      return json(200, {
+        access_token: `A${issued}`,
+        refresh_token: `R${issued}`,
+        expires_in: 7200,
+        scope: 'user:read events:subscribe',
+        token_type: 'Bearer',
+      });
+    case 'GET api.kick.com/public/v1/users':
+      return json(200, {
+        data: [{ user_id: 42, name: 'mamad', email: '', profile_picture: 'https://files.kick.com/images/user/42/profile_image/mamad.webp' }],
+        message: 'OK',
+      });
+    case 'GET api.kick.com/public/v1/events/subscriptions':
+      return json(200, { data: subs, message: 'OK' });
     case 'POST api.kick.com/public/v1/events/subscriptions':
       for (const e of body.events) subs.push({ id: `s${subs.length + 1}`, event: e.name, version: e.version, broadcaster_user_id: 42, method: 'webhook' });
       return json(200, { data: body.events.map((e, i) => ({ ...e, subscription_id: `s${i + 1}`, error: '' })), message: 'OK' });
-    case 'DELETE api.kick.com/public/v1/events/subscriptions': return new Response(null, { status: 204 });
-    case 'POST id.kick.com/oauth/revoke': return new Response('OK', { status: 200 });
+    case 'DELETE api.kick.com/public/v1/events/subscriptions':
+      return new Response(null, { status: 204 });
+    case 'POST id.kick.com/oauth/revoke':
+      return new Response('OK', { status: 200 });
   }
   return json(404, {});
 };
 const sockets = [];
 globalThis.WebSocket = class {
   static OPEN = 1;
-  constructor(url, opts) { Object.assign(this, { url, opts, readyState: 0, sent: [] }); sockets.push(this); }
-  open() { this.readyState = 1; this.onopen?.(); }
-  send(m) { this.sent.push(m); }
+  constructor(url, opts) {
+    Object.assign(this, { url, opts, readyState: 0, sent: [] });
+    sockets.push(this);
+  }
+  open() {
+    this.readyState = 1;
+    this.onopen?.();
+  }
+  send(m) {
+    this.sent.push(m);
+  }
   close() {
     if (this.closed) return;
     this.closed = true;
     this.readyState = 3;
     setImmediate(() => this.onclose?.());
   }
-  say(m) { this.onmessage({ data: typeof m === 'string' ? m : JSON.stringify(m) }); }
+  say(m) {
+    this.onmessage({ data: typeof m === 'string' ? m : JSON.stringify(m) });
+  }
 };
 
 const account = require('../connectors/kick-account');
@@ -69,7 +95,10 @@ const waitFor = async (ok, what) => {
   throw new Error(`timed out: ${what}`);
 };
 const posted = () => calls.filter((c) => c.method === 'POST' && c.path === '/public/v1/events/subscriptions');
-const follow = (id, name, channel = 42) => ({ type: 'channel.followed', data: { broadcaster: { user_id: channel, username: 'mamad' }, follower: { user_id: id, username: name } } });
+const follow = (id, name, channel = 42) => ({
+  type: 'channel.followed',
+  data: { broadcaster: { user_id: channel, username: 'mamad' }, follower: { user_id: id, username: name } },
+});
 
 test('Kick account: login through the relay, follows subscribed, follow alerts, reconnect, disconnect', async () => {
   assert.equal(account.status().state, 'off');
@@ -96,8 +125,18 @@ test('Kick account: login through the relay, follows subscribed, follow alerts, 
   assert.equal(sockets[0].url, 'wss://relay.test/ws');
   assert.equal(sockets[0].opts.headers.authorization, 'Bearer A2');
   assert.deepEqual([file().refresh, file().userId, file().login], ['R2', 42, 'mamad']);
-  assert.deepEqual(posted().map((c) => c.body), [{ events: ['channel.followed', 'channel.subscription.new', 'channel.subscription.renewal', 'channel.subscription.gifts']
-    .map((name) => ({ name, version: 1 })), method: 'webhook' }]);
+  assert.deepEqual(
+    posted().map((c) => c.body),
+    [
+      {
+        events: ['channel.followed', 'channel.subscription.new', 'channel.subscription.renewal', 'channel.subscription.gifts'].map((name) => ({
+          name,
+          version: 1,
+        })),
+        method: 'webhook',
+      },
+    ],
+  );
   assert.ok(!/A2|R2/.test(JSON.stringify(account.status())), 'tokens never reach the panel');
   sockets[0].open();
   assert.deepEqual([account.status().state, account.status().login, connectedPlatforms()], ['connected', 'mamad', ['kick']]);
@@ -110,7 +149,10 @@ test('Kick account: login through the relay, follows subscribed, follow alerts, 
   sockets[0].say(follow(7, 'Ava'));
   sockets[0].say(follow(8, 'Leo', 99));
   sockets[0].say('pong');
-  assert.deepEqual(events.map((e) => [e.platform, e.type, e.user]), [['kick', 'follow', 'Ava']]);
+  assert.deepEqual(
+    events.map((e) => [e.platform, e.type, e.user]),
+    [['kick', 'follow', 'Ava']],
+  );
   // A sub through the relay: a Kick Sub alert, a moment later (kick-chat official(), shared with the chat socket's).
   sockets[0].say({ type: 'channel.subscription.new', data: { broadcaster: { user_id: 42 }, subscriber: { user_id: 5, username: 'Sam' }, duration: 1 } });
   await waitFor(() => events.length === 2, 'sub alert');
