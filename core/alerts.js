@@ -56,7 +56,7 @@ const state = () => {
     waiting: queue.length,
     list: queue.map(brief),
     history: history.map(brief),
-    now: on && { ...brief(on.playing), ms: on.playing.ms, left: Math.max(0, current(on).left) },
+    now: on ? { ...brief(on.playing), ms: on.playing.ms, left: Math.max(0, current(on).left) } : null, // null, not left out of the JSON
   };
 };
 const changed = () => alerts.emit('state', state());
