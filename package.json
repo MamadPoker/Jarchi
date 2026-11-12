@@ -16,6 +16,8 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "check": "npm run format:check && npm run lint && npm run typecheck && npm test",
+    "prepare": "husky",
     "dist": "node build/notes.js && electron-builder --win --publish never"
   },
   "engines": {
