@@ -1,0 +1,17 @@
+{
+  // The relay's own type check (npm run typecheck): a Cloudflare Worker, so Workers' globals instead of Node's. JSDoc in
+  // worker.mjs, like the rest of Jarchi (docs/adr/0002-type-check-js-with-jsdoc.md).
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": true,
+    "noEmit": true,
+    "target": "es2023",
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "lib": ["es2023"],
+    "types": ["@cloudflare/workers-types"],
+    "strict": false,
+    "skipLibCheck": true
+  },
+  "include": ["*.mjs"]
+}
