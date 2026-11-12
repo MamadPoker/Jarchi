@@ -1,0 +1,30 @@
+# PR Labeler: labels each PR by the paths it changes (.github/labeler.yml). pull_request_target, so PRs from forks get
+# labels too: it runs with the base repo's token, and this file and the labeler config come from main, so a PR can't
+# change either. That's safe ONLY because it never checks out or runs the PR's code (actions/labeler reads the changed
+# files through the API): never add a checkout here. sync-labels: false never removes a label someone added by hand.
+name: PR Labeler
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: labeler-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  label:
+    name: 🏷️ Apply labels
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: 🏷️ Label by changed paths
+        uses: actions/labeler@bf12e9b00b37c5c0ca2b87b79b2daf7891dbda13 # v7.0.0
+        with:
+          sync-labels: false

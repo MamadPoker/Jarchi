@@ -1,0 +1,50 @@
+# Path-based PR labels (actions/labeler format), applied by .github/workflows/labeler.yml. GitHub creates a label the
+# first time it's used; give it a color and description in the repo's Labels page if you like.
+
+'relay':
+  - changed-files:
+      - any-glob-to-any-file: 'relay/**'
+
+'panel':
+  - changed-files:
+      - any-glob-to-any-file: 'panel/**'
+
+'widgets':
+  - changed-files:
+      - any-glob-to-any-file: 'widgets/**'
+
+'connectors':
+  - changed-files:
+      - any-glob-to-any-file: 'connectors/**'
+
+'core':
+  - changed-files:
+      - any-glob-to-any-file: ['core/**', 'server/**']
+
+'desktop':
+  - changed-files:
+      - any-glob-to-any-file: ['electron/**', 'build/installer.nsh', 'build/*.bmp']
+
+'i18n':
+  - changed-files:
+      - any-glob-to-any-file: ['i18n/en.json', 'i18n/fa.json', 'i18n/privacy.json']
+
+'whats-new':
+  - changed-files:
+      - any-glob-to-any-file: 'i18n/changelog.json'
+
+'tests':
+  - changed-files:
+      - any-glob-to-any-file: 'test/**'
+
+'dependencies':
+  - changed-files:
+      - any-glob-to-any-file: ['package.json', 'package-lock.json']
+
+'github_actions':
+  - changed-files:
+      - any-glob-to-any-file: '.github/**'
+
+'documentation':
+  - changed-files:
+      - any-glob-to-any-file: ['**/*.md', 'docs/**']
