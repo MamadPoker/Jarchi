@@ -5,6 +5,8 @@ const path = require('node:path');
 const { text, parse } = require('../core/changelog');
 
 const read = (f) => fs.readFileSync(path.join(__dirname, '..', f), 'utf8');
+// The panel's code: its scripts in the order panel/index.html loads them, as one text.
+const panelJs = () => [...read('panel/index.html').matchAll(/<script src="(js\/[\w-]+\.js)">/g)].map((m) => read(`panel/${m[1]}`)).join('\n');
 const en = JSON.parse(read('i18n/en.json'));
 const fa = JSON.parse(read('i18n/fa.json'));
 
@@ -32,7 +34,7 @@ test('the Privacy Policy has a version and the same parts in English and Persian
   assert.ok(Number.isInteger(version) && version > 0);
   for (const p of [e, f]) assert.ok(p.title && p.intro && p.items.every(([what, text]) => what && text));
   assert.equal(f.items.length, e.items.length);
-  const js = read('panel/panel.js'),
+  const js = panelJs(),
     drawn = js.slice(js.indexOf('const POINT_ICON'), js.indexOf('async function showPrivacy'));
   assert.deepEqual(
     icons.filter((i) => !drawn.includes(`\n  ${i}: '<svg`)),
@@ -44,7 +46,7 @@ test('the Privacy Policy has a version and the same parts in English and Persian
 
 test("What's new: every version in English and Persian, newest first; this version's notes make the release text", () => {
   const log = JSON.parse(read('i18n/changelog.json'));
-  const js = read('panel/panel.js'),
+  const js = panelJs(),
     drawn = js.slice(js.indexOf('const NEWS_ICON'), js.indexOf('const newsIcon'));
   const NEWS_TYPES = [...drawn.matchAll(/\n {2}(\w+):\s+(?:'<svg|CAT_ICON\.)/g)].map((m) => m[1]);
   assert.deepEqual(NEWS_TYPES, ['feature', 'improve', 'fix', 'security']);
@@ -159,7 +161,7 @@ test("PR rules: a conventional title; feat / fix / perf add What's new lines in 
 // An on-handler property (el.onkeydown = ...) that returns false cancels its event: "e.key === 'Enter' && go()" did
 // for every other key, and nothing could be typed (1.0.7's code field). Handlers that test something use a block.
 test('no on-handler in the panel returns a test (false cancels the event)', () => {
-  const panel = ['panel/panel.js', 'panel/crypto-popout.html'].map((f) => fs.readFileSync(path.join(__dirname, '..', f), 'utf8')).join('\n');
+  const panel = [panelJs(), read('panel/crypto-popout.html')].join('\n');
   // The arrow's own expression, with what's inside brackets and quotes taken out (a test inside a call's arguments is fine).
   const flat = (x) => {
     for (let was; was !== x;) [was, x] = [x, x.replace(/\([^()]*\)|\[[^[\]]*\]|\{[^{}]*\}|`[^`]*`|'[^']*'|"[^"]*"/g, '_')];
@@ -174,7 +176,7 @@ test('no on-handler in the panel returns a test (false cancels the event)', () =
 
 test('every "?" in the panel has its help text', () => {
   const html = [...read('panel/index.html').matchAll(/data-help="([\w.]+)"/g)].map((m) => m[1]);
-  const js = read('panel/panel.js');
+  const js = panelJs();
   const chatTabs = js.slice(js.indexOf('const CHAT_TABS'), js.indexOf('function chatControl'));
   const chat = [...chatTabs.matchAll(/\['(?:toggle|range|seg|select|color|text|number)', '(\w+)'/g)].map((m) => `chat.${m[1]}`);
   const groups = [...js.matchAll(/help: '([\w.]+)'/g)].map((m) => m[1]);
