@@ -2056,6 +2056,42 @@
         </div>
       </div>
     </dialog>
+    <!-- The crypto gateway approved (js/crypto.js cryptoHello): once, the first time it's active (settings.cryptoWelcomed).
+       A gold note on top and a dot on Crypto; either opens the rules (#cryptoHello), whose tick waits until they're read
+       to the end. Let's go opens the Crypto page and its tour (#cryptoTour: a spotlight like #spot's, a part at a time). -->
+    <button id="cryptoToast" class="crypto-toast">
+      <span class="crypto-toast-icon" aria-hidden="true">🎉</span>
+      <span class="stack"><b data-i18n="cryptoApproved"></b><small data-i18n="cryptoToastText"></small></span>
+      <span class="go" data-i18n="cryptoToastSee"></span>
+    </button>
+    <dialog id="cryptoHello" class="crypto-hello" aria-labelledby="cryptoHelloTitle">
+      <div class="crypto-hello-hd">
+        <div class="crypto-hello-stage"><div id="cryptoHelloCoin" class="lk-coin crypto-hello-coin"></div></div>
+        <h2 id="cryptoHelloTitle" data-i18n="cryptoHelloTitle"></h2>
+        <p data-i18n="cryptoHelloText"></p>
+      </div>
+      <ol id="cryptoHelloRules" class="crypto-rules"></ol>
+      <div class="crypto-hello-ft">
+        <div class="crypto-read"><i id="cryptoHelloBar"></i></div>
+        <small id="cryptoHelloRead" data-i18n="cryptoHelloRead"></small>
+        <label class="crypto-hello-agree"><input type="checkbox" id="cryptoHelloAgree" /><span data-i18n="cryptoHelloAgree"></span></label>
+        <button id="cryptoHelloGo" class="primary" data-i18n="cryptoHelloGo"></button>
+      </div>
+    </dialog>
+    <dialog id="cryptoTour" class="spot crypto-tour" aria-labelledby="cryptoTourTitle">
+      <div class="spot-hole"></div>
+      <div class="crypto-tip">
+        <i class="crypto-arr"></i>
+        <small id="cryptoTourStep"></small>
+        <h3 id="cryptoTourTitle"></h3>
+        <p id="cryptoTourText"></p>
+        <div class="crypto-tip-ft">
+          <span id="cryptoTourDots" class="tour-dots"></span>
+          <button id="cryptoTourSkip" class="link" data-i18n="cryptoTourSkip"></button>
+          <button id="cryptoTourNext" class="primary"></button>
+        </div>
+      </div>
+    </dialog>
 
     <!-- Uninstall Jarchi (Settings, wireUninstall): starts the installed uninstaller, which keeps or deletes the data as
        ticked here, then Jarchi quits. -->

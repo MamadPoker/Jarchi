@@ -105,6 +105,10 @@ test('migration, settings, uploads, reset, events', async () => {
   assert.deepEqual(s.seenNew, []);
   assert.deepEqual((await (await call('PATCH', '/api/settings', { seenNew: ['donations'] })).json()).seenNew, ['donations']);
   assert.equal((await call('PATCH', '/api/settings', { seenNew: ['../x'] })).status, 400);
+  // The crypto gateway's welcome: not shown yet; true / false only; Reset everything keeps it (it never comes back).
+  assert.equal(s.cryptoWelcomed, false);
+  assert.equal((await (await call('PATCH', '/api/settings', { cryptoWelcomed: true })).json()).cryptoWelcomed, true);
+  assert.equal((await call('PATCH', '/api/settings', { cryptoWelcomed: 1 })).status, 400);
   // v5 -> v6: the Sub and Followers goals stay (as Kick's), without "Also count Twitch subs" and Source.
   assert.deepEqual(
     [s.goals.subs.title, 'countTwitch' in s.goals.subs, 'source' in s.goals.subs, 'source' in s.goals.followers],
@@ -285,6 +289,7 @@ test('migration, settings, uploads, reset, events', async () => {
   assert.equal(s.profile.pictureFrom, 'kick');
   assert.equal(s.welcomed, false, 'Reset everything: like a first run');
   assert.deepEqual(s.seenNew, ['donations']);
+  assert.equal(s.cryptoWelcomed, true);
   assert.equal(s.privacyAccepted, 0);
 
   const samples = await (await call('GET', '/api/samples')).json();

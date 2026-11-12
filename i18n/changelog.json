@@ -1,20 +1,22 @@
 [
   {
     "version": "unreleased",
-    "types": ["feature", "feature", "security", "improve", "feature"],
+    "types": ["feature", "feature", "security", "improve", "feature", "feature"],
     "en": [
       "New Giveaway page: a prize wheel, giveaways and a coin flip, all in one place (it also opens in its own window)",
       "Giveaways: viewers join from Kick and Twitch chat; choose how many winners and losers, and see each winner's next messages",
       "A website open in your browser can no longer slow your PC down by making Jarchi start lots of background programs",
       "Messages from the Jarchi team now arrive within a few minutes",
-      "Jarchi checks for updates more often, and About has a new \"Check for updates\" button"
+      "Jarchi checks for updates more often, and About has a new \"Check for updates\" button",
+      "Crypto: a short welcome guide and tour when your gateway is approved"
     ],
     "fa": [
       "صفحه‌ی جدید «گیووی»: گردونه، گیووی و شیر یا خط، همه یه جا (تو پنجره‌ی جدا هم باز می‌شه)",
       "گیووی: بیننده‌ها از چت کیک و توییچ شرکت می‌کنن؛ تعداد برنده‌ها و بازنده‌ها رو خودتون انتخاب می‌کنید و پیام‌های بعدی هر برنده رو می‌بینید",
       "یه مشکل امنیتی درست شد: دیگه هیچ سایتی نمی‌تونه از تو مرورگر جارچی رو وادار کنه کامپیوترتون رو کند کنه",
       "پیام‌های تیم جارچی حالا تو چند دقیقه می‌رسن",
-      "جارچی زودتر دنبال آپدیت می‌گرده، و تو صفحه‌ی «درباره» یه دکمه‌ی «بررسی آپدیت» هم اضافه شده"
+      "جارچی زودتر دنبال آپدیت می‌گرده، و تو صفحه‌ی «درباره» یه دکمه‌ی «بررسی آپدیت» هم اضافه شده",
+      "کریپتو: وقتی درگاهتون تأیید بشه، یه راهنمای کوتاه و تور قدم‌به‌قدم نشونتون داده می‌شه"
     ]
   },
   {

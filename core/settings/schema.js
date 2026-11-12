@@ -16,6 +16,7 @@ const THEMES = ['neon', 'minimal', 'fun', 'retro', 'glass', 'fire', 'ice', 'gala
 // lang: the panel's language (it says so when it starts): what a crypto alert calls a donor who hid the name.
 // seenNew: the sidebar pages marked NEW (panel/js/previews.js NEW_PAGES) the streamer has opened: never marked again.
 // eyesSeen: the panel showed where its hidden 👀 is (the first Ctrl+Shift+E): never again.
+// cryptoWelcomed: the crypto gateway's welcome and tour were shown (the first time it was active): never again.
 // proxyAsk: Auto may offer the VPN app it finds by itself (core/vpn.js); false after a No, true again when the streamer looks.
 const GLOBAL = {
   theme: 'neon',
@@ -32,6 +33,7 @@ const GLOBAL = {
   lang: 'en',
   seenNew: [],
   eyesSeen: false,
+  cryptoWelcomed: false,
   proxyAsk: true,
 };
 const PROXY_HOST = /^[a-z0-9.:[\]_-]{0,253}$/i;
@@ -42,6 +44,7 @@ const GLOBAL_RULES = {
   welcomed: (v) => typeof v === 'boolean',
   lang: (v) => v === 'en' || v === 'fa',
   eyesSeen: (v) => typeof v === 'boolean',
+  cryptoWelcomed: (v) => typeof v === 'boolean',
   proxyAsk: (v) => typeof v === 'boolean',
   seenNew: (v) => Array.isArray(v) && v.length <= 50 && v.every((p) => typeof p === 'string' && /^[a-z]{1,20}$/.test(p)),
   privacyAccepted: (v) => Number.isInteger(v) && v >= 0,

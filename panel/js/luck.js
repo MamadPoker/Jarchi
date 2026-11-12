@@ -643,8 +643,8 @@ const LK_FACE_DEFS = (
 }).join('')}</g>`;
 const LK_FONT = FA ? 'Vazirmatn,Tahoma,sans-serif' : 'Manrope,Arial,sans-serif';
 // Words on an arc of the face (aT: over the top, aB: under the bottom).
-const lkArc = (k, text, arc, size, spacing) =>
-  `<text filter="url(#em${k})" font-family="${LK_FONT}" font-size="${size}" font-weight="800" letter-spacing="${spacing}" fill="#9a6c0e"><textPath href="#${arc}${k}" startOffset="50%" text-anchor="middle">${text}</textPath></text>`;
+const lkArc = (k, text, arc, size, spacing, font = LK_FONT) =>
+  `<text filter="url(#em${k})" font-family="${font}" font-size="${size}" font-weight="800" letter-spacing="${spacing}" fill="#9a6c0e"><textPath href="#${arc}${k}" startOffset="50%" text-anchor="middle">${text}</textPath></text>`;
 const lkName = (k) => (FA ? lkArc(k, S.panel.luckCoinName, 'aT', 17, 1) : lkArc(k, S.panel.luckCoinName, 'aT', 13, 7));
 const LK_SHINE = '<div class="lk-shine"></div>';
 const lkHeads = () =>
@@ -657,6 +657,15 @@ function lkTails(n) {
   const s = fd(n),
     size = s.length < 2 ? 84 : s.length < 3 ? 66 : 50;
   return `<svg viewBox="0 0 200 200">${LK_FACE_DEFS('t')}${lkName('t')}<g filter="url(#emt)" fill="#9a6c0e" text-anchor="middle" font-family="${LK_FONT}"><text x="100" y="${118 + size * 0.12}" font-size="${size}" font-weight="900">${s}</text><path d="M62 146 h76" stroke="#9a6c0e" stroke-width="1.6"/><text x="100" y="164" font-size="${FA ? 13 : 9}" font-weight="800"${FA ? '' : ' letter-spacing="3"'}>${S.panel.luckCoinTails}</text></g></svg>${LK_SHINE}`;
+}
+// The shine slides across each face as the coin turns (ay: its turn, degrees). The Crypto welcome's coin too.
+function lkShine(coin, ay) {
+  const r = ((ay % 360) + 360) % 360,
+    v0 = r > 180 ? r - 360 : r;
+  $$('.lk-shine', coin).forEach((e, i) => {
+    const v = 50 - (i ? ((v0 + 360) % 360) - 180 : v0) * 1.1;
+    e.style.background = `linear-gradient(115deg,transparent ${v - 18}%,rgba(255,255,255,.75) ${v}%,transparent ${v + 18}%)`;
+  });
 }
 function coinFrame2(now, dt) {
   const c = lkCoin;
@@ -678,13 +687,8 @@ function coinFrame2(now, dt) {
   }
   c.ax += (-8 - c.ax) * Math.min(1, dt * 3);
   $('#lkCoin').style.transform = `translateY(${c.cy}px) rotateX(${c.ax}deg) rotateY(${c.ay}deg)`;
-  // The shine slides across each face as it turns; the shadow narrows edge on and fades as the coin goes up.
-  const r = ((c.ay % 360) + 360) % 360,
-    v0 = r > 180 ? r - 360 : r;
-  $$('#lkCoin .lk-shine').forEach((e, i) => {
-    const v = 50 - (i ? ((v0 + 360) % 360) - 180 : v0) * 1.1;
-    e.style.background = `linear-gradient(115deg,transparent ${v - 18}%,rgba(255,255,255,.75) ${v}%,transparent ${v + 18}%)`;
-  });
+  // The shadow narrows edge on and fades as the coin goes up.
+  lkShine($('#lkCoin'), c.ay);
   const k = Math.abs(Math.cos((c.ay * Math.PI) / 180)),
     sh = $('#lkShadow');
   sh.style.width = `${(70 + 130 * k) * (1 - Math.min(0.5, -c.cy / 300))}px`;
