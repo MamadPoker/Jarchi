@@ -27,7 +27,7 @@ After that first setup, deploys run on GitHub: **Actions → Deploy relay** (`.g
 
 ## Usage pings (`POST /ping`)
 
-Once a streamer has accepted Jarchi's Privacy Policy, their Jarchi (`core/stats.js`) sends a small ping here at start, every 5 minutes and when it quits. The relay keeps one row per install in the D1 database `jarchi-stats` (table `installs`, see `schema.sql`): first and last seen, version, installed app or dev run, open, the connected Kick / Twitch channel names, pictures and whether they're live, and the Privacy Policy version accepted and when. Jarchi 1.0.2 on adds connection diagnostics (`diag`; 1.0.1 sends none and is still taken): per platform `never` / `ok` / `failed` with a reason code (`network`, `denied`, `other`), the proxy mode (`off`, `auto`, `manual`) and whether the VPN app finder found a proxy. Codes only: no error texts, addresses or links. All times are UTC (ISO 8601). No IP addresses. Anything else in a ping, a ping over 2 KB, more than 10 pings from one install in 10 minutes, or a new install after 100 new ones in the last hour is refused.
+Once a streamer has accepted Jarchi's Privacy Policy, their Jarchi (`core/stats.js`) sends a small ping here at start, every 3 minutes (5 before Jarchi 1.0.9) and when it quits. From 1.0.9 it sends it as `POST /ping?messages=1`, and the answer is its team messages (as `GET /messages` below) instead of `ok`, so one request does both. The relay keeps one row per install in the D1 database `jarchi-stats` (table `installs`, see `schema.sql`): first and last seen, version, installed app or dev run, open, the connected Kick / Twitch channel names, pictures and whether they're live, and the Privacy Policy version accepted and when. Jarchi 1.0.2 on adds connection diagnostics (`diag`; 1.0.1 sends none and is still taken): per platform `never` / `ok` / `failed` with a reason code (`network`, `denied`, `other`), the proxy mode (`off`, `auto`, `manual`) and whether the VPN app finder found a proxy. Codes only: no error texts, addresses or links. All times are UTC (ISO 8601). No IP addresses. Anything else in a ping, a ping over 2 KB, more than 10 pings from one install in 10 minutes, or a new install after 100 new ones in the last hour is refused.
 
 Set up once (already done for Jarchi's own relay; the database id goes in `wrangler.toml`):
 
@@ -70,7 +70,7 @@ Messages from Jarchi's team, written in the admin app (above) and shown in Jarch
 
 | | |
 |---|---|
-| `GET /messages` | My messages, newest first: `{ id, title: { en, fa }, body: { en, fa }, link: { label: { en, fa }, url } \| null, code \| null, style, createdAt, expiresAt, seen }`. |
+| `GET /messages` | My messages, newest first (Jarchi 1.0.9 on gets them with its ping instead, above): `{ id, title: { en, fa }, body: { en, fa }, link: { label: { en, fa }, url } \| null, code \| null, style, createdAt, expiresAt, seen }`. |
 | `POST /messages/<id>/seen` | I saw it. |
 | `POST /messages/<id>/closed` | I closed it (seen too): never on my list again. |
 

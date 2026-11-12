@@ -15,6 +15,7 @@ contextBridge.exposeInMainWorld('jarchiApp', {
     if (state) cb(state);
   },
   restart: () => ipcRenderer.send('update:restart'),
+  check: () => ipcRenderer.send('update:check'), // About's Check for updates: the state comes back by onUpdate
   seen: () => ipcRenderer.send('update:seen'),
   installed: () => ipcRenderer.invoke('app:installed'),
   uninstall: (keep) => ipcRenderer.send('app:uninstall', keep),

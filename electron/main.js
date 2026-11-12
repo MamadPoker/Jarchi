@@ -149,13 +149,14 @@ function open() {
 
 // Updates, only in the installed app (`npm run app` has none): electron-updater looks for a newer release on GitHub
 // (package.json build.publish, built into the app's app-update.yml: MamadPoker/Jarchi from v1.0.2; v1.0.1 and before
-// look on MamadPoker/Jarchi-releases, which has v1.0.2 too) at start and every 4 hours, and downloads it in the
-// background. It's installed only on Restart (the panel's banner or profile menu, or the notification shown while the
-// window is in the tray), never by itself while Jarchi runs; quitting Jarchi installs it without starting it again
-// (electron-updater's autoInstallOnAppQuit).
+// look on MamadPoker/Jarchi-releases, which has v1.0.2 too) at start, every 30 minutes and on the About page's Check
+// for updates, and downloads it in the background. It's installed only on Restart (the panel's banner or profile menu,
+// About, or the notification shown while the window is in the tray), never by itself while Jarchi runs; quitting Jarchi
+// installs it without starting it again (electron-updater's autoInstallOnAppQuit).
 // The panel gets { ready, installed } (preload.js): ready = the downloaded update { version, notes: { en, fa } } (its
 // release notes, core/changelog.js), installed = the update this copy came from, until the panel has opened What's new.
-// NOTES_FILE carries it over the restart.
+// NOTES_FILE carries it over the restart. The installed app's also has check: what Check for updates came to (idle |
+// checking | downloading | latest | error), so the About page shows the button only there.
 const NOTES_FILE = path.join(DATA_DIR, 'update.json');
 const update = { ready: null, installed: null };
 let updater;
@@ -197,7 +198,9 @@ function updates() {
     const saved = JSON.parse(fs.readFileSync(NOTES_FILE, 'utf8'));
     if (saved.version === app.getVersion()) update.installed = saved;
   } catch {}
+  update.check = 'idle';
   ipcMain.on('update:restart', restart);
+  ipcMain.on('update:check', () => check(true));
   ipcMain.on('update:seen', () => {
     update.installed = null;
     if (!update.ready) fs.rmSync(NOTES_FILE, { force: true }); // else it holds the next update's notes by now
@@ -208,7 +211,7 @@ function updates() {
   const { getNetSession } = require('electron-updater/out/electronHttpExecutor'); // the session its requests use
   updater.on('error', (err) => console.warn('Update:', err.message)); // offline, GitHub down: the next check tries again
   updater.on('update-downloaded', ({ version, releaseNotes }) => {
-    if (update.ready?.version === version) return; // each 4-hourly check finds the same download again
+    if (update.ready?.version === version) return; // each later check finds the same download again
     update.ready = { version, notes: parse(typeof releaseNotes === 'string' ? releaseNotes : '') };
     try {
       fs.writeFileSync(NOTES_FILE, JSON.stringify(update.ready));
@@ -216,15 +219,26 @@ function updates() {
     sendUpdate();
     if (!win.isVisible()) notify(version);
   });
-  const check = async () => {
+  // asked: Check for updates, so the About page shows how it went; the timed checks stay quiet.
+  async function check(asked) {
+    const say = (s) => asked && ((update.check = s), sendUpdate());
+    say('checking');
     const proxy = await serverProxy();
     await getNetSession()
       .setProxy(proxy ? { mode: 'fixed_servers', proxyRules: proxy } : { mode: 'direct' })
       .catch(() => {});
-    updater.checkForUpdates().catch(() => {});
-  };
+    try {
+      const found = await updater.checkForUpdates();
+      if (!found?.isUpdateAvailable) return say('latest');
+      say('downloading');
+      await found.downloadPromise;
+      say('idle'); // 'update-downloaded' has set update.ready by now: About shows its Restart
+    } catch {
+      say('error'); // offline, GitHub down
+    }
+  }
   check();
-  setInterval(check, 4 * 3600e3);
+  setInterval(check, 30 * 60e3);
 }
 
 // Settings > Uninstall Jarchi, only in the installed app: the installer's uninstaller next to Jarchi.exe (not there
