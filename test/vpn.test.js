@@ -1,6 +1,6 @@
 // The VPN help (core/vpn.js) for a VPN app running per app, without Jarchi on its list. Jarchi never turns a proxy on by
 // itself: the default is Off (an older install's Yes is Manual now), and help only offers. What counts as out of reach
-// (server/index.js): Kick refusing this network (blocked) and a connection still connecting do, a channel that isn't
+// (server/sockets.js): Kick refusing this network (blocked) and a connection still connecting do, a channel that isn't
 // there doesn't. Out of reach 30 s: Jarchi checks the service, looks for the VPN app's local proxy and offers it, or
 // shows how to let Jarchi through (with Jarchi's own path); Yes tries Kick and the relay through it, then sets Manual
 // with it; No stops it asking by itself until the streamer looks. Kick's login page in the browser says why it failed.
@@ -48,7 +48,7 @@ test('help only offers: 30 s out of reach -> VPN offered; Yes checks, then Manua
   assert.ok(!text.includes('<b>x'));
   assert.match(page.headers.get('content-security-policy'), /default-src 'none'/);
 
-  // What counts (server/index.js -> vpn.status): blocked and connecting do; not_found doesn't.
+  // What counts (server/sockets.js -> vpn.status): blocked and connecting do; not_found doesn't.
   const told = [],
     status = vpn.status;
   vpn.status = (...a) => told.push(a);

@@ -1,5 +1,5 @@
 // Team messages: what Jarchi's team writes in Jarchi Admin, shown as cards on the panel's Home page (never in OBS: only
-// the panel's sockets get them, server/index.js). From the relay (relay/worker.mjs /messages), only once the Privacy
+// the panel's sockets get them, server/sockets.js). From the relay (relay/worker.mjs /messages), only once the Privacy
 // Policy is accepted (the relay only answers installs that have pinged): at start and every 10 minutes. The relay sends
 // this install's own only (by its id, version, and installed app or dev run, as the usage ping says). A closed one is
 // remembered here too (data/messages.json), so it never comes back, even closed offline: the relay is told again the
