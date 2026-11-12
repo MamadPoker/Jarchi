@@ -54,10 +54,10 @@ const outside = (url) => /^https?:/i.test(url) && shell.openExternal(url);
 // its minimize / maximize / close buttons on it, in the bar's color, which the panel gives as its theme-color on every
 // look change. Symbols: black on a light bar, white on a dark one.
 const BAR = { height: 36, color: '#0c1817', symbolColor: '#ffffff' }; // until the panel says (Jarchi's dark sidebar)
-function tintBar(e, color) {
-  if (!color || process.platform === 'darwin') return; // macOS keeps its own traffic lights
+function tintBar(w, color) {
+  if (!color || process.platform === 'darwin' || w.isDestroyed()) return; // macOS keeps its own traffic lights
   const [r, g, b] = [1, 3, 5].map((i) => parseInt(color.slice(i, i + 2), 16));
-  win.setTitleBarOverlay({ color, symbolColor: 0.299 * r + 0.587 * g + 0.114 * b > 150 ? '#000000' : '#ffffff' });
+  w.setTitleBarOverlay({ color, symbolColor: 0.299 * r + 0.587 * g + 0.114 * b > 150 ? '#000000' : '#ffffff' });
 }
 
 // Crypto's pop-out (panel/crypto-popout.html): the donations list alone, small, for a second monitor. Its pin keeps it
@@ -71,6 +71,10 @@ const POPOUT = {
   icon: path.join(ROOT, 'assets/brand/icons', process.platform === 'win32' ? 'jarchi.ico' : 'jarchi-256.png'),
   webPreferences: { preload: path.join(__dirname, 'preload.js') },
 };
+// The Luck page's pop-out (the panel at /?pop=luck): the whole page, with its tabs as the title bar (panel.css data-pop,
+// 46 px like this overlay) and Always on top (onTop).
+const LUCK_POP = { ...POPOUT, width: 1180, height: 820, minWidth: 720, minHeight: 560, titleBarStyle: 'hidden', titleBarOverlay: { ...BAR, height: 46 } };
+const popOf = (url) => (new URL(url).pathname === '/crypto-popout.html' ? POPOUT : new URL(url).searchParams.get('pop') === 'luck' ? LUCK_POP : null);
 ipcMain.on('window:onTop', (e, on) => BrowserWindow.fromWebContents(e.sender)?.setAlwaysOnTop(on === true));
 
 // Right-click, in every window (the panel, Crypto's pop-out): Electron has none of its own. In a text field: Cut, Copy,
@@ -111,7 +115,7 @@ function open() {
     show: false,
     webPreferences: { preload: path.join(__dirname, 'preload.js') },
   });
-  win.webContents.on('did-change-theme-color', tintBar);
+  win.webContents.on('did-change-theme-color', (e, color) => tintBar(win, color));
   win.webContents.on('did-finish-load', sendUpdate);
   win.on('page-title-updated', (e) => e.preventDefault()); // the panel names its tab; the window stays "Jarchi"
   win.once('ready-to-show', () => (maximized ? win.maximize() : win.show()));
@@ -122,9 +126,13 @@ function open() {
     win.hide();
   });
   win.webContents.setWindowOpenHandler(({ url }) => {
-    if (own(url)) return { action: 'allow', ...(new URL(url).pathname === '/crypto-popout.html' && { overrideBrowserWindowOptions: POPOUT }) };
+    if (own(url)) return { action: 'allow', ...(popOf(url) && { overrideBrowserWindowOptions: popOf(url) }) };
     outside(url);
     return { action: 'deny' };
+  });
+  // Luck's pop-out has the panel's title bar: its window buttons take the bar's color too.
+  win.webContents.on('did-create-window', (child, { url }) => {
+    if (popOf(url) === LUCK_POP) child.webContents.on('did-change-theme-color', (e, color) => tintBar(child, color));
   });
   win.webContents.on('will-navigate', (e, url) => {
     if (own(url)) return;

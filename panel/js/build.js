@@ -17,7 +17,7 @@ function build() {
   // Ctrl+Z undoes the last settings change (again: the one before), Ctrl+Y or Ctrl+Shift+Z redoes it; by the key's place
   // too. Not in a text field: there it's the field's own undo.
   addEventListener('keydown', (e) => {
-    if (!e.ctrlKey || e.altKey || e.metaKey) return;
+    if (POP || !e.ctrlKey || e.altKey || e.metaKey) return; // the Luck pop-out changes no settings
     const s = e.code === 'KeyZ' ? (e.shiftKey ? 'redo' : 'undo') : e.code === 'KeyY' && !e.shiftKey && 'redo';
     if (!s || e.target.closest?.('textarea, [contenteditable], input:not([type=checkbox], [type=radio], [type=range], [type=color], [type=file])')) return;
     e.preventDefault();
@@ -280,7 +280,7 @@ function build() {
   $('#goalCopy').onclick = () => copyLink(`${location.origin}/widgets/goal/${curGoal}`, S.panel.goalCopied);
   // Counts and chat status change on their own (events, connections), so follow them live.
   const socket = io();
-  socket.on('connect', () => window.obsstudio || socket.emit('panelJoin')); // the panel: the team's messages come to it (never in OBS)
+  socket.on('connect', () => window.obsstudio || POP || socket.emit('panelJoin')); // the panel: the team's messages come to it (never in OBS or the Luck pop-out)
   socket.on('chatStyles', reloadChatStyles); // an exclusive design unlocked or downloaded again (core/designs.js)
   socket.on('teamMessages', (list) => {
     teamMsgs = list;
@@ -554,6 +554,7 @@ function build() {
   wireSupport();
   wireCrypto();
   wireEyes();
+  wireLuck(socket);
 
   $$('[data-i18n]').forEach((e) => (e.textContent = S.panel[e.dataset.i18n]));
   const [madeA, madeB] = S.panel.madeWith.split('{heart}'); // About's "Made with ♥ by MamadPoker", the heart in gold
