@@ -30,7 +30,8 @@ const ping = (id) => ({ id, version: '1.0.7', installed: true, open: true, kick:
 test('relay designs: a code shown once, one install for good, pinged installs only, tries limited', async () => {
   const { default: worker } = await import('../relay/worker.mjs');
   const { db, DB } = d1(), call = relay(worker, { DB, ADMIN_KEY: KEY });
-  const admin = (o = {}) => call('/admin/codes', { ...o, headers: { authorization: `Bearer ${KEY}`, 'cf-connecting-ip': '10.0.0.1' } });
+  const adminAt = (p, o = {}) => call(p, { ...o, headers: { authorization: `Bearer ${KEY}`, 'cf-connecting-ip': '10.0.0.1' } });
+  const admin = (o = {}) => adminAt('/admin/codes', o);
   const body = async (r, status = 200) => {
     const b = await r.json();
     assert.equal(r.status, status, JSON.stringify(b));
@@ -50,7 +51,7 @@ test('relay designs: a code shown once, one install for good, pinged installs on
   }
   const made = await body(await admin({ method: 'POST', body: { design: 'x-test', note: 'For Ali' } }));
   assert.match(made.code, /^[A-HJ-KMNP-Z2-9]{4}-[A-HJ-KMNP-Z2-9]{4}$/);
-  assert.deepEqual({ ...made, code: undefined, createdAt: undefined }, { code: undefined, id: made.id, design: 'x-test', note: 'For Ali', createdAt: undefined, install: null, redeemedAt: null });
+  assert.deepEqual({ ...made, code: undefined, createdAt: undefined }, { code: undefined, id: made.id, design: 'x-test', note: 'For Ali', createdAt: undefined, install: null, redeemedAt: null, revokedAt: null });
   const stored = db.prepare('SELECT * FROM design_codes').all();
   assert.equal(stored.length, 1);
   assert.ok(!JSON.stringify(stored).includes(made.code.replace('-', '')), 'only its hash is kept');
@@ -80,6 +81,31 @@ test('relay designs: a code shown once, one install for good, pinged installs on
   for (let i = 0; i < 9; i++) assert.equal((await redeem(Y, 'ABCD-EFGH')).status, 404);
   assert.deepEqual(await body(await redeem(Y, made.code), 429), { error: 'rate' });
   assert.equal((await redeem(X, made.code)).status, 200, 'another install has its own tries');
+
+  // Revoke: never redeemed again, like a wrong code; the install that has it keeps its design; the first time kept.
+  const fresh = await body(await admin({ method: 'POST', body: { design: 'x-test' } }));
+  const revoke = (id) => adminAt(`/admin/codes/${id}`, { method: 'DELETE' });
+  const gone = await body(await revoke(fresh.id));
+  const { code: _shown, ...listed } = fresh;
+  assert.deepEqual({ ...gone, revokedAt: null }, listed);
+  assert.ok(gone.revokedAt);
+  assert.deepEqual(await body(await redeem(X, fresh.code), 404), { error: 'bad_code' });
+  const had = await body(await revoke(made.id));
+  assert.deepEqual([had.install, !!had.redeemedAt, !!had.revokedAt], [x, true, true]);
+  assert.deepEqual(await body(await redeem(X, made.code), 404), { error: 'bad_code' }, 'revoked: not even for its own install');
+  assert.deepEqual(await body(await X()), [{ id: 'x-test', name: { en: 'Test', fa: 'آزمایشی' } }], 'kept by the install that has it');
+  assert.equal((await X('/x-test')).status, 200);
+  assert.equal((await body(await revoke(fresh.id))).revokedAt, gone.revokedAt, 'revoked again: the first time kept');
+  assert.deepEqual((await body(await admin())).map((c) => [c.id, !!c.revokedAt]), [[fresh.id, true], [made.id, true]]);
+  assert.deepEqual(await body(await revoke('0'.repeat(12)), 404), { error: 'not_found' });
+  assert.deepEqual(await body(await revoke('NOT-AN-ID'), 404), { error: 'not_found' });
+  assert.deepEqual(await body(await adminAt(`/admin/codes/${made.id}`), 405), { error: 'method' });
+  assert.equal((await call(`/admin/codes/${made.id}`, { method: 'DELETE' })).status, 401);
+
+  // Designs for the admin: id, names, createdAt; never the look or CSS.
+  assert.deepEqual(await body(await adminAt('/admin/designs')), [{ id: 'x-test', name: { en: 'Test', fa: 'آزمایشی' }, createdAt: '2026-11-11T10:00:00.000Z' }]);
+  assert.deepEqual(await body(await adminAt('/admin/designs', { method: 'POST', body: {} }), 405), { error: 'method' });
+  assert.equal((await call('/admin/designs')).status, 401);
 });
 
 test('Jarchi: a code unlocks a design, kept and a chat style; unsafe CSS never taken', async (t) => {

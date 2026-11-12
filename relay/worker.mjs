@@ -249,6 +249,8 @@ async function ping(req, env) {
 //   DELETE /admin/messages/<id>  it and its views
 //   GET    /admin/codes          every design code, newest first (see "Exclusive chat designs" below)
 //   POST   /admin/codes          a new one for a design: the code itself, this once
+//   DELETE /admin/codes/<id>     revokes it: never redeemed again (an install that has it keeps its design)
+//   GET    /admin/designs        every design: id, name, createdAt (never its look or CSS)
 // "Online" = open and seen in ONLINE_MS (Jarchi pings every 5 minutes); "live" = online and live on Kick or Twitch.
 const FAIL_MAX = 10, FAIL_MS = 60 * 60 * 1000;
 const ONLINE_MS = 10 * 60 * 1000, DAY_MS = 24 * 60 * 60 * 1000, RELEASES_MS = 10 * 60 * 1000;
@@ -290,8 +292,9 @@ async function admin(req, url, env) {
   }
   if (url.pathname.startsWith('/admin/tickets')) return tickets(req, url, env, null);
   if (url.pathname.startsWith('/admin/messages')) return teamAdmin(req, url, env);
-  if (url.pathname === '/admin/codes') return codesAdmin(req, env);
+  if (url.pathname.startsWith('/admin/codes')) return codesAdmin(req, url, env);
   const get = req.method === 'GET';
+  if (url.pathname === '/admin/designs') return get ? designsAdmin(env) : fail('method', 405);
   switch (url.pathname) {
     case '/admin/stats': return get ? stats(url, env, now) : text('GET only', 405);
     case '/admin/history': return get ? history(env, now) : text('GET only', 405);
@@ -742,13 +745,16 @@ async function teamMessages(req, url, env) {
 //   GET  /designs/<id>     one of mine, whole: { id, name, look, css }
 // Admin (see "Admin API" above):
 //   GET  /admin/codes      every code, newest first: { id (its hash's first 12 digits), design, note, createdAt, install,
-//                          redeemedAt } (the code itself is never kept)
+//                          redeemedAt, revokedAt } (the code itself is never kept)
 //   POST /admin/codes      { design: "<its id>", note?: "<who it's for>" | null } -> the same, with the code: this once
+//   DELETE /admin/codes/<id>  revoked (the first time kept; migrations/0004_design_code_revoked.sql) -> the same: redeem
+//                          refuses it like a wrong code from now on; an install that redeemed it keeps its design
+//   GET  /admin/designs    every design, newest first: [{ id, name, createdAt }]
 // A code: 8 of CODE_CHARS, shown as XXXX-XXXX; - and spaces don't count, nor does upper or lower case. Errors are JSON
 // { error }: bad_request, unknown_install, bad_code, rate, not_found, method.
 const CODE_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; // 31, no 0 O 1 I L
 const REDEEM_MAX = 10, NOTE_MAX = 80;
-const DESIGN_PATH = /^\/designs(?:\/(redeem|x-[a-z0-9-]{1,30}))?$/;
+const DESIGN_PATH = /^\/designs(?:\/(redeem|x-[a-z0-9-]{1,30}))?$/, ADMIN_CODE = /^\/admin\/codes(?:\/([0-9a-f]{12}))?$/;
 const codeOf = (v) => (typeof v === 'string' ? v.toUpperCase().replace(/[\s-]/g, '') : '');
 const codeOk = (c) => c.length === 8 && [...c].every((ch) => CODE_CHARS.includes(ch));
 function newCode() {
@@ -760,7 +766,7 @@ function newCode() {
   return `${c.slice(0, 4)}-${c.slice(4)}`;
 }
 const nameOf = (r) => ({ en: r.name_en, fa: r.name_fa });
-const codeRowOf = (r) => ({ id: r.code_hash.slice(0, 12), design: r.design_id, note: r.note, createdAt: r.created_at, install: r.install_id, redeemedAt: r.redeemed_at });
+const codeRowOf = (r) => ({ id: r.code_hash.slice(0, 12), design: r.design_id, note: r.note, createdAt: r.created_at, install: r.install_id, redeemedAt: r.redeemed_at, revokedAt: r.revoked_at });
 const MINE_DESIGN = 'EXISTS (SELECT 1 FROM design_codes c WHERE c.design_id = d.id AND c.install_id = ?1)';
 // A try counted in the install's window (a new one once an hour has passed); the count after it.
 const TRY = `INSERT INTO redeem_tries (install_id, window_start, tries) VALUES (?1, ?2, 1)
@@ -768,9 +774,10 @@ ON CONFLICT (install_id) DO UPDATE SET
   tries = CASE WHEN ?2 - window_start >= ?3 THEN 1 ELSE tries + 1 END,
   window_start = CASE WHEN ?2 - window_start >= ?3 THEN ?2 ELSE window_start END
 RETURNING tries`;
-// The code's design, now this install's: free until now, or this install's already (asked again). Else no row.
+// The code's design, now this install's: free until now, or this install's already (asked again), and not revoked. Else
+// no row.
 const REDEEM = `UPDATE design_codes SET install_id = ?1, redeemed_at = COALESCE(redeemed_at, ?3)
-WHERE code_hash = ?2 AND (install_id IS NULL OR install_id = ?1) RETURNING design_id`;
+WHERE code_hash = ?2 AND (install_id IS NULL OR install_id = ?1) AND revoked_at IS NULL RETURNING design_id`;
 
 async function designs(req, url, env) {
   const m = DESIGN_PATH.exec(url.pathname), install = req.headers.get('x-jarchi-install') ?? '';
@@ -794,7 +801,15 @@ async function designs(req, url, env) {
   return json({ id: d.id, name: nameOf(d), look, css });
 }
 
-async function codesAdmin(req, env) {
+async function codesAdmin(req, url, env) {
+  const id = ADMIN_CODE.exec(url.pathname);
+  if (!id) return fail('not_found', 404);
+  if (id[1]) {
+    if (req.method !== 'DELETE') return fail('method', 405);
+    const r = await env.DB.prepare('UPDATE design_codes SET revoked_at = COALESCE(revoked_at, ?2) WHERE substr(code_hash, 1, 12) = ?1 RETURNING *')
+      .bind(id[1], iso(Date.now())).first();
+    return r ? json(codeRowOf(r)) : fail('not_found', 404);
+  }
   if (req.method === 'GET') return json((await env.DB.prepare('SELECT * FROM design_codes ORDER BY created_at DESC, code_hash').all()).results.map(codeRowOf));
   if (req.method !== 'POST') return fail('method', 405);
   const b = await req.json().catch(() => null), note = b?.note ?? null;
@@ -803,8 +818,11 @@ async function codesAdmin(req, env) {
     || !(typeof b.design === 'string' && (await env.DB.prepare('SELECT 1 FROM designs WHERE id = ?1').bind(b.design).first()))) return fail('bad_request');
   const code = newCode(), hash = hex(await sha256(codeOf(code))), row = [hash, b.design, kept, iso(Date.now())];
   await env.DB.prepare('INSERT INTO design_codes (code_hash, design_id, note, created_at) VALUES (?1, ?2, ?3, ?4)').bind(...row).run();
-  return json({ code, ...codeRowOf({ code_hash: hash, design_id: b.design, note: kept, created_at: row[3], install_id: null, redeemed_at: null }) });
+  return json({ code, ...codeRowOf({ code_hash: hash, design_id: b.design, note: kept, created_at: row[3], install_id: null, redeemed_at: null, revoked_at: null }) });
 }
+
+const designsAdmin = async (env) => json((await env.DB.prepare('SELECT id, name_en, name_fa, created_at FROM designs ORDER BY created_at DESC, id').all())
+  .results.map((d) => ({ id: d.id, name: nameOf(d), createdAt: d.created_at })));
 
 // One channel: the Jarchi sockets open for it (usually one), handed each of its events. Hibernates between them; the
 // keepalive ("ping" -> "pong") is answered without waking it.
