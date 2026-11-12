@@ -92,6 +92,20 @@ test('release version: feat / fix / perf, even breaking, are a patch; only a big
   } finally { globalThis.fetch = fetch; }
 });
 
+// The real notes step, so a dependency update that breaks it (conventional-changelog-conventionalcommits 10 needs a
+// newer notes generator) fails here, in its own PR, instead of in the next Release run.
+test('release text: What\'s new, then the commits under "Developer changes"', async () => {
+  const { generateNotes } = require('../build/release');
+  const notes = await generateNotes({}, {
+    commits: [{ hash: 'a1b2c3d', message: 'fix(alerts): x', committerDate: new Date().toISOString() }],
+    lastRelease: { gitTag: 'v1.0.0', version: '1.0.0' },
+    nextRelease: { gitTag: 'v1.0.1', version: '1.0.1' },
+    options: { repositoryUrl: 'https://github.com/o/r' },
+    cwd: process.cwd(), env: {}, logger: { log() {} },
+  });
+  assert.match(notes, /<details><summary>Developer changes[\s\S]*\*\*alerts:\*\* x[\s\S]*<\/details>/);
+});
+
 test('PR rules: a conventional title; feat / fix / perf add What\'s new lines in both languages, or no-notes', () => {
   const { problems } = require('../build/check-pr');
   const base = [{ version: 'unreleased', en: ['old'], fa: ['قدیم'] }, { version: '1.0.0', en: ['x'], fa: ['ی'] }];
