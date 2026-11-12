@@ -1,5 +1,11 @@
 [
   {
+    "version": "unreleased",
+    "types": [],
+    "en": [],
+    "fa": []
+  },
+  {
     "version": "1.0.8",
     "types": ["feature", "improve"],
     "en": [

@@ -1,0 +1,28 @@
+# Weekly, one grouped PR per ecosystem for minor / patch. Titles are conventional commits (CI's PR rule) and don't
+# make a release by themselves (build / ci). Electron majors are left out: those are a deliberate upgrade.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: build
+      include: scope
+    groups:
+      npm:
+        update-types: [minor, patch]
+    ignore:
+      - dependency-name: electron
+        update-types: ['version-update:semver-major']
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: ci
+      include: scope
+    groups:
+      actions:
+        patterns: ['*']

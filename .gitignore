@@ -8,3 +8,5 @@ dist/
 build/release-notes.md
 .vscode/
 assets/Claude outputs/
+.codegraph/
+graphify-out/
