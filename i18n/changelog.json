@@ -1,6 +1,12 @@
 [
   {
     "version": "unreleased",
+    "types": [],
+    "en": [],
+    "fa": []
+  },
+  {
+    "version": "1.0.9",
     "types": ["feature", "feature", "security", "improve", "feature", "feature", "improve"],
     "en": [
       "New Giveaway page: a prize wheel, giveaways and a coin flip, all in one place (it also opens in its own window)",
