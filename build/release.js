@@ -35,10 +35,15 @@ function rewrite(src, version) {
 }
 const read = () => fs.readFileSync(FILE, 'utf8');
 
+// semantic-release calls this again after @semantic-release/git's release commit (a prepare step that moves HEAD makes
+// it redo the notes), and that second text is the one the release gets. By then prepare has stamped changelog.json, so
+// the version's own entry is there and stamping again would read the new empty Unreleased one (v1.0.9's "Small fixes").
 async function generateNotes(_, context) {
   const { generateNotes: commits } = await import('@semantic-release/release-notes-generator');
   const dev = await commits({ preset: 'conventionalcommits' }, context);
-  const whatsNew = text(stamp(JSON.parse(read()), context.nextRelease.version)[1]);
+  const log = JSON.parse(read()),
+    { version } = context.nextRelease;
+  const whatsNew = text(log.find((c) => c.version === version) ?? stamp(log, version)[1]);
   return `${whatsNew}\n<details><summary>Developer changes</summary>\n\n${dev}\n\n</details>\n`;
 }
 
