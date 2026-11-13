@@ -126,20 +126,28 @@ test('release version: feat / fix / perf, even breaking, are a patch; only a big
 // The real notes step, so a dependency update that breaks it (conventional-changelog-conventionalcommits 10 needs a
 // newer notes generator) fails here, in its own PR, instead of in the next Release run.
 test('release text: What\'s new, then the commits under "Developer changes"', async () => {
-  const { generateNotes } = require('../build/release');
-  const notes = await generateNotes(
-    {},
-    {
-      commits: [{ hash: 'a1b2c3d', message: 'fix(alerts): x', committerDate: new Date().toISOString() }],
-      lastRelease: { gitTag: 'v1.0.0', version: '1.0.0' },
-      nextRelease: { gitTag: 'v1.0.1', version: '1.0.1' },
-      options: { repositoryUrl: 'https://github.com/o/r' },
-      cwd: process.cwd(),
-      env: {},
-      logger: { log() {} },
-    },
-  );
-  assert.match(notes, /<details><summary>Developer changes[\s\S]*\*\*alerts:\*\* x[\s\S]*<\/details>/);
+  const { generateNotes, stamp } = require('../build/release');
+  const log = JSON.parse(read('i18n/changelog.json'));
+  const notes = (version) =>
+    generateNotes(
+      {},
+      {
+        commits: [{ hash: 'a1b2c3d', message: 'fix(alerts): x', committerDate: new Date().toISOString() }],
+        lastRelease: { gitTag: 'v0.0.1', version: '0.0.1' },
+        nextRelease: { gitTag: `v${version}`, version },
+        options: { repositoryUrl: 'https://github.com/o/r' },
+        cwd: process.cwd(),
+        env: {},
+        logger: { log() {} },
+      },
+    );
+  const before = await notes('9.0.0');
+  assert.ok(before.startsWith(text(stamp(log, '9.0.0')[1])), 'before prepare: the Unreleased entry');
+  assert.match(before, /<details><summary>Developer changes[\s\S]*\*\*alerts:\*\* x[\s\S]*<\/details>/);
+  // semantic-release asks again after the release commit, when prepare has already stamped changelog.json (v1.0.9's
+  // release said "Small fixes and improvements"). package.json's version is such an already stamped entry.
+  const { version } = JSON.parse(read('package.json'));
+  assert.ok((await notes(version)).startsWith(text(log.find((c) => c.version === version))), 'after prepare: its own entry');
 });
 
 test("PR rules: a conventional title; feat / fix / perf add What's new lines in both languages, or no-notes", () => {
