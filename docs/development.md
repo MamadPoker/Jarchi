@@ -56,4 +56,4 @@ npm run check          # all four, as CI runs them
 
 `npm install` sets up a Husky pre-push hook (`.husky/pre-push`) that runs `npm run check`. Skip it once with `git push --no-verify`.
 
-PR and commit rules: [releasing.md](releasing.md#pull-requests).
+PR and commit rules: [CONTRIBUTING.md](../.github/CONTRIBUTING.md#pull-requests).
