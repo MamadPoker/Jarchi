@@ -2,9 +2,7 @@
 
 # Releasing
 
-## Pull requests
-
-Every change reaches `main` as a pull request, squashed into one commit whose message is the PR's title: a conventional commit (`feat: …`, `fix(relay): …`, `chore: …`; CI checks it, `build/check-pr.js`). A `feat`, `fix` or `perf` PR also adds its change on top of `i18n/changelog.json`, in the `"unreleased"` entry (`en` and `fa`: the same change in both, one plain line each, and its `types`), or gets the `no-notes` label when streamers see no difference. Never raise `version` or tag by hand.
+Pull request rules (titles, What's new lines): [CONTRIBUTING.md](../.github/CONTRIBUTING.md#pull-requests).
 
 ## Windows installer and updates
 

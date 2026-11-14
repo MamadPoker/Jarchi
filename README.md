@@ -2,9 +2,9 @@
 
 <img src="assets/brand/jarchi-logo-v2.png" alt="Jarchi" width="168">
 
-### Stream alerts, chat and goals for OBS.<br>Running on your own PC.
+### Stream alerts, chat and goals for Kick & Twitch, made for OBS.<br>Running on your own PC.
 
-No account. No central server. Just your Kick and Twitch channel names.
+No account. No central server. Just your Kick and Twitch channel names. In English and فارسی.
 
 <br>
 
@@ -12,12 +12,42 @@ No account. No central server. Just your Kick and Twitch channel names.
 
 <br><br>
 
-[![Latest release](https://img.shields.io/github/v/release/MamadPoker/Jarchi?style=flat-square&color=D4A72C&label=release)](https://github.com/MamadPoker/Jarchi/releases/latest)
-[![CI](https://img.shields.io/github/actions/workflow/status/MamadPoker/Jarchi/ci.yml?branch=main&style=flat-square&label=CI)](https://github.com/MamadPoker/Jarchi/actions/workflows/ci.yml)
-[![Security](https://img.shields.io/github/actions/workflow/status/MamadPoker/Jarchi/security.yml?branch=main&style=flat-square&label=security)](https://github.com/MamadPoker/Jarchi/actions/workflows/security.yml)
-[![Kick](https://img.shields.io/badge/Kick-53FC18?style=flat-square&logo=kick&logoColor=black)](docs/alerts.md#real-kick-alerts-no-login)
-[![Twitch](https://img.shields.io/badge/Twitch-9146FF?style=flat-square&logo=twitch&logoColor=white)](docs/alerts.md#real-twitch-alerts-no-login)
-[![License: MIT](https://img.shields.io/badge/license-MIT-1F3D2B?style=flat-square)](LICENSE)
+<a href="https://jarchi.app"><strong>🌐 jarchi.app</strong></a>
+&nbsp;·&nbsp;
+<a href="#why-jarchi">✨ Features</a>
+&nbsp;·&nbsp;
+<a href="#quick-start">🚀 Quick start</a>
+&nbsp;·&nbsp;
+<a href="docs/README.md">📚 Docs</a>
+&nbsp;·&nbsp;
+<a href=".github/CONTRIBUTING.md">🤝 Contributing</a>
+
+<br><br>
+
+<a href="https://github.com/MamadPoker/Jarchi/releases/latest"><img alt="Release" src="https://img.shields.io/github/v/release/MamadPoker/Jarchi?color=D4A72C&label=release"></a>
+<a href="https://github.com/MamadPoker/Jarchi/releases"><img alt="Downloads" src="https://img.shields.io/github/downloads/MamadPoker/Jarchi/total?color=D4A72C&label=downloads"></a>
+<a href="https://github.com/MamadPoker/Jarchi/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/MamadPoker/Jarchi/ci.yml?branch=main&label=CI"></a>
+<a href="https://github.com/MamadPoker/Jarchi/actions/workflows/security.yml"><img alt="CodeQL" src="https://img.shields.io/github/actions/workflow/status/MamadPoker/Jarchi/security.yml?branch=main&label=CodeQL"></a>
+<a href="https://github.com/MamadPoker/Jarchi/commits/main"><img alt="Last commit" src="https://img.shields.io/github/last-commit/MamadPoker/Jarchi"></a>
+<a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-1F6B3A"></a>
+
+<a href="https://github.com/MamadPoker/Jarchi/releases/latest"><img alt="Platform" src="https://img.shields.io/badge/platform-Windows-lightgrey"></a>
+<a href="https://jarchi.app"><img alt="Website" src="https://img.shields.io/badge/website-jarchi.app-D4A72C"></a>
+<a href="docs/alerts.md#real-kick-alerts-no-login"><img alt="Kick" src="https://img.shields.io/badge/Kick-supported-53FC18?logo=kick&logoColor=black"></a>
+<a href="docs/alerts.md#real-twitch-alerts-no-login"><img alt="Twitch" src="https://img.shields.io/badge/Twitch-supported-9146FF?logo=twitch&logoColor=white"></a>
+<a href="docs/panel.md#persian-فارسی"><img alt="English and Persian" src="https://img.shields.io/badge/panel-English%20%7C%20%D9%81%D8%A7%D8%B1%D8%B3%DB%8C-1F6B3A"></a>
+<a href=".github/SECURITY.md"><img alt="Security policy" src="https://img.shields.io/badge/security-policy-2ea44f"></a>
+<a href="https://github.com/MamadPoker/Jarchi/stargazers"><img alt="Stars" src="https://img.shields.io/github/stars/MamadPoker/Jarchi?style=flat&color=D4A72C"></a>
+<a href="https://github.com/MamadPoker/Jarchi/pulls"><img alt="PRs welcome" src="https://img.shields.io/badge/PRs-welcome-brightgreen"></a>
+
+<a href="https://nodejs.org/"><img alt="Node.js" src="https://img.shields.io/badge/Node.js-20.18%2B-5FA04E?logo=nodedotjs&logoColor=white"></a>
+<a href="https://www.electronjs.org/"><img alt="Electron" src="https://img.shields.io/badge/Electron-45-47848F?logo=electron&logoColor=white"></a>
+<a href="https://expressjs.com/"><img alt="Express" src="https://img.shields.io/badge/Express-5-000000?logo=express&logoColor=white"></a>
+<a href="https://socket.io/"><img alt="Socket.IO" src="https://img.shields.io/badge/Socket.IO-4-010101?logo=socketdotio&logoColor=white"></a>
+<a href="https://workers.cloudflare.com/"><img alt="Cloudflare Workers" src="https://img.shields.io/badge/Cloudflare-Workers-F38020?logo=cloudflare&logoColor=white"></a>
+<a href="https://obsproject.com/"><img alt="OBS" src="https://img.shields.io/badge/OBS-Browser%20Source-302E31?logo=obsstudio&logoColor=white"></a>
+
+<br><br>
 
 <img src="docs/images/alerts.webp" alt="Jarchi's Alerts page with a live preview of a Neon follow alert" width="100%">
 
@@ -53,6 +83,20 @@ Kick and Twitch together, 27 styles, Kick, Twitch and 7TV emotes, the platforms'
 
 **Goals that move by themselves**<br>
 Six goal widgets that sync from your Kick and Twitch channels and celebrate when they're reached. [Goals →](docs/goals.md)
+
+</td>
+</tr>
+<tr>
+<td valign="top">
+
+**Viewer count**<br>
+Your Kick, Twitch or total viewers on stream, as a gold card, a live chart, an angled bar or a comic bubble. [Viewer count →](docs/viewer-count.md)
+
+</td>
+<td valign="top">
+
+**Giveaways from chat**<br>
+Viewers type a word in Kick or Twitch chat to join; subs can get double chance. Plus a prize wheel and a coin flip. [Giveaway →](docs/giveaway.md)
 
 </td>
 </tr>
@@ -99,13 +143,16 @@ A desktop app with a tray icon and quiet updates, a Persian right-to-left panel,
 | [Alerts](docs/alerts.md) | Themes, media, real Kick and Twitch alerts, the queue |
 | [Chat](docs/chat.md) | Styles, emotes, badges, profile pictures |
 | [Goals](docs/goals.md) | Six goals and Sync from Kick / Twitch |
+| [Viewer count](docs/viewer-count.md) | Live viewers on stream |
+| [Giveaway](docs/giveaway.md) | Wheel, chat giveaways, coin flip |
 | [Crypto donations](docs/crypto.md) | Jarchi Pay and its alerts |
 | [Proxy & VPN](docs/proxy.md) | VPNs and filtered networks |
 | [Development](docs/development.md) | Project layout, event shape, tests |
-| [Releasing](docs/releasing.md) | PR rules, installer, updates |
+| [Releasing](docs/releasing.md) | Installer, updates, releases |
+| [Contributing](.github/CONTRIBUTING.md) · [Security](.github/SECURITY.md) | How to help, how to report a vulnerability |
 
 <br>
 
 <div align="center">
-<sub>Made for streamers · <a href="LICENSE">MIT License</a> · <a href="https://github.com/MamadPoker/Jarchi/releases/latest">Latest release</a></sub>
+<sub>Made for streamers · <a href="https://jarchi.app">jarchi.app</a> · <a href="LICENSE">MIT License</a> · <a href="https://github.com/MamadPoker/Jarchi/releases/latest">Latest release</a></sub>
 </div>
