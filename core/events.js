@@ -13,7 +13,7 @@ const PLATFORMS = ['kick', 'twitch', 'test'];
 /** @typedef {'follow' | 'sub' | 'resub' | 'gift_sub' | 'kicks' | 'bits' | 'raid'} EventType */
 /** @typedef {'kick' | 'twitch' | 'test'} Platform */
 /**
- * The one event shape every widget sees, whatever its source (README → Project layout).
+ * The one event shape every widget sees, whatever its source (docs/development.md → Project layout).
  * @typedef {{ id: string, time: number, received: number, platform: Platform, type: EventType, user: string, amount: number, months: number, message: string, test: boolean }} JarchiEvent
  */
 
