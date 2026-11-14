@@ -1,0 +1,59 @@
+# Repo charts: the README's star history and downloads charts and its downloads badge (build/charts.js), pushed to the
+# `badges` branch, which the README loads them from. Daily, after each release, when the script changes, or by hand.
+# `badges` is one parentless commit, force-pushed each time. Its downloads-history.json (one reading a day) is the one
+# thing that can't be fetched again, since GitHub keeps no download history: each run reads it back first and stops
+# if that fails, rather than publish a history that starts over.
+name: Repo charts
+
+on:
+  schedule:
+    - cron: '17 4 * * *' # off the hour, when GitHub's scheduler is busy
+  release:
+    types: [published]
+  push:
+    branches: [main]
+    paths: [build/charts.js, .github/workflows/charts.yml]
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: charts
+  cancel-in-progress: false
+
+jobs:
+  charts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write # push the badges branch
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: true # the publish step pushes
+      - name: 🟢 Setup Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+      - name: 📜 Read back the downloads history
+        run: |
+          set -euo pipefail
+          if git ls-remote --exit-code origin badges >/dev/null; then
+            git fetch -q origin badges
+            git show FETCH_HEAD:downloads-history.json > prev-history.json
+            echo "$(node -p "require('./prev-history.json').length") daily readings so far"
+          else
+            echo "No badges branch yet: the history starts today."
+          fi
+      - name: 📊 Draw the charts
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node build/charts.js charts-out prev-history.json
+      - name: 📤 Publish to the badges branch
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          tree=$(for f in charts-out/*; do printf '100644 blob %s\t%s\n' "$(git hash-object -w "$f")" "$(basename "$f")"; done | git mktree)
+          git push --force origin "$(git commit-tree "$tree" -m 'chore: update repo charts [skip ci]'):refs/heads/badges"

@@ -25,7 +25,7 @@ No account. No central server. Just your Kick and Twitch channel names. In Engli
 <br><br>
 
 <a href="https://github.com/MamadPoker/Jarchi/releases/latest"><img alt="Release" src="https://img.shields.io/github/v/release/MamadPoker/Jarchi?color=D4A72C&label=release"></a>
-<a href="https://github.com/MamadPoker/Jarchi/releases"><img alt="Downloads" src="https://img.shields.io/github/downloads/MamadPoker/Jarchi/total?color=D4A72C&label=downloads"></a>
+<a href="#growth"><img alt="Downloads" src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/MamadPoker/Jarchi/badges/installs.json"></a>
 <a href="https://github.com/MamadPoker/Jarchi/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/MamadPoker/Jarchi/ci.yml?branch=main&label=CI"></a>
 <a href="https://github.com/MamadPoker/Jarchi/actions/workflows/security.yml"><img alt="CodeQL" src="https://img.shields.io/github/actions/workflow/status/MamadPoker/Jarchi/security.yml?branch=main&label=CodeQL"></a>
 <a href="https://github.com/MamadPoker/Jarchi/commits/main"><img alt="Last commit" src="https://img.shields.io/github/last-commit/MamadPoker/Jarchi"></a>
@@ -150,6 +150,16 @@ A desktop app with a tray icon and quiet updates, a Persian right-to-left panel,
 | [Development](docs/development.md) | Project layout, event shape, tests |
 | [Releasing](docs/releasing.md) | Installer, updates, releases |
 | [Contributing](.github/CONTRIBUTING.md) · [Security](.github/SECURITY.md) | How to help, how to report a vulnerability |
+
+## Growth
+
+<div align="center">
+<a href="https://github.com/MamadPoker/Jarchi/stargazers"><img alt="Star history: Jarchi's stars over time" width="800" src="https://raw.githubusercontent.com/MamadPoker/Jarchi/badges/stars.svg"></a>
+<br><br>
+<a href="https://github.com/MamadPoker/Jarchi/releases"><img alt="Downloads: Jarchi's installer downloads over time" width="800" src="https://raw.githubusercontent.com/MamadPoker/Jarchi/badges/downloads.svg"></a>
+<br>
+<sub>Drawn every day by <a href=".github/workflows/charts.yml">Repo charts</a> and served from the <code>badges</code> branch. No third-party service.</sub>
+</div>
 
 <br>
 
