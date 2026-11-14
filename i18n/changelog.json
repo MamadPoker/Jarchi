@@ -1,9 +1,9 @@
 [
   {
     "version": "unreleased",
-    "types": [],
-    "en": [],
-    "fa": []
+    "types": ["fix"],
+    "en": ["Crypto: the \"gateway approved\" note now shows in full, just below the top bar"],
+    "fa": ["کریپتو: پیام «درگاه تأیید شد» حالا کامل و درست زیر نوار بالا نشون داده می‌شه"]
   },
   {
     "version": "1.0.9",
