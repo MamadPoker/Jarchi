@@ -1,9 +1,19 @@
 [
   {
     "version": "unreleased",
-    "types": ["fix", "fix"],
-    "en": ["Crypto: the \"gateway approved\" note now shows in full, just below the top bar", "Coin flip: Reset now also clears the recent flips"],
-    "fa": ["کریپتو: پیام «درگاه تأیید شد» حالا کامل و درست زیر نوار بالا نشون داده می‌شه", "شیر یا خط: «صفر کردن» حالا انداختن‌های اخیر رو هم پاک می‌کنه"]
+    "types": ["fix", "fix", "fix", "fix"],
+    "en": [
+      "Crypto: the \"gateway approved\" note now shows in full, just below the top bar",
+      "Coin flip: Reset now also clears the recent flips",
+      "Giveaway's Pop out window now uses the panel's language and has its own فا | EN switch",
+      "Coin flip: the coin now stays inside its card when it flips, in the middle, with its shadow under it"
+    ],
+    "fa": [
+      "کریپتو: پیام «درگاه تأیید شد» حالا کامل و درست زیر نوار بالا نشون داده می‌شه",
+      "شیر یا خط: «صفر کردن» حالا انداختن‌های اخیر رو هم پاک می‌کنه",
+      "پنجره‌ی جدای گیووی حالا به زبان پنل نشون داده می‌شه و دکمه‌ی فا | EN خودش رو داره",
+      "شیر یا خط: سکه موقع انداختن دیگه از کادرش بیرون نمی‌زنه و وسط کادر، با سایه‌ش زیرش، می‌مونه"
+    ]
   },
   {
     "version": "1.0.9",

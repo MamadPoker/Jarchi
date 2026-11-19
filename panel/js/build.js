@@ -303,6 +303,8 @@ function build() {
     render();
   });
   socket.on('settings', (s) => {
+    // the app's language switched (here or in another window): this one too, but not in the middle of a giveaway draw
+    if (s.lang !== S.lang && !lkRun) return useLang(s.lang);
     // also changed by the server itself (a connected account fills its chat channel)
     settings = s;
     render();

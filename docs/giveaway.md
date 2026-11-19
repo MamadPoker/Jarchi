@@ -2,7 +2,7 @@
 
 # Giveaway
 
-A prize wheel, giveaways from Kick and Twitch chat, and a coin flip, on three tabs: **Wheel**, **Giveaway**, **Coin flip**. They live in the panel (there's no OBS link for them). **Pop out** opens the page in its own window for a second monitor, and **Always on top** keeps it above other windows. Everything is saved in `data/luck.json`.
+A prize wheel, giveaways from Kick and Twitch chat, and a coin flip, on three tabs: **Wheel**, **Giveaway**, **Coin flip**. They live in the panel (there's no OBS link for them). **Pop out** opens the page in its own window for a second monitor, in the panel's language and with its own **فا | EN** switch, and **Always on top** keeps it above other windows. Everything is saved in `data/luck.json`.
 
 ## Wheel
 
@@ -28,4 +28,4 @@ Viewers join by typing a word in Kick or Twitch chat.
 
 ## Coin flip
 
-**Flip** a Jarchi coin: heads or tails, a score since the start of the stream (**Reset** sets it back to 0 and clears the flips) and the last 10 flips.
+**Flip** a Jarchi coin: heads or tails, a score since the start of the stream (**Reset** sets it back to 0 and clears the flips) and the last 6 flips.

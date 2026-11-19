@@ -387,6 +387,10 @@
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M20 4l-8 8M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" /></svg
                 ><span data-i18n="luckPopOut"></span>
               </button>
+              <!-- The pop-out only (the panel has its top bar's): the language switch, wired with the top bar's (js/build.js). -->
+              <div id="luckLang" class="lang" role="group" data-aria="language" hidden>
+                <button data-lang="fa" lang="fa">فا</button><button data-lang="en" lang="en">EN</button>
+              </div>
               <label id="luckTop" class="lk-top" hidden
                 ><span class="switch"><input type="checkbox" /><span></span></span><span data-i18n="luckOnTop"></span
               ></label>
@@ -507,11 +511,13 @@
               <div class="lk-card">
                 <div class="lk-cstage">
                   <div id="lkCoin" class="lk-coin"></div>
-                  <div id="lkShadow" class="lk-cshadow"></div>
-                  <div id="lkCres" class="lk-cres" aria-live="polite"></div>
-                  <button id="lkFlip" class="lk-btn g lk-go">
-                    <span aria-hidden="true">🪙</span><span data-i18n="luckFlip"></span><span class="lk-key">(Space)</span>
-                  </button>
+                  <div class="lk-cbase">
+                    <div id="lkShadow" class="lk-cshadow"></div>
+                    <div id="lkCres" class="lk-cres" aria-live="polite"></div>
+                    <button id="lkFlip" class="lk-btn g lk-go">
+                      <span aria-hidden="true">🪙</span><span data-i18n="luckFlip"></span><span class="lk-key">(Space)</span>
+                    </button>
+                  </div>
                 </div>
               </div>
               <div class="lk-card">

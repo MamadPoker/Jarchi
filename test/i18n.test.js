@@ -195,3 +195,36 @@ test('every "?" in the panel has its help text', () => {
     [],
   );
 });
+
+test("the language switch: the app's language saved first, then this window reloads in it (never when it can't keep it)", async () => {
+  // The panel's code (panel/js/help.js useLang, setLang), run here as it is.
+  const src = read('panel/js/help.js');
+  const code = src.slice(src.indexOf('function useLang('), src.indexOf('// ---------- Privacy Policy'));
+  const run = (kept) => {
+    const store = {},
+      did = [];
+    const ctx = {
+      S: { lang: 'en' },
+      view: 'luck',
+      ...{ cur: null, curGoal: null, topic: null },
+      remember: { get: (k) => store[k] ?? null, set: (k, v) => kept && (store[k] = v) },
+      sessionStorage: { setItem: (k, v) => did.push(`${k} ${v}`) },
+      location: { reload: () => did.push('reload') },
+      api: async (method, url, body) => did.push(`${method} ${url} ${JSON.stringify(body)}`),
+      toast: (m) => did.push(`toast ${m}`),
+    };
+    require('node:vm').runInNewContext(code, ctx);
+    return { ctx, did, store };
+  };
+  const a = run(true);
+  a.ctx.setLang('fa');
+  await new Promise(setImmediate);
+  assert.deepEqual(a.did, ['PATCH /api/settings {"lang":"fa"}', 'jarchi.back ["luck",null]', 'reload']);
+  assert.equal(a.store['jarchi.lang'], 'fa');
+  a.did.length = 0;
+  a.ctx.setLang('en');
+  assert.deepEqual(a.did, [], 'already in it: nothing');
+  const b = run(false); // a browser with no storage
+  b.ctx.useLang('fa');
+  assert.deepEqual(b.did, [], 'no reload that would come back in the same language');
+});

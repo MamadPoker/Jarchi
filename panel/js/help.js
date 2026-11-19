@@ -106,14 +106,24 @@ function renderGuide() {
   );
 }
 
-// The panel's language (top bar, Appearance, the welcome tour): the page reloads in it and comes back to what was open.
-function setLang(lang) {
-  if (lang === S.lang) return;
+// The app's language is settings.lang: every panel window shows it (the main one, the Luck pop-out, one in another
+// browser or an OBS dock, whatever its own storage says), at the start (start.js) and when it changes (socket 'settings').
+// jarchi.lang keeps it in this browser for the first paint (look.js FA). This window: reloaded in it, back to what was open.
+function useLang(lang) {
   remember.set('jarchi.lang', lang);
+  if (remember.get('jarchi.lang') !== lang) return; // not kept (no storage here): a reload would come back the same
   try {
     sessionStorage.setItem('jarchi.back', JSON.stringify([view, { alert: cur, goal: curGoal, guide: topic }[view]]));
   } catch {}
   location.reload();
+}
+// The language switch (top bar, Appearance, the welcome tour, the Luck pop-out's): the app's language, so every window.
+function setLang(lang) {
+  if (lang === S.lang) return;
+  api('PATCH', '/api/settings', { lang }).then(
+    () => useLang(lang),
+    (err) => toast(err.message, true),
+  );
 }
 
 // ---------- Privacy Policy ----------

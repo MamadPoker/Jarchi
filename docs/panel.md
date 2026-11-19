@@ -16,4 +16,4 @@
 
 ## Persian (فارسی)
 
-The **فا | EN** switch (remembered in the browser) puts the whole panel in Persian, right to left, in the bundled Vazirmatn font with Persian digits: the sidebar moves to the right. Fields for links, `{user}`-style variables, channel names and numbers stay left to right. It changes only the panel: alert texts, chat and goals in OBS stay exactly as you wrote them (English by default). Panel strings live in `i18n/en.json` and `i18n/fa.json`; a test fails if `fa.json` misses a key.
+The **فا | EN** switch (saved with Jarchi's settings, so every panel window follows it: the Luck pop-out, and the panel in another browser or an OBS dock) puts the whole panel in Persian, right to left, in the bundled Vazirmatn font with Persian digits: the sidebar moves to the right. Fields for links, `{user}`-style variables, channel names and numbers stay left to right. It changes only the panel: alert texts, chat and goals in OBS stay exactly as you wrote them (English by default). Panel strings live in `i18n/en.json` and `i18n/fa.json`; a test fails if `fa.json` misses a key.
