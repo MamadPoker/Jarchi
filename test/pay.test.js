@@ -28,12 +28,13 @@ function start(key = '') {
 }
 
 // Jarchi Pay: this install's request (status: its token goes out once), whether the token still works, every call.
-const jp = { status: { status: 'none' }, live: true, down: false, asked: [], fresh: [], cursor: 7, since: [] }; // fresh: paid since the last ask
+const jp = { status: { status: 'none' }, live: true, down: false, asked: [], fresh: [], cursor: 7, since: [], signals: [] }; // fresh: paid since the last ask
 globalThis.fetch = async (url, init = {}) => {
   const u = new URL(url),
     at = `${init.method ?? 'GET'} ${u.pathname}`;
   assert.equal(u.origin, PAY);
   jp.asked.push({ at, auth: init.headers?.authorization ?? null, body: init.body && (Buffer.isBuffer(init.body) ? init.body : JSON.parse(init.body)) });
+  jp.signals.push(init.signal); // each call's timeout (core/pay.js call)
   if (jp.down) throw new TypeError('fetch failed');
   const json = (b, status = 200) => Response.json(b, { status });
   if (at === 'POST /api/app/request') return json({ url: `${PAY}/connect/abc`, expiresAt: 1 }, 201);
@@ -289,4 +290,22 @@ test('donation emoji: checked, played first (the alert stays on that much longer
   assert.deepEqual(jp.asked.at(-1).body, { emoji: { enabled: true, animations: ['burst', 'rocket'], custom: false } });
   await pay.savePage({ emoji: { custom: true } });
   assert.deepEqual(jp.asked.at(-1).body, { emoji: { custom: true } }, 'only the keys given');
+});
+
+// Every call to Jarchi Pay has a timeout, an upload too: a slow Jarchi Pay ends as offline, never a request left hanging.
+test('every Jarchi Pay call can time out, a picture upload too', async () => {
+  settingsFile({ privacyAccepted: 1 });
+  jp.live = true;
+  jp.status = { status: 'approved', channel: 'mamadpoker', token: TOKEN };
+  const pay = start(KEY);
+  assert.equal((await pay.refresh()).state, 'active');
+  await pay.page();
+  jp.uploads = 0;
+  await pay.setPicture('avatar', Buffer.concat([Buffer.from('89504e470d0a1a0a', 'hex'), Buffer.alloc(16)]));
+  assert.deepEqual(
+    jp.asked.slice(-2).map((c) => c.at),
+    ['GET /api/app/page', 'PUT /api/app/page/avatar'],
+  );
+  assert.equal(jp.signals.length, jp.asked.length);
+  for (const s of jp.signals) assert.ok(s instanceof AbortSignal && !s.aborted, 'a timeout signal on each call');
 });
