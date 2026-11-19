@@ -745,6 +745,12 @@ function renderCoin() {
   if (lkTailsShown !== luck.coin.tails) $('#lkTface').innerHTML = lkTails((lkTailsShown = luck.coin.tails));
   renderLuckTimes();
 }
+// Reset: the score back to 0, and the recent flips gone with it (a new count starts from nothing).
+function resetCoin() {
+  luck.coin = { heads: 0, tails: 0, flips: [] };
+  lkSave('coin');
+  renderCoin();
+}
 function wireCoin2() {
   const c = $('#lkCoin');
   for (let z = -10; z <= 10; z++) c.append(el('div', { className: 'edge', style: `transform: translateZ(${z}px) scale(.985)` }));
@@ -914,11 +920,7 @@ function wireLuck(socket) {
   // Coin
   wireCoin2();
   $('#lkFlip').onclick = flipCoin;
-  $('#lkReset').onclick = () => {
-    luck.coin = { ...luck.coin, heads: 0, tails: 0 };
-    lkSave('coin');
-    renderCoin();
-  };
+  $('#lkReset').onclick = resetCoin;
 
   // Space: spin / flip / the next name. Not while typing, nor with another popup open.
   addEventListener('keydown', (e) => {

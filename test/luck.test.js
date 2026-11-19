@@ -109,3 +109,18 @@ test("draw: entries close; previous winners can't join or win again", () => {
   assert.equal(luck.state().entrants.length, 1);
   luck.close();
 });
+
+test('coin Reset: the score back to 0 and the recent flips cleared, then saved', () => {
+  // The panel's code (panel/js/luck.js resetCoin), run here as it is.
+  const src = fs.readFileSync(path.join(__dirname, '..', 'panel', 'js', 'luck.js'), 'utf8');
+  const code = src.slice(src.indexOf('function resetCoin('), src.indexOf('function wireCoin2('));
+  const calls = [];
+  const ctx = {
+    luck: { coin: { heads: 3, tails: 2, flips: [{ heads: true, at: 1 }] } },
+    lkSave: (k) => calls.push(`save ${k}`),
+    renderCoin: () => calls.push('render'),
+  };
+  require('node:vm').runInNewContext(`${code}; resetCoin()`, ctx);
+  assert.equal(JSON.stringify(ctx.luck.coin), '{"heads":0,"tails":0,"flips":[]}'); // made in the vm: compared as JSON
+  assert.deepEqual(calls, ['save coin', 'render']);
+});
