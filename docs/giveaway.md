@@ -6,7 +6,7 @@ A prize wheel, giveaways from Kick and Twitch chat, and a coin flip, on three ta
 
 ## Wheel
 
-- **My wheels**: up to 30, each with its own name. New installs start with three samples: Punishments, Next game and Sub prizes.
+- **My wheels**: up to 30, each with its own name. New installs start with three samples: Punishments, Next game and Sub prizes. Jarchi's own names and slices (the samples', a new wheel's and slice's) follow the panel's language until you change them; what you write or change stays as you wrote it.
 - **Slices**: 2 to 60, each with its text and, with **Separate chance per slice** on, its own chance: very low, low, normal or high. Off, every slice has the same chance. A slice's text shows in full on the wheel: smaller, or on two lines, when it's long (very long text in a thin slice is still cut with "…").
 - **Tick sound** as it passes each slice, and **Remove the winner after** for prizes there's only one of. **Restore slices** (shown once one is out) puts every slice it took out back in its place, with its chance.
 - **Spin**, the result, and the last 5 spins.

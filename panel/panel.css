@@ -4841,6 +4841,7 @@ dialog.crypto-hello {
   }
 }
 .crypto-hello-hd {
+  position: relative;
   padding: 22px 24px 14px;
   background: radial-gradient(ellipse at 50% 0, color-mix(in srgb, var(--gold) 18%, transparent), transparent 70%);
   text-align: center;
@@ -4848,6 +4849,17 @@ dialog.crypto-hello {
 .crypto-hello-hd h2 {
   margin: 0;
   font-size: 22px;
+}
+.crypto-hello-hd .seg {
+  position: absolute;
+  top: 14px;
+  inset-inline-end: 16px;
+}
+@media (max-width: 560px) {
+  .crypto-hello-hd .seg {
+    position: static;
+    margin-bottom: 10px; /* above the coin: no room beside it */
+  }
 }
 .crypto-hello-hd p {
   margin: 6px 0 0;
@@ -6368,6 +6380,11 @@ button.lk-hub:hover {
     900 13px Arial,
     sans-serif;
   box-shadow: 0 0 30px rgba(232, 189, 85, 0.35);
+}
+:root[lang='fa'] button.lk-hub {
+  font:
+    900 15px Vazirmatn,
+    sans-serif; /* بچرخون */
 }
 .lk-hub.spin {
   animation: lk-hp 0.5s ease-in-out infinite alternate;
