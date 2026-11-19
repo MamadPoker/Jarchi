@@ -38,9 +38,13 @@ const laneOf = (ev) => (lanes[ev.type]?.overlays ? ev.type : 'all'); // crypto: 
 const showing = () => Object.values(lanes).find((l) => l.playing); // the one the panel shows (and skips): the main link's first
 let paused = false;
 
+// A crypto donor's emoji (core/pay.js alertOf) plays first; its alert comes in this long after (ms), by its animation.
+// The same in widgets/alerts/emoji.js (LEAD), which plays it.
+const EMOJI_LEAD = { burst: 1500, rain: 1800, rocket: 1700 };
+
 // How long an alert stays on screen (ms), before its exit animation.
 function onScreenMs(ev) {
-  if (ev.type === 'crypto') return settings.cryptoDuration(ev.look) * 1000;
+  if (ev.type === 'crypto') return settings.cryptoDuration(ev.look) * 1000 + (ev.emoji ? EMOJI_LEAD[ev.emoji.animation] : 0);
   const steps = STEPS[ev.type];
   const tier = steps ? 1 + steps.filter((n) => ev.amount >= n).length : 0;
   return (settings.get().alerts[ev.type].duration + (steps ? (tier - 1) * 1.5 : 0)) * 1000;

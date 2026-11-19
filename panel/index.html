@@ -689,6 +689,26 @@
                   </div>
                   <div class="crypto-save"><button id="cryptoPageSave" class="primary" data-i18n="cryptoSave"></button></div>
                 </div>
+                <!-- Emoji (renderCryptoEmoji, Jarchi Pay's page emoji): donors can send an emoji with a donation, played on stream
+                 before its alert with one of the animations picked here; Custom emoji: any emoji, not only the 5 ready ones.
+                 A change is saved at once. -->
+                <div id="cryptoEmoji" class="box crypto-sec">
+                  <h2 data-i18n="cryptoEmoji"></h2>
+                  <div class="crypto-li">
+                    <span class="stack"
+                      ><b data-i18n="cryptoEmojiOn"></b><small data-i18n="cryptoEmojiOnHint"></small>
+                      <span class="crypto-anims" role="group" data-aria="cryptoEmojiAnims"
+                        ><button data-anim="burst">💥 <span data-i18n="cryptoEmojiBurst"></span></button
+                        ><button data-anim="rain">🌧 <span data-i18n="cryptoEmojiRain"></span></button
+                        ><button data-anim="rocket">🚀 <span data-i18n="cryptoEmojiRocket"></span></button></span
+                    ></span>
+                    <label class="switch"><input type="checkbox" id="cryptoEmojiOn" data-aria="cryptoEmojiOn" /><span></span></label>
+                  </div>
+                  <div class="crypto-li">
+                    <span class="stack"><b data-i18n="cryptoEmojiCustom"></b><small data-i18n="cryptoEmojiCustomHint"></small></span>
+                    <label class="switch"><input type="checkbox" id="cryptoEmojiCustom" data-aria="cryptoEmojiCustom" /><span></span></label>
+                  </div>
+                </div>
                 <!-- Panel banner (drawBanner, on a canvas): a picture for the streamer's Kick / Twitch channel panels with their own
                  donation link on it. 8 colors, wide or square; Download PNG is 3 times the preview's size. -->
                 <div class="box crypto-sec banner-maker">

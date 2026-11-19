@@ -5,6 +5,7 @@
 // hold keeps it on screen until the next post (the theme cards, ?preview=tile).
 const params = new URLSearchParams(location.search);
 const stage = document.getElementById('stage');
+const emojiFx = document.getElementById('emojiFx'); // a crypto donor's emoji, under the alert (emoji.js)
 const sounds = new Set();
 let settings,
   S,
@@ -153,7 +154,7 @@ if (params.has('preview')) {
   socket.on('alert', (a) => {
     if (!settings || !S) return;
     stopAll();
-    show(a.ev, { ms: a.left, id: a.id, muted: a.late }).catch(console.error);
+    show(a.ev, { ms: a.left, id: a.id, muted: a.late, late: a.late }).catch(console.error);
     // It's on the page now: for the server's alert timing line (not again when this overlay joined in the middle).
     if (!a.late) socket.emit('alertShown', { id: a.id, shown: Date.now(), where: window.obsstudio ? 'OBS' : 'browser' });
   });
@@ -170,6 +171,7 @@ function stopAll() {
   for (const s of sounds) s.pause();
   sounds.clear();
   stage.replaceChildren();
+  emojiFx.replaceChildren();
 }
 
 // Media by amount: the alert's own tier (the highest one at or below the amount) if it's on, else the closest lower
@@ -180,9 +182,10 @@ function mediaFor(cfg, ev) {
   return { image: tier.image, sound: tier.sound };
 }
 
-// opts: muted, hold (preview: stay until the next post), ms (on-screen time, from the server), id.
-async function show(ev, { muted = false, hold = false, ms, id } = {}) {
-  if (ev.type === 'crypto') return showCrypto(ev, { muted, hold, ms, id });
+// opts: muted, hold (preview: stay until the next post), ms (on-screen time, from the server), id, late (this overlay
+// joined while it was already on).
+async function show(ev, { muted = false, hold = false, ms, id, late = false } = {}) {
+  if (ev.type === 'crypto') return showCrypto(ev, { muted, hold, ms, id, late });
   const my = gen;
   const cfg = settings.alerts[ev.type];
   const theme = cfg.theme || settings.theme; // an alert can override the main theme
@@ -369,9 +372,10 @@ function text(tpl, v) {
 
 // ---------- Crypto alerts (Jarchi Pay donations; settings.crypto = the Crypto page's Alert settings) ----------
 // ev: { user ('' = anonymous: the donor hid the name; ev.anonymous: that word in the panel's language), amount (USDT, as paid), network, message (never a private one:
-// the server leaves those out), txHash, look }. look: 'coin' | 'hologram' (Jarchi's two designs), 'custom' or an amount
-// alert's id (the streamer's own: an image and the text by it); one that's gone meanwhile: the card picked. Each one
-// opens with Jarchi's signature sound (sounds.js crypto), then the alert's own sound.
+// the server leaves those out), txHash, look, emoji }. look: 'coin' | 'hologram' (Jarchi's two designs), 'custom' or an
+// amount alert's id (the streamer's own: an image and the text by it); one that's gone meanwhile: the card picked. Each
+// one opens with Jarchi's signature sound (sounds.js crypto), then the alert's own sound. emoji: the one the donor sent
+// ({ char, image, animation }, or null), played first (emoji.js); the alert comes in while it plays.
 const NETWORK = { bep20: 'BEP20', trc20: 'TRC20' };
 const CRYPTO_FONT = {
   Lalezar: '"Lalezar", "Vazirmatn", Tahoma, sans-serif',
@@ -379,9 +383,19 @@ const CRYPTO_FONT = {
   Bangers: '"Bangers", Impact, Arial, sans-serif',
 };
 
-async function showCrypto(ev, { muted, hold, ms, id }) {
+async function showCrypto(ev, { muted, hold, ms, id, late }) {
   const my = gen,
     c = settings.crypto;
+  // Not on an overlay that joined late (the emoji's time is over by then), nor on a preview that stays still. Its
+  // picture through /remote, like every remote image here (the proxy setting).
+  if (ev.emoji && !late && !hold) {
+    onNow = { id, end: stopAll }; // Skip: the emoji goes too
+    const { char, image, animation } = ev.emoji;
+    const lead = JarchiEmoji.play(emojiFx, { char, image: image && `/remote?u=${encodeURIComponent(image)}` }, animation);
+    await sleep(lead);
+    if (my !== gen) return;
+    if (ms) ms -= lead;
+  }
   const own = ev.look === 'custom' ? c.custom : c.tiers.find((t) => t.id === ev.look);
   const design = own ? null : ['coin', 'hologram'].includes(ev.look) ? ev.look : c.design === 'custom' ? null : c.design;
   const look = own ?? (design ? null : c.custom);

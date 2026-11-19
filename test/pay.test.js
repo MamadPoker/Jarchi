@@ -248,3 +248,45 @@ test('a waiting wallet change: the new address, adding a network not used now, r
   assert.equal(lines('0xa', 'Tb', { bep20: null, trc20: 'Tb' }), 'BEP20: removing\nTRC20: Tb');
   assert.equal(lines('0xa', null, { bep20: '0xc', trc20: null }), 'BEP20: 0xc', 'not used now or after: no line');
 });
+
+// The donor's emoji (Jarchi Pay's donations and donations/new): kept only as Jarchi Pay sends it, played before the
+// alert, which then stays on as long as before plus the emoji's lead (the same in widgets/alerts/emoji.js); the
+// donation page's emoji settings go to Jarchi Pay as they are (only those three keys).
+test('donation emoji: checked, played first (the alert stays on that much longer), its settings saved on the page', async () => {
+  settingsFile({ privacyAccepted: 1 });
+  jp.live = true;
+  jp.status = { status: 'approved', channel: 'mamadpoker', token: TOKEN };
+  const pay = start(KEY);
+  assert.equal((await pay.refresh()).state, 'active');
+  const d = (emoji) => pay.alertOf({ name: 'Sara', amount: '5.0000', network: 'bep20', emoji }).emoji;
+  const fire = { char: '🔥', image: `${PAY}/emoji/1f525.webp`, animation: 'rain' };
+  assert.deepEqual(d(fire), fire);
+  assert.equal(d(null), null);
+  assert.equal(d({ ...fire, image: 'https://elsewhere.test/emoji/1f525.webp' }).image, null, 'a picture from anywhere else: the character');
+  assert.equal(d({ ...fire, image: `${PAY}/emoji/../x.webp` }).image, null);
+  assert.equal(d({ ...fire, animation: 'spin' }), null);
+  assert.equal(d({ ...fire, char: 'x'.repeat(41) }), null);
+
+  const settings = require('../core/settings'),
+    queue = require('../core/alerts');
+  const played = [];
+  queue.events.on('play', (a) => played.push(a));
+  queue.join(() => {}, 'all');
+  queue.push(pay.alertOf({ name: 'Sara', amount: '5.0000', network: 'bep20', emoji: fire }));
+  const plain = settings.cryptoDuration(played[0].ev.look) * 1000;
+  assert.ok(played[0].left > plain + 1800 - 1000 && played[0].left <= plain + 1800, 'rain: the alert comes 1.8 s in');
+  queue.skip();
+  const lead = (src, name) => require('node:vm').runInNewContext(`(${src.match(new RegExp(`${name} = ([{][^}]*[}])`))[1]})`);
+  const read = (f) => fs.readFileSync(path.join(__dirname, '..', f), 'utf8');
+  assert.deepEqual(
+    { ...lead(read('core/alerts.js'), 'EMOJI_LEAD') },
+    { ...lead(read('widgets/alerts/emoji.js'), 'LEAD') },
+    'the server and the overlay agree on each lead',
+  );
+  assert.deepEqual({ ...lead(read('widgets/alerts/emoji.js'), 'LEAD') }, { burst: 1500, rain: 1800, rocket: 1700 });
+
+  await pay.savePage({ emoji: { enabled: true, animations: ['burst', 'rocket'], custom: false, extra: 1 } });
+  assert.deepEqual(jp.asked.at(-1).body, { emoji: { enabled: true, animations: ['burst', 'rocket'], custom: false } });
+  await pay.savePage({ emoji: { custom: true } });
+  assert.deepEqual(jp.asked.at(-1).body, { emoji: { custom: true } }, 'only the keys given');
+});

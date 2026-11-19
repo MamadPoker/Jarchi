@@ -5597,6 +5597,33 @@ dialog.crypto-hello {
 .crypto-li .link-row {
   flex-basis: 100%;
 }
+/* The donation emoji's animations (the Donation page tab): picked ones in teal. */
+#cryptoEmoji small {
+  color: var(--muted);
+  font-size: 12.5px;
+}
+.crypto-anims {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+}
+.crypto-anims button {
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: none;
+  color: var(--muted);
+  font-size: 13px;
+}
+.crypto-anims button[aria-pressed='true'] {
+  border-color: var(--teal);
+  background: color-mix(in srgb, var(--teal) 10%, transparent);
+  color: var(--text);
+}
+.crypto-anims button:disabled {
+  opacity: 0.55;
+}
 .crypto-tiers {
   display: grid;
   gap: 8px;
