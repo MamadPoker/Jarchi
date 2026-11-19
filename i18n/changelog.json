@@ -1,7 +1,7 @@
 [
   {
     "version": "unreleased",
-    "types": ["fix", "fix", "fix", "fix", "improve", "fix", "improve", "fix", "fix"],
+    "types": ["fix", "fix", "fix", "fix", "improve", "fix", "improve", "fix", "fix", "feature", "feature"],
     "en": [
       "Crypto: the \"gateway approved\" note now shows in full, just below the top bar",
       "Coin flip: Reset now also clears the recent flips",
@@ -11,7 +11,9 @@
       "Wheel: long slice text now shows in full, smaller or on two lines, instead of being cut off",
       "Crypto: the rules window has its own English | فارسی switch; it keeps where you were reading and your tick",
       "Giveaway: the sample wheels now follow the panel's language until you change them; what you wrote stays as it is",
-      "Wheel: the SPIN button in the middle is now in Persian too"
+      "Wheel: the SPIN button in the middle is now in Persian too",
+      "Crypto: a donor's emoji now plays on stream right before the crypto alert, with the animation they picked: burst, rain or rocket",
+      "Crypto: new emoji settings on the Donation page tab: Emoji before the alert, which animations donors can pick, and Custom emoji"
     ],
     "fa": [
       "کریپتو: پیام «درگاه تأیید شد» حالا کامل و درست زیر نوار بالا نشون داده می‌شه",
@@ -22,7 +24,9 @@
       "گردونه: متن بلند خونه‌ها حالا کامل نشون داده می‌شه، با فونت کوچیک‌تر یا توی دو خط، و دیگه نصفه نمی‌مونه",
       "کریپتو: پنجره‌ی قوانین دکمه‌ی English | فارسی خودش رو داره و جایی که داشتید می‌خوندید و تیکتون سر جاش می‌مونه",
       "گیووی: گردونه‌های نمونه حالا تا وقتی عوضشون نکردید با زبان پنل عوض می‌شن؛ چیزی که خودتون نوشتید همون‌طور می‌مونه",
-      "گردونه: دکمه‌ی SPIN وسط گردونه حالا فارسی هم داره"
+      "گردونه: دکمه‌ی SPIN وسط گردونه حالا فارسی هم داره",
+      "کریپتو: ایموجی حامی حالا درست قبل از الرت کریپتو با انیمیشنی که انتخاب کرده روی استریم پخش می‌شه: ترکیدن، بارون یا پرواز",
+      "کریپتو: تنظیم‌های جدید ایموجی توی تب صفحه‌ی دونیت: ایموجی قبل از الرت، انیمیشن‌هایی که حامی‌ها می‌تونن انتخاب کنن، و ایموجی دلخواه"
     ]
   },
   {

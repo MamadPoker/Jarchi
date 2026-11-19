@@ -245,6 +245,13 @@ function wireCryptoPage() {
   wireBanner();
   $('#cryptoView').onclick = () => window.open(pay.page, '_blank', 'noopener');
   $('#cryptoPageSave').onclick = saveCryptoPage;
+  $('#cryptoEmojiOn').onchange = (e) => saveCryptoEmoji({ enabled: e.target.checked });
+  $('#cryptoEmojiCustom').onchange = (e) => saveCryptoEmoji({ custom: e.target.checked });
+  for (const b of $$('#cryptoEmoji [data-anim]'))
+    b.onclick = () => {
+      const now = cryptoPage.emoji.animations;
+      saveCryptoEmoji({ animations: EMOJI_ANIMS.filter((a) => (a === b.dataset.anim ? !now.includes(a) : now.includes(a))) });
+    };
   $('#cryptoBio').placeholder = S.panel.cryptoBioDefault; // Jarchi Pay's own line, without one
   $('#cryptoBio').oninput = () => $('#cryptoBio').removeAttribute('aria-invalid');
   $('#cryptoLinks').replaceChildren(

@@ -38,9 +38,9 @@ const panelGlobals = Object.fromEntries(
       ),
   ),
 );
-// Socket.io's client (io), widgets/alerts/sounds.js (JarchiSounds). open: off, because the panel's own top-level
-// `let open` (widget pages open now) is what it means, not window.open.
-const browser = { ...globals.browser, io: 'readonly', JarchiSounds: 'readonly', open: 'off' };
+// Socket.io's client (io), widgets/alerts/sounds.js (JarchiSounds) and emoji.js (JarchiEmoji). open: off, because the
+// panel's own top-level `let open` (widget pages open now) is what it means, not window.open.
+const browser = { ...globals.browser, io: 'readonly', JarchiSounds: 'readonly', JarchiEmoji: 'readonly', open: 'off' };
 
 module.exports = [
   { ignores: ['node_modules/', 'data/', 'dist/', '.wrangler/', 'graphify-out/', '.codegraph/', 'assets/', '.playwright-mcp/'] },

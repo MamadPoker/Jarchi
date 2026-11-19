@@ -4,7 +4,7 @@
 //   Kick or Twitch there, which says whose channel it is) and POST /api/app/status (none | pending | rejected |
 //   approved; an approved request hands out its token once);
 //   with the token: GET donations, GET donations/new (the crypto alerts), GET wallets, POST wallets/link, POST wallets/cancel,
-//   GET / PUT page (the donation page's look), PUT / DELETE page/avatar | page/banner.
+//   GET / PUT page (the donation page's look and its emoji), PUT / DELETE page/avatar | page/banner.
 // The token is this install's key to its streamer's donations: sealed in data/pay.json with the installed app's key
 // (core/secrets.js: Electron safeStorage), never written plain and never sent to the panel. A dev run has no key, so it
 // keeps a new token only while it runs. Jarchi Pay learns this install's id, and nothing at all before the Privacy
@@ -125,14 +125,21 @@ function donations(q) {
 const walletLink = async () => link(await call('POST', 'wallets/link'));
 const cancelChange = async () => (await call('POST', 'wallets/cancel'), refresh());
 
-// The donation page's look: { bio, socials, links, avatar, banner: { url, custom } }. bio: one line for both languages
-// ('' = Jarchi Pay's own); socials: an id each (Jarchi Pay makes the link on the platform's own site; website: a full
-// https URL). savePage: what it's given replaces what's there. A picture: PNG, JPG or WebP up to 2 MB (looked at here
-// first, then by Jarchi Pay; 10 an hour); reset: the channel's own picture again.
+// The donation page's look: { bio, socials, links, avatar, banner: { url, custom }, emoji }. bio: one line for both
+// languages ('' = Jarchi Pay's own); socials: an id each (Jarchi Pay makes the link on the platform's own site; website:
+// a full https URL); emoji: { enabled (donors can send one, played before the alert), animations (the ones they can
+// pick: burst, rain, rocket), custom (any emoji, not only the 5 ready ones) }. savePage: what it's given replaces
+// what's there (in emoji, only the keys given). A picture: PNG, JPG or WebP up to 2 MB (looked at here first, then by
+// Jarchi Pay; 10 an hour); reset: the channel's own picture again.
 const PICTURES = ['avatar', 'banner'],
   PICTURE_MAX = 2 * 1024 * 1024;
 const page = () => call('GET', 'page');
-const savePage = (b) => call('PUT', 'page', { bio: b?.bio, socials: b?.socials });
+const savePage = (b) =>
+  call('PUT', 'page', {
+    bio: b?.bio,
+    socials: b?.socials,
+    emoji: b?.emoji && { enabled: b.emoji.enabled, animations: b.emoji.animations, custom: b.emoji.custom },
+  });
 const picture = (kind) => {
   if (!PICTURES.includes(kind)) throw failed(400, 'failed');
   return `page/${kind}`;
@@ -150,8 +157,19 @@ const resetPicture = async (kind) => call('DELETE', picture(kind));
 // ---------- Crypto alerts: new donations ----------
 // A donation -> its alert's event (core/alerts.js push, widgets/alerts): name ('' = anonymous: the donor hid it), the
 // amount as Jarchi Pay wrote it, network, message (never a private one: it's for the streamer only, never on stream),
-// the transaction, and from = the platform the donor signed in with. test: the Crypto page's tests; look: the one to
-// play (tests), else the settings pick it when it starts.
+// the transaction, from = the platform the donor signed in with, and emoji = the one the donor sent, played before the
+// alert (widgets/alerts/emoji.js): null, or { char, image (its picture, only from Jarchi Pay's own /emoji/), animation }.
+// test: the Crypto page's tests; look: the one to play (tests), else the settings pick it when it starts.
+const ANIMATIONS = ['burst', 'rain', 'rocket'];
+const emojiOf = (e) =>
+  e && typeof e.char === 'string' && e.char.length > 0 && e.char.length <= 40 && ANIMATIONS.includes(e.animation)
+    ? {
+        char: e.char,
+        image:
+          typeof e.image === 'string' && e.image.startsWith(`${PAY}/emoji/`) && /^[0-9a-f-]{1,80}\.webp$/.test(e.image.slice(PAY.length + 7)) ? e.image : null,
+        animation: e.animation,
+      }
+    : null;
 const alertOf = (d, test = false, look = undefined) => ({
   id: `crypto-${randomUUID()}`,
   type: 'crypto',
@@ -165,6 +183,7 @@ const alertOf = (d, test = false, look = undefined) => ({
   network: d?.network === 'trc20' ? 'trc20' : 'bep20',
   message: d?.private || typeof d?.message !== 'string' ? '' : d.message.slice(0, 500),
   txHash: typeof d?.txHash === 'string' && /^\w{1,100}$/.test(d.txHash) ? d.txHash : null,
+  emoji: emojiOf(d?.emoji),
   ...(typeof look === 'string' && /^[\w-]{1,16}$/.test(look) && { look }),
 });
 

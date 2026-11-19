@@ -551,6 +551,36 @@ function renderCryptoPage() {
     $('.remove', box).hidden = !pic?.custom;
   }
   $('#cryptoAvatar .pic').textContent = p?.avatar.url ? '' : (pay.channel || '?')[0].toUpperCase();
+  renderCryptoEmoji();
+}
+// The donation emoji: Jarchi Pay's { enabled, animations, custom } from the page (nothing to change before it's here).
+// Its animations and Custom emoji only while it's on, and the last animation picked stays picked (one at least).
+const EMOJI_ANIMS = ['burst', 'rain', 'rocket'];
+function renderCryptoEmoji() {
+  const e = cryptoPage?.emoji,
+    on = !!e?.enabled;
+  Object.assign($('#cryptoEmojiOn'), { checked: on, disabled: !e });
+  Object.assign($('#cryptoEmojiCustom'), { checked: !!e?.custom, disabled: !on });
+  for (const b of $$('#cryptoEmoji [data-anim]')) {
+    const picked = !!e?.animations.includes(b.dataset.anim);
+    b.setAttribute('aria-pressed', String(picked));
+    b.disabled = !on || (picked && e.animations.length === 1);
+  }
+}
+// A switch or an animation: saved at once, on its own (PUT page { emoji }: the line and links being typed stay as they
+// are). Refused: back as it was.
+async function saveCryptoEmoji(change) {
+  const was = cryptoPage.emoji;
+  cryptoPage.emoji = { ...was, ...change };
+  renderCryptoEmoji();
+  try {
+    cryptoPage.emoji = (await api('PUT', '/api/crypto/page', { emoji: change })).emoji ?? cryptoPage.emoji;
+  } catch (err) {
+    cryptoPage.emoji = was;
+    toast(err.message, true);
+  } finally {
+    renderCryptoEmoji();
+  }
 }
 async function saveCryptoPage() {
   const socials = {};

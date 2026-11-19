@@ -21,6 +21,95 @@ body {
   transform-origin: 0 0;
 } /* size and scale: fit() */
 
+/* A crypto donor's emoji before the alert (emoji.js): Jarchi Pay's donate.css, the whole source under the alert. Its
+   sizes are the donation page's preview's, in units of that preview screen's pixel on this source (--k). */
+#emojiFx {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.emoji-fx {
+  position: absolute;
+  inset: 0;
+}
+.emoji-fx .fe {
+  display: block;
+  line-height: 1;
+}
+.emoji-fx .big1 {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 2;
+  transform: translate(-50%, -50%) scale(0);
+  filter: drop-shadow(0 calc(20px * var(--k)) calc(40px * var(--k)) rgba(0, 0, 0, 0.5));
+}
+.emoji-fx .big1.pl {
+  animation: emoji-pop 1.6s cubic-bezier(0.3, 1.6, 0.5, 1) forwards;
+}
+@keyframes emoji-pop {
+  0% {
+    transform: translate(-50%, -50%) scale(0) rotate(-30deg);
+  }
+  30% {
+    transform: translate(-50%, -50%) scale(1.15) rotate(8deg);
+  }
+  45% {
+    transform: translate(-50%, -50%) scale(1) rotate(0);
+  }
+  80% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(2.4);
+    opacity: 0;
+  }
+}
+.emoji-fx .prt {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 1;
+  animation: emoji-burst 1.4s ease-out forwards;
+}
+@keyframes emoji-burst {
+  from {
+    transform: translate(-50%, -50%) scale(0.3);
+    opacity: 1;
+  }
+  to {
+    transform: translate(calc(-50% + var(--x)), calc(-50% + var(--y))) scale(1) rotate(var(--r));
+    opacity: 0;
+  }
+}
+.emoji-fx .fx {
+  position: absolute;
+  z-index: 1;
+}
+.emoji-fx .rain {
+  top: calc(-60px * var(--k));
+  animation: emoji-rain linear forwards;
+}
+@keyframes emoji-rain {
+  to {
+    transform: translateY(calc(520px * var(--k))) rotate(var(--r));
+  }
+}
+.emoji-fx .rk {
+  bottom: calc(-60px * var(--k));
+  animation: emoji-rocket 1.8s cubic-bezier(0.5, 0, 0.8, 0.6) forwards;
+}
+@keyframes emoji-rocket {
+  0% {
+    transform: translate(0, 0) rotate(-10deg);
+  }
+  100% {
+    transform: translate(var(--x), calc(-560px * var(--k))) rotate(20deg);
+  }
+}
+
 /* Fonts an alert can pick (Text tab), Persian and English. Lalezar has one weight: claimed for all, so it's never
    drawn fake-bold. */
 @font-face {
