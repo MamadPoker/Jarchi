@@ -141,6 +141,7 @@
     "luckTickHint": "موقع رد شدن از هر خونه",
     "luckRemove": "برنده بعد از این حذف بشه",
     "luckRemoveHint": "برای جایزه‌هایی که فقط یه بار هستن",
+    "luckRestore": "برگردوندن خونه‌های حذف‌شده ({n})",
     "luckSpin": "بچرخون",
     "luckHub": "SPIN",
     "luckResult": "نتیجه",
