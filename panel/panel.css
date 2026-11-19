@@ -6037,11 +6037,13 @@ dialog.crypto-hello {
   gap: 7px;
   font-weight: 700;
 }
+#luckLang {
+  margin-inline-start: auto; /* the pop-out's: at the bar's end, then Always on top */
+}
 .lk-top {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  margin-inline-start: auto;
   color: var(--muted);
   font-size: 13px;
   font-weight: 600;
@@ -6599,14 +6601,23 @@ button.lk-hub:hover {
     sans-serif;
 }
 
-/* Coin flip: two faces on a reeded edge of stacked discs (js/luck.js wireCoin2), turned in 3D. */
+/* Coin flip: two faces on a reeded edge of stacked discs (js/luck.js wireCoin2), turned in 3D. The coin rests in the
+   middle of its card, the rows above and below it the same height: room for a flip's jump (coinFrame2: 150px up), so
+   it stays in the card. Below it: its shadow, the result and Flip. */
 .lk-cstage {
+  display: grid;
+  grid-template-rows: minmax(170px, 1fr) auto minmax(170px, 1fr);
+  justify-items: center;
+  perspective: 1000px;
+}
+.lk-cstage > .lk-coin {
+  grid-row: 2;
+}
+.lk-cbase {
+  grid-row: 3;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  min-height: 540px;
-  perspective: 1000px;
 }
 .lk-coin {
   position: relative;
@@ -6658,7 +6669,7 @@ button.lk-hub:hover {
 .lk-cshadow {
   width: 180px;
   height: 24px;
-  margin-top: 40px;
+  margin-top: 14px;
   border-radius: 50%;
   background: radial-gradient(ellipse, rgba(0, 0, 0, 0.55), transparent 70%);
 }

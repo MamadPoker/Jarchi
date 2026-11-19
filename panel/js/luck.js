@@ -941,11 +941,13 @@ function wireLuck(socket) {
   addEventListener('focus', () => view === 'luck' && loadLuck()); // back from the pop-out (or the panel)
   addEventListener('blur', lkFlush);
 
-  // Pop out: this page in its own window. There: Always on top (the desktop app), and the panel's language followed.
+  // Pop out: this page in its own window. There: Always on top (the desktop app), and the language switch (no top bar
+  // there); it follows the app's language like every window (help.js useLang).
   $('#luckPop').hidden = POP;
   $('#luckPop').onclick = () => window.open('/?pop=luck', 'jarchiLuck', 'popup,width=1180,height=820');
   if (POP) {
     document.title = `Jarchi · ${S.panel.navLuck}`;
+    $('#luckLang').hidden = false;
     const app = window.jarchiApp,
       top = $('#luckTop input');
     if (app?.onTop) {
@@ -957,9 +959,6 @@ function wireLuck(socket) {
         app.onTop(top.checked);
       };
     }
-    addEventListener('storage', (e) => {
-      if (e.key === 'jarchi.lang' && !lkRun) location.reload();
-    });
   }
   api('GET', '/api/luck').then(gotLuck, (err) => toast(err.message, true));
 }
