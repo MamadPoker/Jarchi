@@ -312,27 +312,45 @@ function cryptoHello() {
   cryptoNav().append(el('span', { className: 'crypto-dot' }));
   setTimeout(() => $('#cryptoToast').classList.add('on'), 400);
 }
-function openCryptoHello() {
+async function openCryptoHello() {
   $('#cryptoToast').classList.remove('on');
   if (!$('#cryptoHelloCoin').childElementCount) helloCoinFaces();
-  const page = pay.page?.replace(/^https?:\/\//, '') ?? '';
-  $('#cryptoHelloRules').replaceChildren(
-    ...S.panel.cryptoHelloRules.map(([title, text], i) =>
-      el(
-        'li',
-        { className: RED_RULES.includes(i) ? 'red' : '', style: `animation-delay: ${0.05 + i * 0.07}s` },
-        el('span', { className: 'n', textContent: fd(i + 1) }),
-        el('div', {}, el('b', { textContent: title }), el('span', {}, ...rich(tpl(text, { page })))),
-      ),
-    ),
-  );
   Object.assign($('#cryptoHelloAgree'), { checked: false, disabled: true });
   $('#cryptoHelloGo').disabled = true;
-  $('#cryptoHelloRead').textContent = S.panel.cryptoHelloRead;
+  await renderCryptoHello(S.lang, true);
   $('#cryptoHello').showModal();
   $('#cryptoHelloRules').scrollTop = 0;
   helloRead();
   requestAnimationFrame(helloCoin);
+}
+// The rules in a language: the app's when they open (come = they come in one by one), or the one its switch picks, for
+// this window only. A switch keeps how far they're read (the same share of the list) and the tick.
+async function renderCryptoHello(lang, come = false) {
+  const P = (await stringsOf(lang)).panel,
+    d = $('#cryptoHello'),
+    b = $('#cryptoHelloRules'),
+    read = b.scrollTop / Math.max(1, b.scrollHeight - b.clientHeight),
+    page = pay.page?.replace(/^https?:\/\//, '') ?? '';
+  Object.assign(d, { lang, dir: lang === 'fa' ? 'rtl' : 'ltr' });
+  $$('input[name=cryptoHelloLang]', d).forEach((r) => (r.checked = r.value === lang));
+  $('#cryptoHelloTitle').textContent = P.cryptoHelloTitle;
+  $('.crypto-hello-hd p', d).textContent = P.cryptoHelloText;
+  $('#cryptoHelloAgree + span').textContent = P.cryptoHelloAgree;
+  $('#cryptoHelloGo').textContent = P.cryptoHelloGo;
+  $('#cryptoHelloRead').textContent = $('#cryptoHelloAgree').disabled ? P.cryptoHelloRead : '';
+  b.replaceChildren(
+    ...P.cryptoHelloRules.map(([title, text], i) =>
+      el(
+        'li',
+        { className: RED_RULES.includes(i) ? 'red' : '', style: come ? `animation-delay: ${0.05 + i * 0.07}s` : 'animation: none' },
+        el('span', { className: 'n', textContent: fd(i + 1, lang === 'fa') }),
+        el('div', {}, el('b', { textContent: title }), el('span', {}, ...rich(tpl(text, { page })))),
+      ),
+    ),
+  );
+  if (come) return;
+  b.scrollTop = read * (b.scrollHeight - b.clientHeight);
+  helloRead();
 }
 // How far the rules are read: the bar, and the tick once they're read to the end (on a tall window, at once). Also
 // when the rules finish coming in: until then they're a little lower.
@@ -435,6 +453,7 @@ function wireCryptoHello() {
   $('#cryptoToast').onclick = openCryptoHello;
   cryptoNav().addEventListener('click', () => $('.crypto-dot') && openCryptoHello());
   $('#cryptoHelloRules').onscroll = $('#cryptoHelloRules').onanimationend = helloRead;
+  $$('input[name=cryptoHelloLang]').forEach((r) => (r.onchange = () => renderCryptoHello(r.value)));
   $('#cryptoHelloAgree').onchange = (e) => ($('#cryptoHelloGo').disabled = !e.target.checked);
   $('#cryptoHelloGo').onclick = () => {
     settings.cryptoWelcomed = true;

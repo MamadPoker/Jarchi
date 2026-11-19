@@ -191,3 +191,69 @@ test("a slice's text: as big as it fits, on one line or two, in full; cut with �
   assert.equal(thin.f, LK_TEXT.min);
   assert.ok(thin.lines.length === 1 && thin.lines[0].endsWith('…') && len(thin) <= LK_TEXT.out - LK_TEXT.in);
 });
+
+test("Jarchi's own Giveaway texts follow the app's language until the streamer changes them; theirs stay", () => {
+  const L = (lang) => JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'i18n', `${lang}.json`), 'utf8'));
+  const en = L('en'),
+    fa = L('fa');
+  const fd = (v, inFa) => (inFa ? String(v).replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[d]) : String(v));
+  const inLang = (S) => require('node:vm').runInNewContext(`${panelCode('const lkOwn', '// The first run: Jarchi')}; ({ lkOwn, lkLocalize })`, { S, fd });
+  // One text in a language is one text in the other (else a default could turn into the wrong one).
+  for (const [from, to] of [
+    [en, fa],
+    [fa, en],
+  ]) {
+    const a = inLang(to).lkOwn(from),
+      b = inLang(to).lkOwn(to),
+      seen = new Map();
+    assert.equal(a.length, b.length);
+    a.forEach((t, i) => {
+      assert.equal(seen.get(t) ?? b[i], b[i], `"${t}" has one translation`);
+      seen.set(t, b[i]);
+    });
+  }
+  // A first run in English: the samples, one slice and one wheel name the streamer changed, one sample slice taken out
+  // by Remove the winner after, a new wheel, and the recent spins.
+  const s = en.panel.luckSamples[0];
+  const english = {
+    wheels: [
+      { id: 'a', name: s.name, slices: s.slices.slice(1).map(([text, chance]) => ({ text, chance })), removed: [{ text: s.slices[0][0], chance: 1, at: 0 }] },
+      {
+        id: 'b',
+        name: 'My prizes',
+        slices: [
+          { text: 'Free sub', chance: 1 },
+          { text: en.panel.luckSamples[2].slices[0][0], chance: 2 },
+        ],
+      },
+      { id: 'c', name: en.panel.luckNewWheelName, slices: [1, 2].map((n) => ({ text: `${en.panel.luckNewSlice} ${n}`, chance: 1 })) },
+    ],
+    spins: [
+      { text: s.slices[2][0], at: 1 },
+      { text: 'Free sub', at: 2 },
+    ],
+  };
+  const d = structuredClone(english);
+  assert.equal(inLang(fa).lkLocalize(d, en), true);
+  const f = fa.panel.luckSamples[0];
+  assert.equal(d.wheels[0].name, f.name);
+  assert.deepEqual(
+    d.wheels[0].slices.map((x) => x.text),
+    f.slices.slice(1).map(([text]) => text),
+  );
+  assert.equal(d.wheels[0].removed[0].text, f.slices[0][0], 'a slice taken out too');
+  assert.equal(d.wheels[1].name, 'My prizes', "the streamer's name stays");
+  assert.deepEqual(
+    d.wheels[1].slices.map((x) => x.text),
+    ['Free sub', fa.panel.luckSamples[2].slices[0][0]],
+  );
+  assert.equal(d.wheels[2].name, fa.panel.luckNewWheelName);
+  assert.equal(d.wheels[2].slices[0].text, `${fa.panel.luckNewSlice} ۱`);
+  assert.deepEqual(
+    d.spins.map((x) => x.text),
+    [f.slices[2][0], 'Free sub'],
+  );
+  assert.equal(inLang(fa).lkLocalize(d, en), false, 'already in Persian: nothing to save');
+  assert.equal(inLang(en).lkLocalize(d, fa), true);
+  assert.deepEqual(d, english, 'back in English: exactly as it was');
+});

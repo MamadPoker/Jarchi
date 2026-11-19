@@ -35,14 +35,43 @@ function lkFlush() {
     (err) => toast(err.message, true),
   );
 }
-// The first run: Jarchi's sample wheels, in the panel's language. Again from the server: drawn only if it changed.
-function gotLuck(d) {
+// Jarchi's own texts on this page in a language (its strings): the sample wheels' names and slices, a new wheel's and a
+// new slice's names. Both languages' lists are in the same order (i18n test), so the same place is the same text.
+const lkOwn = (L) => [
+  ...L.panel.luckSamples.flatMap((w) => [w.name, ...w.slices.map(([text]) => text)]),
+  L.panel.luckNewWheelName,
+  L.panel.luckNewSlice,
+  ...[1, 2].map((n) => `${L.panel.luckNewSlice} ${fd(n, L.lang === 'fa')}`),
+];
+// Jarchi's texts still as they came (other: the other language's strings) follow the app's language: changed to this
+// one's, in the wheels (their slices taken out too) and the recent spins. What the streamer wrote or changed never
+// matches, so it stays. Says whether it changed any (then they're saved).
+function lkLocalize(d, other) {
+  const mine = lkOwn(S),
+    to = new Map(lkOwn(other).map((t, i) => [t, mine[i]]));
+  let changed = false;
+  const follow = (o, k) => {
+    const t = to.get(o[k]);
+    if (t === undefined || t === o[k]) return;
+    o[k] = t;
+    changed = true;
+  };
+  for (const w of d.wheels) {
+    follow(w, 'name');
+    [...w.slices, ...(w.removed ?? [])].forEach((s) => follow(s, 'text'));
+  }
+  d.spins.forEach((s) => follow(s, 'text'));
+  return changed;
+}
+// The first run: Jarchi's sample wheels, in the panel's language; later, its texts in the app's language. Again from
+// the server: drawn only if it changed.
+async function gotLuck(d) {
   if (!d.wheels.length) {
     d.wheels = S.panel.luckSamples.map((w) => ({ id: lkId(), name: w.name, slices: w.slices.map(([text, chance]) => ({ text, chance })) }));
     lkDirty.add('wheels').add('wheel');
-  }
+  } else if (lkLocalize(d, await stringsOf(FA ? 'en' : 'fa'))) lkDirty.add('wheels').add('spins');
   if (!d.wheels.some((w) => w.id === d.wheel)) d.wheel = d.wheels[0].id;
-  if (luck && JSON.stringify(d) === JSON.stringify(luck)) return;
+  if (luck && !lkDirty.size && JSON.stringify(d) === JSON.stringify(luck)) return;
   luck = d;
   if (lkDirty.size) lkFlush();
   renderLuck();

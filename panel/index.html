@@ -2077,6 +2077,11 @@
        #spot's, a part at a time). -->
     <dialog id="cryptoHello" class="crypto-hello" aria-labelledby="cryptoHelloTitle">
       <div class="crypto-hello-hd">
+        <!-- This window's language only (renderCryptoHello), like What's new's: it opens in the app's. -->
+        <div class="seg" role="radiogroup" data-aria="language">
+          <label><input type="radio" name="cryptoHelloLang" value="en" /><span lang="en">English</span></label>
+          <label><input type="radio" name="cryptoHelloLang" value="fa" /><span lang="fa">فارسی</span></label>
+        </div>
         <div class="crypto-hello-stage"><div id="cryptoHelloCoin" class="lk-coin crypto-hello-coin"></div></div>
         <h2 id="cryptoHelloTitle" data-i18n="cryptoHelloTitle"></h2>
         <p data-i18n="cryptoHelloText"></p>
