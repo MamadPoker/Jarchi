@@ -4724,12 +4724,13 @@ button.crypto-big {
   backface-visibility: hidden;
 }
 
-/* The gateway approved (js/crypto.js cryptoHello): the gold note on top (dark in every theme), the dot on Crypto, the
-   welcome (the coin, the rules: 2, 3 and 7 red, where money can be lost) and the page's tour. Reduce animations: nothing
-   slides, pulses, pops or turns. */
+/* The gateway approved (js/crypto.js cryptoHello): the gold note under the top bar (dark in every theme), the dot on
+   Crypto, the welcome (the coin, the rules: 2, 3 and 7 red, where money can be lost) and the page's tour. Reduce
+   animations: nothing slides, pulses, pops or turns. The note is inside the sticky .topbar, so it hangs from the bar's
+   bottom: fixed to the window's top it went under the desktop app's title bar, and below 860 px the bar sits lower. */
 .crypto-toast {
-  position: fixed;
-  top: 18px;
+  position: absolute;
+  top: calc(100% + 12px);
   left: 50%;
   z-index: 60;
   gap: 12px;

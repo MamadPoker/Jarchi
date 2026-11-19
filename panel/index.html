@@ -213,6 +213,13 @@
             </button>
           </div>
           <div class="lang" role="group" data-aria="language"><button data-lang="fa" lang="fa">فا</button><button data-lang="en" lang="en">EN</button></div>
+          <!-- The crypto gateway approved (#cryptoHello below): in here so it hangs just under this bar, whatever its
+           height and wherever it sits. -->
+          <button id="cryptoToast" class="crypto-toast">
+            <span class="crypto-toast-icon" aria-hidden="true">🎉</span>
+            <span class="stack"><b data-i18n="cryptoApproved"></b><small data-i18n="cryptoToastText"></small></span>
+            <span class="go" data-i18n="cryptoToastSee"></span>
+          </button>
         </header>
         <!-- The desktop app downloaded an update (renderUpdate): it's installed on Restart now, never by itself. Shown until
          its ✕ or Restart now, once per version. -->
@@ -2057,13 +2064,9 @@
       </div>
     </dialog>
     <!-- The crypto gateway approved (js/crypto.js cryptoHello): once, the first time it's active (settings.cryptoWelcomed).
-       A gold note on top and a dot on Crypto; either opens the rules (#cryptoHello), whose tick waits until they're read
-       to the end. Let's go opens the Crypto page and its tour (#cryptoTour: a spotlight like #spot's, a part at a time). -->
-    <button id="cryptoToast" class="crypto-toast">
-      <span class="crypto-toast-icon" aria-hidden="true">🎉</span>
-      <span class="stack"><b data-i18n="cryptoApproved"></b><small data-i18n="cryptoToastText"></small></span>
-      <span class="go" data-i18n="cryptoToastSee"></span>
-    </button>
+       A gold note under the top bar (#cryptoToast) and a dot on Crypto; either opens the rules (#cryptoHello), whose tick
+       waits until they're read to the end. Let's go opens the Crypto page and its tour (#cryptoTour: a spotlight like
+       #spot's, a part at a time). -->
     <dialog id="cryptoHello" class="crypto-hello" aria-labelledby="cryptoHelloTitle">
       <div class="crypto-hello-hd">
         <div class="crypto-hello-stage"><div id="cryptoHelloCoin" class="lk-coin crypto-hello-coin"></div></div>
