@@ -58,7 +58,8 @@ async function call(method, p, body) {
   try {
     r = await fetch(`${PAY}/api/app/${p}`, {
       method,
-      body: /** @type {BodyInit} */ (bytes ? body : body && JSON.stringify(body)), // a Buffer works; its type says SharedArrayBuffer might not signal: AbortSignal.timeout(bytes ? 60000 : 15000),
+      body: /** @type {BodyInit} */ (bytes ? body : body && JSON.stringify(body)), // a Buffer works; its type says SharedArrayBuffer might not
+      signal: AbortSignal.timeout(bytes ? 60000 : 15000), // a slow Jarchi Pay: offline, never a request left hanging (a picture gets longer)
       headers: { ...(body && { 'content-type': bytes ? 'application/octet-stream' : 'application/json' }), ...(auth && { authorization: `Bearer ${token}` }) },
     });
   } catch {
