@@ -124,3 +124,70 @@ test('coin Reset: the score back to 0 and the recent flips cleared, then saved',
   assert.equal(JSON.stringify(ctx.luck.coin), '{"heads":0,"tails":0,"flips":[]}'); // made in the vm: compared as JSON
   assert.deepEqual(calls, ['save coin', 'render']);
 });
+
+test('a wheel keeps the slices Remove the winner after took out (removed), and 60 slices at most counting them', () => {
+  const slices = [
+    { text: 'A', chance: 1 },
+    { text: 'B', chance: 2 },
+  ];
+  const w = (removed) => ({ id: 'w2', name: 'Out', slices, removed });
+  luck.update({ wheels: [w([{ text: 'C', chance: 0.25, at: 1 }])] });
+  assert.deepEqual(luck.get().wheels[0].removed, [{ text: 'C', chance: 0.25, at: 1 }]);
+  assert.throws(() => luck.update({ wheels: [w([{ text: 'C', chance: 0.25, at: -1 }])] }), /bad_request/);
+  assert.throws(() => luck.update({ wheels: [w([{ text: 'C', chance: 3, at: 0 }])] }), /bad_request/);
+  const many = Array.from({ length: 59 }, (_, i) => ({ text: `R${i}`, chance: 1, at: 0 }));
+  assert.throws(() => luck.update({ wheels: [w(many)] }), /bad_request/, '2 on the wheel + 59 out: over 60');
+  luck.update({ wheels: [w(many.slice(1))] });
+});
+
+// The panel's code (panel/js/luck.js), run here as it is.
+const panelCode = (from, to) => {
+  const src = fs.readFileSync(path.join(__dirname, '..', 'panel', 'js', 'luck.js'), 'utf8');
+  return src.slice(src.indexOf(from), src.indexOf(to));
+};
+
+test('Restore slices: every winner taken out goes back in its place with its chance; slices added meanwhile stay', () => {
+  const { lkTakeOut, lkPutBack } = require('node:vm').runInNewContext(
+    `${panelCode('function lkTakeOut(', 'function renderWheels(')}; ({ lkTakeOut, lkPutBack })`,
+  );
+  const was = ['A', 'B', 'C', 'D', 'E'].map((text, i) => ({ text, chance: [1, 0.25, 2, 0.5, 1][i] }));
+  const w = { slices: was.map((s) => ({ ...s })) };
+  for (const t of ['C', 'A', 'E'])
+    lkTakeOut(
+      w,
+      w.slices.find((s) => s.text === t),
+    );
+  assert.deepEqual(
+    w.slices.map((s) => s.text),
+    ['B', 'D'],
+  );
+  assert.equal(w.removed.length, 3);
+  lkPutBack(w);
+  assert.equal(JSON.stringify(w), JSON.stringify({ slices: was }), 'same order and chances, nothing left out');
+  lkTakeOut(w, w.slices[0]);
+  w.slices.push({ text: 'New', chance: 1 });
+  lkPutBack(w);
+  assert.deepEqual(
+    w.slices.map((s) => s.text),
+    ['A', 'B', 'C', 'D', 'E', 'New'],
+  );
+});
+
+test("a slice's text: as big as it fits, on one line or two, in full; cut with … only when it can't fit at 20px", () => {
+  const { lkFit, LK_TEXT } = require('node:vm').runInNewContext(`${panelCode('const LK_TEXT', '// The slice under the pointer')}; ({ lkFit, LK_TEXT })`);
+  const width = (s) => [...s].length * 16; // at 30px
+  const len = (fit) => Math.max(...fit.lines.map(width)) * (fit.f / 30);
+  const eighth = (Math.PI * 2) / 8;
+  assert.deepEqual(JSON.parse(JSON.stringify(lkFit('Spin again', eighth, width))), { f: 30, lines: ['Spin again'] });
+  for (const text of ['A sub picks the punishment', 'Chat picks a song to play next', 'یه ساب تنبیه رو انتخاب می‌کنه']) {
+    const fit = lkFit(text, eighth, width);
+    assert.equal(fit.lines.join(' '), text, `${text}: in full`);
+    assert.ok(fit.lines.length <= 2 && fit.f >= LK_TEXT.min && len(fit) <= LK_TEXT.out - LK_TEXT.in, text);
+  }
+  assert.equal(lkFit('A sub picks the punishment', eighth, width).f, 30, 'two lines before a smaller font');
+  const word = lkFit('Supercalifragilistic', eighth, width); // no space: smaller on one line
+  assert.deepEqual([word.lines.length, word.lines[0], word.f < 30], [1, 'Supercalifragilistic', true]);
+  const thin = lkFit('Funny accent till the game ends', (Math.PI * 2) / 60, width); // 60 slices
+  assert.equal(thin.f, LK_TEXT.min);
+  assert.ok(thin.lines.length === 1 && thin.lines[0].endsWith('…') && len(thin) <= LK_TEXT.out - LK_TEXT.in);
+});

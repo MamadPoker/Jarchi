@@ -1,18 +1,22 @@
 [
   {
     "version": "unreleased",
-    "types": ["fix", "fix", "fix", "fix"],
+    "types": ["fix", "fix", "fix", "fix", "improve", "fix"],
     "en": [
       "Crypto: the \"gateway approved\" note now shows in full, just below the top bar",
       "Coin flip: Reset now also clears the recent flips",
       "Giveaway's Pop out window now uses the panel's language and has its own فا | EN switch",
-      "Coin flip: the coin now stays inside its card when it flips, in the middle, with its shadow under it"
+      "Coin flip: the coin now stays inside its card when it flips, in the middle, with its shadow under it",
+      "Wheel: new \"Restore slices\" button brings back the winners \"Remove the winner after\" took out, in their places, with their chances",
+      "Wheel: long slice text now shows in full, smaller or on two lines, instead of being cut off"
     ],
     "fa": [
       "کریپتو: پیام «درگاه تأیید شد» حالا کامل و درست زیر نوار بالا نشون داده می‌شه",
       "شیر یا خط: «صفر کردن» حالا انداختن‌های اخیر رو هم پاک می‌کنه",
       "پنجره‌ی جدای گیووی حالا به زبان پنل نشون داده می‌شه و دکمه‌ی فا | EN خودش رو داره",
-      "شیر یا خط: سکه موقع انداختن دیگه از کادرش بیرون نمی‌زنه و وسط کادر، با سایه‌ش زیرش، می‌مونه"
+      "شیر یا خط: سکه موقع انداختن دیگه از کادرش بیرون نمی‌زنه و وسط کادر، با سایه‌ش زیرش، می‌مونه",
+      "گردونه: دکمه‌ی جدید «برگردوندن خونه‌های حذف‌شده» برنده‌هایی رو که «برنده بعد از این حذف بشه» برداشته، با همون شانس و سر جای خودشون برمی‌گردونه",
+      "گردونه: متن بلند خونه‌ها حالا کامل نشون داده می‌شه، با فونت کوچیک‌تر یا توی دو خط، و دیگه نصفه نمی‌مونه"
     ]
   },
   {

@@ -163,6 +163,40 @@ function lkArcs(slices) {
     return [a, (a += w)];
   });
 }
+// A slice's words as big as they fit, on one line or two (split at the space that evens them out most), from the rim
+// (out) toward the hub (in, its button's edge) on the 880px canvas: 30px down to 20px. A slice narrows toward the hub,
+// so its lines must fit its width where they end. Still too long at 20px: cut with "…" (one line, if two are too tall
+// for a thin slice). width(t): t's width at 30px.
+// Kept per text and slice angle (lkFits; cleared once the fonts load).
+const LK_TEXT = { out: 390, in: 100, max: 30, min: 20 };
+const lkFits = new Map();
+function lkFit(text, angle, width) {
+  const key = `${angle.toFixed(3)} ${text}`;
+  let fit = lkFits.get(key);
+  if (fit) return fit;
+  const long = LK_TEXT.out - LK_TEXT.in,
+    across = 1.8 * Math.sin(Math.min(angle, Math.PI) / 2), // the slice's width at r is r * across (90% of its chord)
+    words = text.trim().split(/\s+/),
+    splits = words.slice(1).map((_, i) => [words.slice(0, i + 1).join(' '), words.slice(i + 1).join(' ')]),
+    two = splits.map((l) => ({ l, w: Math.max(...l.map(width)) })).sort((a, b) => a.w - b.w)[0],
+    one = width(text),
+    fits = (w, n, f) => (w * f) / 30 <= long && (LK_TEXT.out - (w * f) / 30) * across >= n * f * 1.1;
+  for (let f = LK_TEXT.max; f >= LK_TEXT.min && !fit; f--)
+    if (fits(one, 1, f)) fit = { f, lines: [text] };
+    else if (two && fits(two.w, 2, f)) fit = { f, lines: two.l };
+  if (!fit) {
+    const cut = (l) => {
+      const c = [...l];
+      while (c.length > 1 && (width(`${c.join('')}…`) * LK_TEXT.min) / 30 > long) c.pop();
+      return c.length < [...l].length ? `${c.join('').trimEnd()}…` : l;
+    };
+    const f = LK_TEXT.min,
+      lines = two?.l.map(cut);
+    fit = lines && fits(Math.max(...lines.map(width)), 2, f) ? { f, lines } : { f, lines: [cut(text)] };
+  }
+  lkFits.set(key, fit);
+  return fit;
+}
 // The slice under the pointer (on top) at a turn of r.
 function lkAt(r, slices) {
   const p = (((-Math.PI / 2 - r) % TAU) + TAU) % TAU;
@@ -203,10 +237,10 @@ function drawWheel(now) {
     cx.textBaseline = 'middle';
     cx.fillStyle = LK_LIGHT.includes(col) ? '#2e2510' : '#fff';
     cx.font = '800 30px Manrope, Vazirmatn, sans-serif';
-    const chars = [...slices[i].text],
-      text = chars.length > 16 ? `${chars.slice(0, 15).join('')}…` : slices[i].text;
-    cx.direction = /\p{Script=Arabic}/u.test(text) ? 'rtl' : 'ltr';
-    cx.fillText(text, R - 50, 0);
+    cx.direction = /\p{Script=Arabic}/u.test(slices[i].text) ? 'rtl' : 'ltr';
+    const { f, lines } = lkFit(slices[i].text, a1 - a0, (s) => cx.measureText(s).width);
+    cx.font = `800 ${f}px Manrope, Vazirmatn, sans-serif`;
+    lines.forEach((s, k) => cx.fillText(s, LK_TEXT.out, (k - (lines.length - 1) / 2) * f * 1.1));
     cx.restore();
   });
   if (lkHL >= 0 && A[lkHL]) {
@@ -303,12 +337,22 @@ function spinDone() {
   // Remove the winner after: once the result has been seen.
   if (luck.removeWinner && wheel.slices.length > 2)
     setTimeout(() => {
-      const i = wheel.slices.indexOf(slice);
-      if (lkSpinning || i < 0 || wheel.slices.length <= 2) return;
-      wheel.slices.splice(i, 1);
+      if (lkSpinning || !wheel.slices.includes(slice) || wheel.slices.length <= 2) return;
+      lkTakeOut(wheel, slice);
       lkSave('wheels');
       if (wheel === lkWheel()) renderSlices();
     }, 2200);
+}
+// Remove the winner after: the slice off its wheel, kept with where it was (wheel.removed) for Restore slices.
+function lkTakeOut(wheel, slice) {
+  const at = wheel.slices.indexOf(slice);
+  wheel.slices.splice(at, 1);
+  (wheel.removed ??= []).push({ text: slice.text, chance: slice.chance, at });
+}
+// Restore slices: every slice taken out back in its place with its chance, the last one taken out first.
+function lkPutBack(wheel) {
+  (wheel.removed ?? []).reverse().forEach(({ at, ...s }) => wheel.slices.splice(Math.min(at, wheel.slices.length), 0, s));
+  delete wheel.removed;
 }
 
 function renderWheels() {
@@ -385,7 +429,11 @@ function renderSlices() {
       );
     }),
   );
-  $('#lkAddSlice').disabled = w.slices.length >= 60;
+  // Up to 60 slices, counting the ones taken out (so Restore slices always has room for them).
+  const out = w.removed?.length ?? 0;
+  $('#lkAddSlice').disabled = w.slices.length + out >= 60;
+  $('#lkRestore').hidden = !out;
+  $('#lkRestore').textContent = tpl(S.panel.luckRestore, { n: fd(out) });
 }
 // "Recent spins" / "Recent flips": what came, and when (or none yet).
 const lkHist = (rows, none) =>
@@ -825,13 +873,19 @@ function wireLuck(socket) {
   });
   $('#lkAddSlice').onclick = () => {
     const w = lkWheel();
-    if (lkSpinning || w.slices.length >= 60) return;
+    if (lkSpinning || w.slices.length + (w.removed?.length ?? 0) >= 60) return;
     w.slices.push({ text: S.panel.luckNewSlice, chance: 1 });
     lkSave('wheels');
     renderSlices();
     const text = $('#lkSlices').lastElementChild.querySelector('input');
     text.focus();
     text.select();
+  };
+  $('#lkRestore').onclick = () => {
+    if (lkSpinning) return;
+    lkPutBack(lkWheel());
+    lkSave('wheels');
+    renderSlices();
   };
   $('#lkPerSlice').onchange = (e) => {
     luck.perSlice = e.target.checked;
@@ -937,7 +991,10 @@ function wireLuck(socket) {
     else flipCoin();
   });
   document.addEventListener('visibilitychange', lkLoop);
-  document.fonts.ready.then(() => (lkDrawn = null)); // the slices' words in their own font, once it's loaded
+  document.fonts.ready.then(() => {
+    lkFits.clear(); // the slices' words measured and drawn again in their own font, once it's loaded
+    lkDrawn = null;
+  });
   addEventListener('focus', () => view === 'luck' && loadLuck()); // back from the pop-out (or the panel)
   addEventListener('blur', lkFlush);
 

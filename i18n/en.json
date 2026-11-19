@@ -141,6 +141,7 @@
     "luckTickHint": "As it passes each slice",
     "luckRemove": "Remove the winner after",
     "luckRemoveHint": "For prizes there's only one of",
+    "luckRestore": "Restore slices ({n})",
     "luckSpin": "Spin",
     "luckHub": "SPIN",
     "luckResult": "Result",

@@ -26,7 +26,16 @@ const oneOf =
 const list = (max, ok) => (v) => Array.isArray(v) && v.length <= max && v.every(ok);
 const time = (v) => Number.isFinite(v) && v > 0;
 const slice = (s) => s && str(MAX.text)(s.text) && CHANCES.includes(s.chance);
-const wheel = (w) => w && /^[\w-]{1,24}$/.test(w.id) && str(MAX.name)(w.name) && list(MAX.slices, slice)(w.slices) && w.slices.length >= 2;
+// removed: the slices Remove the winner after took out, with where each was (at), for Restore slices; with them a wheel
+// still has 60 slices at most.
+const out = (s) => slice(s) && int(0, MAX.slices)(s.at);
+const wheel = (w) =>
+  w &&
+  /^[\w-]{1,24}$/.test(w.id) &&
+  str(MAX.name)(w.name) &&
+  list(MAX.slices, slice)(w.slices) &&
+  w.slices.length >= 2 &&
+  (w.removed === undefined || (list(MAX.slices, out)(w.removed) && w.slices.length + w.removed.length <= MAX.slices));
 const GW_RULES = {
   keyword: (v) => typeof v === 'string' && /^\S.{0,29}$/.test(v),
   subsOnly: bool,
