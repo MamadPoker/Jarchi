@@ -28,4 +28,4 @@ Viewers join by typing a word in Kick or Twitch chat.
 
 ## Coin flip
 
-**Flip** a Jarchi coin: heads or tails, a score since the start of the stream (**Reset** sets it back to 0) and the last 10 flips.
+**Flip** a Jarchi coin: heads or tails, a score since the start of the stream (**Reset** sets it back to 0 and clears the flips) and the last 10 flips.
