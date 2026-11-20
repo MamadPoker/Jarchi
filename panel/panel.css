@@ -7370,6 +7370,9 @@ button.lk-btn.bt-go {
   font-size: 10.5px;
   font-style: normal;
   font-weight: 700;
+  /* One piece: "۳۰ ثانیه" next to "Spotify" would otherwise join its Latin run, and the tag split in two */
+  unicode-bidi: isolate;
+  white-space: nowrap;
 }
 .bt-song .bt-cover,
 .bt-song .bt-txt {

@@ -902,6 +902,13 @@ test("History: every saved event (any can replay), Home: today's real alerts and
   assert.equal(seen.at(-1).alerts, 0, 'not the main link');
   cryptoPage.close();
   await until(() => seen.at(-1)?.['alerts-crypto'] === 0);
+  // The Song Battle page gets the battle as Jarchi has it at once, without waiting for Jarchi Battle.
+  let battleNow;
+  const battlePage = sio((ws) => ws.send('42["battleJoin"]'));
+  battlePage.addEventListener('message', ({ data }) => data.startsWith('42["battle",') && (battleNow = JSON.parse(data.slice(2))[1]));
+  await until(() => battleNow);
+  assert.equal(battleNow.state, 'none');
+  battlePage.close();
   panel.close();
   stranger.close();
   posing.close();

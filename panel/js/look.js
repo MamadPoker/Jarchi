@@ -19,7 +19,11 @@ const remember = {
     } catch {}
   },
 };
-const FA = remember.get('jarchi.lang') === 'fa';
+// A pop-out (Luck, Song Battle: index.html marks <html>) can have a language of its own, from its فا | EN switch
+// (help.js setLang), kept per page; until that's used it shows the app's, like every window.
+const POP_LANG = document.documentElement.dataset.pop ? `jarchi.${document.documentElement.dataset.pop}Lang` : '';
+const OWN_LANG = POP_LANG && remember.get(POP_LANG);
+const FA = (OWN_LANG || remember.get('jarchi.lang')) === 'fa';
 document.documentElement.lang = FA ? 'fa' : 'en';
 document.documentElement.dir = FA ? 'rtl' : 'ltr';
 // The panel's look, remembered in this browser: Dark (default) or Light (jarchi.theme, the top bar); on Appearance a color

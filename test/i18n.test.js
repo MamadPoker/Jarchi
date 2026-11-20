@@ -198,16 +198,18 @@ test('every "?" in the panel has its help text', () => {
   );
 });
 
-test("the language switch: the app's language saved first, then this window reloads in it (never when it can't keep it)", async () => {
+test("the language switch: the app's language saved first, then this window reloads in it (never when it can't keep it); a pop-out's, only its own", async () => {
   // The panel's code (panel/js/help.js useLang, setLang), run here as it is.
   const src = read('panel/js/help.js');
   const code = src.slice(src.indexOf('function useLang('), src.indexOf('// ---------- Privacy Policy'));
-  const run = (kept) => {
+  const run = (kept, pop = '') => {
     const store = {},
       did = [];
     const ctx = {
       S: { lang: 'en' },
-      view: 'luck',
+      view: pop || 'luck',
+      POP_LANG: pop && `jarchi.${pop}Lang`,
+      btBack: () => ['bracket', 'b1'], // Song Battle's tab and the champion already shown (battle.js)
       ...{ cur: null, curGoal: null, topic: null },
       remember: { get: (k) => store[k] ?? null, set: (k, v) => kept && (store[k] = v) },
       sessionStorage: { setItem: (k, v) => did.push(`${k} ${v}`) },
@@ -229,4 +231,9 @@ test("the language switch: the app's language saved first, then this window relo
   const b = run(false); // a browser with no storage
   b.ctx.useLang('fa');
   assert.deepEqual(b.did, [], 'no reload that would come back in the same language');
+  const c = run(true, 'battle'); // the Song Battle pop-out's switch: nothing saved for the app, nor for other windows
+  c.ctx.setLang('fa');
+  await new Promise(setImmediate);
+  assert.deepEqual(c.did, ['jarchi.back ["battle",["bracket","b1"]]', 'reload'], 'back on the same screen');
+  assert.deepEqual(c.store, { 'jarchi.battleLang': 'fa' });
 });

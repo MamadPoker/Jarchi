@@ -36,5 +36,5 @@ Songs come in live under **Submitted songs**. A song with the same link or name 
 ## Bracket and Pop out
 
 - **Game | Bracket** tabs while a battle is live. **Bracket** shows every round, the winners and the match on now; the dots at the top show each match (done, on now). After the final, the champion stays on the bracket until you press **New battle**.
-- **Pop out** opens the battle screen in its own window, with its own **فا | EN** switch and **Always on top** (the desktop app). Add it to OBS as a **Window Capture**.
+- **Pop out** opens the battle screen in its own window, with its own **فا | EN** switch (it changes only that window's language, so OBS can show another than the panel) and **Always on top** (the desktop app). Add it to OBS as a **Window Capture**.
 - Your battle page at battle.jarchi.app follows the battle live: the matches, the vote counts (never who voted) and the champion.

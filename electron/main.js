@@ -84,14 +84,15 @@ ipcMain.on('window:onTop', (e, on) => BrowserWindow.fromWebContents(e.sender)?.s
 
 // Right-click, in every window (the panel, Crypto's pop-out): Electron has none of its own. In a text field: Cut, Copy,
 // Paste, Select all (Cut and Copy only with text selected, Paste only with something to paste); on selected text
-// elsewhere: Copy. In the panel's language (i18n panel.editMenu). The keys (Ctrl+X / C / V / A) work as they always do.
+// elsewhere: Copy. In that window's language (i18n panel.editMenu; a pop-out can have its own). The keys (Ctrl+X / C / V
+// / A) work as they always do.
 const editWords = {};
 const wordsOf = (lang) => (editWords[lang] ??= JSON.parse(fs.readFileSync(path.join(ROOT, 'i18n', `${lang}.json`), 'utf8')).panel.editMenu);
 app.on('web-contents-created', (e, wc) =>
   wc.on('context-menu', async (ev, p) => {
     const selected = p.selectionText.trim() !== '';
     if (!p.isEditable && !selected) return;
-    const lang = await wc.executeJavaScript("localStorage.getItem('jarchi.lang')").catch(() => null);
+    const lang = await wc.executeJavaScript('document.documentElement.lang').catch(() => null);
     const W = wordsOf(lang === 'fa' ? 'fa' : 'en'),
       f = p.editFlags;
     /** @type {Electron.MenuItemConstructorOptions[]} */

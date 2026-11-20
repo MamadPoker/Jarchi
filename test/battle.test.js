@@ -336,7 +336,7 @@ test('Song Battle screen: chat votes (one each, the last counts), the winners, a
 
 test("QR code: the page link, as a reference encoder draws it; a text that doesn't fit gets none", () => {
   const qr = require('../core/qr');
-  // The modules' fingerprint, made with the qrcode package (npm) for the same text, version 4, level M.
+  // The modules' fingerprint, made with the qrcode package (npm) for the same text, version 6, level H.
   const print = (t) =>
     crypto
       .createHash('sha256')
@@ -348,8 +348,11 @@ test("QR code: the page link, as a reference encoder draws it; a text that doesn
       )
       .digest('hex')
       .slice(0, 16);
-  assert.equal(print('https://battle.jarchi.app/mamadpoker'), '508b1b0038e477ef');
-  assert.equal(print('https://battle.jarchi.app/some_one-99'), 'eb3b819560a56c75');
-  assert.match(qr.svg('https://battle.jarchi.app/mamadpoker'), /^<svg xmlns="http:\/\/www\.w3\.org\/2000\/svg" viewBox="0 0 41 41"/);
-  assert.equal(qr.svg(`https://battle.jarchi.app/${'a'.repeat(37)}`), null); // 63 bytes
+  assert.equal(print('https://battle.jarchi.app/mamadpoker'), '1a08289a3477111b');
+  assert.equal(print('https://battle.jarchi.app/some_one-99'), 'ae0a2a5b2ad4d8c5');
+  const svg = qr.svg('https://battle.jarchi.app/mamadpoker');
+  assert.match(svg, /^<svg xmlns="http:\/\/www\.w3\.org\/2000\/svg" viewBox="0 0 49 49"/);
+  assert.match(svg, /<image href="data:image\/png;base64,/); // the logo, inside: an <img> loads nothing else
+  assert.ok(qr.svg(`https://battle.jarchi.app/${'a'.repeat(30)}`)); // the longest link: 56 bytes
+  assert.equal(qr.svg(`https://battle.jarchi.app/${'a'.repeat(33)}`), null); // 59 bytes
 });

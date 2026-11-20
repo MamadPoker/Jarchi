@@ -1,12 +1,15 @@
 // A QR code for the Song Battle page's link, made here as an SVG, so the link never goes to a QR service. One size
-// only: version 4 (33 x 33) with error correction M holds 62 bytes, and the longest battle link
-// (https://battle.jarchi.app/ and a 30-letter channel) is 56. Byte mode, and the mask with the lowest penalty, as
-// ISO/IEC 18004 says. A longer text: null.
-const SIZE = 33,
-  MAX = 62,
-  BLOCKS = 2,
-  DATA = 32, // data codewords per block
-  ECC = 18; // error correction codewords per block
+// only: version 6 (41 x 41) with error correction H holds 58 bytes, and the longest battle link
+// (https://battle.jarchi.app/ and a 30-letter channel) is 56. H (30% can be lost) because Jarchi's logo covers the
+// middle. Byte mode, and the mask with the lowest penalty, as ISO/IEC 18004 says. A longer text: null.
+const fs = require('fs');
+const path = require('path');
+
+const SIZE = 41,
+  MAX = 58,
+  BLOCKS = 4,
+  DATA = 15, // data codewords per block
+  ECC = 28; // error correction codewords per block
 
 // GF(256) for Reed-Solomon, with the QR polynomial x^8 + x^4 + x^3 + x^2 + 1.
 const EXP = [],
@@ -26,7 +29,7 @@ function eccOf(data) {
 }
 
 // The codewords: mode 0100, the length, the bytes, a terminator, then the pad bytes; per block its error
-// correction; the two blocks interleaved.
+// correction; the blocks interleaved.
 function codewords(bytes) {
   const bits = [];
   const put = (v, n) => {
@@ -40,9 +43,9 @@ function codewords(bytes) {
   const data = [];
   for (let i = 0; i < bits.length; i += 8) data.push(bits.slice(i, i + 8).reduce((a, b) => (a << 1) | b));
   for (let pad = 0xec; data.length < BLOCKS * DATA; pad ^= 0xec ^ 0x11) data.push(pad);
-  const blocks = [0, 1].map((b) => data.slice(b * DATA, (b + 1) * DATA));
-  const eccs = blocks.map(eccOf);
-  return [...blocks[0].flatMap((d, i) => [d, blocks[1][i]]), ...eccs[0].flatMap((e, i) => [e, eccs[1][i]])];
+  const blocks = Array.from({ length: BLOCKS }, (_, b) => data.slice(b * DATA, (b + 1) * DATA));
+  const weave = (all) => all[0].flatMap((_, i) => all.map((x) => x[i]));
+  return [...weave(blocks), ...weave(blocks.map(eccOf))];
 }
 
 const MASKS = [
@@ -73,11 +76,13 @@ function draw(words, mask) {
         if (r0 + r >= 0 && r0 + r < SIZE && c0 + c >= 0 && c0 + c < SIZE) set(r0 + r, c0 + c, d !== 2 && d !== 4);
       }
   for (let i = 8; i < SIZE - 8; i++) (set(6, i, i % 2 === 0), set(i, 6, i % 2 === 0));
-  for (let r = -2; r <= 2; r++) for (let c = -2; c <= 2; c++) set(26 + r, 26 + c, Math.max(Math.abs(r), Math.abs(c)) !== 1);
-  // Format: level M (00) and the mask, BCH-coded, in its two places.
-  let rem = mask;
+  const A = SIZE - 7;
+  for (let r = -2; r <= 2; r++) for (let c = -2; c <= 2; c++) set(A + r, A + c, Math.max(Math.abs(r), Math.abs(c)) !== 1);
+  // Format: level H (10) and the mask, BCH-coded, in its two places.
+  const format = (0b10 << 3) | mask;
+  let rem = format;
   for (let i = 0; i < 10; i++) rem = (rem << 1) ^ ((rem >>> 9) * 0x537);
-  const f = ((mask << 10) | rem) ^ 0x5412,
+  const f = ((format << 10) | rem) ^ 0x5412,
     bit = (i) => ((f >>> i) & 1) === 1;
   for (let i = 0; i < 15; i++) {
     set(i < 6 ? i : i < 8 ? i + 1 : SIZE - 15 + i, 8, bit(i));
@@ -137,18 +142,44 @@ function matrix(text, mask) {
   return all[scores.indexOf(Math.min(...scores))];
 }
 
-// text -> an SVG (dark on white, with the 4-module quiet zone), or null.
+// text -> an SVG in Jarchi's look, or null: the modules as dots in the main color, the three finders as gold rounded
+// squares, the alignment pattern drawn whole too (scanners miss it as dots), and the logo on white over the middle
+// LOGO x LOGO modules (17 codewords, at most 5 of one block: each can lose 14). The colors are panel.css's light-theme
+// main and a deeper gold, so they read on white. With the 4-module quiet zone.
+const LOGO = 9,
+  ICON = `data:image/png;base64,${fs.readFileSync(path.join(__dirname, '../assets/brand/icons/jarchi-64.png')).toString('base64')}`,
+  MAIN = '#16605c',
+  GOLD = '#a67816';
 function svg(text) {
   const m = matrix(text);
   if (!m) return null;
-  let d = '';
-  m.forEach((row, r) =>
-    row.forEach((on, c) => {
-      if (on && !row[c - 1]) d += `M${c + 4} ${r + 4}h${row.indexOf(false, c) < 0 ? SIZE - c : row.indexOf(false, c) - c}v1H${c + 4}z`;
-    }),
+  const Q = 4,
+    n = SIZE + 2 * Q,
+    L = (SIZE - LOGO) / 2;
+  // [row, column, size, color] of each: the finders, then the alignment pattern.
+  /** @type {[number, number, number, string][]} */
+  const eyes = [
+    [0, 0, 7, GOLD],
+    [0, SIZE - 7, 7, GOLD],
+    [SIZE - 7, 0, 7, GOLD],
+    [SIZE - 9, SIZE - 9, 5, MAIN],
+  ];
+  const inEye = (r, c) => eyes.some(([r0, c0, k]) => r >= r0 && r < r0 + k && c >= c0 && c < c0 + k),
+    inLogo = (r, c) => r >= L && r < L + LOGO && c >= L && c < L + LOGO;
+  // A dot: a line of no length with round ends.
+  let dots = '';
+  m.forEach((row, r) => row.forEach((on, c) => on && !inEye(r, c) && !inLogo(r, c) && (dots += `M${c + Q + 0.5} ${r + Q + 0.5}h0`)));
+  const shapes = eyes.map(
+    ([r, c, k, color]) =>
+      `<rect x="${c + Q + 0.5}" y="${r + Q + 0.5}" width="${k - 1}" height="${k - 1}" rx="${(k - 1) / 4}" fill="none" stroke="${color}"/>` +
+      `<rect x="${c + Q + 2}" y="${r + Q + 2}" width="${k - 4}" height="${k - 4}" rx="${k === 7 ? 0.9 : 0.5}" fill="${color}"/>`,
   );
-  const n = SIZE + 8;
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${n} ${n}" shape-rendering="crispEdges"><rect width="${n}" height="${n}" fill="#fff"/><path d="${d}" fill="#000"/></svg>`;
+  return (
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${n} ${n}"><rect width="${n}" height="${n}" fill="#fff"/>` +
+    `<path d="${dots}" stroke="${MAIN}" stroke-width="0.9" stroke-linecap="round"/>${shapes.join('')}` +
+    `<rect x="${L + Q}" y="${L + Q}" width="${LOGO}" height="${LOGO}" rx="2" fill="#fff"/>` +
+    `<image href="${ICON}" x="${L + Q}" y="${L + Q}" width="${LOGO}" height="${LOGO}"/></svg>`
+  );
 }
 
 module.exports = { matrix, svg };

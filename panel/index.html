@@ -366,8 +366,9 @@
           <!-- ===== Song Battle (js/battle.js; core/battle.js talks to Jarchi Battle, battle.jarchi.app). Not connected: what
            it is, and Connect (a one-time link in the browser, where the streamer signs in with Kick or Twitch). Connected:
            the setup (fixed once a battle opens: Jarchi Battle takes it then), the page link with its QR code, and the songs
-           viewers send, live while the battle collects; Open for songs, Start battle, Cancel battle. Pop out: this page alone
-           in its own window (/?pop=battle), for OBS as a window, where this head is the title bar. ===== -->
+           viewers send, live while the battle collects; Open for songs, Start battle, Cancel battle. Nothing shows before the
+           first state (js/battle.js renderBattle). Pop out: this page alone in its own window (/?pop=battle), for OBS as a
+           window, where this head is the title bar. ===== -->
           <section class="view battle" data-view="battle" hidden>
             <!-- While a battle is live: Game | Bracket, the round and a dot per match (done, on now), Cancel battle. -->
             <div class="page-head bt-head">
@@ -390,7 +391,7 @@
               ></label>
               <button id="btEnd" class="lk-btn r bt-sm" hidden><span data-i18n="battleCancel"></span></button>
             </div>
-            <div id="btHero" class="crypto-hero">
+            <div id="btHero" class="crypto-hero" hidden>
               <div class="bt-logo" aria-hidden="true">⚔️</div>
               <h2 data-i18n="battleHeroTitle"></h2>
               <p data-i18n="battleHeroText"></p>
