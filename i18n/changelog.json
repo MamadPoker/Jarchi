@@ -1,7 +1,7 @@
 [
   {
     "version": "unreleased",
-    "types": ["fix", "fix", "fix", "fix", "improve", "fix", "improve", "fix", "fix", "feature", "feature", "fix"],
+    "types": ["fix", "fix", "fix", "fix", "improve", "fix", "improve", "fix", "fix", "feature", "feature", "fix", "improve"],
     "en": [
       "Crypto: the \"gateway approved\" note now shows in full, just below the top bar",
       "Coin flip: Reset now also clears the recent flips",
@@ -14,7 +14,8 @@
       "Wheel: the SPIN button in the middle is now in Persian too",
       "Crypto: a donor's emoji now plays on stream right before the crypto alert, with the animation they picked: burst, rain or rocket",
       "Crypto: new emoji settings on the Donation page tab: Emoji before the alert, which animations donors can pick, and Custom emoji",
-      "Crypto: when Jarchi Pay is slow to answer, Jarchi stops waiting and says it can't reach it, instead of waiting forever"
+      "Crypto: when Jarchi Pay is slow to answer, Jarchi stops waiting and says it can't reach it, instead of waiting forever",
+      "Custom CSS was removed: alerts, chat, goals and viewer counts now always use their normal designs"
     ],
     "fa": [
       "کریپتو: پیام «درگاه تأیید شد» حالا کامل و درست زیر نوار بالا نشون داده می‌شه",
@@ -28,7 +29,8 @@
       "گردونه: دکمه‌ی SPIN وسط گردونه حالا فارسی هم داره",
       "کریپتو: ایموجی حامی حالا درست قبل از الرت کریپتو با انیمیشنی که انتخاب کرده روی استریم پخش می‌شه: ترکیدن، بارون یا پرواز",
       "کریپتو: تنظیم‌های جدید ایموجی توی تب صفحه‌ی دونیت: ایموجی قبل از الرت، انیمیشن‌هایی که حامی‌ها می‌تونن انتخاب کنن، و ایموجی دلخواه",
-      "کریپتو: وقتی Jarchi Pay دیر جواب بده، جارچی دیگه تا ابد منتظر نمی‌مونه و می‌گه که بهش وصل نمی‌شه"
+      "کریپتو: وقتی Jarchi Pay دیر جواب بده، جارچی دیگه تا ابد منتظر نمی‌مونه و می‌گه که بهش وصل نمی‌شه",
+      "CSS دلخواه حذف شد: الرت‌ها، چت، هدف‌ها و شمارش بیننده‌ها حالا همیشه با طرح‌های معمول خودشون نشون داده می‌شن"
     ]
   },
   {

@@ -97,6 +97,12 @@ function migrate(saved, removeFile) {
     }
     delete saved.proxyFound;
   }
+  if (from < 11) {
+    // v10 -> v11: Custom CSS is gone: each alert's, goal's, chat's and the viewers widget's own CSS is dropped, so they
+    // show their normal designs.
+    for (const o of [...Object.values(saved.alerts ?? {}), ...Object.values(saved.goals ?? {}), saved.chat, saved.chat2, saved.viewers])
+      if (o && typeof o === 'object') delete o.customCss;
+  }
   if (from >= VERSION) return false;
   saved.version = VERSION;
   return true;

@@ -90,7 +90,7 @@ test('migration, settings, uploads, reset, events', async () => {
   assert.equal(s.alerts.sub.soundMode, 'custom');
   assert.equal(s.alerts.sub.volume, 0.4);
   assert.equal(s.alerts.follow.soundMode, 'theme');
-  assert.equal(JSON.parse(fs.readFileSync(path.join(dataDir, 'settings.json'))).version, 10);
+  assert.equal(JSON.parse(fs.readFileSync(path.join(dataDir, 'settings.json'))).version, 11);
   // v7 -> v8: one font and one outline switch became the name's and the message's own; both keep the old choice.
   const raid = s.alerts.raid;
   assert.deepEqual([raid.nameFont, raid.textFont, raid.nameShadow, raid.textShadow, 'font' in raid], ['Lalezar', 'Lalezar', false, false, false]);
@@ -548,34 +548,14 @@ test('undo / redo: the last 5 settings changes; a replaced file stays while a st
   assert.deepEqual([s.canUndo, (await step('undo')).status, (await step('redo')).status, has(b)], [false, 409, 409, false]);
 });
 
-test("custom CSS: each alert's, goal's and chat's own, empty at first, kept through styles and resets, undoable", async () => {
-  const json = async (r) => (assert.equal((r = await r).status, 200), r.json());
-  const patch = (body) => json(call('PATCH', '/api/settings', body));
-  let s = await json(call('POST', '/api/reset'));
-  assert.deepEqual([s.alerts.sub.customCss, s.goals.subs.customCss, s.chat.customCss], ['', '', '']);
-  const css = '.msg { color: red } </style><script>alert(1)</script>'; // kept as typed: the widgets set it as text
-  s = await patch({
-    alerts: { sub: { customCss: '.box { color: red }' } },
-    goals: { subs: { customCss: '.fill { background: gold }' } },
-    chat: { customCss: css },
-  });
-  assert.deepEqual(
-    [s.alerts.sub.customCss, s.alerts.follow.customCss, s.goals.subs.customCss, s.goals.kicks.customCss, s.chat.customCss],
-    ['.box { color: red }', '', '.fill { background: gold }', '', css],
-  );
-  // A new style, Reset style and Reset text style keep it.
-  await patch({ chat: { style: 'neon' }, goals: { subs: { style: 'pill' } } });
-  await json(call('POST', '/api/chat/reset-style', {}));
-  await json(call('POST', '/api/goals/subs/reset-style'));
-  s = await json(call('POST', '/api/alerts/sub/reset-text'));
-  assert.deepEqual([s.alerts.sub.customCss, s.goals.subs.customCss, s.chat.customCss], ['.box { color: red }', '.fill { background: gold }', css]);
-  // Chat 2 starts with a copy, then has its own; Clear is a step Ctrl+Z undoes.
-  s = await json(call('POST', '/api/chat/add'));
-  assert.equal(s.chat2.customCss, css);
-  s = await patch({ chat2: { customCss: '' } });
-  assert.deepEqual([s.chat.customCss, s.chat2.customCss], [css, '']);
-  s = await json(call('POST', '/api/settings/undo'));
-  assert.equal(s.chat2.customCss, css);
-  for (const bad of [42, null, 'x'.repeat(20001)]) assert.equal((await call('PATCH', '/api/settings', { chat: { customCss: bad } })).status, 400);
-  await json(call('POST', '/api/reset'));
+test('Custom CSS is gone: no widget has it, and a change that sends it is refused', async () => {
+  const s = await (await call('GET', '/api/settings')).json();
+  assert.ok(![s.alerts.sub, s.goals.subs, s.chat, s.viewers].some((o) => 'customCss' in o));
+  for (const body of [
+    { alerts: { sub: { customCss: '' } } },
+    { goals: { subs: { customCss: '' } } },
+    { chat: { customCss: '' } },
+    { viewers: { customCss: '' } },
+  ])
+    assert.equal((await call('PATCH', '/api/settings', body)).status, 400);
 });

@@ -12,10 +12,6 @@ let settings,
   gen = 0;
 let onNow = null; // live: { id, end() } of the alert on screen, so the panel's Skip can end it
 let onStage = null; // the alert element on screen, for fit()
-let cssType = null; // the type of the alert on screen, whose Custom CSS is on
-// The user's Custom CSS (Advanced box), after the page's own CSS so it wins. Set as text, so nothing in it is ever HTML
-// (a "</style>" can't end it).
-const userCss = document.head.appendChild(document.createElement('style'));
 
 // Bigger events feel bigger: tier 0 (follow) ... 4 (raid). Amount-based types climb with the amount.
 const STEPS = { gift_sub: [5, 20], kicks: [100, 1000], bits: [100, 1000] }; // same in core/alerts.js (how long alerts play)
@@ -49,18 +45,8 @@ function applyStrings(s) {
 }
 function applySettings(s) {
   settings = s;
-  if (cssType) {
-    setCss(cssType); // typed in the panel while it's on screen
-    fit();
-  }
   for (const a of Object.values(s.alerts)) for (const f of [a.nameFont, a.textFont]) if (fontOf(f)) document.fonts.load(`16px "${f}"`); // ready before an alert needs it
   for (const f of s.crypto ? ['Vazirmatn', s.crypto.custom.font, ...s.crypto.tiers.map((t) => t.font)] : []) document.fonts.load(`16px "${f}"`); // and the crypto alerts' fonts
-}
-
-// The alert's Custom CSS while it's on screen (none: no alert).
-function setCss(type) {
-  cssType = type;
-  userCss.textContent = type ? (settings.alerts[type].customCss ?? '') : '';
 }
 
 // The alert fills the Browser Source, whatever its size or shape: #stage is a page as big as the source, in units of an
@@ -167,7 +153,6 @@ if (params.has('preview')) {
 function stopAll() {
   gen++;
   onNow = onStage = null;
-  setCss(null);
   for (const s of sounds) s.pause();
   sounds.clear();
   stage.replaceChildren();
@@ -206,7 +191,6 @@ async function show(ev, { muted = false, hold = false, ms, id, late = false } = 
     if (my !== gen) return; // the next alert came meanwhile
   }
 
-  setCss(ev.type);
   stage.append(scope);
   onStage = el;
   fit();
@@ -246,7 +230,6 @@ async function show(ev, { muted = false, hold = false, ms, id, late = false } = 
   sounds.delete(sound);
   scope.remove();
   onStage = null;
-  setCss(null);
 }
 
 // The alert's own text style (Text tab) over its look, the name's and the message's each: color, font, bold off,
