@@ -36,12 +36,18 @@ function btSave(fields) {
 function renderBattle() {
   if (!bt) return;
   const on = bt.state === 'connected',
-    live = on && bt.battle?.status === 'live';
+    st = on && bt.battle?.status,
+    live = st === 'live',
+    done = st === 'finished';
   $('#btHero').hidden = on;
-  $('#btOn').hidden = !on || live;
-  $('#btLive').hidden = !live;
+  $('#btOn').hidden = !on || live || done;
+  $('#btLive').hidden = !live && !done;
+  $('#btTabs').hidden = $('#btRound').hidden = $('#btEnd').hidden = !live;
+  $('#btProg').hidden = !live && !done;
+  $$('#btTabs [data-tab]').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.tab === btTab)));
+  if (!done && $('#btChamp').open) $('#btChamp').close(); // New battle pressed in the other window
   if (!live) btStop();
-  if (live) return renderLive();
+  if (live || done) return renderLive();
   if (!on) {
     // Waiting: Connect again is a new link (that browser tab closed, say), and the newest one counts.
     const why = [
@@ -292,14 +298,16 @@ function wireBattle(socket) {
 // The match on now, its two songs face to face: 1 on the left, 2 on the right (what chat types, in both languages). Each
 // plays in its site's own player (battle-player.html, from localhost: it says why) under Jarchi's buttons, one song at a
 // time. The battle's settings: with Hide a song's name, "???" and its player covered (the player shows the name too)
-// until it has played here; Blur the covers: the player blurred until the mouse is on its card; who sent it only with
+// until it has played (here or in the pop-out); Blur the covers: the player blurred until the mouse is on its card; who sent it only with
 // Show who sent. Between them the vote (Chat votes: its timer, Start vote / End now, then who leads, Confirm winner or
 // Vote again) or, with I pick the winner, nothing to wait for: "This one wins" on either song decides, in both modes.
 const BT_PLAYER = `http://localhost:${location.port}`;
 const BT_RING = 326.7; // the timer ring's length (radius 52)
 const btSides = [0, 1].map((i) => ({ i, song: null, st: {}, seeking: false })); // wireLive() adds each card's parts
-const btPlayed = new Set(); // ids of the songs played here: their names show (Hide a song's name)
-let btFlipping = null; // the coin, from its flip until the next match: { key, side, done }
+const btPlayed = new Set(); // ids of the songs played: their names show (Hide a song's name)
+let btFlipping = null, // the coin, from its flip until the next match: { key, side, done }
+  btTab = 'game', // the battle screen's tab: game | bracket
+  btChampOf = null; // the battle whose champion this window has shown (once, with confetti)
 
 // A call on the battle screen -> the state, shown. Refused: why, and the state as it is now (-> undefined).
 const btAct = (method, url, body) =>
@@ -314,7 +322,7 @@ function btPlay(s) {
   btSay(s, { play: true });
 }
 const btClock = (t) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
-const btShown = (s) => !btSetup().hideTitles || btPlayed.has(s.id);
+const btShown = (s) => !btSetup().hideTitles || btPlayed.has(s.id) || bt.battle?.status === 'finished'; // over: all of them
 const btName = (s) => (btShown(s) ? s.title : S.panel.battleHidden);
 const btRoundName = (matches) => S.panel.battleRounds[matches] ?? tpl(S.panel.battleRoundOf, { n: fd(matches * 2) });
 // The battle's songs leave their players when it isn't live any more: nothing plays on.
@@ -339,11 +347,43 @@ function btTime(s) {
   s.card.classList.toggle('playing', !!playing);
 }
 
+// Both battle windows (the panel and its pop-out) share, per battle, which songs have played, so a name shows in both
+// (and after a reload); a song that starts in one stops the one playing in the other (wireLive: the storage event).
+function btPlayedNow(b, id) {
+  btPlayed.add(id);
+  remember.set('jarchi.battlePlayed', JSON.stringify({ battle: b.id, ids: b.songs.map((s) => s.id).filter((x) => btPlayed.has(x)) }));
+}
+function btReadPlayed(b) {
+  try {
+    const p = JSON.parse(remember.get('jarchi.battlePlayed'));
+    if (p?.battle === b.id) p.ids.forEach((id) => btPlayed.add(id));
+  } catch {}
+}
+
+// The battle screen: the Game tab (the match on now) or the Bracket; finished: the bracket with its champion. In the
+// head, a dot per match (byes aside): done, on now, still to come.
 function renderLive() {
   const b = bt.battle,
     R = b.bracket,
+    done = b.status === 'finished',
     [r, m] = b.current ?? [],
-    x = R[r]?.[m];
+    x = R[r]?.[m],
+    brk = done || btTab === 'bracket';
+  btReadPlayed(b);
+  const dots = R.flatMap((round, ri) => round.map((y, mi) => (ri || y[1] ? (y[2] !== null ? 'd' : !done && ri === r && mi === m ? 'c' : '-') : ''))).filter(
+    Boolean,
+  );
+  if ($('#btProg').dataset.at !== dots.join('')) {
+    $('#btProg').dataset.at = dots.join('');
+    $('#btProg').style.setProperty('--n', String(dots.length));
+    $('#btProg').replaceChildren(...dots.map((d) => el('i', { className: d })));
+  }
+  $('#btBracket').hidden = !brk;
+  if (brk) renderBracket(b, done);
+  if (done) {
+    $('#btArena').hidden = $('#btTie').hidden = true;
+    return btChampion(b);
+  }
   if (!x) return;
   const set = btSetup(),
     key = `${b.id}:${r}:${m}`,
@@ -359,8 +399,8 @@ function renderLive() {
     total > 1
       ? tpl(S.panel.battleRound, { round: btRoundName(R[r].length), n: fd(R[r].slice(0, m + 1).filter(real).length), total: fd(total) })
       : btRoundName(R[r].length);
-  $('#btArena').hidden = tie;
-  $('#btTie').hidden = !tie;
+  $('#btArena').hidden = tie || brk; // on the Bracket tab the players play on, out of sight
+  $('#btTie').hidden = !tie || brk;
   btSides.forEach((s, i) => btSide(s, songs[i], x, phase, set));
   if (tie) renderTie(x, songs, set, key);
   renderPod(phase, x, songs, `${key}:${phase}:${songs.map(btShown)}`, r === R.length - 1);
@@ -507,29 +547,40 @@ function btTick() {
   ring.classList.toggle('on', open);
 }
 
-// Next match; after the final, the champion (its card, with confetti).
+// Next match; after the final, the champion (renderLive: the bracket and the champion card).
 async function btNext(btn) {
   btn.disabled = true;
-  const names = btSetup().showNames,
-    blur = btSetup().blurCovers,
-    st = await btAct('POST', '/api/battle/next');
+  await btAct('POST', '/api/battle/next');
   btn.disabled = false;
-  if (!st?.champion) return;
-  const s = st.champion,
-    d = $('#btChamp');
-  $('#btChampSong').classList.toggle('blur', blur);
-  $('#btChampSong').replaceChildren(
+}
+// New battle, after the champion: back to the setup, in both windows.
+const btClear = () => btAct('POST', '/api/battle/clear').then((st) => st && $('#btChamp').open && $('#btChamp').close());
+
+// The champion: its cover, title, where it's from and (Show who sent) who sent it; blurred like the covers.
+function btChampSong(b) {
+  const s = b.songs.find((x) => x.id === b.champion),
+    set = btSetup();
+  return el(
+    'div',
+    { className: `bt-cw${set.blurCovers ? ' blur' : ''}` },
     btCover(s),
     el(
       'span',
       { className: 'bt-txt' },
       el('b', {}, el('bdi', { textContent: s.title })),
-      el('small', {}, el('span', { className: 'bt-src', textContent: BT_SOURCES[s.source] }), ...(names ? btWho(s.by) : [])),
+      el('small', {}, el('span', { className: 'bt-src', textContent: BT_SOURCES[s.source] }), ...(set.showNames ? btWho(s.by) : [])),
     ),
   );
+}
+// Once per battle in each window: the champion's card over the bracket, with confetti, and New battle.
+function btChampion(b) {
+  if (btChampOf === b.id) return;
+  btChampOf = b.id;
+  const d = $('#btChamp');
+  $('#btChampSong').replaceChildren(btChampSong(b));
   d.showModal();
   if (calm()) return;
-  const r = (a, b) => a + Math.random() * (b - a),
+  const r = (a, z) => a + Math.random() * (z - a),
     bits = el(
       'div',
       { className: 'confetti' },
@@ -541,6 +592,56 @@ async function btNext(btn) {
     );
   d.append(bits);
   setTimeout(() => bits.remove(), 2000);
+}
+
+// The Bracket tab, as in the design: a column per round (its name on top), each match its two songs, the winner
+// highlighted, the match on now marked; a bye is "—", a place still to be won "?". Then the champion's card (once
+// there is one, with New battle). Names hidden like on the Game tab. Made again only when something in it changed.
+function renderBracket(b, done) {
+  const R = b.bracket,
+    c = !done && b.current,
+    song = (id) => b.songs.find((s) => s.id === id),
+    at = JSON.stringify([
+      b.id,
+      R.map((round) => round.map((x) => x.slice(0, 3))),
+      c,
+      b.champion ?? null,
+      R.flat()
+        .flatMap((x) => x.slice(0, 2))
+        .map((id) => id && btShown(song(id))),
+    ]);
+  if ($('#btBracket').dataset.at === at) return;
+  $('#btBracket').dataset.at = at;
+  $('#btBracket').replaceChildren(
+    ...R.map((round, ri) =>
+      el(
+        'div',
+        { className: 'bt-rcol' },
+        el('h5', { textContent: btRoundName(round.length) }),
+        el(
+          'div',
+          { className: 'bt-ms' },
+          ...round.map((x, mi) =>
+            el(
+              'div',
+              { className: `bt-m${ri === R.length - 1 ? ' fin' : ''}${c && c[0] === ri && c[1] === mi ? ' cur' : ''}` },
+              ...[0, 1].map((i) =>
+                el('p', { className: x[2] === i ? 'w' : '' }, x[i] ? el('bdi', { textContent: btName(song(x[i])) }) : ri ? S.panel.battleTbd : '—'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    ),
+    el(
+      'div',
+      { className: 'bt-champ-card' },
+      el('div', { className: 'bt-cup', textContent: '🏆', ariaHidden: 'true' }),
+      el('b', { textContent: S.panel.battleChampionTitle }),
+      b.champion ? btChampSong(b) : el('small', { textContent: S.panel.battleNoChampion }),
+      ...(done ? [el('button', { className: 'lk-btn g', textContent: S.panel.battleNew, onclick: btClear })] : []),
+    ),
+  );
 }
 
 // A tie: the lucky coin (heads 1, tails 2) picks the winner, then the next match comes.
@@ -658,10 +759,19 @@ function wireLive(socket) {
   addEventListener('message', (e) => {
     const s = e.origin === BT_PLAYER && btSides.find((x) => x.frame.contentWindow === e.source);
     if (!s?.song || !e.data?.st) return;
+    const was = s.st.playing;
     s.st = e.data.st;
     if (s.st.playing && btSides[1 - s.i].st.playing) btSay(btSides[1 - s.i], { pause: true });
     btTime(s);
-    if (s.st.playing && !btPlayed.has(s.song.id) && btPlayed.add(s.song.id) && view === 'battle') renderLive();
+    if (!s.st.playing || was) return;
+    remember.set('jarchi.battlePlaying', String(Date.now())); // the other battle window stops its song
+    if (btPlayed.has(s.song.id) || !bt?.battle) return;
+    btPlayedNow(bt.battle, s.song.id);
+    if (view === 'battle') renderLive();
+  });
+  addEventListener('storage', (e) => {
+    if (e.key === 'jarchi.battlePlaying') btSides.forEach((s) => s.st.playing && btSay(s, { pause: true }));
+    else if (e.key === 'jarchi.battlePlayed' && view === 'battle' && bt?.battle?.status === 'live') renderLive();
   });
 
   // The coin: the Luck page's faces (heads the logo, tails a 2), its own ids.
@@ -672,7 +782,16 @@ function wireLive(socket) {
     el('div', { className: 'face', style: 'transform: rotateY(180deg) translateZ(7.3px)', innerHTML: lkTails(2, 'bt') }),
   );
   $('#btFlip').onclick = btFlip;
-  $('#btAgain').onclick = () => $('#btChamp').close();
+  $('#btAgain').onclick = btClear;
+  $$('#btTabs [data-tab]').forEach(
+    (b) =>
+      (b.onclick = () => {
+        btTab = b.dataset.tab;
+        renderBattle();
+      }),
+  );
+  popOut('battle', 'navSongBattle', $('#btPop'), $('#btLang'), $('#btTop'), 1280);
+  socket.on('connect', () => socket.emit('battleJoin')); // the panel and the pop-out alike
   socket.on('battle', gotBattle); // votes coming in, the timer running out
   setInterval(() => view === 'battle' && !document.hidden && bt?.battle?.vote?.status === 'open' && btTick(), 250);
 }

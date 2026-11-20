@@ -325,7 +325,13 @@ test('Song Battle screen: chat votes (one each, the last counts), the winners, a
   );
   assert.equal(final[0].body.bracket[1][0][2], 0);
   assert.equal(final[1].body.champion, final[0].body.bracket[1][0][0]);
-  assert.deepEqual([st.champion.id, st.battle], [final[1].body.champion, null]);
+  assert.deepEqual([st.battle.status, st.battle.champion], ['finished', final[1].body.champion]);
+
+  // The finished battle stays for the bracket and the champion (Jarchi Battle's "current" has none now), until New battle.
+  assert.equal((await battle.refresh()).battle.status, 'finished');
+  await assert.rejects(battle.next(), { code: 'battle_state' });
+  assert.equal(battle.clear().battle, null);
+  assert.throws(() => battle.clear(), { code: 'battle_state' });
 });
 
 test("QR code: the page link, as a reference encoder draws it; a text that doesn't fit gets none", () => {

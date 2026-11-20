@@ -118,6 +118,7 @@ async function call(method, p, body) {
 // here is newer than the last one saved there (saves wait up to 2 s), so it stays; after a restart it's the saved one.
 const sorted = (songs) => songs.filter((s) => !s.removed).sort((a, b) => a.sentAt - b.sentAt);
 function took(b) {
+  if (!b && battle?.status === 'finished') return; // Jarchi Battle's "current" has none any more: its bracket stays shown until New battle
   const mine = battle && battle.id === b?.id && battle.bracket.length ? battle : null;
   if (!mine) stopVote();
   battle = b && {
@@ -362,7 +363,8 @@ function pick(side) {
   return now();
 }
 // Next match; after the final, the champion: the last bracket saved first (live is refused once it's finished), then
-// finish. -> now() with champion (its song), for the panel's champion screen.
+// finish. The finished battle stays here (status finished, champion: its song id) for the bracket and the champion,
+// in every battle window, until New battle (clear) or a new battle; not after a restart.
 async function next() {
   const x = match();
   if (!x || x[2] === null) throw wrong();
@@ -381,8 +383,16 @@ async function next() {
   dirty = false;
   await onBattle('PUT', '/live', { bracket: battle.bracket, current: battle.current });
   await onBattle('POST', '/finish', { champion: song.id });
+  battle = { ...battle, status: 'finished', champion: song.id };
+  changed();
+  return now();
+}
+// New battle, after the champion: back to the setup.
+function clear() {
+  if (battle?.status !== 'finished') throw wrong();
   battle = null;
-  return { ...now(), champion: song };
+  events.emit('state', now());
+  return now();
 }
 
 // The battle page's copy: about every 2 s at most (it asks every 5), one call at a time with the newest state; a save
@@ -429,6 +439,7 @@ module.exports = {
   resetVote,
   pick,
   next,
+  clear,
   bracketFor,
   events,
   BATTLE,

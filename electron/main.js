@@ -74,7 +74,12 @@ const POPOUT = {
 // The Luck page's pop-out (the panel at /?pop=luck): the whole page, with its tabs as the title bar (panel.css data-pop,
 // 46 px like this overlay) and Always on top (onTop).
 const LUCK_POP = { ...POPOUT, width: 1180, height: 820, minWidth: 720, minHeight: 560, titleBarStyle: 'hidden', titleBarOverlay: { ...BAR, height: 46 } };
-const popOf = (url) => (new URL(url).pathname === '/crypto-popout.html' ? POPOUT : new URL(url).searchParams.get('pop') === 'luck' ? LUCK_POP : null);
+// Song Battle's pop-out (/?pop=battle): the same, wider for the two songs; streamers add it to OBS as a window.
+const BATTLE_POP = { ...LUCK_POP, width: 1280 };
+const popOf = (url) => {
+  const u = new URL(url);
+  return u.pathname === '/crypto-popout.html' ? POPOUT : ({ luck: LUCK_POP, battle: BATTLE_POP }[u.searchParams.get('pop')] ?? null);
+};
 ipcMain.on('window:onTop', (e, on) => BrowserWindow.fromWebContents(e.sender)?.setAlwaysOnTop(on === true));
 
 // Right-click, in every window (the panel, Crypto's pop-out): Electron has none of its own. In a text field: Cut, Copy,
@@ -130,9 +135,12 @@ function open() {
     outside(url);
     return { action: 'deny' };
   });
-  // Luck's pop-out has the panel's title bar: its window buttons take the bar's color too.
+  // Luck's and Song Battle's pop-outs have the panel's title bar: their window buttons take the bar's color too. A link
+  // in a pop-out (a song's "Open it on YouTube", the players' own) opens in the browser, as in the panel.
   win.webContents.on('did-create-window', (child, { url }) => {
-    if (popOf(url) === LUCK_POP) child.webContents.on('did-change-theme-color', (e, color) => tintBar(child, color));
+    if (popOf(url)?.titleBarOverlay) child.webContents.on('did-change-theme-color', (e, color) => tintBar(child, color));
+    child.webContents.setWindowOpenHandler(({ url: to }) => (outside(to), { action: 'deny' }));
+    child.webContents.on('will-navigate', (e, to) => own(to) || (e.preventDefault(), outside(to)));
   });
   win.webContents.on('will-navigate', (e, url) => {
     if (own(url)) return;

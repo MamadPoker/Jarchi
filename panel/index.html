@@ -20,7 +20,8 @@
         de.dataset.size = ls.getItem('jarchi.size') || 'normal';
         if (ls.getItem('jarchi.art') !== '0') de.dataset.art = '';
         if (ls.getItem('jarchi.still') === '1') de.dataset.still = '';
-        if (new URLSearchParams(location.search).get('pop') === 'luck') de.dataset.pop = 'luck'; // the Luck page's own window
+        const pop = new URLSearchParams(location.search).get('pop');
+        if (pop === 'luck' || pop === 'battle') de.dataset.pop = pop; // the Luck or Song Battle page's own window
         if (accent) for (const k in accent) de.style.setProperty(k, accent[k]);
         else if (de.dataset.palette === 'system') de.dataset.palette = 'jarchi';
       } catch {}
@@ -359,8 +360,30 @@
           <!-- ===== Song Battle (js/battle.js; core/battle.js talks to Jarchi Battle, battle.jarchi.app). Not connected: what
            it is, and Connect (a one-time link in the browser, where the streamer signs in with Kick or Twitch). Connected:
            the setup (fixed once a battle opens: Jarchi Battle takes it then), the page link with its QR code, and the songs
-           viewers send, live while the battle collects; Open for songs, Start battle, Cancel battle. ===== -->
+           viewers send, live while the battle collects; Open for songs, Start battle, Cancel battle. Pop out: this page alone
+           in its own window (/?pop=battle), for OBS as a window, where this head is the title bar. ===== -->
           <section class="view battle" data-view="battle" hidden>
+            <!-- While a battle is live: Game | Bracket, the round and a dot per match (done, on now), Cancel battle. -->
+            <div class="page-head bt-head">
+              <div id="btTabs" class="crypto-tabs lk-tabs" role="tablist" data-aria="navSongBattle" hidden>
+                <button role="tab" data-tab="game"><span aria-hidden="true">⚔️</span><span data-i18n="battleGame"></span></button
+                ><button role="tab" data-tab="bracket"><span aria-hidden="true">🏆</span><span data-i18n="battleBracket"></span></button>
+              </div>
+              <b id="btRound" class="bt-round"></b>
+              <span id="btProg" class="bt-prog" aria-hidden="true"></span>
+              <button id="btPop" class="ghost crypto-pop" data-title="battlePopOutHint">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M20 4l-8 8M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" /></svg
+                ><span data-i18n="luckPopOut"></span>
+              </button>
+              <!-- The pop-out only (the panel has its top bar's): the language switch, wired with the top bar's (js/build.js). -->
+              <div id="btLang" class="lang" role="group" data-aria="language" hidden>
+                <button data-lang="fa" lang="fa">فا</button><button data-lang="en" lang="en">EN</button>
+              </div>
+              <label id="btTop" class="lk-top" hidden
+                ><span class="switch"><input type="checkbox" /><span></span></span><span data-i18n="luckOnTop"></span
+              ></label>
+              <button id="btEnd" class="lk-btn r bt-sm" hidden><span data-i18n="battleCancel"></span></button>
+            </div>
             <div id="btHero" class="crypto-hero">
               <div class="bt-logo" aria-hidden="true">⚔️</div>
               <h2 data-i18n="battleHeroTitle"></h2>
@@ -459,13 +482,9 @@
             </div>
             <!-- The battle screen, once it's live (core/battle.js runs it): the match on now, its two songs face to face, each in
              its site's own player (battle-player.html) under Jarchi's buttons (js/battle.js builds them), and the vote between
-             them. A tie: the lucky coin. After the final: the champion. -->
+             them. A tie: the lucky coin. Bracket: every round, then the champion. After the final: the champion. -->
             <div id="btLive" class="bt-live" hidden>
-              <div class="bt-bar">
-                <span class="lk-pill live" data-i18n="battleLive"></span>
-                <b id="btRound"></b>
-                <button id="btEnd" class="lk-btn r bt-sm"><span data-i18n="battleCancel"></span></button>
-              </div>
+              <div id="btBracket" class="bt-brk" hidden></div>
               <div id="btArena" class="bt-arena">
                 <div class="bt-side s1"></div>
                 <div id="btPod" class="bt-pod"></div>
@@ -492,7 +511,7 @@
             <dialog id="btChamp" class="bt-champ">
               <div class="bt-cup" aria-hidden="true">🏆</div>
               <b data-i18n="battleChampion"></b>
-              <div id="btChampSong" class="bt-cw"></div>
+              <div id="btChampSong"></div>
               <button id="btAgain" class="lk-btn g" data-i18n="battleNew"></button>
             </dialog>
           </section>

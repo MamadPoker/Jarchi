@@ -7057,7 +7057,7 @@ button#lkAgain {
 :root[data-pop] main {
   padding: 0 22px 40px;
 }
-:root[data-pop] .view.luck {
+:root[data-pop] :is(.view.luck, .view.battle) {
   max-width: none;
 }
 :root[data-pop] .lk-pane {
@@ -7065,7 +7065,7 @@ button#lkAgain {
   max-width: 1180px;
   margin: 0 auto;
 }
-:root[data-pop] .lk-head {
+:root[data-pop] :is(.lk-head, .bt-head) {
   position: sticky;
   top: 0;
   z-index: 100;
@@ -7076,7 +7076,7 @@ button#lkAgain {
   background: var(--sidebar);
   -webkit-app-region: drag;
 }
-:root[data-pop] .lk-head :is(button, label) {
+:root[data-pop] :is(.lk-head, .bt-head) :is(button, label) {
   -webkit-app-region: no-drag;
 }
 :root[data-pop] .lk-tabs {
@@ -7423,18 +7423,6 @@ button.bt-x:hover {
   display: grid;
   gap: 14px;
   animation: lk-fi 0.35s ease;
-}
-.bt-bar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 12px;
-}
-.bt-bar b {
-  font-size: 15px;
-}
-.bt-bar .lk-btn {
-  margin-inline-start: auto;
 }
 .bt-arena:not([hidden]),
 .bt-tie:not([hidden]) {
@@ -8043,4 +8031,129 @@ dialog.bt-champ > b {
   border-radius: 11px;
   background: var(--bg);
   text-align: start;
+}
+
+/* The battle page's head: while a battle is live, Game | Bracket, the round and a dot per match (done teal, on now
+   gold), then Pop out and Cancel battle. In the pop-out it's the window's title bar (with the Luck page's rules above),
+   with the language switch and Always on top; the page below keeps the panel's width. */
+.bt-round {
+  font-size: 15px;
+}
+.bt-prog:not([hidden]) {
+  display: flex;
+  flex: 0 1 300px;
+  gap: min(4px, calc(160px / var(--n, 1)));
+  min-width: 0;
+}
+.bt-prog i {
+  flex: 0 1 22px;
+  min-width: 1px;
+  height: 6px;
+  border-radius: 9px;
+  background: var(--border-hi);
+}
+.bt-prog i.d {
+  background: var(--teal);
+}
+.bt-prog i.c {
+  background: var(--gold);
+}
+#btLang {
+  margin-inline-start: auto; /* the pop-out's: at the bar's end, then Always on top */
+}
+:root[data-pop] .view.battle > :not(.bt-head, dialog) {
+  width: 100%;
+  max-width: 1300px;
+  margin-inline: auto;
+}
+
+/* The Bracket tab: a column per round, left to right in both languages, then the champion's card. */
+.bt-brk:not([hidden]) {
+  display: flex;
+  gap: 18px;
+  align-items: stretch;
+  padding: 16px 2px 6px;
+  overflow-x: auto;
+  direction: ltr;
+}
+[dir='rtl'] :is(.bt-rcol, .bt-champ-card) {
+  direction: rtl;
+}
+.bt-rcol {
+  display: flex;
+  flex: 0 0 170px;
+  flex-direction: column;
+  gap: 10px;
+}
+.bt-rcol h5 {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
+}
+.bt-ms {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  justify-content: space-around;
+  gap: 14px;
+}
+.bt-m {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--card2);
+}
+.bt-m.fin {
+  border-color: var(--gold-line);
+}
+.bt-m.cur {
+  border-color: var(--gold);
+  box-shadow: 0 0 18px color-mix(in srgb, var(--gold) 25%, transparent);
+}
+.bt-m p {
+  margin: 0;
+  padding: 6px 10px;
+  overflow: hidden;
+  color: var(--muted);
+  font:
+    700 12.5px Manrope,
+    Vazirmatn,
+    sans-serif;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bt-m p + p {
+  border-top: 1px solid var(--border);
+}
+.bt-m p.w {
+  background: color-mix(in srgb, var(--teal) 22%, var(--card2));
+  color: var(--text);
+}
+.bt-champ-card {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  align-items: center;
+  align-self: center;
+  gap: 8px;
+  max-width: 300px;
+  margin-left: auto; /* physical: the bracket runs left to right in both languages */
+  padding: 18px 22px;
+  border: 1px solid var(--gold-line);
+  border-radius: 16px;
+  background: radial-gradient(circle at 50% 20%, color-mix(in srgb, var(--gold) 18%, transparent), transparent 70%);
+  text-align: center;
+}
+.bt-champ-card .bt-cup {
+  font-size: 46px;
+}
+.bt-champ-card > b {
+  color: var(--gold-text);
+  font-size: 16px;
+}
+.bt-champ-card > small {
+  color: var(--muted);
+  font-size: 12px;
 }

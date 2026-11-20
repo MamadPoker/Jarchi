@@ -94,7 +94,7 @@ function seenPage(v) {
 
 // Open a page (and in Alerts / Goals / Guide, an item of it: without `key`, the one selected before).
 function select(v, key) {
-  if (POP) v = 'luck'; // the Luck page's own window shows only it
+  if (POP) v = POP; // a pop-out window shows only its page
   view = v;
   seenPage(v);
   if (v === 'alert') {

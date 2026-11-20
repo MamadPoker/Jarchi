@@ -873,6 +873,27 @@ function renderLuck() {
   renderCoin();
 }
 
+// Pop out (Luck, Song Battle): the page in its own window (/?pop=<page>). There: Always on top (the desktop app, kept
+// per page), and the language switch (no top bar there); it follows the app's language like every window (help.js useLang).
+function popOut(page, name, btn, lang, top, width) {
+  btn.hidden = !!POP;
+  btn.onclick = () => window.open(`/?pop=${page}`, `jarchi-${page}`, `popup,width=${width},height=820`);
+  if (POP !== page) return;
+  document.title = `Jarchi · ${S.panel[name]}`;
+  lang.hidden = false;
+  const app = window.jarchiApp,
+    box = $('input', top),
+    key = `jarchi.${page}Top`;
+  if (!app?.onTop) return;
+  top.hidden = false;
+  box.checked = remember.get(key) === 'true';
+  app.onTop(box.checked);
+  box.onchange = () => {
+    remember.set(key, String(box.checked));
+    app.onTop(box.checked);
+  };
+}
+
 function wireLuck(socket) {
   $$('.lk-tabs [role=tab]').forEach((b) => (b.onclick = () => showLuckTab(b.dataset.tab)));
   $('.lk-tabs').onkeydown = (e) => {
@@ -1027,24 +1048,6 @@ function wireLuck(socket) {
   addEventListener('focus', () => view === 'luck' && loadLuck()); // back from the pop-out (or the panel)
   addEventListener('blur', lkFlush);
 
-  // Pop out: this page in its own window. There: Always on top (the desktop app), and the language switch (no top bar
-  // there); it follows the app's language like every window (help.js useLang).
-  $('#luckPop').hidden = POP;
-  $('#luckPop').onclick = () => window.open('/?pop=luck', 'jarchiLuck', 'popup,width=1180,height=820');
-  if (POP) {
-    document.title = `Jarchi · ${S.panel.navLuck}`;
-    $('#luckLang').hidden = false;
-    const app = window.jarchiApp,
-      top = $('#luckTop input');
-    if (app?.onTop) {
-      $('#luckTop').hidden = false;
-      top.checked = remember.get('jarchi.luckTop') === 'true';
-      app.onTop(top.checked);
-      top.onchange = () => {
-        remember.set('jarchi.luckTop', String(top.checked));
-        app.onTop(top.checked);
-      };
-    }
-  }
+  popOut('luck', 'navLuck', $('#luckPop'), $('#luckLang'), $('#luckTop'), 1180);
   api('GET', '/api/luck').then(gotLuck, (err) => toast(err.message, true));
 }
