@@ -5597,6 +5597,10 @@ dialog.crypto-hello {
 .crypto-li .link-row {
   flex-basis: 100%;
 }
+/* A switch's row: its text takes the room, so a long hint wraps beside the switch instead of pushing it under. */
+.crypto-li:has(> .switch) > .stack {
+  flex: 1;
+}
 /* The donation emoji's animations (the Donation page tab): picked ones in teal. */
 #cryptoEmoji small {
   color: var(--muted);

@@ -7,6 +7,8 @@
 // Each OBS link plays its own alerts one at a time, next to the others: the main link ('all') and one per alert type
 // (/widgets/alerts/<type>, only that type). While a type's own link is open the main link skips that type; once it's
 // closed, the main link plays it again (also what was waiting for it). Who plays an alert is decided when it starts.
+// Crypto alerts play on the main link, or, with "Crypto alerts on their own link" on, only on /widgets/alerts/crypto
+// (they wait while it's closed, like the main link's when OBS is closed).
 const path = require('node:path');
 const { EventEmitter } = require('node:events');
 const { randomUUID } = require('node:crypto');
@@ -33,8 +35,8 @@ const FEED_FILE = path.join(DATA_DIR, 'feed.json');
 const savedFeed = store.load(FEED_FILE);
 const feed = (Array.isArray(savedFeed) ? savedFeed : []).filter((e) => TYPES.includes(e?.type) && PLATFORMS.includes(e.platform)).slice(0, FEED);
 // A lane per link. playing: { id, ev, ms, started }; busy: an alert is playing, or it's the gap after one.
-const lanes = Object.fromEntries(['all', ...TYPES].map((l) => [l, { playing: null, busy: false, overlays: 0, goneAt: 0, timer: null }]));
-const laneOf = (ev) => (lanes[ev.type]?.overlays ? ev.type : 'all'); // crypto: always the main link
+const lanes = Object.fromEntries(['all', ...TYPES, 'crypto'].map((l) => [l, { playing: null, busy: false, overlays: 0, goneAt: 0, timer: null }]));
+const laneOf = (ev, cryptoOwn) => (ev.type === 'crypto' ? (cryptoOwn ? 'crypto' : 'all') : lanes[ev.type].overlays ? ev.type : 'all');
 const showing = () => Object.values(lanes).find((l) => l.playing); // the one the panel shows (and skips): the main link's first
 let paused = false;
 
@@ -91,9 +93,11 @@ bus.on('event', (ev) => {
 });
 
 // Every free lane with an open overlay starts its first waiting alert. 'play' names the lane: only its overlays show it.
+// Also after the crypto link switch changes (server/routes/settings.js): waiting crypto alerts move to the other link.
 function next() {
+  const cryptoOwn = settings.get().crypto.ownLink;
   for (const [name, lane] of Object.entries(lanes)) {
-    const i = lane.busy || paused || !lane.overlays ? -1 : queue.findIndex((it) => laneOf(it.ev) === name);
+    const i = lane.busy || paused || !lane.overlays ? -1 : queue.findIndex((it) => laneOf(it.ev, cryptoOwn) === name);
     if (i < 0) continue;
     lane.busy = true;
     lane.playing = { ...queue.splice(i, 1)[0], started: Date.now() };
@@ -196,4 +200,4 @@ function shown(r, transport) {
   return line;
 }
 
-module.exports = { join, leave, push, skip, clear, remove, replay, pause, shown, state, feed: () => feed, events: alerts };
+module.exports = { join, leave, push, next, skip, clear, remove, replay, pause, shown, state, feed: () => feed, events: alerts };

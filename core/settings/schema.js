@@ -875,13 +875,14 @@ const PROFILE_RULES = {
 // design: the card that plays ('coin' | 'hologram', Jarchi's two, or 'custom' = Your own alert). sound: an uploaded sound
 // for the two designs instead of their own; duration (s): theirs. custom and each amount alert (tiers: { id, min USDT })
 // = a look: { image, sound, pos (text top / bottom / side of the image), font, duration }. The highest tier a donation
-// reaches plays instead of the card (cryptoPick).
+// reaches plays instead of the card (cryptoPick). ownLink: crypto alerts play only on their own OBS link
+// (/widgets/alerts/crypto), not on the main alerts link (core/alerts.js).
 const CRYPTO_DESIGNS = ['coin', 'hologram', 'custom'];
 const CRYPTO_FONTS = ['Lalezar', 'Vazirmatn', 'Bangers'];
 const CRYPTO_LOOK = { image: null, sound: null, pos: 'bottom', font: 'Lalezar', duration: 8 };
 const CRYPTO_TIERS = 20;
 const cryptoSeconds = num(3, 60);
-const CRYPTO_RULES = { design: oneOf(...CRYPTO_DESIGNS), duration: cryptoSeconds };
+const CRYPTO_RULES = { design: oneOf(...CRYPTO_DESIGNS), duration: cryptoSeconds, ownLink: (v) => typeof v === 'boolean' };
 const LOOK_RULES = { pos: oneOf('top', 'bottom', 'side'), font: oneOf(...CRYPTO_FONTS), duration: cryptoSeconds, min: num(0.01, 1e6) };
 
 const ALLOWED = { image: ['png', 'jpg', 'gif', 'webp', 'webm', 'mp4'], sound: ['mp3', 'wav', 'ogg'], picture: ['png', 'jpg', 'webp'] };

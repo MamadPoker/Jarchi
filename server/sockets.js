@@ -56,9 +56,9 @@ module.exports = function sockets({ io, view, changed, DEV }) {
     });
     if (DEV && release.latest()) socket.emit('devUpdate', release.latest()); // a newer Jarchi than this source copy (core/release.js)
     // The alerts overlay joins to get alerts from the queue (the panel's previews don't): the main link, or one type's own
-    // (its lane in core/alerts). The Home page counts the main link.
+    // or the crypto alerts' (its lane in core/alerts). The Home page counts the main link.
     socket.once('alertsJoin', (only) => {
-      const lane = TYPES.includes(only) ? only : 'all';
+      const lane = TYPES.includes(only) || only === 'crypto' ? only : 'all';
       socket.join(['alerts', `alerts:${lane}`]);
       alertQueue.join((now) => socket.emit('alert', now), lane);
       socket.once('disconnect', () => alertQueue.leave(lane));
