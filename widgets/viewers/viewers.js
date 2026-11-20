@@ -5,8 +5,6 @@
 const params = new URLSearchParams(location.search);
 const source = location.pathname.split('/').filter(Boolean)[2] || 'total';
 const root = document.getElementById('viewers');
-// The user's Custom CSS (Advanced box), after the page's own CSS so it wins. Set as text, never as HTML.
-const userCss = document.head.appendChild(document.createElement('style'));
 const LOGOS = { kick: ['kick'], twitch: ['twitch'], total: ['kick', 'twitch'] };
 // Icons, colored by viewers.css. Kick's and Twitch's are the shapes of their official logos (assets/platform-logos).
 const ICONS = {
@@ -62,11 +60,7 @@ if (params.has('thumb')) {
   });
   socket.on('settings', (s) => {
     const next = s.viewers;
-    if (userCss.textContent !== next.customCss) {
-      userCss.textContent = next.customCss;
-      fit();
-    }
-    const now = JSON.stringify({ ...next, customCss: '' }); // the CSS alone needs no redraw
+    const now = JSON.stringify(next);
     if (now === look) return;
     look = now;
     cfg = next;

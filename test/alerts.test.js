@@ -35,7 +35,7 @@ fs.writeFileSync(
           { min: 150, images: [old('kicks-tier-image-big.gif')], sounds: [old('kicks-tier-sound-big.wav')] },
         ],
       },
-      raid: { volume: 0.5, tiersOn: true, tiers: [{ min: 10, images: [old('raid-tier-image-old.gif')], sounds: [] }] },
+      raid: { volume: 0.5, tiersOn: true, tiers: [{ min: 10, images: [old('raid-tier-image-old.gif')], sounds: [] }], customCss: '.box { color: red }' },
       // Fixed bits tiers of v3/v4 (100, 500, ...): 500 is no Twitch gem, so it goes into 100 (v5).
       bits: {
         tiers: {
@@ -44,6 +44,10 @@ fs.writeFileSync(
         },
       },
     },
+    // Custom CSS from before v11 (removed): dropped.
+    goals: { subs: { customCss: '.fill { background: gold }' } },
+    chat: { customCss: '.msg { color: red }' },
+    viewers: { customCss: '.num { color: red }' },
   }),
 );
 process.env.JARCHI_PORT = '3997';
@@ -73,7 +77,10 @@ test("media by amount: fixed tiers (Kick's gift amounts), on/off and files; old 
 
   // Migration (v2 -> v3): the old free Kicks tiers moved to the fixed tier at or below their minimum, turned on;
   // a second file in one tier went. Raid's old tiers are ignored (and their file left alone).
-  assert.equal(JSON.parse(fs.readFileSync(path.join(dataDir, 'settings.json'))).version, 10);
+  const saved = fs.readFileSync(path.join(dataDir, 'settings.json'), 'utf8');
+  assert.equal(JSON.parse(saved).version, 11);
+  // v10 -> v11: the old Custom CSS is gone, from the file and from what the panel and widgets get.
+  assert.ok(!saved.includes('customCss') && !JSON.stringify(s).includes('customCss'));
   const k = s.alerts.kicks;
   assert.deepEqual(
     k.tiers.map((t) => t.amount),
