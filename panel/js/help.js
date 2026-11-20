@@ -128,9 +128,11 @@ function setLang(lang) {
 
 // ---------- Privacy Policy ----------
 // i18n/privacy.json, in English and Persian, with its version. The tour's Hello doesn't go on (or close) before it's
-// accepted; one newer than the version accepted (settings.privacyAccepted) opens by itself to Accept, as "Privacy
-// Policy updated" ("Privacy Policy" for someone who never accepted one). The popup switches between the two languages.
-const mustAccept = () => settings.privacyAccepted < privacy.version;
+// accepted; one whose minAccepted is newer than the version accepted (settings.privacyAccepted) opens by itself to
+// Accept, as "Privacy Policy updated" ("Privacy Policy" for someone who never accepted one). A newer version that keeps
+// minAccepted (it collects nothing new) asks nobody again; Accept saves the version shown. The popup switches between
+// the two languages.
+const mustAccept = () => settings.privacyAccepted < privacy.minAccepted;
 const acceptPrivacy = () =>
   api('PATCH', '/api/settings', { privacyAccepted: privacy.version }).then(
     (s) => (settings = s),

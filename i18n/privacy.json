@@ -1,5 +1,6 @@
 {
-  "version": 1,
+  "version": 2,
+  "minAccepted": 1,
   "icons": ["collect", "never", "why", "where", "choice"],
   "en": {
     "title": "Jarchi Privacy Policy",
@@ -9,7 +10,7 @@
       ["What we never collect", "chat messages, passwords, login tokens, your viewers' data, your donations, or files on your computer."],
       ["Why", "to count users, see which versions are in use, and improve Jarchi."],
       ["Where", "stored securely on Cloudflare. We never sell or share it."],
-      ["Your choice", "to see or delete your data, send a request from the Support page in Jarchi, or email jarchiofficial1@gmail.com. Uninstalling Jarchi stops all data from being sent."]
+      ["Your data", "to see or delete your data, send a ticket from the Support page in Jarchi. Uninstalling Jarchi stops the app from sending anything."]
     ]
   },
   "fa": {
@@ -20,7 +21,7 @@
       ["چه چیزی هرگز جمع نمی‌شود", "پیام‌های چت، رمزها، توکن‌های ورود، اطلاعات بیننده‌ها، دونیت‌ها و فایل‌های کامپیوتر شما."],
       ["چرا", "برای شمارش کاربران، دیدن نسخه‌های در حال استفاده و بهتر کردن جارچی."],
       ["کجا", "به‌صورت امن روی کلادفلر ذخیره می‌شود. هرگز فروخته یا با کسی به اشتراک گذاشته نمی‌شود."],
-      ["انتخاب شما", "برای دیدن یا حذف اطلاعاتتان، از بخش Support در جارچی درخواست بدهید، یا به jarchiofficial1@gmail.com ایمیل بزنید. با حذف جارچی، ارسال اطلاعات کاملاً متوقف می‌شود."]
+      ["اطلاعات شما", "برای دیدن یا حذف اطلاعاتتان، از صفحهٔ پشتیبانی در جارچی تیکت بفرستید. با حذف جارچی، برنامه دیگر هیچ چیزی نمی‌فرستد."]
     ]
   }
 }

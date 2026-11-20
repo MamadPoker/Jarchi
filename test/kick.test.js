@@ -18,7 +18,8 @@ const calls = [];
 let issued = 0,
   challenge = '',
   relayDown = false,
-  kickBlocked = false; // Jarchi can't reach the relay / Kick refuses this network
+  kickBlocked = false, // Jarchi can't reach the relay / Kick refuses this network
+  noChat = false; // a login from before chat:write was asked for
 const subs = [];
 globalThis.fetch = async (url, init = {}) => {
   const u = new URL(url);
@@ -53,6 +54,8 @@ globalThis.fetch = async (url, init = {}) => {
       return json(200, { data: body.events.map((e, i) => ({ ...e, subscription_id: `s${i + 1}`, error: '' })), message: 'OK' });
     case 'DELETE api.kick.com/public/v1/events/subscriptions':
       return new Response(null, { status: 204 });
+    case 'POST api.kick.com/public/v1/chat':
+      return noChat ? json(403, { message: 'Forbidden' }) : json(200, { data: { is_sent: true, message_id: 'm1' }, message: 'OK' });
     case 'POST id.kick.com/oauth/revoke':
       return new Response('OK', { status: 200 });
   }
@@ -169,6 +172,13 @@ test('Kick account: login through the relay, follows subscribed, follow alerts, 
   sockets[1].say(follow(9, 'Mia'));
   assert.equal(events.at(-1).user, 'Mia');
 
+  // Post in chat (Song Battle): a line as the streamer, in their own channel. A login without chat:write: 'scope'.
+  await account.say('Send your song: https://battle.jarchi.app/mamad');
+  assert.deepEqual(calls.at(-1).body, { type: 'user', broadcaster_user_id: 42, content: 'Send your song: https://battle.jarchi.app/mamad' });
+  noChat = true;
+  await assert.rejects(account.say('again'), { code: 'scope' });
+  noChat = false;
+
   // Disconnect: the subscription goes, Kick is told, the tokens go.
   const off = await account.disconnect();
   assert.deepEqual([off.state, off.login], ['off', '']);
@@ -184,6 +194,7 @@ test('Kick account: login through the relay, follows subscribed, follow alerts, 
   const again = new URL((await account.login()).uri).searchParams.get('state');
   await account.callback({ error: 'access_denied', state: again });
   assert.deepEqual([account.status().state, account.status().error], ['off', 'denied']);
+  await assert.rejects(account.say('hi'), { code: 'off' }); // not connected
 
   // Canceled while Kick's page is open: coming back later changes nothing.
   const late = new URL((await account.login()).uri).searchParams.get('state');

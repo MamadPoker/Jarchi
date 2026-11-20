@@ -32,7 +32,7 @@
  */
 const KICK_ID = 'https://id.kick.com';
 const KICK_API = 'https://api.kick.com/public/v1';
-const SCOPES = 'user:read events:subscribe';
+const SCOPES = 'user:read events:subscribe chat:write'; // chat:write: Jarchi's Song Battle page posts its link in chat
 const STALE_MS = 10 * 60 * 1000; // an older event (Kick trying again much later) is dropped: a late alert is no alert
 
 const text = (body, status = 200) => new Response(body, { status, headers: { 'content-type': 'text/plain; charset=utf-8' } });

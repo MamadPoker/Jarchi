@@ -15,6 +15,7 @@ const designs = require('../core/designs');
 const pay = require('../core/pay');
 const viewers = require('../core/viewers');
 const luck = require('../core/luck');
+const battle = require('../core/battle');
 const vpn = require('../core/vpn');
 const release = require('../core/release');
 const strings = require('../i18n/en.json');
@@ -82,6 +83,8 @@ module.exports = function sockets({ io, view, changed, DEV }) {
       socket.join('luck');
       socket.emit('giveaway', luck.state());
     });
+    // The Song Battle page (the panel, or its pop-out window): every change on the battle screen.
+    socket.once('battleJoin', () => socket.join('battle'));
 
     // "Show chat timing": a chat widget says when it drew a live message; core/chat prints how long each step took.
     socket.on('chatShown', (r) => chat.timing(r, socket.conn.transport.name));
@@ -118,5 +121,6 @@ module.exports = function sockets({ io, view, changed, DEV }) {
   messages.events.on('change', (list) => io.to('panel').emit('teamMessages', list));
   designs.events.on('change', () => io.to('panel').emit('chatStyles')); // a design unlocked or downloaded again: Chat styles asks again
   pay.events.on('state', (st) => io.to('panel').emit('crypto', st));
+  battle.events.on('state', (st) => io.to('battle').emit('battle', st)); // the battle screen: votes, its timer
   release.events.on('found', (r) => io.emit('devUpdate', r));
 };

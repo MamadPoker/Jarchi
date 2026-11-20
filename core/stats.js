@@ -23,7 +23,9 @@ const INSTALLED = process.env.JARCHI_INSTALLED === '1'; // electron/main.js says
 const ACCOUNTS = { kick: kickAccount, twitch: twitchAccount };
 const lastLive = { kick: null, twitch: null }; // the quit ping doesn't wait for Kick and Twitch: what they said last
 
-const accepted = () => settings.get().privacyAccepted >= privacy.version;
+// The policy accepted: its version, or an older one that still counts (privacy.json minAccepted: a new version that
+// collects nothing new, like 2's narrower contact line, isn't asked again).
+const accepted = () => settings.get().privacyAccepted >= privacy.minAccepted;
 
 // What each Connect came to, kept (settings.connectState) from the account's status: connected = ok; an error = why
 // it failed or keeps failing (expired, relay, client: other); Connect pressed (waiting) = tried, other until it ends;

@@ -57,7 +57,7 @@ test('Kick relay: redirects, tokens, signed webhooks, sockets, rooms', async () 
     response_type: 'code',
     client_id: 'cid',
     redirect_uri: 'https://relay.test/callback',
-    scope: 'user:read events:subscribe',
+    scope: 'user:read events:subscribe chat:write',
     code_challenge: CHALLENGE,
     code_challenge_method: 'S256',
     state: STATE,

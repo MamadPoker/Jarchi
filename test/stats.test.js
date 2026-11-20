@@ -53,7 +53,7 @@ test('usage ping: only after the Privacy Policy, only its fields, silent when th
   assert.ok(!('installId' in JSON.parse(fs.readFileSync(path.join(dataDir, 'settings.json'), 'utf8') || '{}')), 'no install id made yet');
 
   const before = Date.now();
-  settings.update({ privacyAccepted: 1 });
+  settings.update({ privacyAccepted: 1 }); // version 1: still counts under version 2 (privacy.json minAccepted)
   await stats.ping();
   assert.equal(pings().length, 1);
   assert.equal(pings()[0].query, '?messages=1', 'the team messages come back with it');

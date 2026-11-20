@@ -20,7 +20,8 @@
         de.dataset.size = ls.getItem('jarchi.size') || 'normal';
         if (ls.getItem('jarchi.art') !== '0') de.dataset.art = '';
         if (ls.getItem('jarchi.still') === '1') de.dataset.still = '';
-        if (new URLSearchParams(location.search).get('pop') === 'luck') de.dataset.pop = 'luck'; // the Luck page's own window
+        const pop = new URLSearchParams(location.search).get('pop');
+        if (pop === 'luck' || pop === 'battle') de.dataset.pop = pop; // the Luck or Song Battle page's own window
         if (accent) for (const k in accent) de.style.setProperty(k, accent[k]);
         else if (de.dataset.palette === 'system') de.dataset.palette = 'jarchi';
       } catch {}
@@ -356,14 +357,163 @@
             <small data-i18n="botSoon"></small>
           </section>
 
-          <!-- ===== Content: not built yet ===== -->
-          <section class="view soon" data-view="battle" hidden>
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <circle cx="12" cy="12" r="9" />
-              <path d="M12 7v5l3 2" />
-            </svg>
-            <h2 data-i18n="soonTitle"></h2>
-            <small data-i18n="battleSoon"></small>
+          <!-- ===== Song Battle (js/battle.js; core/battle.js talks to Jarchi Battle, battle.jarchi.app). Not connected: what
+           it is, and Connect (a one-time link in the browser, where the streamer signs in with Kick or Twitch). Connected:
+           the setup (fixed once a battle opens: Jarchi Battle takes it then), the page link with its QR code, and the songs
+           viewers send, live while the battle collects; Open for songs, Start battle, Cancel battle. Pop out: this page alone
+           in its own window (/?pop=battle), for OBS as a window, where this head is the title bar. ===== -->
+          <section class="view battle" data-view="battle" hidden>
+            <!-- While a battle is live: Game | Bracket, the round and a dot per match (done, on now), Cancel battle. -->
+            <div class="page-head bt-head">
+              <div id="btTabs" class="crypto-tabs lk-tabs" role="tablist" data-aria="navSongBattle" hidden>
+                <button role="tab" data-tab="game"><span aria-hidden="true">⚔️</span><span data-i18n="battleGame"></span></button
+                ><button role="tab" data-tab="bracket"><span aria-hidden="true">🏆</span><span data-i18n="battleBracket"></span></button>
+              </div>
+              <b id="btRound" class="bt-round"></b>
+              <span id="btProg" class="bt-prog" aria-hidden="true"></span>
+              <button id="btPop" class="ghost crypto-pop" data-title="battlePopOutHint">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M20 4l-8 8M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" /></svg
+                ><span data-i18n="luckPopOut"></span>
+              </button>
+              <!-- The pop-out only (the panel has its top bar's): the language switch, wired with the top bar's (js/build.js). -->
+              <div id="btLang" class="lang" role="group" data-aria="language" hidden>
+                <button data-lang="fa" lang="fa">فا</button><button data-lang="en" lang="en">EN</button>
+              </div>
+              <label id="btTop" class="lk-top" hidden
+                ><span class="switch"><input type="checkbox" /><span></span></span><span data-i18n="luckOnTop"></span
+              ></label>
+              <button id="btEnd" class="lk-btn r bt-sm" hidden><span data-i18n="battleCancel"></span></button>
+            </div>
+            <div id="btHero" class="crypto-hero">
+              <div class="bt-logo" aria-hidden="true">⚔️</div>
+              <h2 data-i18n="battleHeroTitle"></h2>
+              <p data-i18n="battleHeroText"></p>
+              <ul class="crypto-feat">
+                <li><span aria-hidden="true">🔗</span><span data-i18n="battleFeatLink"></span></li>
+                <li><span aria-hidden="true">🎵</span><span data-i18n="battleFeatSongs"></span></li>
+              </ul>
+              <button id="btConnect" class="primary crypto-big" data-i18n="battleConnect"></button>
+              <p id="btWhy" class="crypto-why" hidden></p>
+            </div>
+            <div id="btOn" class="bt-grid" hidden>
+              <div class="lk-card">
+                <h2 data-i18n="battleSetup"></h2>
+                <p id="btFixed" class="bt-fixed" data-i18n="battleFixed" hidden></p>
+                <fieldset id="btForm" class="bt-form">
+                  <label class="lk-l" for="btTopic" data-i18n="battleTopic"></label>
+                  <div class="bt-row">
+                    <input id="btTopic" class="lk-t" type="text" maxlength="100" dir="auto" data-placeholder="battleTopicHint" />
+                    <button id="btDice" class="lk-btn o bt-sm" data-title="battleDice"><span aria-hidden="true">🎲</span></button>
+                  </div>
+                  <div class="lk-l" data-i18n="battleSize"></div>
+                  <div id="btSize" class="seg lk-seg" role="radiogroup" data-aria="battleSize"></div>
+                  <div class="lk-l" data-i18n="battlePer"></div>
+                  <div id="btPer" class="seg lk-seg" role="radiogroup" data-aria="battlePer"></div>
+                  <div class="lk-l" data-i18n="battleSources"></div>
+                  <div id="btSources" class="bt-chips" role="group" data-aria="battleSources"></div>
+                  <div class="lk-l" data-i18n="battleVoting"></div>
+                  <div class="seg lk-seg bt-vm" role="radiogroup" data-aria="battleVoting">
+                    <label
+                      ><input type="radio" name="btVoting" value="chat" /><span
+                        ><em aria-hidden="true">💬</em><b data-i18n="battleVoteChat"></b><small data-i18n="battleVoteChatHint"></small></span></label
+                    ><label
+                      ><input type="radio" name="btVoting" value="me" /><span
+                        ><em aria-hidden="true">👑</em><b data-i18n="battleVoteMe"></b><small data-i18n="battleVoteMeHint"></small></span
+                    ></label>
+                  </div>
+                  <label class="lk-tg"
+                    ><span class="switch"><input type="checkbox" data-k="signIn" /><span></span></span
+                    ><span><span data-i18n="battleSignIn"></span><small data-i18n="battleSignInHint"></small></span
+                  ></label>
+                  <label class="lk-tg"
+                    ><span class="switch"><input type="checkbox" data-k="showNames" /><span></span></span
+                    ><span><span data-i18n="battleShowNames"></span><small data-i18n="battleShowNamesHint"></small></span
+                  ></label>
+                  <label class="lk-tg"
+                    ><span class="switch"><input type="checkbox" data-k="blurCovers" /><span></span></span
+                    ><span><span data-i18n="battleBlurCovers"></span><small data-i18n="battleBlurCoversHint"></small></span
+                  ></label>
+                  <label class="lk-tg"
+                    ><span class="switch"><input type="checkbox" data-k="hideTitles" /><span></span></span
+                    ><span><span data-i18n="battleHideTitles"></span><small data-i18n="battleHideTitlesHint"></small></span
+                  ></label>
+                  <label class="lk-tg"
+                    ><span class="switch"><input type="checkbox" data-k="mods" /><span></span></span
+                    ><span><span data-i18n="battleMods"></span><small data-i18n="battleModsHint"></small></span
+                  ></label>
+                  <div id="btModBox" class="bt-modbox" hidden>
+                    <form id="btModForm" class="bt-row">
+                      <select id="btModFrom" data-aria="battleModFrom"></select>
+                      <input id="btModName" class="lk-t" type="text" maxlength="30" dir="ltr" data-placeholder="battleModName" data-aria="battleModName" />
+                      <button class="lk-btn o bt-sm" data-i18n="battleModAdd"></button>
+                    </form>
+                    <div id="btMods" class="bt-mods"></div>
+                  </div>
+                </fieldset>
+                <button id="btOpen" class="lk-btn g lk-wide bt-go" data-i18n="battleOpen"></button>
+              </div>
+              <div class="lk-card bt-share">
+                <h2 data-i18n="battleInvite"></h2>
+                <p id="btInviteSub" class="lk-sub"></p>
+                <div class="bt-qr"><img id="btQr" alt="" /></div>
+                <div class="bt-pin" data-i18n="battleFixedLink"></div>
+                <div class="bt-row bt-link"><code id="btUrl" dir="ltr"></code><button id="btCopy" class="lk-btn o bt-sm" data-i18n="copy"></button></div>
+                <button id="btChat" class="lk-btn o lk-wide" data-i18n="battlePostChat"></button>
+                <p id="btChatWhy" class="bt-warn" role="alert" hidden></p>
+                <p id="btWho" class="lk-mini bt-who"></p>
+              </div>
+              <div class="lk-card">
+                <div class="lk-ehead">
+                  <h2 data-i18n="battleSongs"></h2>
+                  <span id="btCount" class="bt-count"></span>
+                </div>
+                <div class="lk-status"><span id="btStatus" class="lk-pill"></span></div>
+                <form id="btAdd" class="bt-row">
+                  <input id="btLink" class="lk-t" type="text" maxlength="500" dir="ltr" />
+                  <button class="lk-btn o bt-sm" data-i18n="battleAddSong"></button>
+                </form>
+                <p id="btBlurHint" class="bt-hint" data-i18n="battleBlurHint"></p>
+                <ol id="btList" class="bt-list"></ol>
+                <div class="lk-acts">
+                  <button id="btStart" class="lk-btn g" data-i18n="battleStart"></button>
+                  <button id="btCancel" class="lk-btn r"><span data-i18n="battleCancel"></span></button>
+                </div>
+              </div>
+            </div>
+            <!-- The battle screen, once it's live (core/battle.js runs it): the match on now, its two songs face to face, each in
+             its site's own player (battle-player.html) under Jarchi's buttons (js/battle.js builds them), and the vote between
+             them. A tie: the lucky coin. Bracket: every round, then the champion. After the final: the champion. -->
+            <div id="btLive" class="bt-live" hidden>
+              <div id="btBracket" class="bt-brk" hidden></div>
+              <div id="btArena" class="bt-arena">
+                <div class="bt-side s1"></div>
+                <div id="btPod" class="bt-pod"></div>
+                <div class="bt-side s2"></div>
+              </div>
+              <div id="btTie" class="bt-tie" hidden>
+                <div class="bt-tside s1"></div>
+                <div class="bt-tmid">
+                  <div class="bt-tlabel" data-i18n="battleTie"></div>
+                  <div class="bt-coinw">
+                    <div id="btCoin" class="lk-coin bt-coin"></div>
+                    <div class="bt-csh"></div>
+                  </div>
+                  <div class="bt-cres">
+                    <span class="ch1"><u>1</u><span data-i18n="battleHeads"></span></span>
+                    <span class="ch2"><u>2</u><span data-i18n="battleTails"></span></span>
+                  </div>
+                  <button id="btFlip" class="lk-btn g" data-i18n="battleFlip"></button>
+                  <small id="btTmsg" class="bt-dim" aria-live="polite"></small>
+                </div>
+                <div class="bt-tside s2"></div>
+              </div>
+            </div>
+            <dialog id="btChamp" class="bt-champ">
+              <div class="bt-cup" aria-hidden="true">🏆</div>
+              <b data-i18n="battleChampion"></b>
+              <div id="btChampSong"></div>
+              <button id="btAgain" class="lk-btn g" data-i18n="battleNew"></button>
+            </dialog>
           </section>
           <section class="view soon" data-view="clips" hidden>
             <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -2298,6 +2448,7 @@
     <script src="js/eyes.js"></script>
     <script src="js/crypto-alerts.js"></script>
     <script src="js/luck.js"></script>
+    <script src="js/battle.js"></script>
     <script src="js/art.js"></script>
     <script src="js/start.js"></script>
   </body>

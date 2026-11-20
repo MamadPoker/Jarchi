@@ -6139,7 +6139,7 @@ dialog.crypto-hello {
   color: var(--muted);
   font-size: 11px;
 }
-.luck input.lk-t {
+:is(.luck, .battle) input.lk-t {
   padding: 9px 11px;
   background: var(--bg);
   font-size: 14px;
@@ -6186,10 +6186,10 @@ dialog.crypto-hello {
 .lk-first {
   margin-top: 14px;
 }
-.luck .switch input:checked + span {
+:is(.luck, .battle) .switch input:checked + span {
   background: var(--main-fill);
 }
-.luck .switch input:checked + span::after {
+:is(.luck, .battle) .switch input:checked + span::after {
   background: var(--on-main);
 }
 button.lk-btn {
@@ -7043,7 +7043,7 @@ button#lkAgain {
 :root[data-pop] main {
   padding: 0 22px 40px;
 }
-:root[data-pop] .view.luck {
+:root[data-pop] :is(.view.luck, .view.battle) {
   max-width: none;
 }
 :root[data-pop] .lk-pane {
@@ -7051,7 +7051,7 @@ button#lkAgain {
   max-width: 1180px;
   margin: 0 auto;
 }
-:root[data-pop] .lk-head {
+:root[data-pop] :is(.lk-head, .bt-head) {
   position: sticky;
   top: 0;
   z-index: 100;
@@ -7062,7 +7062,7 @@ button#lkAgain {
   background: var(--sidebar);
   -webkit-app-region: drag;
 }
-:root[data-pop] .lk-head :is(button, label) {
+:root[data-pop] :is(.lk-head, .bt-head) :is(button, label) {
   -webkit-app-region: no-drag;
 }
 :root[data-pop] .lk-tabs {
@@ -7070,4 +7070,1079 @@ button#lkAgain {
 }
 :root[data-pop] .lk-tabs button {
   padding: 5px 14px;
+}
+
+/* ---------- Song Battle (js/battle.js): Connect (the Crypto page's hero), then the setup, the page link with its QR code
+   and the songs viewers send, as in the design. The songs are blurred until the mouse (or the keyboard) is on one. ---------- */
+.view.battle {
+  max-width: 1300px;
+}
+.bt-logo {
+  padding-top: 10px;
+  font-size: 64px;
+  line-height: 1;
+}
+.bt-grid:not([hidden]) {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 0.85fr) minmax(0, 1.1fr);
+  gap: 16px;
+  align-items: start;
+  animation: lk-fi 0.35s ease;
+}
+@container (max-width: 1100px) {
+  .bt-grid:not([hidden]) {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+  .bt-grid > :last-child {
+    grid-column: 1 / -1;
+  }
+}
+@container (max-width: 760px) {
+  .bt-grid:not([hidden]) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.bt-form {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.bt-form:disabled {
+  opacity: 0.6;
+}
+.bt-form:disabled * {
+  cursor: default;
+}
+.bt-fixed {
+  margin: 8px 0 0;
+  padding: 7px 10px;
+  border: 1px solid var(--gold-line);
+  border-radius: 9px;
+  background: var(--gold-soft);
+  color: var(--gold-text);
+  font-size: 12.5px;
+}
+.bt-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.bt-row > input {
+  flex: 1;
+  min-width: 0;
+}
+button.lk-btn.bt-sm {
+  flex: none;
+  padding: 7px 12px;
+  border-radius: 10px;
+  font-size: 13px;
+}
+.bt-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.bt-chips label {
+  position: relative;
+}
+.bt-chips input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+.bt-chips span {
+  display: block;
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  color: var(--muted);
+  font:
+    700 12.5px Manrope,
+    Vazirmatn,
+    sans-serif;
+  cursor: pointer;
+  user-select: none;
+}
+.bt-chips input:checked + span {
+  border-color: var(--teal);
+  background: color-mix(in srgb, var(--teal) 14%, transparent);
+  color: var(--text);
+}
+.bt-chips .bt-sim {
+  margin-inline-start: 6px; /* Spotify's "30 sec" */
+}
+.bt-chips input:focus-visible + span {
+  outline: 2px solid var(--focus);
+}
+.seg.bt-vm {
+  flex-direction: column;
+}
+.bt-vm span {
+  display: grid;
+  grid-template-columns: 28px 1fr;
+  column-gap: 8px;
+  align-items: center;
+  padding: 9px 12px;
+  text-align: start;
+}
+.bt-vm em {
+  grid-row: 1 / 3;
+  font-size: 18px;
+  font-style: normal;
+}
+.bt-vm b {
+  color: var(--text);
+  font-size: 13.5px;
+}
+.bt-vm small {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 11.5px;
+}
+.bt-vm input:checked + span b {
+  color: var(--gold-text);
+}
+.bt-modbox {
+  margin-top: 8px;
+}
+.bt-modbox select {
+  flex: none;
+  padding: 8px;
+  border-radius: 10px;
+}
+.bt-mods {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+.bt-mod {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 4px 3px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--card2);
+  font-size: 12px;
+}
+button.lk-btn.bt-go {
+  margin-top: 16px;
+  padding: 11px;
+}
+.bt-share {
+  text-align: center;
+}
+.bt-qr {
+  width: 170px;
+  margin: 4px auto 10px;
+  padding: 10px;
+  border-radius: 14px;
+  background: #fff; /* a QR code reads dark on light, in every theme */
+}
+.bt-qr img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+}
+.bt-pin {
+  margin-bottom: 8px;
+  color: var(--muted);
+  font-size: 13px;
+}
+.bt-link {
+  padding: 5px 5px 5px 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+}
+.bt-link code {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font:
+    700 13px Manrope,
+    sans-serif;
+  text-align: start;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bt-warn {
+  margin: 8px 0 0;
+  padding: 7px 9px;
+  border: 1px solid var(--warn-line);
+  border-radius: 9px;
+  background: var(--warn-soft);
+  color: var(--warn);
+  font-size: 12.5px;
+  text-align: start;
+}
+.bt-who {
+  margin: 10px 0 0;
+}
+.bt-count {
+  color: var(--muted);
+  font:
+    800 14px Manrope,
+    Vazirmatn,
+    sans-serif;
+}
+.lk-pill.live {
+  background: color-mix(in srgb, var(--danger) 14%, transparent);
+  color: var(--danger);
+}
+.bt-hint {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 11.5px;
+}
+.bt-list {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  max-height: 420px;
+  margin: 10px 0 0;
+  padding: 0;
+  overflow: auto;
+  list-style: none;
+}
+.bt-song {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  background: var(--bg);
+}
+.bt-song.new {
+  animation: lk-fi 0.3s;
+}
+.bt-cover {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, var(--card2), var(--main-soft));
+  object-fit: cover;
+}
+.bt-txt {
+  display: grid;
+  flex: 1;
+  gap: 3px;
+  min-width: 0;
+}
+.bt-txt b {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  font-size: 13px;
+}
+.bt-txt b bdi {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bt-txt small {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.bt-src {
+  padding: 0 6px;
+  border-radius: 5px;
+  background: var(--card2);
+  font-size: 11px;
+  font-weight: 700;
+}
+.bt-sim {
+  flex: none;
+  padding: 0 6px;
+  border: 1px solid var(--warn-line);
+  border-radius: 6px;
+  background: var(--warn-soft);
+  color: var(--warn);
+  font-size: 10.5px;
+  font-style: normal;
+  font-weight: 700;
+}
+.bt-song .bt-cover,
+.bt-song .bt-txt {
+  filter: blur(7px);
+  transition: filter 0.25s;
+}
+.bt-song:hover .bt-cover,
+.bt-song:hover .bt-txt,
+.bt-song:focus-within .bt-cover,
+.bt-song:focus-within .bt-txt {
+  filter: none;
+}
+button.bt-x {
+  flex: none;
+  padding: 2px 7px;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font-size: 13px;
+}
+button.bt-x:hover {
+  background: var(--hover);
+  color: var(--danger);
+}
+.bt-empty {
+  padding: 10px;
+  border: 1px dashed var(--border);
+  border-radius: 11px;
+  color: var(--muted);
+  font-size: 12px;
+  text-align: center;
+}
+#btStart {
+  flex: 1;
+}
+
+/* The battle screen: the match on now, song 1 (teal) on the left and song 2 (gold) on the right in both languages
+   (what chat types), each in its site's player under Jarchi's buttons; the vote in the middle. A tie: the coin. */
+.bt-live:not([hidden]) {
+  display: grid;
+  gap: 14px;
+  animation: lk-fi 0.35s ease;
+}
+.bt-arena:not([hidden]),
+.bt-tie:not([hidden]) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 220px minmax(0, 1fr);
+  gap: 18px;
+  align-items: center;
+  padding-top: 16px;
+  direction: ltr;
+}
+.bt-tie:not([hidden]) {
+  grid-template-columns: minmax(0, 1fr) 300px minmax(0, 1fr);
+}
+[dir='rtl'] :is(.bt-arena, .bt-tie) > * {
+  direction: rtl;
+}
+@container (max-width: 900px) {
+  .bt-arena:not([hidden]),
+  .bt-tie:not([hidden]) {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 28px;
+  }
+  .bt-pod {
+    order: 3;
+  }
+}
+.bt-side,
+.bt-tside {
+  --side: var(--teal);
+  position: relative;
+  padding: 14px;
+  border: 1px solid color-mix(in srgb, var(--side) 50%, transparent);
+  border-radius: 16px;
+  background: var(--card2);
+  transition:
+    opacity 0.3s,
+    box-shadow 0.3s;
+}
+.bt-side.s2,
+.bt-tside.s2 {
+  --side: var(--gold);
+}
+.bt-side.lead,
+.bt-side.win,
+.bt-tside.win {
+  box-shadow:
+    0 0 0 2px var(--gold),
+    0 0 34px color-mix(in srgb, var(--gold) 35%, transparent);
+}
+.bt-side.lose,
+.bt-tside.lose {
+  opacity: 0.45;
+  filter: grayscale(0.6);
+}
+.bt-num {
+  position: absolute;
+  top: -14px;
+  left: 14px;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: var(--side);
+  box-shadow: 0 4px 14px var(--shadow);
+  color: var(--on-gold);
+  font:
+    900 19px Manrope,
+    sans-serif;
+}
+.s2 > .bt-num {
+  right: 14px;
+  left: auto;
+}
+.bt-media {
+  position: relative;
+  height: 232px;
+  overflow: hidden;
+  border-radius: 12px;
+  background: #000;
+  transition: filter 0.3s;
+}
+.bt-side.playing .bt-media {
+  box-shadow: 0 0 0 2px var(--side);
+}
+.bt-frame {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+.bt-side.blur .bt-media,
+.bt-tside.blur .bt-tcover,
+.bt-cw.blur .bt-cover {
+  filter: blur(14px) saturate(0.8);
+}
+.bt-side.blur:hover .bt-media,
+.bt-tside.blur:hover .bt-tcover,
+.bt-cw.blur:hover .bt-cover {
+  filter: none;
+}
+.bt-curtain:not([hidden]) {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border: 0;
+  border-radius: 0;
+  background: linear-gradient(135deg, var(--card), var(--bg));
+  color: var(--muted);
+  font-size: 12.5px;
+}
+.bt-curtain b {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--side);
+  color: var(--on-gold);
+  font-size: 20px;
+}
+.bt-err:not([hidden]) {
+  margin: 8px 0 0;
+  color: var(--warn);
+  font-size: 12.5px;
+}
+.bt-err a {
+  color: inherit;
+}
+.bt-title {
+  display: block;
+  margin-top: 11px;
+  overflow: hidden;
+  font:
+    800 15px Manrope,
+    Vazirmatn,
+    sans-serif;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bt-title small {
+  margin-inline-start: 6px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+.bt-by {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 18px;
+  margin-top: 3px;
+  color: var(--muted);
+  font:
+    600 12.5px Manrope,
+    Vazirmatn,
+    sans-serif;
+}
+.bt-ctl {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  direction: ltr;
+}
+button.bt-pbn {
+  flex: none;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+  font:
+    700 11.5px Manrope,
+    Vazirmatn,
+    sans-serif;
+  white-space: nowrap;
+}
+button.bt-pp {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--side);
+  color: var(--on-gold);
+  font-size: 12px;
+}
+button.bt-pp svg {
+  display: block;
+  width: 14px;
+  height: 14px;
+  margin: auto;
+  fill: currentColor;
+  stroke: none;
+}
+.bt-ctl input[type='range'] {
+  flex: 1;
+  min-width: 40px;
+}
+[dir] .bt-ctl input[type='range']::-webkit-slider-runnable-track {
+  background:
+    linear-gradient(var(--side), var(--side)) 0 0 / var(--fill, 0%) 100% no-repeat,
+    var(--border);
+}
+.bt-ctl input[type='range']::-webkit-slider-thumb {
+  border-color: var(--side);
+}
+.bt-ctl input[type='range']::-moz-range-progress {
+  background: var(--side);
+}
+.bt-tm {
+  color: var(--muted);
+  font:
+    700 11px Manrope,
+    sans-serif;
+  white-space: nowrap;
+}
+.bt-vote:not([hidden]) {
+  display: block;
+  margin-top: 14px;
+}
+.bt-vb {
+  height: 12px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--bg);
+}
+.bt-vb i {
+  display: block;
+  width: 0;
+  height: 100%;
+  background: var(--side);
+  transition: width 0.4s;
+}
+.bt-vn {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-top: 6px;
+}
+.bt-vn b {
+  font:
+    900 22px Manrope,
+    Vazirmatn,
+    sans-serif;
+}
+.bt-vn span {
+  color: var(--muted);
+  font-size: 12.5px;
+}
+.bt-pick:not([hidden]) {
+  display: block;
+  width: 100%;
+  margin-top: 12px;
+}
+
+/* The middle card: VS, then the timer ring and the vote's buttons, who leads, or the winner. */
+.bt-pod {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 18px 14px 16px;
+  border: 1px solid var(--tint);
+  border-radius: 22px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--teal) 7%, transparent), color-mix(in srgb, var(--gold) 6%, transparent));
+  box-shadow: 0 20px 50px -20px var(--shadow);
+  text-align: center;
+}
+.bt-vsb {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  margin-top: -44px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--danger), color-mix(in srgb, var(--danger), #000 35%));
+  box-shadow:
+    0 0 0 5px var(--bg),
+    0 0 28px color-mix(in srgb, var(--danger) 45%, transparent);
+  color: var(--on-color);
+  font:
+    900 20px Manrope,
+    sans-serif;
+}
+.bt-ring {
+  position: relative;
+  width: 128px;
+  height: 128px;
+}
+.bt-ring svg {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+.bt-ring .rt,
+.bt-ring .rf {
+  fill: none;
+  stroke-width: 9;
+}
+.bt-ring .rt {
+  stroke: var(--border);
+}
+.bt-ring .rf {
+  stroke: url(#btRg);
+  stroke-dasharray: 326.7;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.25s linear;
+}
+.bt-ring.on {
+  filter: drop-shadow(0 0 14px color-mix(in srgb, var(--gold) 35%, transparent));
+}
+.bt-ring .rc {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.bt-ring b {
+  font:
+    900 38px Manrope,
+    Vazirmatn,
+    sans-serif;
+  line-height: 1;
+}
+.bt-ring small {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 11.5px;
+}
+.bt-pst {
+  display: flex;
+  align-items: center;
+  min-height: 30px;
+  color: var(--muted);
+  font-size: 13.5px;
+  font-weight: 800;
+}
+.bt-livep {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border: 1px solid var(--danger-line);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--danger) 10%, transparent);
+  color: var(--danger-text);
+}
+.bt-livep i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--danger);
+  animation: bt-blink 1s infinite;
+}
+@keyframes bt-blink {
+  50% {
+    opacity: 0.25;
+  }
+}
+.bt-keys small {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.bt-keys div {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  direction: ltr;
+}
+.bt-keys span {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 40px;
+  border: 1px solid color-mix(in srgb, currentColor 50%, transparent);
+  border-bottom: 4px solid;
+  border-radius: 11px;
+  font:
+    900 20px Manrope,
+    sans-serif;
+}
+.bt-keys .k1,
+.bt-cres .ch1 {
+  --side: var(--teal);
+}
+.bt-keys .k2,
+.bt-cres .ch2 {
+  --side: var(--gold);
+}
+.bt-keys span,
+.bt-cres u {
+  background: color-mix(in srgb, var(--side) 14%, var(--card));
+  color: var(--side);
+}
+.bt-pb {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+}
+.bt-pb .lk-btn {
+  width: 100%;
+}
+.bt-len {
+  color: var(--muted);
+  font-size: 12px;
+}
+.bt-len select {
+  padding: 3px 6px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+}
+.bt-pwin {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  max-width: 100%;
+}
+.bt-pwin b {
+  overflow: hidden;
+  color: var(--gold-text);
+  font:
+    800 17px Manrope,
+    Vazirmatn,
+    sans-serif;
+  text-overflow: ellipsis;
+}
+.bt-pwin small,
+.bt-mh {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.8;
+}
+.bt-pc {
+  font-size: 40px;
+  animation: lk-pop 0.5s cubic-bezier(0.3, 1.6, 0.5, 1);
+}
+.bt-pmsg {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 0;
+}
+.bt-pmsg span {
+  font-size: 30px;
+}
+.bt-pmsg b {
+  font-size: 15px;
+}
+.bt-pmsg small {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.8;
+}
+
+/* A tie: the two songs, and the lucky coin between them. */
+.bt-tside {
+  padding: 22px 14px 14px;
+  text-align: center;
+}
+.bt-tcover {
+  display: block;
+  width: 100%;
+  height: 120px;
+  margin-bottom: 10px;
+  border-radius: 12px;
+  background: var(--card);
+  object-fit: cover;
+  transition: filter 0.3s;
+}
+.bt-tside b {
+  font:
+    800 15px Manrope,
+    Vazirmatn,
+    sans-serif;
+}
+.bt-tv {
+  margin-top: 4px;
+  color: var(--muted);
+  font:
+    700 13px Manrope,
+    Vazirmatn,
+    sans-serif;
+}
+.bt-tmid {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  text-align: center;
+}
+.bt-tlabel {
+  color: var(--gold-text);
+  font-size: 18px;
+  font-weight: 900;
+}
+.bt-coinw {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  height: 250px;
+  perspective: 700px;
+  filter: drop-shadow(0 14px 18px rgb(0 0 0 / 0.55));
+}
+.lk-coin.bt-coin {
+  width: 170px;
+  height: 170px;
+  cursor: default;
+}
+.bt-coin .lk-clogo {
+  width: 74px;
+}
+.bt-csh {
+  width: 120px;
+  height: 12px;
+  margin-top: 18px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgb(0 0 0 / 0.5), transparent 70%);
+}
+.bt-cres {
+  display: flex;
+  gap: 8px;
+}
+.bt-cres > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px 5px 6px;
+  border: 1px solid color-mix(in srgb, var(--side) 40%, transparent);
+  border-radius: 999px;
+  background: var(--bg);
+  color: var(--side);
+  font-size: 12.5px;
+  font-weight: 700;
+}
+.bt-cres u {
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
+  font:
+    900 13px Manrope,
+    sans-serif;
+  text-decoration: none;
+}
+.bt-dim {
+  color: var(--muted);
+  font-size: 12.5px;
+}
+.bt-gd {
+  color: var(--gold-text);
+}
+
+/* After the final: the champion. */
+dialog.bt-champ {
+  overflow: visible;
+  padding: 26px 34px;
+  border: 1px solid var(--gold-line);
+  border-radius: 20px;
+  background: radial-gradient(circle at 50% 20%, color-mix(in srgb, var(--gold) 16%, var(--card)), var(--card) 70%);
+  color: var(--text);
+  text-align: center;
+}
+dialog.bt-champ[open] {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  animation: lk-pop 0.5s cubic-bezier(0.3, 1.6, 0.5, 1);
+}
+dialog.bt-champ::backdrop {
+  background: rgba(3, 8, 7, 0.75);
+  backdrop-filter: blur(3px);
+}
+.bt-cup {
+  font-size: 56px;
+  line-height: 1;
+}
+dialog.bt-champ > b {
+  color: var(--gold-text);
+  font-size: 18px;
+}
+.bt-cw {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 380px;
+  padding: 8px 12px 8px 8px;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  background: var(--bg);
+  text-align: start;
+}
+
+/* The battle page's head: while a battle is live, Game | Bracket, the round and a dot per match (done teal, on now
+   gold), then Pop out and Cancel battle. In the pop-out it's the window's title bar (with the Luck page's rules above),
+   with the language switch and Always on top; the page below keeps the panel's width. */
+.bt-round {
+  font-size: 15px;
+}
+.bt-prog:not([hidden]) {
+  display: flex;
+  flex: 0 1 300px;
+  gap: min(4px, calc(160px / var(--n, 1)));
+  min-width: 0;
+}
+.bt-prog i {
+  flex: 0 1 22px;
+  min-width: 1px;
+  height: 6px;
+  border-radius: 9px;
+  background: var(--border-hi);
+}
+.bt-prog i.d {
+  background: var(--teal);
+}
+.bt-prog i.c {
+  background: var(--gold);
+}
+#btLang {
+  margin-inline-start: auto; /* the pop-out's: at the bar's end, then Always on top */
+}
+:root[data-pop] .view.battle > :not(.bt-head, dialog) {
+  width: 100%;
+  max-width: 1300px;
+  margin-inline: auto;
+}
+
+/* The Bracket tab: a column per round, left to right in both languages, then the champion's card. */
+.bt-brk:not([hidden]) {
+  display: flex;
+  gap: 18px;
+  align-items: stretch;
+  padding: 16px 2px 6px;
+  overflow-x: auto;
+  direction: ltr;
+}
+[dir='rtl'] :is(.bt-rcol, .bt-champ-card) {
+  direction: rtl;
+}
+.bt-rcol {
+  display: flex;
+  flex: 0 0 170px;
+  flex-direction: column;
+  gap: 10px;
+}
+.bt-rcol h5 {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
+}
+.bt-ms {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  justify-content: space-around;
+  gap: 14px;
+}
+.bt-m {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--card2);
+}
+.bt-m.fin {
+  border-color: var(--gold-line);
+}
+.bt-m.cur {
+  border-color: var(--gold);
+  box-shadow: 0 0 18px color-mix(in srgb, var(--gold) 25%, transparent);
+}
+.bt-m p {
+  margin: 0;
+  padding: 6px 10px;
+  overflow: hidden;
+  color: var(--muted);
+  font:
+    700 12.5px Manrope,
+    Vazirmatn,
+    sans-serif;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bt-m p + p {
+  border-top: 1px solid var(--border);
+}
+.bt-m p.w {
+  background: color-mix(in srgb, var(--teal) 22%, var(--card2));
+  color: var(--text);
+}
+.bt-champ-card {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  align-items: center;
+  align-self: center;
+  gap: 8px;
+  max-width: 300px;
+  margin-left: auto; /* physical: the bracket runs left to right in both languages */
+  padding: 18px 22px;
+  border: 1px solid var(--gold-line);
+  border-radius: 16px;
+  background: radial-gradient(circle at 50% 20%, color-mix(in srgb, var(--gold) 18%, transparent), transparent 70%);
+  text-align: center;
+}
+.bt-champ-card .bt-cup {
+  font-size: 46px;
+}
+.bt-champ-card > b {
+  color: var(--gold-text);
+  font-size: 16px;
+}
+.bt-champ-card > small {
+  color: var(--muted);
+  font-size: 12px;
 }
