@@ -7184,6 +7184,9 @@ button.lk-btn.bt-sm {
   background: color-mix(in srgb, var(--teal) 14%, transparent);
   color: var(--text);
 }
+.bt-chips .bt-sim {
+  margin-inline-start: 6px; /* Spotify's "30 sec" */
+}
 .bt-chips input:focus-visible + span {
   outline: 2px solid var(--focus);
 }

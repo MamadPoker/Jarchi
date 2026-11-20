@@ -132,7 +132,7 @@ test('Song Battle: connect once, a battle with its live song list, start, cancel
     topic: '2000s hits',
     size: 16,
     perViewer: 1,
-    sources: ['youtube', 'spotify', 'soundcloud'],
+    sources: ['youtube', 'soundcloud'],
     signIn: true,
     showNames: false,
     blurCovers: false,

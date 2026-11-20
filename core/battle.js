@@ -36,7 +36,7 @@ const SETUP = {
   topic: '',
   size: 8,
   perViewer: 1,
-  sources: SOURCES,
+  sources: ['youtube', 'soundcloud'], // Spotify off: in Jarchi it plays 30 seconds of a song (no Widevine)
   voting: 'chat',
   signIn: true,
   showNames: false,

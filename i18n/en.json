@@ -131,6 +131,8 @@
     "battleSize": "Songs in the battle",
     "battlePer": "Songs each viewer can send",
     "battleSources": "Links viewers can send",
+    "battle30s": "30 sec",
+    "battle30sHint": "In Jarchi a Spotify song plays only 30 seconds, so Spotify starts off",
     "battleVoting": "Voting",
     "battleVoteChat": "Chat votes",
     "battleVoteChatHint": "Viewers type 1 or 2 in chat",

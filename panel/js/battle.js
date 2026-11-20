@@ -203,8 +203,10 @@ function wireBattle(socket) {
     $(box).replaceChildren(...values.map((v) => el('label', {}, el('input', { type: 'radio', name, value: String(v) }), el('span', { textContent: fd(v) }))));
   choices('#btSize', 'btSize', BT_SIZES);
   choices('#btPer', 'btPer', BT_PER);
+  // Spotify's chip says it: in Jarchi a Spotify song plays 30 seconds (battle-player.js), so it's off at first too.
+  const short = (v) => (v === 'spotify' ? [el('em', { className: 'bt-sim', textContent: S.panel.battle30s, title: S.panel.battle30sHint })] : []);
   $('#btSources').replaceChildren(
-    ...Object.entries(BT_SOURCES).map(([v, name]) => el('label', {}, el('input', { type: 'checkbox', value: v }), el('span', { textContent: name }))),
+    ...Object.entries(BT_SOURCES).map(([v, name]) => el('label', {}, el('input', { type: 'checkbox', value: v }), el('span', {}, name, ...short(v)))),
   );
   for (const [name, set] of [
     ['btSize', (v) => ({ size: Number(v) })],
