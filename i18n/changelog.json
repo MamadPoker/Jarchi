@@ -1,6 +1,12 @@
 [
   {
     "version": "unreleased",
+    "types": [],
+    "en": [],
+    "fa": []
+  },
+  {
+    "version": "1.0.10",
     "types": ["feature", "improve", "feature", "feature", "improve", "fix", "fix", "improve", "improve", "improve"],
     "en": [
       "New Song Battle page: viewers send songs at battle.jarchi.app, songs battle two by two, chat votes 1 or 2, and a champion wins. With a bracket, a lucky coin for ties, and a Pop out window for OBS",
