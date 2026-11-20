@@ -90,11 +90,9 @@ const EVENTS = {
 };
 const EVENT_COLOR = { kick: '#53fc18', twitch: '#9146ff' }; // the platforms' own colors
 const GEMS = [10000, 5000, 1000, 100, 1]; // Twitch's cheer gems, by amount (assets/twitch-bits)
-// The user's Custom CSS (Advanced box), after the page's own CSS so it wins. Set as text, so nothing in it is ever HTML
-// (a "</style>" can't end it).
-const userCss = document.head.appendChild(document.createElement('style'));
-// An exclusive design's CSS (x-<name>: core/designs.js checked it; never a script), before the user's CSS so theirs wins.
-const designCss = document.head.insertBefore(document.createElement('style'), userCss);
+// An exclusive design's CSS (x-<name>: core/designs.js checked it; never a script), after the page's own CSS so it wins.
+// Set as text, so nothing in it is ever HTML (a "</style>" can't end it).
+const designCss = document.head.appendChild(document.createElement('style'));
 const designs = new Map(); // id -> its CSS (a promise; '' when it can't be had)
 const designOf = (id) => {
   if (!id.startsWith('x-')) return Promise.resolve('');
@@ -179,12 +177,7 @@ if (params.has('thumb')) {
   socket.on('strings', (s) => (S = s));
   socket.on('settings', (s) => {
     mainSettings = s;
-    const css = s[KEY]?.customCss ?? '';
-    if (userCss.textContent !== css) {
-      userCss.textContent = css;
-      refit(); // names readable on what the CSS put behind them
-    }
-    const now = JSON.stringify(s[KEY] && { ...s[KEY], customCss: '' }); // the CSS alone needs no redraw
+    const now = JSON.stringify(s[KEY]);
     if (now === look) return;
     look = now;
     if (!s[KEY]) return void (root.hidden = true); // Chat 2 deleted, or not added yet

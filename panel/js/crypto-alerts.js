@@ -405,6 +405,6 @@ function renderViewers() {
 function drawViewerThumbs() {
   for (const f of $$('.viewers-tile iframe')) {
     const style = f.dataset.style;
-    f.contentWindow?.postMessage({ cfg: { ...settings.viewers, ...viewerData.styles[style], style, size: 1, customCss: '' } }, location.origin);
+    f.contentWindow?.postMessage({ cfg: { ...settings.viewers, ...viewerData.styles[style], style, size: 1 } }, location.origin);
   }
 }
