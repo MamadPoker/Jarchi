@@ -457,6 +457,44 @@
                 </div>
               </div>
             </div>
+            <!-- The battle screen, once it's live (core/battle.js runs it): the match on now, its two songs face to face, each in
+             its site's own player (battle-player.html) under Jarchi's buttons (js/battle.js builds them), and the vote between
+             them. A tie: the lucky coin. After the final: the champion. -->
+            <div id="btLive" class="bt-live" hidden>
+              <div class="bt-bar">
+                <span class="lk-pill live" data-i18n="battleLive"></span>
+                <b id="btRound"></b>
+                <button id="btEnd" class="lk-btn r bt-sm"><span data-i18n="battleCancel"></span></button>
+              </div>
+              <div id="btArena" class="bt-arena">
+                <div class="bt-side s1"></div>
+                <div id="btPod" class="bt-pod"></div>
+                <div class="bt-side s2"></div>
+              </div>
+              <div id="btTie" class="bt-tie" hidden>
+                <div class="bt-tside s1"></div>
+                <div class="bt-tmid">
+                  <div class="bt-tlabel" data-i18n="battleTie"></div>
+                  <div class="bt-coinw">
+                    <div id="btCoin" class="lk-coin bt-coin"></div>
+                    <div class="bt-csh"></div>
+                  </div>
+                  <div class="bt-cres">
+                    <span class="ch1"><u>1</u><span data-i18n="battleHeads"></span></span>
+                    <span class="ch2"><u>2</u><span data-i18n="battleTails"></span></span>
+                  </div>
+                  <button id="btFlip" class="lk-btn g" data-i18n="battleFlip"></button>
+                  <small id="btTmsg" class="bt-dim" aria-live="polite"></small>
+                </div>
+                <div class="bt-tside s2"></div>
+              </div>
+            </div>
+            <dialog id="btChamp" class="bt-champ">
+              <div class="bt-cup" aria-hidden="true">🏆</div>
+              <b data-i18n="battleChampion"></b>
+              <div id="btChampSong" class="bt-cw"></div>
+              <button id="btAgain" class="lk-btn g" data-i18n="battleNew"></button>
+            </dialog>
           </section>
           <section class="view soon" data-view="clips" hidden>
             <svg viewBox="0 0 24 24" aria-hidden="true">

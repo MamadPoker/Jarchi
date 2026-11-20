@@ -15,6 +15,7 @@ const designs = require('../core/designs');
 const pay = require('../core/pay');
 const viewers = require('../core/viewers');
 const luck = require('../core/luck');
+const battle = require('../core/battle');
 const vpn = require('../core/vpn');
 const release = require('../core/release');
 const strings = require('../i18n/en.json');
@@ -117,5 +118,6 @@ module.exports = function sockets({ io, view, changed, DEV }) {
   messages.events.on('change', (list) => io.to('panel').emit('teamMessages', list));
   designs.events.on('change', () => io.to('panel').emit('chatStyles')); // a design unlocked or downloaded again: Chat styles asks again
   pay.events.on('state', (st) => io.to('panel').emit('crypto', st));
+  battle.events.on('state', (st) => io.to('panel').emit('battle', st)); // the battle screen: votes, its timer
   release.events.on('found', (r) => io.emit('devUpdate', r));
 };

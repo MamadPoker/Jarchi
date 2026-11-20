@@ -1,7 +1,8 @@
 // The Song Battle page's link to Jarchi Battle (core/battle.js), against a stand-in for its app API: nothing asked
 // before the Privacy Policy is accepted or before Connect; the one-time link; the key taken once, sealed on disk and
 // never sent to the panel; a battle with the setup, its song feed, the streamer's own song, Remove, Start, Cancel;
-// after a restart, the battle that hasn't finished; a stopped key (401). And the page link's QR code (core/qr.js).
+// after a restart, the battle that hasn't finished; a stopped key (401). The battle screen: the bracket, chat votes,
+// the winners, the live state saved there (vote counts only), the champion. And the page link's QR code (core/qr.js).
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const crypto = require('node:crypto');
@@ -67,7 +68,7 @@ globalThis.fetch = async (url, init = {}) => {
     };
     return json({ id: ID, url: `${JB}/mamad` }, 201);
   }
-  if (at === 'GET /api/app/battles/current') return json({ battle: b && { ...b, bracket: [], current: null, votes: 0 } });
+  if (at === 'GET /api/app/battles/current') return json({ battle: b?.status === 'finished' ? null : b && { bracket: [], current: null, votes: 0, ...b } });
   if (!b) return json({ error: 'not_found' }, 404);
   if (at === `GET ${on}/songs`) {
     const since = Number(u.searchParams.get('since')),
@@ -83,6 +84,9 @@ globalThis.fetch = async (url, init = {}) => {
   if (at.startsWith(`DELETE ${on}/songs/`)) return done();
   if (at === `POST ${on}/start`) return b.status === 'live' ? json({ error: 'state' }, 409) : ((b.status = 'live'), done());
   if (at === `POST ${on}/cancel`) return ((jb.battle = null), done());
+  if (b.status !== 'live' && /\/(live|finish)$/.test(at)) return json({ error: 'state' }, 409);
+  if (at === `PUT ${on}/live`) return (Object.assign(b, jb.asked.at(-1).body), done());
+  if (at === `POST ${on}/finish`) return ((b.status = 'finished'), (b.champion = jb.asked.at(-1).body.champion), done());
   return json({ error: 'not_found' }, 404);
 };
 
@@ -189,7 +193,7 @@ test('Song Battle: connect once, a battle with its live song list, start, cancel
 
   // Start again: Jarchi Battle says it moved on (409): the battle is taken again as it is.
   await assert.rejects(battle.start(), { code: 'battle_state' });
-  assert.equal(jb.asked.at(-1).at, 'GET /api/app/battles/current');
+  assert.equal(jb.asked.filter((a) => !a.at.endsWith('/live')).at(-1).at, 'GET /api/app/battles/current'); // a live save may come between
 
   // Cancel: no battle; the setup is still there for the next one.
   st = await battle.cancel();
@@ -201,6 +205,127 @@ test('Song Battle: connect once, a battle with its live song list, start, cancel
   st = await battle.refresh();
   assert.deepEqual([st.state, st.lost, st.error], ['none', true, undefined]);
   assert.ok(!disk().includes('enc:'), 'the key is gone from disk');
+});
+
+test('Song Battle bracket: the first round has every song once, byes go through by themselves, never two in a match', () => {
+  const { bracketFor } = start(),
+    ids = (n) => Array.from({ length: n }, (_, i) => `s${i}`);
+  assert.deepEqual(
+    bracketFor(ids(2)).map((r) => r.length),
+    [1],
+  );
+  for (const [n, rounds, byes] of [
+    [5, [4, 2, 1], 3],
+    [8, [4, 2, 1], 0],
+    [9, [8, 4, 2, 1], 7],
+    [128, [64, 32, 16, 8, 4, 2, 1], 0],
+  ]) {
+    const R = bracketFor(ids(n));
+    assert.deepEqual(
+      R.map((r) => r.length),
+      rounds,
+    );
+    assert.deepEqual(
+      R[0]
+        .flatMap((x) => x.slice(0, 2))
+        .filter(Boolean)
+        .sort(),
+      ids(n).sort(),
+    );
+    const alone = R[0].filter((x) => x[1] === null);
+    assert.equal(alone.length, byes);
+    assert.ok(alone.every((x) => x[0] && x[2] === 0)); // a bye: one song, and it's through
+    R[0].forEach((x, m) => x[2] === 0 && assert.equal(R[1][m >> 1][m & 1], x[0]));
+  }
+});
+
+test('Song Battle screen: chat votes (one each, the last counts), the winners, after a restart, the champion; counts only', async () => {
+  jb.live = true;
+  jb.status = { status: 'connected', channel: 'mamad', platform: 'kick', key: APP_KEY };
+  let battle = start();
+  await battle.request();
+  assert.equal((await battle.refresh()).state, 'connected');
+  battle.update({ voting: 'chat', voteTime: 30 });
+  assert.throws(() => battle.update({ voteTime: 45 }), { code: 'bad_request' });
+  await battle.create({ topic: 'Live' });
+  jb.battle.songs = [1, 2, 3, 4].map((n) => song(n));
+  await battle.refresh();
+  let st = await battle.start();
+  const at = st.battle.current,
+    match = () => battle.now().battle.bracket[at[0]][at[1]];
+  assert.deepEqual(at, [0, 0]);
+
+  // Chat: 1 or 2 (a Persian digit too) once the vote is on; one vote each, the last counts; tests and other text don't.
+  let { bus } = require('../core/events');
+  const say = (login, text, more) => bus.emit('chat', { platform: 'kick', kind: 'message', text, user: { login }, ...more });
+  say('voter_early', '1');
+  assert.deepEqual(match().slice(3), [0, 0]);
+  st = battle.openVote();
+  assert.equal(st.battle.vote.status, 'open');
+  assert.ok(st.battle.vote.endsAt > Date.now() + 29000 && st.battle.vote.endsAt <= Date.now() + 30000);
+  say('voter_a', '1');
+  say('voter_b', ' 2 ');
+  say('Voter_A', '2'); // changed their mind
+  say('voter_c', '۱');
+  say('voter_g', '1');
+  bus.emit('chat', { platform: 'twitch', kind: 'message', text: '1', user: { login: 'voter_a' } }); // someone else on Twitch
+  say('voter_d', '12');
+  say('voter_e', '1', { test: true });
+  assert.deepEqual(match().slice(3), [3, 2]);
+  st = battle.closeVote();
+  assert.equal(st.battle.vote.status, 'done');
+  say('voter_late', '2');
+  assert.deepEqual(match().slice(3), [3, 2]);
+  assert.ok(!JSON.stringify(st).includes('voter_'), 'who voted never reaches the panel');
+
+  // Vote again: from 0. "I pick the winner": no vote to start.
+  battle.resetVote();
+  assert.deepEqual([match().slice(3), battle.now().battle.vote], [[0, 0], null]);
+  battle.update({ voting: 'me' });
+  assert.throws(() => battle.openVote(), { code: 'battle_state' });
+  battle.update({ voting: 'chat' });
+  battle.openVote();
+  say('voter_a', '2');
+  battle.closeVote();
+
+  // The winner (here the other song: the streamer's call), into the next round; one winner only.
+  st = battle.pick(0);
+  assert.deepEqual(match().slice(2), [0, 0, 1]);
+  assert.equal(st.battle.bracket[1][0][0], match()[0]);
+  assert.throws(() => battle.pick(1), { code: 'battle_state' });
+  assert.throws(() => battle.openVote(), { code: 'battle_state' });
+
+  // Jarchi Battle's page gets the bracket and the match on now (about every 2 s): counts, never who voted.
+  await new Promise((r) => setTimeout(r, 2100));
+  const saves = jb.asked.filter((a) => a.at === `PUT /api/app/battles/${ID}/live`);
+  assert.deepEqual(saves.at(-1).body, { bracket: battle.now().battle.bracket, current: at });
+  assert.ok(!JSON.stringify(saves).includes('voter_'));
+
+  // A restart: the bracket as saved there, the same match on.
+  battle = start();
+  ({ bus } = require('../core/events'));
+  st = await battle.refresh();
+  assert.deepEqual([st.battle.bracket, st.battle.current, st.battle.vote], [saves.at(-1).body.bracket, at, null]);
+
+  // Next match, until the final; then the champion: the last bracket saved first, then finish.
+  await assert.rejects(
+    battle.next().then(() => battle.next()),
+    { code: 'battle_state' },
+  ); // the next one has no winner yet
+  assert.deepEqual(battle.now().battle.current, [0, 1]);
+  battle.pick(1);
+  st = await battle.next();
+  assert.deepEqual(st.battle.current, [1, 0]);
+  battle.pick(0);
+  st = await battle.next();
+  const final = jb.asked.slice(-2);
+  assert.deepEqual(
+    final.map((a) => a.at),
+    [`PUT /api/app/battles/${ID}/live`, `POST /api/app/battles/${ID}/finish`],
+  );
+  assert.equal(final[0].body.bracket[1][0][2], 0);
+  assert.equal(final[1].body.champion, final[0].body.bracket[1][0][0]);
+  assert.deepEqual([st.champion.id, st.battle], [final[1].body.champion, null]);
 });
 
 test("QR code: the page link, as a reference encoder draws it; a text that doesn't fit gets none", () => {

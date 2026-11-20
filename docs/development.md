@@ -19,7 +19,7 @@ core/goals.js        goal counters, fed by the event bus; Kick's own goals with 
 core/store.js        JSON files in the data folder
 core/secrets.js      the Kick and Twitch tokens sealed at rest (installed app), and blanked out of every log line
 core/pay.js          Jarchi Pay (the Crypto page): only its public app API; its token sealed in data/pay.json, never plain (a dev run keeps it in memory)
-core/battle.js       Jarchi Battle (the Song Battle page): only its app API; its key sealed in data/battle.json like the logins
+core/battle.js       Jarchi Battle (the Song Battle page): only its app API; its key sealed in data/battle.json like the logins; runs a live battle (bracket, chat votes, the timer), saved there with vote counts only
 core/qr.js           the Song Battle link's QR code, made here as an SVG (the link never goes to a QR service)
 core/chat.js         runs the chat connectors, adds 7TV emotes, test messages
 core/seventv.js      7TV emote sets (cached)
@@ -28,7 +28,7 @@ connectors/          Kick and Twitch chat readers (+ Twitch badge images), the K
 relay/               Jarchi's Kick relay (Cloudflare Worker): Kick's login and follow webhooks for every Jarchi
 assets/              official platform logos (platform-logos), Kick badge icons (kick-badges), Kick default profile pictures (kick-avatars), OG hats (og-hats), bundled fonts (fonts)
 widgets/<name>/      each widget is a folder, served at /widgets/<name>
-panel/               settings panel (served at /): index.html, panel.css, and js/, one classic script per area, loaded in order by index.html
+panel/               settings panel (served at /): index.html, panel.css, and js/, one classic script per area, loaded in order by index.html; battle-player.html, one Song Battle song in its site's player, loaded from http://localhost (YouTube refuses most music videos at 127.0.0.1)
 electron/            the desktop app: window, tray, updates (main.js), the panel's update bridge (preload.js)
 build/               installer additions (installer.nsh), its pictures (installerSidebar.bmp, installerHeader.bmp), notes.js, which makes the release's text (release-notes.md, not in git) from i18n/changelog.json, release.js (semantic-release's step), check-pr.js (CI's PR rules) and charts.js (the README's star history and downloads charts)
 .github/             workflows: CI (ci.yml), Release (release.yml), Deploy relay (relay.yml), Security (security.yml), Repo charts (charts.yml), PR Labeler (labeler.yml, paths in labeler.yml); PULL_REQUEST_TEMPLATE.md, ISSUE_TEMPLATE/ (bug report, feature request)

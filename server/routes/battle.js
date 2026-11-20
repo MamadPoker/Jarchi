@@ -17,6 +17,12 @@ module.exports = function register(app) {
   app.delete('/api/battle/songs/:id', async (req, res) => res.json(await battle.remove(req.params.id)));
   app.post('/api/battle/start', async (req, res) => res.json(await battle.start()));
   app.post('/api/battle/cancel', async (req, res) => res.json(await battle.cancel()));
+  // The battle screen: the current match's chat vote (start, end now, again), its winner, the next match.
+  app.post('/api/battle/vote', (req, res) => res.json(battle.openVote()));
+  app.post('/api/battle/vote/end', (req, res) => res.json(battle.closeVote()));
+  app.delete('/api/battle/vote', (req, res) => res.json(battle.resetVote()));
+  app.post('/api/battle/winner', (req, res) => res.json(battle.pick(req.body?.side)));
+  app.post('/api/battle/next', async (req, res) => res.json(await battle.next()));
 
   // The page link as a QR code (core/qr.js), for viewers to scan off the stream.
   app.get('/api/battle/qr', (req, res) => {

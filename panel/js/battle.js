@@ -3,7 +3,7 @@
 // 3 s and when the window comes back, until the key is in. Connected: the setup (saved as it changes, for the next
 // battle; while a battle runs, that battle's, fixed), the page link with its QR code, and the battle's songs: the feed
 // every 3 s while it takes songs and the page is in view. The songs stay blurred until the mouse is on one, so a cover
-// or a title that isn't fit for the stream stays off it. The battle screen comes after Start (the next step).
+// or a title that isn't fit for the stream stays off it. After Start: the battle screen (further down).
 let bt = null; // core/battle.js now(): { state, channel, platform, page, battle, setup, lost, error }
 const BT_SIZES = [4, 8, 16, 32, 64, 128],
   BT_PER = [1, 2, 3];
@@ -35,9 +35,13 @@ function btSave(fields) {
 
 function renderBattle() {
   if (!bt) return;
-  const on = bt.state === 'connected';
+  const on = bt.state === 'connected',
+    live = on && bt.battle?.status === 'live';
   $('#btHero').hidden = on;
-  $('#btOn').hidden = !on;
+  $('#btOn').hidden = !on || live;
+  $('#btLive').hidden = !live;
+  if (!live) btStop();
+  if (live) return renderLive();
   if (!on) {
     // Waiting: Connect again is a new link (that browser tab closed, say), and the newest one counts.
     const why = [
@@ -99,19 +103,21 @@ function renderBattleShare() {
   $('#btWho').textContent = tpl(S.panel.battleConnectedAs, { channel: bt.channel, platform: S.platforms[bt.platform] ?? bt.platform });
 }
 
+// Who sent a song (a guest: no account), and its cover (https only, never with a referrer).
+const btWho = (by = {}) =>
+  ['kick', 'twitch'].includes(by.platform) ? [lkIco(by.platform), el('bdi', { textContent: by.username })] : [el('span', { textContent: S.panel.battleGuest })];
+const btCover = (s, className = 'bt-cover') =>
+  /^https:\/\//.test(s.cover ?? '')
+    ? el('img', { className, src: s.cover, alt: '', loading: 'lazy', referrerPolicy: 'no-referrer' })
+    : el('span', { className });
+
 // One song: its cover, title (Similar: an earlier one has its link or name), where it's from and who sent it, and
 // Remove while the battle hasn't started.
 function btSong(s, removable) {
-  const by = s.by ?? {},
-    who = ['kick', 'twitch'].includes(by.platform)
-      ? [lkIco(by.platform), el('bdi', { textContent: by.username })]
-      : [el('span', { textContent: S.panel.battleGuest })];
   return el(
     'li',
     { className: 'bt-song', tabIndex: 0 },
-    /^https:\/\//.test(s.cover ?? '')
-      ? el('img', { className: 'bt-cover', src: s.cover, alt: '', loading: 'lazy', referrerPolicy: 'no-referrer' })
-      : el('span', { className: 'bt-cover' }),
+    btCover(s),
     el(
       'span',
       { className: 'bt-txt' },
@@ -121,7 +127,7 @@ function btSong(s, removable) {
         el('bdi', { textContent: s.title }),
         s.similar ? el('em', { className: 'bt-sim', textContent: S.panel.battleSimilar, title: S.panel.battleSimilarHint }) : '',
       ),
-      el('small', {}, el('span', { className: 'bt-src', textContent: BT_SOURCES[s.source] ?? s.source }), ...who),
+      el('small', {}, el('span', { className: 'bt-src', textContent: BT_SOURCES[s.source] ?? s.source }), ...btWho(s.by)),
     ),
     removable
       ? el('button', {
@@ -186,7 +192,7 @@ async function btPostChat() {
   }
 }
 
-function wireBattle() {
+function wireBattle(socket) {
   const choices = (box, name, values) =>
     $(box).replaceChildren(...values.map((v) => el('label', {}, el('input', { type: 'radio', name, value: String(v) }), el('span', { textContent: fd(v) }))));
   choices('#btSize', 'btSize', BT_SIZES);
@@ -267,13 +273,12 @@ function wireBattle() {
       btn.disabled = false;
     }
   };
-  $('#btStart').onclick = () => api('POST', '/api/battle/start').then(gotBattle, (err) => (toast(err.message, true), loadBattle()));
-  twoClick($('#btCancel'), $('#btCancel span'), S.panel.battleCancel, S.panel.battleCancelSure, () =>
-    api('POST', '/api/battle/cancel').then(
-      (st) => (gotBattle(st), toast(S.panel.battleCancelled)),
-      (err) => (toast(err.message, true), loadBattle()),
-    ),
-  );
+  $('#btStart').onclick = () => btAct('POST', '/api/battle/start');
+  for (const b of ['#btCancel', '#btEnd'])
+    twoClick($(b), $(`${b} span`), S.panel.battleCancel, S.panel.battleCancelSure, () =>
+      btAct('POST', '/api/battle/cancel').then((st) => st && toast(S.panel.battleCancelled)),
+    );
+  wireLive(socket);
 
   addEventListener('focus', () => view === 'battle' && loadBattle()); // back from the browser: signed in there
   setInterval(() => {
@@ -281,4 +286,393 @@ function wireBattle() {
     if (bt.state === 'pending') loadBattle();
     else if (BT_TAKING.includes(bt.battle?.status)) api('GET', '/api/battle/songs').then(gotBattle, () => {});
   }, 3000);
+}
+
+// ---------- The battle screen (core/battle.js runs it: the bracket, chat's votes, the timer, the winners) ----------
+// The match on now, its two songs face to face: 1 on the left, 2 on the right (what chat types, in both languages). Each
+// plays in its site's own player (battle-player.html, from localhost: it says why) under Jarchi's buttons, one song at a
+// time. The battle's settings: with Hide a song's name, "???" and its player covered (the player shows the name too)
+// until it has played here; Blur the covers: the player blurred until the mouse is on its card; who sent it only with
+// Show who sent. Between them the vote (Chat votes: its timer, Start vote / End now, then who leads, Confirm winner or
+// Vote again) or, with I pick the winner, nothing to wait for: "This one wins" on either song decides, in both modes.
+const BT_PLAYER = `http://localhost:${location.port}`;
+const BT_RING = 326.7; // the timer ring's length (radius 52)
+const btSides = [0, 1].map((i) => ({ i, song: null, st: {}, seeking: false })); // wireLive() adds each card's parts
+const btPlayed = new Set(); // ids of the songs played here: their names show (Hide a song's name)
+let btFlipping = null; // the coin, from its flip until the next match: { key, side, done }
+
+// A call on the battle screen -> the state, shown. Refused: why, and the state as it is now (-> undefined).
+const btAct = (method, url, body) =>
+  api(method, url, body).then(
+    (st) => (gotBattle(st), st),
+    (err) => (toast(err.message, true), loadBattle(), undefined),
+  );
+const btSay = (s, msg) => s.frame.contentWindow?.postMessage(msg, BT_PLAYER);
+function btPlay(s) {
+  const o = btSides[1 - s.i];
+  if (o.st.playing) btSay(o, { pause: true });
+  btSay(s, { play: true });
+}
+const btClock = (t) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
+const btShown = (s) => !btSetup().hideTitles || btPlayed.has(s.id);
+const btName = (s) => (btShown(s) ? s.title : S.panel.battleHidden);
+const btRoundName = (matches) => S.panel.battleRounds[matches] ?? tpl(S.panel.battleRoundOf, { n: fd(matches * 2) });
+// The battle's songs leave their players when it isn't live any more: nothing plays on.
+function btStop() {
+  for (const s of btSides) if (s.song) Object.assign(s, { song: null, st: {} }).frame.src = 'about:blank';
+}
+
+// A side's buttons and time, from what its player says. Play / pause are drawn: the ▶ glyph differs from font to font.
+const BT_ICONS = {
+  battlePlay: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>',
+  battlePause: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h4v14H7zM13 5h4v14h-4z"/></svg>',
+};
+function btTime(s) {
+  const { playing, pos = 0, dur = 0 } = s.st,
+    icon = playing ? 'battlePause' : 'battlePlay';
+  if (s.pp.title !== S.panel[icon]) Object.assign(s.pp, { title: S.panel[icon], innerHTML: BT_ICONS[icon] });
+  s.seek.max = String(Math.max(1, Math.round(dur)));
+  if (!s.seeking) s.seek.value = String(Math.round(pos));
+  s.seek.style.setProperty('--fill', `${(Number(s.seek.value) / Number(s.seek.max)) * 100}%`);
+  s.tm.textContent = `${btClock(s.seeking ? Number(s.seek.value) : pos)} / ${btClock(dur)}`;
+  s.err.hidden = !s.st.error;
+  s.card.classList.toggle('playing', !!playing);
+}
+
+function renderLive() {
+  const b = bt.battle,
+    R = b.bracket,
+    [r, m] = b.current ?? [],
+    x = R[r]?.[m];
+  if (!x) return;
+  const set = btSetup(),
+    key = `${b.id}:${r}:${m}`,
+    songs = [0, 1].map((i) => b.songs.find((s) => s.id === x[i])),
+    v = b.vote,
+    phase =
+      x[2] !== null ? 'won' : set.voting !== 'chat' ? 'judge' : v?.status === 'open' ? 'open' : v?.status !== 'done' ? 'ready' : x[3] === x[4] ? 'tie' : 'lead',
+    tie = phase === 'tie' || btFlipping?.key === key,
+    real = (y) => y[0] && y[1];
+  if (!songs[0] || !songs[1]) return;
+  const total = R[r].filter(real).length;
+  $('#btRound').textContent =
+    total > 1
+      ? tpl(S.panel.battleRound, { round: btRoundName(R[r].length), n: fd(R[r].slice(0, m + 1).filter(real).length), total: fd(total) })
+      : btRoundName(R[r].length);
+  $('#btArena').hidden = tie;
+  $('#btTie').hidden = !tie;
+  btSides.forEach((s, i) => btSide(s, songs[i], x, phase, set));
+  if (tie) renderTie(x, songs, set, key);
+  renderPod(phase, x, songs, `${key}:${phase}:${songs.map(btShown)}`, r === R.length - 1);
+  btTick();
+}
+
+function btSide(s, song, x, phase, set) {
+  const i = s.i,
+    tot = x[3] + x[4],
+    p = tot ? Math.round((x[3 + i] / tot) * 100) : 0;
+  if (s.song?.id !== song.id) {
+    Object.assign(s, { song, st: {}, seeking: false });
+    s.frame.src = `${BT_PLAYER}/battle-player.html?${new URLSearchParams({ source: song.source, link: song.link })}`;
+    s.err.replaceChildren(
+      S.panel.battleCantPlay,
+      ' ',
+      el('a', { href: song.link, target: '_blank', rel: 'noopener', textContent: tpl(S.panel.battleOpenOn, { site: BT_SOURCES[song.source] }) }),
+    );
+    btTime(s);
+  }
+  const shown = btShown(song);
+  s.title.replaceChildren(
+    ...(shown ? [el('bdi', { textContent: song.title })] : [S.panel.battleHidden, el('small', { textContent: S.panel.battleHiddenHint })]),
+  );
+  s.curtain.hidden = shown;
+  s.by.replaceChildren(el('span', { className: 'bt-src', textContent: BT_SOURCES[song.source] }), ...(set.showNames ? btWho(song.by) : []));
+  s.vote.hidden = set.voting !== 'chat';
+  s.bar.style.width = `${p}%`;
+  s.pct.textContent = tpl(S.panel.battlePct, { p: fd(p) });
+  s.votes.textContent = tpl(S.panel.battleVotes, { n: fd(x[3 + i]) });
+  s.pick.hidden = x[2] !== null;
+  s.card.classList.toggle('blur', set.blurCovers);
+  s.card.classList.toggle('lead', phase === 'lead' && x[3 + i] > x[4 - i]);
+  s.card.classList.toggle('win', x[2] === i);
+  s.card.classList.toggle('lose', x[2] === 1 - i);
+}
+
+// The middle card, made again only when the match or its phase changes (the timer ticks on its own: btTick).
+function renderPod(phase, x, songs, at, final) {
+  const pod = $('#btPod');
+  if (pod.dataset.at === at) return;
+  pod.dataset.at = at;
+  const btn = (cls, text, onclick) => el('button', { className: `lk-btn ${cls}`, textContent: text, onclick }),
+    keys = () =>
+      el(
+        'div',
+        { className: 'bt-keys' },
+        el('small', { textContent: S.panel.battleTypeInChat }),
+        el('div', {}, el('span', { className: 'k1', textContent: '1' }), el('span', { className: 'k2', textContent: '2' })),
+      ),
+    ring = () =>
+      el('div', {
+        className: 'bt-ring',
+        innerHTML: `<svg viewBox="0 0 120 120"><defs><linearGradient id="btRg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" style="stop-color: var(--teal)"/><stop offset="1" style="stop-color: var(--gold)"/></linearGradient></defs><circle cx="60" cy="60" r="52" class="rt"/><circle cx="60" cy="60" r="52" class="rf"/></svg><div class="rc"><b></b><small></small></div>`,
+      }),
+    lead = x[3] > x[4] ? 0 : 1,
+    tot = x[3] + x[4];
+  const parts = {
+    ready: () => [
+      ring(),
+      el('div', { className: 'bt-pst', textContent: S.panel.battleReady }),
+      keys(),
+      el(
+        'div',
+        { className: 'bt-pb' },
+        btn('g', S.panel.battleVoteStart, () => btAct('POST', '/api/battle/vote')),
+        el(
+          'label',
+          { className: 'bt-len' },
+          `${S.panel.battleLength} `,
+          el(
+            'select',
+            { onchange: (e) => (btSave({ voteTime: Number(e.target.value) }), btTick()) },
+            ...[30, 60, 90].map((n) => new Option(tpl(S.panel.battleLengthN, { n: fd(n) }), String(n), false, n === btSetup().voteTime)),
+          ),
+        ),
+      ),
+    ],
+    open: () => [
+      ring(),
+      el('div', { className: 'bt-pst' }, el('span', { className: 'bt-livep' }, el('i'), S.panel.battleVoteLive)),
+      keys(),
+      el(
+        'div',
+        { className: 'bt-pb' },
+        btn('o', S.panel.battleEndNow, () => btAct('POST', '/api/battle/vote/end')),
+      ),
+    ],
+    lead: () => [
+      el(
+        'div',
+        { className: 'bt-pwin' },
+        el('small', { textContent: S.panel.battleVoteEnded }),
+        el('b', { textContent: tpl(S.panel.battleLeads, { n: fd(lead + 1), p: fd(Math.round((x[3 + lead] / tot) * 100)) }) }),
+        el('small', {}, el('bdi', { textContent: btName(songs[lead]) })),
+      ),
+      el(
+        'div',
+        { className: 'bt-pb' },
+        btn('g', S.panel.battleConfirm, () => btAct('POST', '/api/battle/winner', { side: lead })),
+        btn('o bt-sm', S.panel.battleVoteAgain, () => btAct('DELETE', '/api/battle/vote')),
+      ),
+      el('small', { className: 'bt-mh', textContent: S.panel.battleFinalCall }),
+    ],
+    judge: () => [
+      el(
+        'div',
+        { className: 'bt-pmsg' },
+        el('span', { textContent: '👑', ariaHidden: 'true' }),
+        el('b', { textContent: S.panel.battleJudge }),
+        el('small', { textContent: S.panel.battleJudgeHint }),
+      ),
+    ],
+    won: () => [
+      el(
+        'div',
+        { className: 'bt-pwin' },
+        el('div', { className: 'bt-pc', textContent: '👑', ariaHidden: 'true' }),
+        el('small', { textContent: S.panel.battleWinner }),
+        el('b', {}, el('bdi', { textContent: btName(songs[x[2]]) })),
+        el('small', { textContent: S.panel[final ? 'battleFinalWon' : 'battleGoesOn'] }),
+      ),
+      el(
+        'div',
+        { className: 'bt-pb' },
+        btn('g', S.panel[final ? 'battleToChampion' : 'battleNext'], (e) => btNext(e.target)),
+      ),
+    ],
+    tie: () => [],
+  };
+  pod.replaceChildren(el('div', { className: 'bt-vsb', textContent: 'VS' }), ...parts[phase]());
+}
+// The timer ring: seconds left while a vote is on, else the length it will run.
+function btTick() {
+  const ring = $('#btPod .bt-ring'),
+    v = bt?.battle?.vote,
+    total = btSetup().voteTime,
+    open = v?.status === 'open',
+    left = open ? Math.max(0, Math.ceil((v.endsAt - Date.now()) / 1000)) : total;
+  if (!ring) return;
+  $('b', ring).textContent = fd(left);
+  $('small', ring).textContent = S.panel.battleSeconds;
+  $('.rf', ring).style.strokeDashoffset = String(BT_RING * (1 - left / total));
+  ring.classList.toggle('on', open);
+}
+
+// Next match; after the final, the champion (its card, with confetti).
+async function btNext(btn) {
+  btn.disabled = true;
+  const names = btSetup().showNames,
+    blur = btSetup().blurCovers,
+    st = await btAct('POST', '/api/battle/next');
+  btn.disabled = false;
+  if (!st?.champion) return;
+  const s = st.champion,
+    d = $('#btChamp');
+  $('#btChampSong').classList.toggle('blur', blur);
+  $('#btChampSong').replaceChildren(
+    btCover(s),
+    el(
+      'span',
+      { className: 'bt-txt' },
+      el('b', {}, el('bdi', { textContent: s.title })),
+      el('small', {}, el('span', { className: 'bt-src', textContent: BT_SOURCES[s.source] }), ...(names ? btWho(s.by) : [])),
+    ),
+  );
+  d.showModal();
+  if (calm()) return;
+  const r = (a, b) => a + Math.random() * (b - a),
+    bits = el(
+      'div',
+      { className: 'confetti' },
+      ...Array.from({ length: 40 }, (_, n) =>
+        el('i', {
+          style: `--x: ${r(-240, 240)}px; --y: ${r(-230, -80)}px; --r: ${r(-720, 720)}deg; --c: ${CONFETTI[n % CONFETTI.length]}; animation-delay: ${r(0, 200)}ms`,
+        }),
+      ),
+    );
+  d.append(bits);
+  setTimeout(() => bits.remove(), 2000);
+}
+
+// A tie: the lucky coin (heads 1, tails 2) picks the winner, then the next match comes.
+function renderTie(x, songs, set, key) {
+  const f = btFlipping?.key === key && btFlipping.done ? btFlipping : null;
+  $$('#btTie .bt-tside').forEach((t, i) => {
+    const s = songs[i],
+      at = `${key}:${btShown(s)}`;
+    t.classList.toggle('blur', set.blurCovers);
+    t.classList.toggle('win', f?.side === i);
+    t.classList.toggle('lose', !!f && f.side !== i);
+    if (t.dataset.at === at) return;
+    t.dataset.at = at;
+    t.replaceChildren(
+      el('span', { className: 'bt-num', textContent: String(i + 1) }),
+      btShown(s) ? btCover(s, 'bt-tcover') : el('span', { className: 'bt-tcover' }), // a cover tells the name too
+      el('b', {}, el('bdi', { textContent: btName(s) })),
+      el('div', { className: 'bt-tv', textContent: `${tpl(S.panel.battlePct, { p: fd(50) })} · ${tpl(S.panel.battleVotes, { n: fd(x[3]) })}` }),
+    );
+  });
+  if (btFlipping) return;
+  $('#btFlip').disabled = false;
+  $('#btTmsg').textContent = S.panel.battleFlipHint;
+  $('#btCoin').style.transform = 'rotateX(-8deg)';
+  lkShine($('#btCoin'), 0);
+}
+function btFlip() {
+  const b = bt.battle,
+    [r, m] = b.current,
+    key = `${b.id}:${r}:${m}`,
+    side = Math.random() < 0.5 ? 0 : 1,
+    coin = $('#btCoin'),
+    t0 = performance.now(),
+    a1 = (7 + Math.floor(Math.random() * 3)) * 360 + side * 180;
+  btFlipping = { key, side, done: false };
+  $('#btFlip').disabled = true;
+  $('#btTmsg').textContent = '';
+  lkMetal(0, 0.14, 2600);
+  lkWhoosh(2.2);
+  const frame = (now) => {
+    const p = Math.min(1, (now - t0) / 2300),
+      ay = a1 * (1 - Math.pow(1 - p, 3));
+    coin.style.transform = `translateY(${-70 * Math.sin(Math.PI * p)}px) rotateX(-8deg) rotateY(${ay}deg)`;
+    lkShine(coin, ay);
+    if (p < 1) return requestAnimationFrame(frame);
+    lkMetal(0, 0.16, 1900);
+    lkMetal(0.16, 0.09, 2050);
+    btFlipping.done = true;
+    const s = b.songs.find((x) => x.id === b.bracket[r][m][side]);
+    $('#btTmsg').replaceChildren(
+      el('b', { className: 'bt-gd', textContent: S.panel[side ? 'battleTailsWon' : 'battleHeadsWon'] }),
+      ' · ',
+      tpl(S.panel.battleGoesOnTitle, { title: btName(s) }),
+    );
+    renderLive();
+    setTimeout(async () => {
+      if ((await btAct('POST', '/api/battle/winner', { side })) && view === 'battle') await btNext($('#btFlip'));
+      btFlipping = null;
+      if (view === 'battle') renderBattle();
+    }, 1600);
+  };
+  requestAnimationFrame(frame);
+}
+
+function wireLive(socket) {
+  btSides.forEach((s) => {
+    const skip = (d, text, title) =>
+      el('button', {
+        className: 'bt-pbn',
+        textContent: text,
+        title,
+        onclick: () => btSay(s, { seek: Math.min(s.st.dur || Infinity, Math.max(0, (s.st.pos || 0) + d)) }),
+      });
+    Object.assign(s, {
+      card: $(`#btArena .s${s.i + 1}`),
+      frame: el('iframe', { className: 'bt-frame', allow: 'autoplay; encrypted-media', title: tpl(S.panel.battleSongN, { n: String(s.i + 1) }) }),
+      curtain: el(
+        'button',
+        { className: 'bt-curtain', onclick: () => btPlay(s) },
+        el('b', { textContent: '▶' }),
+        el('small', { textContent: S.panel.battleCurtain }),
+      ),
+      title: el('b', { className: 'bt-title' }),
+      by: el('small', { className: 'bt-by' }),
+      pp: el('button', { className: 'bt-pbn bt-pp', onclick: () => (s.st.playing ? btSay(s, { pause: true }) : btPlay(s)) }),
+      seek: el('input', {
+        type: 'range',
+        min: '0',
+        step: '1',
+        title: S.panel.battleSeek,
+        oninput: () => ((s.seeking = true), btTime(s)),
+        onchange: () => ((s.seeking = false), btSay(s, { seek: Number(s.seek.value) })),
+      }),
+      tm: el('span', { className: 'bt-tm' }),
+      err: el('p', { className: 'bt-err', hidden: true }),
+      bar: el('i'),
+      pct: el('b'),
+      votes: el('span'),
+      pick: el('button', { className: 'lk-btn o bt-pick', textContent: S.panel.battlePick, onclick: () => btAct('POST', '/api/battle/winner', { side: s.i }) }),
+    });
+    s.vote = el('div', { className: 'bt-vote' }, el('div', { className: 'bt-vb' }, s.bar), el('div', { className: 'bt-vn' }, s.pct, s.votes));
+    s.card.replaceChildren(
+      el('span', { className: 'bt-num', textContent: String(s.i + 1) }),
+      el('div', { className: 'bt-media' }, s.frame, s.curtain),
+      s.err,
+      s.title,
+      s.by,
+      el('div', { className: 'bt-ctl' }, skip(-10, '⏪ 10', S.panel.battleBack), s.pp, skip(10, '10 ⏩', S.panel.battleFwd), s.seek, s.tm),
+      s.vote,
+      s.pick,
+    );
+    btTime(s);
+  });
+  // What each player says: where it is, playing or not. One that starts (also with its own button) stops the other.
+  addEventListener('message', (e) => {
+    const s = e.origin === BT_PLAYER && btSides.find((x) => x.frame.contentWindow === e.source);
+    if (!s?.song || !e.data?.st) return;
+    s.st = e.data.st;
+    if (s.st.playing && btSides[1 - s.i].st.playing) btSay(btSides[1 - s.i], { pause: true });
+    btTime(s);
+    if (s.st.playing && !btPlayed.has(s.song.id) && btPlayed.add(s.song.id) && view === 'battle') renderLive();
+  });
+
+  // The coin: the Luck page's faces (heads the logo, tails a 2), its own ids.
+  const c = $('#btCoin');
+  for (let z = -7; z <= 7; z++) c.append(el('div', { className: 'edge', style: `transform: translateZ(${z}px) scale(.985)` }));
+  c.append(
+    el('div', { className: 'face', style: 'transform: translateZ(7.3px)', innerHTML: lkHeads('bh') }),
+    el('div', { className: 'face', style: 'transform: rotateY(180deg) translateZ(7.3px)', innerHTML: lkTails(2, 'bt') }),
+  );
+  $('#btFlip').onclick = btFlip;
+  $('#btAgain').onclick = () => $('#btChamp').close();
+  socket.on('battle', gotBattle); // votes coming in, the timer running out
+  setInterval(() => view === 'battle' && !document.hidden && bt?.battle?.vote?.status === 'open' && btTick(), 250);
 }

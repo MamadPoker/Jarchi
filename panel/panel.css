@@ -7416,3 +7416,631 @@ button.bt-x:hover {
 #btStart {
   flex: 1;
 }
+
+/* The battle screen: the match on now, song 1 (teal) on the left and song 2 (gold) on the right in both languages
+   (what chat types), each in its site's player under Jarchi's buttons; the vote in the middle. A tie: the coin. */
+.bt-live:not([hidden]) {
+  display: grid;
+  gap: 14px;
+  animation: lk-fi 0.35s ease;
+}
+.bt-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+.bt-bar b {
+  font-size: 15px;
+}
+.bt-bar .lk-btn {
+  margin-inline-start: auto;
+}
+.bt-arena:not([hidden]),
+.bt-tie:not([hidden]) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 220px minmax(0, 1fr);
+  gap: 18px;
+  align-items: center;
+  padding-top: 16px;
+  direction: ltr;
+}
+.bt-tie:not([hidden]) {
+  grid-template-columns: minmax(0, 1fr) 300px minmax(0, 1fr);
+}
+[dir='rtl'] :is(.bt-arena, .bt-tie) > * {
+  direction: rtl;
+}
+@container (max-width: 900px) {
+  .bt-arena:not([hidden]),
+  .bt-tie:not([hidden]) {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 28px;
+  }
+  .bt-pod {
+    order: 3;
+  }
+}
+.bt-side,
+.bt-tside {
+  --side: var(--teal);
+  position: relative;
+  padding: 14px;
+  border: 1px solid color-mix(in srgb, var(--side) 50%, transparent);
+  border-radius: 16px;
+  background: var(--card2);
+  transition:
+    opacity 0.3s,
+    box-shadow 0.3s;
+}
+.bt-side.s2,
+.bt-tside.s2 {
+  --side: var(--gold);
+}
+.bt-side.lead,
+.bt-side.win,
+.bt-tside.win {
+  box-shadow:
+    0 0 0 2px var(--gold),
+    0 0 34px color-mix(in srgb, var(--gold) 35%, transparent);
+}
+.bt-side.lose,
+.bt-tside.lose {
+  opacity: 0.45;
+  filter: grayscale(0.6);
+}
+.bt-num {
+  position: absolute;
+  top: -14px;
+  left: 14px;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: var(--side);
+  box-shadow: 0 4px 14px var(--shadow);
+  color: var(--on-gold);
+  font:
+    900 19px Manrope,
+    sans-serif;
+}
+.s2 > .bt-num {
+  right: 14px;
+  left: auto;
+}
+.bt-media {
+  position: relative;
+  height: 232px;
+  overflow: hidden;
+  border-radius: 12px;
+  background: #000;
+  transition: filter 0.3s;
+}
+.bt-side.playing .bt-media {
+  box-shadow: 0 0 0 2px var(--side);
+}
+.bt-frame {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+.bt-side.blur .bt-media,
+.bt-tside.blur .bt-tcover,
+.bt-cw.blur .bt-cover {
+  filter: blur(14px) saturate(0.8);
+}
+.bt-side.blur:hover .bt-media,
+.bt-tside.blur:hover .bt-tcover,
+.bt-cw.blur:hover .bt-cover {
+  filter: none;
+}
+.bt-curtain:not([hidden]) {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border: 0;
+  border-radius: 0;
+  background: linear-gradient(135deg, var(--card), var(--bg));
+  color: var(--muted);
+  font-size: 12.5px;
+}
+.bt-curtain b {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--side);
+  color: var(--on-gold);
+  font-size: 20px;
+}
+.bt-err:not([hidden]) {
+  margin: 8px 0 0;
+  color: var(--warn);
+  font-size: 12.5px;
+}
+.bt-err a {
+  color: inherit;
+}
+.bt-title {
+  display: block;
+  margin-top: 11px;
+  overflow: hidden;
+  font:
+    800 15px Manrope,
+    Vazirmatn,
+    sans-serif;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bt-title small {
+  margin-inline-start: 6px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+.bt-by {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 18px;
+  margin-top: 3px;
+  color: var(--muted);
+  font:
+    600 12.5px Manrope,
+    Vazirmatn,
+    sans-serif;
+}
+.bt-ctl {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  direction: ltr;
+}
+button.bt-pbn {
+  flex: none;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+  font:
+    700 11.5px Manrope,
+    Vazirmatn,
+    sans-serif;
+  white-space: nowrap;
+}
+button.bt-pp {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--side);
+  color: var(--on-gold);
+  font-size: 12px;
+}
+button.bt-pp svg {
+  display: block;
+  width: 14px;
+  height: 14px;
+  margin: auto;
+  fill: currentColor;
+  stroke: none;
+}
+.bt-ctl input[type='range'] {
+  flex: 1;
+  min-width: 40px;
+}
+[dir] .bt-ctl input[type='range']::-webkit-slider-runnable-track {
+  background:
+    linear-gradient(var(--side), var(--side)) 0 0 / var(--fill, 0%) 100% no-repeat,
+    var(--border);
+}
+.bt-ctl input[type='range']::-webkit-slider-thumb {
+  border-color: var(--side);
+}
+.bt-ctl input[type='range']::-moz-range-progress {
+  background: var(--side);
+}
+.bt-tm {
+  color: var(--muted);
+  font:
+    700 11px Manrope,
+    sans-serif;
+  white-space: nowrap;
+}
+.bt-vote:not([hidden]) {
+  display: block;
+  margin-top: 14px;
+}
+.bt-vb {
+  height: 12px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--bg);
+}
+.bt-vb i {
+  display: block;
+  width: 0;
+  height: 100%;
+  background: var(--side);
+  transition: width 0.4s;
+}
+.bt-vn {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-top: 6px;
+}
+.bt-vn b {
+  font:
+    900 22px Manrope,
+    Vazirmatn,
+    sans-serif;
+}
+.bt-vn span {
+  color: var(--muted);
+  font-size: 12.5px;
+}
+.bt-pick:not([hidden]) {
+  display: block;
+  width: 100%;
+  margin-top: 12px;
+}
+
+/* The middle card: VS, then the timer ring and the vote's buttons, who leads, or the winner. */
+.bt-pod {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 18px 14px 16px;
+  border: 1px solid var(--tint);
+  border-radius: 22px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--teal) 7%, transparent), color-mix(in srgb, var(--gold) 6%, transparent));
+  box-shadow: 0 20px 50px -20px var(--shadow);
+  text-align: center;
+}
+.bt-vsb {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  margin-top: -44px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--danger), color-mix(in srgb, var(--danger), #000 35%));
+  box-shadow:
+    0 0 0 5px var(--bg),
+    0 0 28px color-mix(in srgb, var(--danger) 45%, transparent);
+  color: var(--on-color);
+  font:
+    900 20px Manrope,
+    sans-serif;
+}
+.bt-ring {
+  position: relative;
+  width: 128px;
+  height: 128px;
+}
+.bt-ring svg {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+.bt-ring .rt,
+.bt-ring .rf {
+  fill: none;
+  stroke-width: 9;
+}
+.bt-ring .rt {
+  stroke: var(--border);
+}
+.bt-ring .rf {
+  stroke: url(#btRg);
+  stroke-dasharray: 326.7;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.25s linear;
+}
+.bt-ring.on {
+  filter: drop-shadow(0 0 14px color-mix(in srgb, var(--gold) 35%, transparent));
+}
+.bt-ring .rc {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.bt-ring b {
+  font:
+    900 38px Manrope,
+    Vazirmatn,
+    sans-serif;
+  line-height: 1;
+}
+.bt-ring small {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 11.5px;
+}
+.bt-pst {
+  display: flex;
+  align-items: center;
+  min-height: 30px;
+  color: var(--muted);
+  font-size: 13.5px;
+  font-weight: 800;
+}
+.bt-livep {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border: 1px solid var(--danger-line);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--danger) 10%, transparent);
+  color: var(--danger-text);
+}
+.bt-livep i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--danger);
+  animation: bt-blink 1s infinite;
+}
+@keyframes bt-blink {
+  50% {
+    opacity: 0.25;
+  }
+}
+.bt-keys small {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.bt-keys div {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  direction: ltr;
+}
+.bt-keys span {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 40px;
+  border: 1px solid color-mix(in srgb, currentColor 50%, transparent);
+  border-bottom: 4px solid;
+  border-radius: 11px;
+  font:
+    900 20px Manrope,
+    sans-serif;
+}
+.bt-keys .k1,
+.bt-cres .ch1 {
+  --side: var(--teal);
+}
+.bt-keys .k2,
+.bt-cres .ch2 {
+  --side: var(--gold);
+}
+.bt-keys span,
+.bt-cres u {
+  background: color-mix(in srgb, var(--side) 14%, var(--card));
+  color: var(--side);
+}
+.bt-pb {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+}
+.bt-pb .lk-btn {
+  width: 100%;
+}
+.bt-len {
+  color: var(--muted);
+  font-size: 12px;
+}
+.bt-len select {
+  padding: 3px 6px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+}
+.bt-pwin {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  max-width: 100%;
+}
+.bt-pwin b {
+  overflow: hidden;
+  color: var(--gold-text);
+  font:
+    800 17px Manrope,
+    Vazirmatn,
+    sans-serif;
+  text-overflow: ellipsis;
+}
+.bt-pwin small,
+.bt-mh {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.8;
+}
+.bt-pc {
+  font-size: 40px;
+  animation: lk-pop 0.5s cubic-bezier(0.3, 1.6, 0.5, 1);
+}
+.bt-pmsg {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 0;
+}
+.bt-pmsg span {
+  font-size: 30px;
+}
+.bt-pmsg b {
+  font-size: 15px;
+}
+.bt-pmsg small {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.8;
+}
+
+/* A tie: the two songs, and the lucky coin between them. */
+.bt-tside {
+  padding: 22px 14px 14px;
+  text-align: center;
+}
+.bt-tcover {
+  display: block;
+  width: 100%;
+  height: 120px;
+  margin-bottom: 10px;
+  border-radius: 12px;
+  background: var(--card);
+  object-fit: cover;
+  transition: filter 0.3s;
+}
+.bt-tside b {
+  font:
+    800 15px Manrope,
+    Vazirmatn,
+    sans-serif;
+}
+.bt-tv {
+  margin-top: 4px;
+  color: var(--muted);
+  font:
+    700 13px Manrope,
+    Vazirmatn,
+    sans-serif;
+}
+.bt-tmid {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  text-align: center;
+}
+.bt-tlabel {
+  color: var(--gold-text);
+  font-size: 18px;
+  font-weight: 900;
+}
+.bt-coinw {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  height: 250px;
+  perspective: 700px;
+  filter: drop-shadow(0 14px 18px rgb(0 0 0 / 0.55));
+}
+.lk-coin.bt-coin {
+  width: 170px;
+  height: 170px;
+  cursor: default;
+}
+.bt-coin .lk-clogo {
+  width: 74px;
+}
+.bt-csh {
+  width: 120px;
+  height: 12px;
+  margin-top: 18px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgb(0 0 0 / 0.5), transparent 70%);
+}
+.bt-cres {
+  display: flex;
+  gap: 8px;
+}
+.bt-cres > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px 5px 6px;
+  border: 1px solid color-mix(in srgb, var(--side) 40%, transparent);
+  border-radius: 999px;
+  background: var(--bg);
+  color: var(--side);
+  font-size: 12.5px;
+  font-weight: 700;
+}
+.bt-cres u {
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
+  font:
+    900 13px Manrope,
+    sans-serif;
+  text-decoration: none;
+}
+.bt-dim {
+  color: var(--muted);
+  font-size: 12.5px;
+}
+.bt-gd {
+  color: var(--gold-text);
+}
+
+/* After the final: the champion. */
+dialog.bt-champ {
+  overflow: visible;
+  padding: 26px 34px;
+  border: 1px solid var(--gold-line);
+  border-radius: 20px;
+  background: radial-gradient(circle at 50% 20%, color-mix(in srgb, var(--gold) 16%, var(--card)), var(--card) 70%);
+  color: var(--text);
+  text-align: center;
+}
+dialog.bt-champ[open] {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  animation: lk-pop 0.5s cubic-bezier(0.3, 1.6, 0.5, 1);
+}
+dialog.bt-champ::backdrop {
+  background: rgba(3, 8, 7, 0.75);
+  backdrop-filter: blur(3px);
+}
+.bt-cup {
+  font-size: 56px;
+  line-height: 1;
+}
+dialog.bt-champ > b {
+  color: var(--gold-text);
+  font-size: 18px;
+}
+.bt-cw {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 380px;
+  padding: 8px 12px 8px 8px;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  background: var(--bg);
+  text-align: start;
+}

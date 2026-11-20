@@ -724,16 +724,16 @@ const lkArc = (k, text, arc, size, spacing, font = LK_FONT) =>
   `<text filter="url(#em${k})" font-family="${font}" font-size="${size}" font-weight="800" letter-spacing="${spacing}" fill="#9a6c0e"><textPath href="#${arc}${k}" startOffset="50%" text-anchor="middle">${text}</textPath></text>`;
 const lkName = (k) => (FA ? lkArc(k, S.panel.luckCoinName, 'aT', 17, 1) : lkArc(k, S.panel.luckCoinName, 'aT', 13, 7));
 const LK_SHINE = '<div class="lk-shine"></div>';
-const lkHeads = () =>
-  `<svg viewBox="0 0 200 200">${LK_FACE_DEFS('h')}${lkName('h')}${
+const lkHeads = (k = 'h') =>
+  `<svg viewBox="0 0 200 200">${LK_FACE_DEFS(k)}${lkName(k)}${
     FA
-      ? `<text filter="url(#emh)" x="100" y="170" text-anchor="middle" font-family="${LK_FONT}" font-size="12" font-weight="800" fill="#9a6c0e">${S.panel.luckCoinLucky}</text>`
-      : lkArc('h', S.panel.luckCoinLucky, 'aB', 9, 3.2)
+      ? `<text filter="url(#em${k})" x="100" y="170" text-anchor="middle" font-family="${LK_FONT}" font-size="12" font-weight="800" fill="#9a6c0e">${S.panel.luckCoinLucky}</text>`
+      : lkArc(k, S.panel.luckCoinLucky, 'aB', 9, 3.2)
   }</svg><img class="lk-clogo" src="/assets/brand/jarchi-coin-logo.webp" alt="" />${LK_SHINE}`;
-function lkTails(n) {
+function lkTails(n, k = 't') {
   const s = fd(n),
     size = s.length < 2 ? 84 : s.length < 3 ? 66 : 50;
-  return `<svg viewBox="0 0 200 200">${LK_FACE_DEFS('t')}${lkName('t')}<g filter="url(#emt)" fill="#9a6c0e" text-anchor="middle" font-family="${LK_FONT}"><text x="100" y="${118 + size * 0.12}" font-size="${size}" font-weight="900">${s}</text><path d="M62 146 h76" stroke="#9a6c0e" stroke-width="1.6"/><text x="100" y="164" font-size="${FA ? 13 : 9}" font-weight="800"${FA ? '' : ' letter-spacing="3"'}>${S.panel.luckCoinTails}</text></g></svg>${LK_SHINE}`;
+  return `<svg viewBox="0 0 200 200">${LK_FACE_DEFS(k)}${lkName(k)}<g filter="url(#em${k})" fill="#9a6c0e" text-anchor="middle" font-family="${LK_FONT}"><text x="100" y="${118 + size * 0.12}" font-size="${size}" font-weight="900">${s}</text><path d="M62 146 h76" stroke="#9a6c0e" stroke-width="1.6"/><text x="100" y="164" font-size="${FA ? 13 : 9}" font-weight="800"${FA ? '' : ' letter-spacing="3"'}>${S.panel.luckCoinTails}</text></g></svg>${LK_SHINE}`;
 }
 // The shine slides across each face as the coin turns (ay: its turn, degrees). The Crypto welcome's coin too.
 function lkShine(coin, ay) {
