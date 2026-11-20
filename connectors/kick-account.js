@@ -276,8 +276,19 @@ async function stream() {
 // Live now? null when Kick doesn't say.
 const live = liveOf(stream);
 
+// A line in the channel's chat, as the streamer (the Song Battle page's "Post in chat"). It needs the chat:write
+// scope, which logins from before Song Battle never asked for: Kick says no (401 / 403), so 'scope': connect again.
+async function say(text) {
+  if (!saved.refresh || !saved.userId) throw fail('off');
+  try {
+    await authed(`${API}/chat`, { method: 'POST', body: JSON.stringify({ type: 'user', broadcaster_user_id: saved.userId, content: text }) });
+  } catch (err) {
+    throw err.code ? err : fail([401, 403].includes(err.status) ? 'scope' : 'network');
+  }
+}
+
 setInterval(() => ws?.readyState === WebSocket.OPEN && ws.send('ping'), 30000).unref();
 // Every hour: the login still works (one Kick no longer takes ends it: refresh() -> forget()), and still subscribed.
 setInterval(() => st.state === 'connected' && subscribe().catch(() => {}), 3600000).unref();
 
-module.exports = { status, login, callback, disconnect, start, handle, live, stream, slug, RELAY, events: account };
+module.exports = { status, login, callback, disconnect, start, handle, live, stream, say, slug, RELAY, events: account };

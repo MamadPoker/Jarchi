@@ -16,8 +16,9 @@ const SECRET = ['access', 'refresh']; // sealed in the file (core/secrets.js)
 const ID = 'https://id.twitch.tv/oauth2';
 const HELIX = 'https://api.twitch.tv/helix';
 const EVENTSUB = 'wss://eventsub.wss.twitch.tv/ws';
-// Follows and goals now; subs and bits are asked for already, so a later step needs no new login.
-const SCOPES = 'moderator:read:followers channel:read:goals channel:read:subscriptions bits:read';
+// Follows and goals now; subs and bits are asked for already, so a later step needs no new login. user:write:chat:
+// the Song Battle page's "Post in chat".
+const SCOPES = 'moderator:read:followers channel:read:goals channel:read:subscriptions bits:read user:write:chat';
 // Jarchi's own Twitch app (Public: its Client ID is no secret), so nobody has to make one. Another one only by hand:
 // "clientId" in data/twitch.json, while disconnected (a login belongs to the app it was made with). Not in the panel.
 const CLIENT_ID = '6z5ycye2mjhj10jk1jkwkelft0l7p3';
@@ -173,7 +174,8 @@ async function authed(url, init = {}, again = true) {
     await refresh();
     return authed(url, init, false);
   }
-  if (!res.ok) throw new Error(`Twitch ${new URL(url).pathname} ${res.status} ${(await res.text().catch(() => '')).slice(0, 200)}`);
+  if (!res.ok)
+    throw Object.assign(new Error(`Twitch ${new URL(url).pathname} ${res.status} ${(await res.text().catch(() => '')).slice(0, 200)}`), { status: res.status });
   return res.json();
 }
 
@@ -323,4 +325,21 @@ async function stream() {
 // Live now? null when Twitch doesn't say.
 const live = liveOf(stream);
 
-module.exports = { status, login, disconnect, start, handle, live, stream, events: account };
+// A line in the channel's chat, as the streamer (the Song Battle page's "Post in chat"). It needs user:write:chat,
+// which logins from before Song Battle never asked for: Twitch says no (401), so 'scope': connect again. Twitch can
+// also drop a message it took (AutoMod, a chat setting): 'dropped'.
+async function say(text) {
+  if (!saved.refresh || !saved.userId) throw fail('off');
+  let r;
+  try {
+    r = await authed(`${HELIX}/chat/messages`, {
+      method: 'POST',
+      body: JSON.stringify({ broadcaster_id: saved.userId, sender_id: saved.userId, message: text }),
+    });
+  } catch (err) {
+    throw err.code ? err : fail([401, 403].includes(err.status) ? 'scope' : 'network');
+  }
+  if (!r?.data?.[0]?.is_sent) throw fail('dropped');
+}
+
+module.exports = { status, login, disconnect, start, handle, live, stream, say, events: account };

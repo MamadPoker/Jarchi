@@ -557,6 +557,7 @@ function build() {
   wireCrypto();
   wireEyes();
   wireLuck(socket);
+  wireBattle();
 
   $$('[data-i18n]').forEach((e) => (e.textContent = S.panel[e.dataset.i18n]));
   const [madeA, madeB] = S.panel.madeWith.split('{heart}'); // About's "Made with ♥ by MamadPoker", the heart in gold

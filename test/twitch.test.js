@@ -17,6 +17,7 @@ fs.writeFileSync(path.join(dataDir, 'twitch.json'), JSON.stringify({ clientId: '
 // works once, like a Public app's.
 const calls = [];
 let tokenDown = false,
+  chat = 'ok',
   pending = 1,
   issued = 0,
   verifyAt = 'https://www.twitch.tv/activate?public=true&device-code=ABCDEFGH'; // what /oauth2/device says
@@ -48,6 +49,9 @@ globalThis.fetch = async (url, init = {}) => {
       });
     case '/oauth2/revoke':
       return new Response(null, { status: 200 });
+    case '/helix/chat/messages': // chat: 'scope' (Twitch says 401 for it; 403 here keeps the tokens as they are), 'held' (AutoMod)
+      if (chat === 'scope') return json(403, { message: 'Missing scope: user:write:chat' });
+      return json(200, { data: [{ message_id: 'm1', is_sent: chat !== 'held', ...(chat === 'held' && { drop_reason: { code: 'automod_held' } }) }] });
   }
   return json(404, {});
 };
@@ -161,6 +165,16 @@ test('Twitch account: code login, refresh, follows, goals, reconnect, disconnect
       .slice(4)
       .every((c) => c.body.transport.session_id === 'S3'),
   );
+
+  // Post in chat (Song Battle): a line as the streamer, in their own channel. Without user:write:chat: 'scope';
+  // taken but not shown (AutoMod, a chat setting): 'dropped'.
+  await account.say('Send your song: https://battle.jarchi.app/mamad');
+  assert.deepEqual(calls.at(-1).body, { broadcaster_id: '42', sender_id: '42', message: 'Send your song: https://battle.jarchi.app/mamad' });
+  chat = 'scope';
+  await assert.rejects(account.say('again'), { code: 'scope' });
+  chat = 'held';
+  await assert.rejects(account.say('again'), { code: 'dropped' });
+  chat = 'ok';
 
   // Disconnect: Twitch is told, the tokens go, the Client ID stays.
   const off = await account.disconnect();

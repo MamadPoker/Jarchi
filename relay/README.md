@@ -17,7 +17,7 @@ npx wrangler secret put KICK_CLIENT_SECRET
 
 - **Redirect URL**: `https://jarchi-kick.<your-subdomain>.workers.dev/callback`
 - **Enable Webhooks**: on, **Webhook URL**: `https://jarchi-kick.<your-subdomain>.workers.dev/webhook`
-- Scopes: reading user information (`user:read`) and subscribing to events (`events:subscribe`)
+- Scopes: reading user information (`user:read`), subscribing to events (`events:subscribe`) and writing to chat (`chat:write`, the Song Battle page's "Post the link in chat")
 
 Then set `JARCHI_RELAY` in `connectors/kick-account.js` to that address (or `KICK_RELAY_URL` in `.env` for a copy of your own).
 

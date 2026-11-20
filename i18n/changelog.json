@@ -1,7 +1,7 @@
 [
   {
     "version": "unreleased",
-    "types": ["fix", "fix", "fix", "fix", "improve", "fix", "improve", "fix", "fix", "feature", "feature", "fix"],
+    "types": ["fix", "fix", "fix", "fix", "improve", "fix", "improve", "fix", "fix", "feature", "feature", "fix", "feature", "improve"],
     "en": [
       "Crypto: the \"gateway approved\" note now shows in full, just below the top bar",
       "Coin flip: Reset now also clears the recent flips",
@@ -14,7 +14,9 @@
       "Wheel: the SPIN button in the middle is now in Persian too",
       "Crypto: a donor's emoji now plays on stream right before the crypto alert, with the animation they picked: burst, rain or rocket",
       "Crypto: new emoji settings on the Donation page tab: Emoji before the alert, which animations donors can pick, and Custom emoji",
-      "Crypto: when Jarchi Pay is slow to answer, Jarchi stops waiting and says it can't reach it, instead of waiting forever"
+      "Crypto: when Jarchi Pay is slow to answer, Jarchi stops waiting and says it can't reach it, instead of waiting forever",
+      "New Song Battle page under Content: connect it once, set up a battle, share your fixed battle.jarchi.app link with its QR code or post it in chat, and see viewers' songs come in live",
+      "Connections: Kick and Twitch now also ask to let Jarchi post in your chat (only when you press Song Battle's \"Post the link in chat\"); connect them again to allow it"
     ],
     "fa": [
       "کریپتو: پیام «درگاه تأیید شد» حالا کامل و درست زیر نوار بالا نشون داده می‌شه",
@@ -28,7 +30,9 @@
       "گردونه: دکمه‌ی SPIN وسط گردونه حالا فارسی هم داره",
       "کریپتو: ایموجی حامی حالا درست قبل از الرت کریپتو با انیمیشنی که انتخاب کرده روی استریم پخش می‌شه: ترکیدن، بارون یا پرواز",
       "کریپتو: تنظیم‌های جدید ایموجی توی تب صفحه‌ی دونیت: ایموجی قبل از الرت، انیمیشن‌هایی که حامی‌ها می‌تونن انتخاب کنن، و ایموجی دلخواه",
-      "کریپتو: وقتی Jarchi Pay دیر جواب بده، جارچی دیگه تا ابد منتظر نمی‌مونه و می‌گه که بهش وصل نمی‌شه"
+      "کریپتو: وقتی Jarchi Pay دیر جواب بده، جارچی دیگه تا ابد منتظر نمی‌مونه و می‌گه که بهش وصل نمی‌شه",
+      "صفحه‌ی جدید بتل آهنگ زیر محتوا: یه بار وصلش کن، بتل رو تنظیم کن، لینک ثابت battle.jarchi.app خودت رو با کد QR بده یا تو چت بفرست، و آهنگ‌هایی که بیننده‌ها می‌فرستن رو زنده ببین",
+      "اتصال‌ها: کیک و توییچ حالا اجازه‌ی فرستادن پیام تو چتت رو هم می‌پرسن (فقط وقتی تو بتل آهنگ «فرستادن لینک تو چت» رو بزنی)؛ برای دادن این اجازه، دوباره وصلشون کن"
     ]
   },
   {

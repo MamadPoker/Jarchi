@@ -6153,7 +6153,7 @@ dialog.crypto-hello {
   color: var(--muted);
   font-size: 11px;
 }
-.luck input.lk-t {
+:is(.luck, .battle) input.lk-t {
   padding: 9px 11px;
   background: var(--bg);
   font-size: 14px;
@@ -6200,10 +6200,10 @@ dialog.crypto-hello {
 .lk-first {
   margin-top: 14px;
 }
-.luck .switch input:checked + span {
+:is(.luck, .battle) .switch input:checked + span {
   background: var(--main-fill);
 }
-.luck .switch input:checked + span::after {
+:is(.luck, .battle) .switch input:checked + span::after {
   background: var(--on-main);
 }
 button.lk-btn {
@@ -7084,4 +7084,335 @@ button#lkAgain {
 }
 :root[data-pop] .lk-tabs button {
   padding: 5px 14px;
+}
+
+/* ---------- Song Battle (js/battle.js): Connect (the Crypto page's hero), then the setup, the page link with its QR code
+   and the songs viewers send, as in the design. The songs are blurred until the mouse (or the keyboard) is on one. ---------- */
+.view.battle {
+  max-width: 1300px;
+}
+.bt-logo {
+  padding-top: 10px;
+  font-size: 64px;
+  line-height: 1;
+}
+.bt-grid:not([hidden]) {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 0.85fr) minmax(0, 1.1fr);
+  gap: 16px;
+  align-items: start;
+  animation: lk-fi 0.35s ease;
+}
+@container (max-width: 1100px) {
+  .bt-grid:not([hidden]) {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+  .bt-grid > :last-child {
+    grid-column: 1 / -1;
+  }
+}
+@container (max-width: 760px) {
+  .bt-grid:not([hidden]) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.bt-form {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.bt-form:disabled {
+  opacity: 0.6;
+}
+.bt-form:disabled * {
+  cursor: default;
+}
+.bt-fixed {
+  margin: 8px 0 0;
+  padding: 7px 10px;
+  border: 1px solid var(--gold-line);
+  border-radius: 9px;
+  background: var(--gold-soft);
+  color: var(--gold-text);
+  font-size: 12.5px;
+}
+.bt-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.bt-row > input {
+  flex: 1;
+  min-width: 0;
+}
+button.lk-btn.bt-sm {
+  flex: none;
+  padding: 7px 12px;
+  border-radius: 10px;
+  font-size: 13px;
+}
+.bt-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.bt-chips label {
+  position: relative;
+}
+.bt-chips input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+.bt-chips span {
+  display: block;
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  color: var(--muted);
+  font:
+    700 12.5px Manrope,
+    Vazirmatn,
+    sans-serif;
+  cursor: pointer;
+  user-select: none;
+}
+.bt-chips input:checked + span {
+  border-color: var(--teal);
+  background: color-mix(in srgb, var(--teal) 14%, transparent);
+  color: var(--text);
+}
+.bt-chips input:focus-visible + span {
+  outline: 2px solid var(--focus);
+}
+.seg.bt-vm {
+  flex-direction: column;
+}
+.bt-vm span {
+  display: grid;
+  grid-template-columns: 28px 1fr;
+  column-gap: 8px;
+  align-items: center;
+  padding: 9px 12px;
+  text-align: start;
+}
+.bt-vm em {
+  grid-row: 1 / 3;
+  font-size: 18px;
+  font-style: normal;
+}
+.bt-vm b {
+  color: var(--text);
+  font-size: 13.5px;
+}
+.bt-vm small {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 11.5px;
+}
+.bt-vm input:checked + span b {
+  color: var(--gold-text);
+}
+.bt-modbox {
+  margin-top: 8px;
+}
+.bt-modbox select {
+  flex: none;
+  padding: 8px;
+  border-radius: 10px;
+}
+.bt-mods {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+.bt-mod {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 4px 3px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--card2);
+  font-size: 12px;
+}
+button.lk-btn.bt-go {
+  margin-top: 16px;
+  padding: 11px;
+}
+.bt-share {
+  text-align: center;
+}
+.bt-qr {
+  width: 170px;
+  margin: 4px auto 10px;
+  padding: 10px;
+  border-radius: 14px;
+  background: #fff; /* a QR code reads dark on light, in every theme */
+}
+.bt-qr img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+}
+.bt-pin {
+  margin-bottom: 8px;
+  color: var(--muted);
+  font-size: 13px;
+}
+.bt-link {
+  padding: 5px 5px 5px 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+}
+.bt-link code {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font:
+    700 13px Manrope,
+    sans-serif;
+  text-align: start;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bt-warn {
+  margin: 8px 0 0;
+  padding: 7px 9px;
+  border: 1px solid var(--warn-line);
+  border-radius: 9px;
+  background: var(--warn-soft);
+  color: var(--warn);
+  font-size: 12.5px;
+  text-align: start;
+}
+.bt-who {
+  margin: 10px 0 0;
+}
+.bt-count {
+  color: var(--muted);
+  font:
+    800 14px Manrope,
+    Vazirmatn,
+    sans-serif;
+}
+.lk-pill.live {
+  background: color-mix(in srgb, var(--danger) 14%, transparent);
+  color: var(--danger);
+}
+.bt-hint {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 11.5px;
+}
+.bt-list {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  max-height: 420px;
+  margin: 10px 0 0;
+  padding: 0;
+  overflow: auto;
+  list-style: none;
+}
+.bt-song {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  background: var(--bg);
+}
+.bt-song.new {
+  animation: lk-fi 0.3s;
+}
+.bt-cover {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, var(--card2), var(--main-soft));
+  object-fit: cover;
+}
+.bt-txt {
+  display: grid;
+  flex: 1;
+  gap: 3px;
+  min-width: 0;
+}
+.bt-txt b {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  font-size: 13px;
+}
+.bt-txt b bdi {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bt-txt small {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.bt-src {
+  padding: 0 6px;
+  border-radius: 5px;
+  background: var(--card2);
+  font-size: 11px;
+  font-weight: 700;
+}
+.bt-sim {
+  flex: none;
+  padding: 0 6px;
+  border: 1px solid var(--warn-line);
+  border-radius: 6px;
+  background: var(--warn-soft);
+  color: var(--warn);
+  font-size: 10.5px;
+  font-style: normal;
+  font-weight: 700;
+}
+.bt-song .bt-cover,
+.bt-song .bt-txt {
+  filter: blur(7px);
+  transition: filter 0.25s;
+}
+.bt-song:hover .bt-cover,
+.bt-song:hover .bt-txt,
+.bt-song:focus-within .bt-cover,
+.bt-song:focus-within .bt-txt {
+  filter: none;
+}
+button.bt-x {
+  flex: none;
+  padding: 2px 7px;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font-size: 13px;
+}
+button.bt-x:hover {
+  background: var(--hover);
+  color: var(--danger);
+}
+.bt-empty {
+  padding: 10px;
+  border: 1px dashed var(--border);
+  border-radius: 11px;
+  color: var(--muted);
+  font-size: 12px;
+  text-align: center;
+}
+#btStart {
+  flex: 1;
 }
