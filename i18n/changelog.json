@@ -1,7 +1,7 @@
 [
   {
     "version": "unreleased",
-    "types": ["feature", "improve", "feature", "feature", "improve", "fix", "fix", "improve", "improve"],
+    "types": ["feature", "improve", "feature", "feature", "improve", "fix", "fix", "improve", "improve", "improve"],
     "en": [
       "New Song Battle page: viewers send songs at battle.jarchi.app, songs battle two by two, chat votes 1 or 2, and a champion wins. With a bracket, a lucky coin for ties, and a Pop out window for OBS",
       "Connect Kick and Twitch once more so Jarchi can post your battle link in chat",
@@ -11,7 +11,8 @@
       "Giveaway: the Pop out window has its own فا | EN switch, sample wheels follow the panel's language, and the coin stays inside its card",
       "Crypto: several fixes, including the \"gateway approved\" note, the rules window's language, and not hanging when Jarchi Pay is slow",
       "Custom CSS was removed: all alerts use their normal designs",
-      "Privacy Policy Version 2: ask to see or delete your data with a ticket. You don't need to accept it again"
+      "Privacy Policy Version 2: ask to see or delete your data with a ticket. You don't need to accept it again",
+      "Song Battle has its own section in the Guide, and Song Request is coming soon, under ClipQ"
     ],
     "fa": [
       "بخش جدید بتل آهنگ: بیننده‌ها از لینک battle.jarchi.app آهنگ می‌فرستن، آهنگ‌ها دوبه‌دو بتل می‌دن، چت با ۱ یا ۲ رأی می‌ده و آخرش قهرمان معلوم می‌شه. با جدول مسابقه، سکه‌ی شانس برای مساوی و پنجره‌ی جدا برای OBS",
@@ -22,7 +23,8 @@
       "گیووی: پنجره‌ی جدا دکمه‌ی فا | EN داره، گردونه‌های نمونه هم‌زبون پنل می‌شن و سکه دیگه از کادرش بیرون نمی‌زنه",
       "کریپتو: چند تا باگ درست شد، از جمله پیام «درگاه تأیید شد»، زبان پنجره‌ی قوانین و گیر نکردن وقتی جارچی پی دیر جواب می‌ده",
       "CSS دلخواه حذف شد و همه‌ی الرت‌ها با طرح‌های معمول خودشون نشون داده می‌شن",
-      "حریم خصوصی نسخه‌ی ۲: درخواست دیدن یا حذف اطلاعات حالا با تیکت انجام می‌شه. لازم نیست دوباره قبولش کنید"
+      "حریم خصوصی نسخه‌ی ۲: درخواست دیدن یا حذف اطلاعات حالا با تیکت انجام می‌شه. لازم نیست دوباره قبولش کنید",
+      "بتل آهنگ حالا تو راهنما بخش خودش رو داره، و درخواست آهنگ هم به‌زودی زیر ClipQ میاد"
     ]
   },
   {

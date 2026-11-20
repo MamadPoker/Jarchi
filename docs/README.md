@@ -11,6 +11,7 @@
 | [Goals](goals.md) | The six goal widgets and Sync from Kick / Twitch |
 | [Viewer count](viewer-count.md) | Your Kick, Twitch or total viewers as an OBS widget |
 | [Giveaway](giveaway.md) | The prize wheel, giveaways from chat, the coin flip |
+| [Song Battle](song-battle.md) | Viewers send songs, chat votes 1 or 2, a bracket and a champion |
 | [Crypto donations](crypto.md) | Jarchi Pay: USDT donations and their alerts |
 | [Proxy & VPN](proxy.md) | Using Jarchi through a VPN or on a filtered network |
 

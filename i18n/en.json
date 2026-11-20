@@ -107,6 +107,7 @@
     "navContent": "Content",
     "navSongBattle": "Song Battle",
     "navClipQ": "ClipQ",
+    "navSongRequest": "Song Request",
     "navLuck": "Giveaway",
     "navDonations": "Donations",
     "navCrypto": "Crypto",
@@ -242,6 +243,7 @@
     "battleNoChampion": "Not decided yet…",
     "battleTbd": "?",
     "clipsSoon": "Clips line up to play on your stream. Coming soon.",
+    "songRequestSoon": "Viewers request songs to play on your stream. Coming soon.",
     "luckWheel": "Wheel",
     "luckGiveaway": "Giveaway",
     "luckCoin": "Coin flip",
@@ -1128,8 +1130,9 @@
         "queue": "Alerts waiting to play: pause, skip or clear them.",
         "events": "Every event that came in, by date.",
         "bot": "A bot that thanks your viewers in chat (coming soon).",
-        "battle": "Songs go head to head on your stream (coming soon).",
+        "battle": "Viewers send songs, they go head to head on your stream, and chat votes.",
         "clips": "Clips line up to play on your stream (coming soon).",
+        "requests": "Viewers request songs to play on your stream (coming soon).",
         "luck": "A prize wheel, giveaways from Kick and Twitch chat, and a coin flip.",
         "donations": "Crypto donations go straight to your own wallet. Request the crypto gateway on the Crypto page.",
         "connections": "Your Kick and Twitch accounts, and the proxy.",
@@ -1479,6 +1482,20 @@
           ["Gap between alerts", "In **Settings**, choose how many seconds pass between two alerts."]
         ],
         "tip": "If OBS is closed, alerts wait and play when it opens again; the page says so at the top. In the menu, the number next to **Alert queue** is how many alerts are waiting."
+      },
+      "battle": {
+        "title": "Song Battle",
+        "intro": "Viewers send their songs on your own battle page at battle.jarchi.app. Then the songs go head to head on your stream, two by two, chat votes **1** or **2**, and the last song standing is the champion. It's the **Song Battle** page, under **Content**.",
+        "steps": [
+          ["Connect once", "On **Song Battle**, press **Connect** and sign in with Kick or Twitch on the page that opens in your browser. That's only the first time: Jarchi stays connected, and your battle link stays the same for every battle."],
+          ["Set up a battle", "In **Battle settings**, choose a topic (or **A random topic**), how many songs (4 to 128), how many each viewer can send, **Links viewers can send** (YouTube, Spotify, SoundCloud) and **Voting**: **Chat votes**, or **I pick the winner**. More switches: viewers sign in with Kick or Twitch, show who sent each song, blur the covers, hide a song's name until it plays, and let your mods take bad songs off. Then press **Open for songs**."],
+          ["Share the link", "Under **Invite your viewers**: copy your fixed link, show its QR code on stream, or press **Post the link in chat** to post it in your Kick and Twitch chat (the first time, Jarchi may ask you to connect Kick or Twitch again on **Connections**, to allow it). Songs show up under **Submitted songs** as they come in; **Remove** takes one out. When you have enough, press **Start battle**."],
+          ["Vote with 1 and 2", "Each match puts two songs face to face, each in its own site's player, with play, 10 seconds back and forward, and a seek bar. Press **Start vote** (30, 60 or 90 seconds): viewers type **1** or **2** in Kick or Twitch chat (a Persian keyboard's digits count too), one vote each. Then **Confirm winner**, **Vote again**, or pick the other song with **This one wins**: the final call is yours. With **I pick the winner** there's no vote: you're the judge."],
+          ["A tie: the lucky coin", "If the vote ends in a tie, press **Flip the coin**. It spins in front of everyone: heads, song 1 wins; tails, song 2."],
+          ["The bracket", "The **Bracket** tab shows every round, the winners and the match on now, and the dots at the top show each match. **Next match** goes on. After the final, the champion stays on the bracket until you press **New battle**."],
+          ["Pop out for OBS", "**Pop out** opens the battle screen in its own window, with its own **فا | EN** switch and **Always on top**. In OBS, add it as a **Window Capture**. Your battle page at battle.jarchi.app shows the battle live too."]
+        ],
+        "tip": "In Jarchi, a Spotify song plays only 30 seconds, so Spotify starts off in **Links viewers can send**, with a **30 sec** tag. Turn it on if 30 seconds a song is enough for your battle."
       },
       "proxy": {
         "title": "Proxy & VPN",
