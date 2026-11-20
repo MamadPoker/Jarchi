@@ -30,8 +30,10 @@ test('fa.json has every key of en.json, with the same {variables}', () => {
 });
 
 test('the Privacy Policy has a version and the same parts in English and Persian', () => {
-  const { version, icons, en: e, fa: f } = JSON.parse(read('i18n/privacy.json'));
+  const { version, minAccepted, icons, en: e, fa: f } = JSON.parse(read('i18n/privacy.json'));
   assert.ok(Number.isInteger(version) && version > 0);
+  // The oldest version an install may have accepted and still count as accepted (core/stats.js, panel/js/help.js).
+  assert.ok(Number.isInteger(minAccepted) && minAccepted >= 1 && minAccepted <= version);
   for (const p of [e, f]) assert.ok(p.title && p.intro && p.items.every(([what, text]) => what && text));
   assert.equal(f.items.length, e.items.length);
   const js = panelJs(),
