@@ -48,9 +48,10 @@ const copyBtn = (name, url) => {
 };
 // The widget pages: [id the server counts them by, name, OBS link]. Only the switched-on ones are needed (alerts and
 // viewers always: they have no switch). One chat is "Chat"; with Chat 2 each goes by its name. Viewers: one per link,
-// "Viewers (Kick)", "Viewers (Twitch)", "Viewers (Total)".
+// "Viewers (Kick)", "Viewers (Twitch)", "Viewers (Total)". Crypto alerts: while they're on their own link.
 const widgetPages = () => [
   ['alerts', S.panel.groupAlerts, `${location.origin}/widgets/alerts`],
+  ...(settings.crypto.ownLink ? [['alerts-crypto', S.panel.cryptoAlertsWidget, `${location.origin}/widgets/alerts/crypto`]] : []),
   ...CHAT_KEYS.filter((k) => settings[k]).map((k) => [k, settings.chat2 ? chatName(k) : S.panel.chatName, chatUrl(k)]),
   ...Object.keys(settings.goals).map((id) => [id, goalName(id), `${location.origin}/widgets/goal/${id}`]),
   ...VIEWER_SOURCES.map((p) => [
@@ -62,7 +63,7 @@ const widgetPages = () => [
 // In use (Home's Widgets): on, and a Viewer count link only once it was opened in OBS (seenWidgets, from the server).
 let seenWidgets = [];
 const widgetUsed = (id) => widgetOn(id) && (!id.startsWith('viewers-') || open[id] > 0 || seenWidgets.includes(id));
-const widgetOn = (id) => id === 'alerts' || id.startsWith('viewers-') || (CHAT_KEYS.includes(id) ? settings[id] : settings.goals[id]).enabled;
+const widgetOn = (id) => id.startsWith('alerts') || id.startsWith('viewers-') || (CHAT_KEYS.includes(id) ? settings[id] : settings.goals[id]).enabled;
 const FEED_FILTERS = { all: null, subs: ['sub', 'resub', 'gift_sub'], kicks: ['kicks'], raids: ['raid'], follows: ['follow'] };
 const ofType = (list, f) => list.filter((ev) => !FEED_FILTERS[f] || FEED_FILTERS[f].includes(ev.type));
 const pressFilter = (box, f) => $$('button', box).forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.filter === f)));

@@ -27,15 +27,6 @@ function render() {
   }
 
   $('#chatUndo').hidden = !settings.canUndo;
-  for (const [box, cfg] of [
-    ['#alertCss', settings.alerts[cur]],
-    ['#goalCss', settings.goals[curGoal]],
-    ['#chatCss', chatCfg()],
-    ['#viewersCss', settings.viewers],
-  ]) {
-    const area = $(`${box} textarea`);
-    if (area !== document.activeElement) area.value = cfg.customCss; // never under the cursor
-  }
   $('#themeSwatch').className = `swatch sw-${settings.theme}`;
   $('#themeName').textContent = S.themes[settings.theme];
   $$('#themeSwatches .swatch').forEach((s) => s.classList.toggle('current', s.dataset.theme === settings.theme));

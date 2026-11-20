@@ -58,6 +58,7 @@ function renderCryptoAlerts() {
   $$('#cryptoAlertsTab [data-only]').forEach((e) => (e.hidden = (e.dataset.only === 'own') !== own));
   fileRow($('#cryptoSoundRow'), c.sound, S.panel.cryptoSoundDesign);
   seconds($('#cryptoDur'), c.duration);
+  $('#cryptoOwnLink').checked = c.ownLink;
   $('#cryptoTiers').replaceChildren(
     ...c.tiers.map((t) =>
       el(
@@ -134,6 +135,10 @@ function wireCryptoAlerts() {
   $('#cryptoOwnEdit').onclick = () => openLook('custom');
   $('#cryptoDur').onchange = (e) => send('PATCH', '/api/settings', { crypto: { duration: Number(e.target.value) } });
   $('#cryptoTestBtn').onclick = () => cryptoTest(settings.crypto.design);
+  const obsUrl = `${location.origin}/widgets/alerts/crypto`;
+  $('#cryptoObsUrl').textContent = obsUrl;
+  $('#cryptoObsCopy').onclick = () => copyLink(obsUrl);
+  $('#cryptoOwnLink').onchange = (e) => send('PATCH', '/api/settings', { crypto: { ownLink: e.target.checked } });
   $('#cryptoTierAdd').onclick = () =>
     api('POST', '/api/crypto/tiers', { min: (settings.crypto.tiers.at(-1)?.min ?? 25) * 2 }).then(
       ({ settings: s, id }) => {
@@ -405,6 +410,6 @@ function renderViewers() {
 function drawViewerThumbs() {
   for (const f of $$('.viewers-tile iframe')) {
     const style = f.dataset.style;
-    f.contentWindow?.postMessage({ cfg: { ...settings.viewers, ...viewerData.styles[style], style, size: 1, customCss: '' } }, location.origin);
+    f.contentWindow?.postMessage({ cfg: { ...settings.viewers, ...viewerData.styles[style], style, size: 1 } }, location.origin);
   }
 }

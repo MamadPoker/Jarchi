@@ -43,9 +43,10 @@ module.exports = function register(app, { ROOT }) {
     if (!['kick', 'twitch', 'total'].includes(req.params.source)) return next();
     res.sendFile(path.join(ROOT, 'widgets', 'viewers', 'index.html'));
   });
-  // One alerts page, an OBS URL per alert type too: /widgets/alerts/sub plays only subs.
+  // One alerts page, an OBS URL per alert type too: /widgets/alerts/sub plays only subs, /widgets/alerts/crypto crypto
+  // donations (while their own link is switched on).
   app.get('/widgets/alerts/:type{/}', (req, res, next) => {
-    if (!TYPES.includes(req.params.type)) return next();
+    if (!TYPES.includes(req.params.type) && req.params.type !== 'crypto') return next();
     res.sendFile(path.join(ROOT, 'widgets', 'alerts', 'index.html'));
   });
   app.use('/widgets', express.static(path.join(ROOT, 'widgets'))); // every widgets/<name>/ folder is its own OBS URL

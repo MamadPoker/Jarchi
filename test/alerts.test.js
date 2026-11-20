@@ -35,7 +35,7 @@ fs.writeFileSync(
           { min: 150, images: [old('kicks-tier-image-big.gif')], sounds: [old('kicks-tier-sound-big.wav')] },
         ],
       },
-      raid: { volume: 0.5, tiersOn: true, tiers: [{ min: 10, images: [old('raid-tier-image-old.gif')], sounds: [] }] },
+      raid: { volume: 0.5, tiersOn: true, tiers: [{ min: 10, images: [old('raid-tier-image-old.gif')], sounds: [] }], customCss: '.box { color: red }' },
       // Fixed bits tiers of v3/v4 (100, 500, ...): 500 is no Twitch gem, so it goes into 100 (v5).
       bits: {
         tiers: {
@@ -44,6 +44,10 @@ fs.writeFileSync(
         },
       },
     },
+    // Custom CSS from before v11 (removed): dropped.
+    goals: { subs: { customCss: '.fill { background: gold }' } },
+    chat: { customCss: '.msg { color: red }' },
+    viewers: { customCss: '.num { color: red }' },
   }),
 );
 process.env.JARCHI_PORT = '3997';
@@ -73,7 +77,10 @@ test("media by amount: fixed tiers (Kick's gift amounts), on/off and files; old 
 
   // Migration (v2 -> v3): the old free Kicks tiers moved to the fixed tier at or below their minimum, turned on;
   // a second file in one tier went. Raid's old tiers are ignored (and their file left alone).
-  assert.equal(JSON.parse(fs.readFileSync(path.join(dataDir, 'settings.json'))).version, 10);
+  const saved = fs.readFileSync(path.join(dataDir, 'settings.json'), 'utf8');
+  assert.equal(JSON.parse(saved).version, 11);
+  // v10 -> v11: the old Custom CSS is gone, from the file and from what the panel and widgets get.
+  assert.ok(!saved.includes('customCss') && !JSON.stringify(s).includes('customCss'));
   const k = s.alerts.kicks;
   assert.deepEqual(
     k.tiers.map((t) => t.amount),
@@ -804,6 +811,46 @@ test("alert links: a type's own link plays only that type, the main link skips i
   queue.events.off('play', onPlay);
 });
 
+test("crypto alerts' own link: off (the default), the main link plays them; on, only the crypto link does, and they wait while it's closed", (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
+  queue.clear();
+  const settings = require('../core/settings');
+  const plays = [];
+  const onPlay = (a, lane) => plays.push(`${lane}:${a.ev.user}`);
+  queue.events.on('play', onPlay);
+  let n = 0;
+  const donate = (user) => queue.push({ id: `c${n++}`, type: 'crypto', user, amount: '5.0000', network: 'bep20', look: 'coin' });
+  const tick = (s) => {
+    for (let i = 0; i < Math.round(s * 10); i++) t.mock.timers.tick(100);
+  };
+  const turn = (ownLink) => {
+    settings.update({ crypto: { ownLink } });
+    queue.next(); // what server/routes/settings.js does after the switch changes
+  };
+  const after = 8 + 0.6 + settings.get().alertGap + 0.1; // the coin: 8 s on screen
+
+  assert.equal(settings.get().crypto.ownLink, false);
+  queue.join(() => {}); // the main link
+  queue.join(() => {}, 'crypto'); // the crypto link, open but switched off: it gets nothing
+  donate('A');
+  assert.deepEqual(plays, ['all:A']);
+  tick(after);
+
+  turn(true);
+  donate('B');
+  assert.deepEqual(plays, ['all:A', 'crypto:B'], 'on: only the crypto link');
+  tick(after);
+  queue.leave('crypto');
+  donate('C');
+  tick(after);
+  assert.deepEqual([plays.length, queue.state().list.map((a) => a.user)], [2, ['C']], "its link closed: C waits, the main link doesn't take it");
+  turn(false);
+  assert.deepEqual(plays.slice(2), ['all:C'], 'switched off: the main link plays it');
+  tick(after);
+  queue.leave();
+  queue.events.off('play', onPlay);
+});
+
 test("History: every saved event (any can replay), Home: today's real alerts and chat, widget pages open right now", async () => {
   queue.clear();
   const home = async () => (await call('GET', '/api/home')).json();
@@ -844,10 +891,18 @@ test("History: every saved event (any can replay), Home: today's real alerts and
   const panel = sio();
   const chatPage = sio((ws) => ws.send('42["widgetJoin","chat"]'));
   const stranger = sio((ws) => ws.send('42["widgetJoin","nope"]')); // unknown names are ignored
+  const posing = sio((ws) => ws.send('42["widgetJoin","alerts-crypto"]')); // so is an alerts link that isn't an alerts overlay
   await until(() => seen.at(-1)?.chat === 1);
   chatPage.close();
   await until(() => seen.at(-1)?.chat === 0);
   assert.ok(seen.every((w) => !('nope' in w)));
+  // The crypto alerts' own link counts on its own (Home lists it while crypto alerts are on their own link).
+  const cryptoPage = sio((ws) => ws.send('42["alertsJoin","crypto"]'));
+  await until(() => seen.at(-1)?.['alerts-crypto'] === 1);
+  assert.equal(seen.at(-1).alerts, 0, 'not the main link');
+  cryptoPage.close();
+  await until(() => seen.at(-1)?.['alerts-crypto'] === 0);
   panel.close();
   stranger.close();
+  posing.close();
 });

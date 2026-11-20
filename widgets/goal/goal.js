@@ -8,9 +8,6 @@ const BLOCKS = 10; // retro bar
 const HIDDEN_SPOT = { pill: 'inside', circle: 'below' }; // where the numbers go when the title is hidden
 const RING = 200; // goal.css .ring: the Circle style's unit
 const WIDE = 1.75; // a source this many times wider than tall (16:9 too) gets the Circle's text beside the ring
-// The user's Custom CSS (Advanced box), after the page's own CSS so it wins. Set as text, so nothing in it is ever HTML
-// (a "</style>" can't end it).
-const userCss = document.head.appendChild(document.createElement('style'));
 let settings,
   cfg,
   look = '',
@@ -42,11 +39,7 @@ if (params.has('thumb')) {
   socket.on('settings', (s) => {
     settings = s;
     const next = s.goals[id];
-    if (userCss.textContent !== next.customCss) {
-      userCss.textContent = next.customCss;
-      fit();
-    }
-    const now = JSON.stringify({ ...next, customCss: '' }); // the CSS alone needs no redraw
+    const now = JSON.stringify(next);
     if (now === look) return;
     look = now;
     cfg = next;

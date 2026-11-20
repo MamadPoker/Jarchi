@@ -2138,24 +2138,6 @@ main {
 .more-grid .box {
   background: var(--bg);
 }
-/* An editor's Advanced box (Custom CSS): a smaller fold than More options, the CSS in a code font. */
-.css-box summary {
-  padding: 10px 16px;
-  font-size: 14px;
-}
-.css-body {
-  display: grid;
-  gap: 8px;
-  padding: 0 16px 16px;
-}
-.css-body textarea {
-  min-height: 120px;
-  font:
-    13px/1.5 Consolas,
-    ui-monospace,
-    monospace;
-  tab-size: 2;
-}
 
 #toast {
   position: fixed;
@@ -5596,6 +5578,10 @@ dialog.crypto-hello {
 }
 .crypto-li .link-row {
   flex-basis: 100%;
+}
+/* A switch's row: its text takes the room, so a long hint wraps beside the switch instead of pushing it under. */
+.crypto-li:has(> .switch) > .stack {
+  flex: 1;
 }
 /* The donation emoji's animations (the Donation page tab): picked ones in teal. */
 #cryptoEmoji small {

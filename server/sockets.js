@@ -22,7 +22,7 @@ const strings = require('../i18n/en.json');
 
 module.exports = function sockets({ io, view, changed, DEV }) {
   // Widget pages open right now, in OBS or a browser (the panel's previews don't count): the Home page's green dots.
-  const WIDGETS = ['alerts', 'chat', 'chat2', ...settings.GOAL_IDS, 'viewers-kick', 'viewers-twitch', 'viewers-total'];
+  const WIDGETS = ['alerts', 'alerts-crypto', 'chat', 'chat2', ...settings.GOAL_IDS, 'viewers-kick', 'viewers-twitch', 'viewers-total'];
   // seen: every widget link ever opened, kept (data/widgets.json): Home lists a Viewer count link only once it's in use.
   const open = Object.fromEntries(WIDGETS.map((w) => [w, 0]));
   const SEEN_FILE = path.join(DATA_DIR, 'widgets.json');
@@ -57,18 +57,19 @@ module.exports = function sockets({ io, view, changed, DEV }) {
     });
     if (DEV && release.latest()) socket.emit('devUpdate', release.latest()); // a newer Jarchi than this source copy (core/release.js)
     // The alerts overlay joins to get alerts from the queue (the panel's previews don't): the main link, or one type's own
-    // (its lane in core/alerts). The Home page counts the main link.
+    // or the crypto alerts' (its lane in core/alerts). The Home page counts the main link and the crypto one.
     socket.once('alertsJoin', (only) => {
-      const lane = TYPES.includes(only) ? only : 'all';
+      const lane = TYPES.includes(only) || only === 'crypto' ? only : 'all';
       socket.join(['alerts', `alerts:${lane}`]);
       alertQueue.join((now) => socket.emit('alert', now), lane);
       socket.once('disconnect', () => alertQueue.leave(lane));
       if (lane === 'all') opened(socket, 'alerts');
+      else if (lane === 'crypto') opened(socket, 'alerts-crypto');
       socket.on('alertShown', (r) => alertQueue.shown(r, socket.conn.transport.name)); // alert timing line
       // In OBS: its Browser Source's size (on connect, and when it changes). A new one goes to the panel's preview.
       socket.on('obsSize', (s) => settings.setObsSize(s) && io.emit('obsSize', settings.obsSize()));
     });
-    socket.once('widgetJoin', (w) => w !== 'alerts' && WIDGETS.includes(w) && opened(socket, w)); // a chat, a goal
+    socket.once('widgetJoin', (w) => WIDGETS.includes(w) && !w.startsWith('alerts') && opened(socket, w)); // a chat, a goal (alerts: alertsJoin)
     // A viewers page (OBS or the panel's preview): the counts are asked while one is open (core/viewers.js).
     socket.once('viewersJoin', () => {
       socket.join('viewers');

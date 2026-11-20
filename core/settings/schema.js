@@ -2,7 +2,7 @@
 const { TYPES } = require('../events');
 const strings = require('../../i18n/en.json');
 
-const VERSION = 10;
+const VERSION = 11;
 // 'none': no box, background or effects, just the picture and outlined text.
 const THEMES = ['neon', 'minimal', 'fun', 'retro', 'glass', 'fire', 'ice', 'galaxy', 'comic', 'simple', 'none'];
 // App-wide settings (not per alert). showBadge: platform badge on alerts; it still needs both Kick and Twitch connected.
@@ -119,7 +119,6 @@ const DEFAULTS = Object.fromEntries(
       textShadow: true,
       autoSize: true,
       theme: null, // null = the main theme
-      customCss: '', // the user's own CSS on top of this alert's look (Advanced, under the tabs); not part of its text style
       ...PER_TYPE[t],
     },
   ]),
@@ -134,8 +133,6 @@ const oneOf =
   (v) =>
     list.includes(v);
 const hex = (v) => typeof v === 'string' && /^#[0-9a-f]{6}$/i.test(v);
-// Custom CSS (each widget's Advanced box): plain text, which the widget sets as its <style> element's text, never as HTML.
-const css = (v) => typeof v === 'string' && v.length <= 20000;
 const RULES = {
   enabled: (v) => typeof v === 'boolean',
   template: (v) => typeof v === 'string' && v.length <= 200,
@@ -165,7 +162,6 @@ const RULES = {
   nameShadow: (v) => typeof v === 'boolean',
   textShadow: (v) => typeof v === 'boolean',
   autoSize: (v) => typeof v === 'boolean',
-  customCss: css,
 };
 // ---------- Goals ----------
 // Kick's goals, then Twitch's (the ids before v6 stay, so their OBS links keep working). Each counts and syncs from its
@@ -304,7 +300,6 @@ const GOAL_DEFAULTS = Object.fromEntries(
       sound: null, // { file, name } once uploaded
       volume: 0.7,
       autoSize: true, // text: the biggest that fits (off: the style's fontSize, smaller only if it wouldn't fit). Kept when the style changes
-      customCss: '', // the user's own CSS on top of the look: kept when the style changes too
     },
   ]),
 );
@@ -335,7 +330,6 @@ const GOAL_RULES = {
   titlePos: oneOf('above', 'below', 'inside', 'hidden'),
   showPercent: bool,
   showNumbers: bool,
-  customCss: css,
 };
 
 // ---------- Chat ----------
@@ -720,7 +714,6 @@ const CHAT_DEFAULTS = {
   eventRaids: false,
   eventLook: 'card',
   eventLonger: false,
-  customCss: '', // the user's own CSS on top of the look, this chat's (not a design's): kept when the style changes
 };
 const words = (v) => typeof v === 'string' && v.length <= 1000;
 const amount = (v) => Number.isInteger(v) && v >= 0 && v <= 1e6;
@@ -817,7 +810,6 @@ const CHAT_RULES = {
   eventRaids: bool,
   eventLook: oneOf('card', 'glow', 'line'),
   eventLonger: bool,
-  customCss: css,
 };
 // An exclusive design (core/designs.js) becomes a chat style like the others: its look is only a design's own values
 // (CHAT_OWN), each one valid. false: not taken.
@@ -847,7 +839,7 @@ const VIEWER_STYLES = {
 };
 const VIEWER_LOOK = Object.keys(VIEWER_STYLES.gold);
 const VIEWER_COLORS = ['numberColor', 'bgColor', 'accentColor']; // Jarchi gold: always its own (Jarchi's brand colors)
-const VIEWERS_DEFAULTS = { style: 'gold', icon: 'people', chartMinutes: 10, offline: 'text', anim: 'roll', size: 1, customCss: '' };
+const VIEWERS_DEFAULTS = { style: 'gold', icon: 'people', chartMinutes: 10, offline: 'text', anim: 'roll', size: 1 };
 const VIEWER_RULES = {
   style: (v) => v in VIEWER_STYLES,
   icon: oneOf('people', 'kick', 'twitch', 'switch'),
@@ -859,7 +851,6 @@ const VIEWER_RULES = {
   numberColor: hex,
   bgColor: hex,
   accentColor: hex,
-  customCss: css,
 };
 
 // The sidebar's profile chip (Edit profile): name and picture from the Kick or Twitch account, or the streamer's own
@@ -875,13 +866,14 @@ const PROFILE_RULES = {
 // design: the card that plays ('coin' | 'hologram', Jarchi's two, or 'custom' = Your own alert). sound: an uploaded sound
 // for the two designs instead of their own; duration (s): theirs. custom and each amount alert (tiers: { id, min USDT })
 // = a look: { image, sound, pos (text top / bottom / side of the image), font, duration }. The highest tier a donation
-// reaches plays instead of the card (cryptoPick).
+// reaches plays instead of the card (cryptoPick). ownLink: crypto alerts play only on their own OBS link
+// (/widgets/alerts/crypto), not on the main alerts link (core/alerts.js).
 const CRYPTO_DESIGNS = ['coin', 'hologram', 'custom'];
 const CRYPTO_FONTS = ['Lalezar', 'Vazirmatn', 'Bangers'];
 const CRYPTO_LOOK = { image: null, sound: null, pos: 'bottom', font: 'Lalezar', duration: 8 };
 const CRYPTO_TIERS = 20;
 const cryptoSeconds = num(3, 60);
-const CRYPTO_RULES = { design: oneOf(...CRYPTO_DESIGNS), duration: cryptoSeconds };
+const CRYPTO_RULES = { design: oneOf(...CRYPTO_DESIGNS), duration: cryptoSeconds, ownLink: (v) => typeof v === 'boolean' };
 const LOOK_RULES = { pos: oneOf('top', 'bottom', 'side'), font: oneOf(...CRYPTO_FONTS), duration: cryptoSeconds, min: num(0.01, 1e6) };
 
 const ALLOWED = { image: ['png', 'jpg', 'gif', 'webp', 'webm', 'mp4'], sound: ['mp3', 'wav', 'ogg'], picture: ['png', 'jpg', 'webp'] };
@@ -905,7 +897,6 @@ module.exports = {
   num,
   oneOf,
   hex,
-  css,
   RULES,
   GOAL_IDS,
   FONTS,

@@ -5,6 +5,7 @@ const goals = require('../../core/goals');
 const chat = require('../../core/chat');
 const stats = require('../../core/stats');
 const pay = require('../../core/pay');
+const alertQueue = require('../../core/alerts');
 
 module.exports = function register(app, { view, changed, raw, upload, fileName, reconnect }) {
   app.get('/api/settings', (req, res) => res.json(view()));
@@ -32,6 +33,7 @@ module.exports = function register(app, { view, changed, raw, upload, fileName, 
     if ('kickGoalSync' in patch || 'twitchGoalSync' in patch) goals.refresh();
     if (Object.keys(patch).some((k) => k.startsWith('proxy'))) reconnect();
     else if (patch.chat) chat.sync(); // channel names may have changed
+    if (patch.crypto) alertQueue.next(); // the crypto link switch: waiting crypto alerts go to the other link
   }
   app.patch('/api/settings', (req, res) => {
     const s = settings.update(req.body);
