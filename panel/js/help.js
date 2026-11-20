@@ -109,12 +109,12 @@ function renderGuide() {
 // The app's language is settings.lang: every panel window shows it (the main one, a pop-out, one in another browser or
 // an OBS dock, whatever its own storage says), at the start (start.js) and when it changes (socket 'settings'), except
 // a pop-out given its own (look.js OWN_LANG). key keeps it in this browser for the first paint (look.js FA): jarchi.lang,
-// or that pop-out's. This window: reloaded in it, back to what was open.
+// or that pop-out's. This window: reloaded in it, back to what was open (Song Battle: its tab too, battle.js btBack).
 function useLang(lang, key = 'jarchi.lang') {
   remember.set(key, lang);
   if (remember.get(key) !== lang) return; // not kept (no storage here): a reload would come back the same
   try {
-    sessionStorage.setItem('jarchi.back', JSON.stringify([view, { alert: cur, goal: curGoal, guide: topic }[view]]));
+    sessionStorage.setItem('jarchi.back', JSON.stringify([view, { alert: cur, goal: curGoal, guide: topic, battle: btBack() }[view]]));
   } catch {}
   location.reload();
 }

@@ -209,6 +209,7 @@ test("the language switch: the app's language saved first, then this window relo
       S: { lang: 'en' },
       view: pop || 'luck',
       POP_LANG: pop && `jarchi.${pop}Lang`,
+      btBack: () => ['bracket', 'b1'], // Song Battle's tab and the champion already shown (battle.js)
       ...{ cur: null, curGoal: null, topic: null },
       remember: { get: (k) => store[k] ?? null, set: (k, v) => kept && (store[k] = v) },
       sessionStorage: { setItem: (k, v) => did.push(`${k} ${v}`) },
@@ -233,6 +234,6 @@ test("the language switch: the app's language saved first, then this window relo
   const c = run(true, 'battle'); // the Song Battle pop-out's switch: nothing saved for the app, nor for other windows
   c.ctx.setLang('fa');
   await new Promise(setImmediate);
-  assert.deepEqual(c.did, ['jarchi.back ["battle",null]', 'reload']);
+  assert.deepEqual(c.did, ['jarchi.back ["battle",["bracket","b1"]]', 'reload'], 'back on the same screen');
   assert.deepEqual(c.store, { 'jarchi.battleLang': 'fa' });
 });

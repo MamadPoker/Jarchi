@@ -63,14 +63,14 @@ function lkLocalize(d, other) {
   d.spins.forEach((s) => follow(s, 'text'));
   return changed;
 }
-// The first run: Jarchi's sample wheels, in the panel's language; later, its texts in the app's language (a pop-out in
-// a language of its own leaves them, or it and the panel would keep changing them back). Again from the server: drawn
-// only if it changed.
+// The first run: Jarchi's sample wheels, in the panel's language; later, its texts in this window's language. Saved only
+// from a window in the app's language: a pop-out in a language of its own shows them in it, or it and the panel would
+// keep changing them back. Again from the server: drawn only if it changed.
 async function gotLuck(d) {
   if (!d.wheels.length) {
     d.wheels = S.panel.luckSamples.map((w) => ({ id: lkId(), name: w.name, slices: w.slices.map(([text, chance]) => ({ text, chance })) }));
     lkDirty.add('wheels').add('wheel');
-  } else if (S.lang === settings.lang && lkLocalize(d, await stringsOf(FA ? 'en' : 'fa'))) lkDirty.add('wheels').add('spins');
+  } else if (lkLocalize(d, await stringsOf(FA ? 'en' : 'fa')) && S.lang === settings.lang) lkDirty.add('wheels').add('spins');
   if (!d.wheels.some((w) => w.id === d.wheel)) d.wheel = d.wheels[0].id;
   if (luck && !lkDirty.size && JSON.stringify(d) === JSON.stringify(luck)) return;
   luck = d;

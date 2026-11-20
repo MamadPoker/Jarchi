@@ -83,8 +83,12 @@ module.exports = function sockets({ io, view, changed, DEV }) {
       socket.join('luck');
       socket.emit('giveaway', luck.state());
     });
-    // The Song Battle page (the panel, or its pop-out window): every change on the battle screen.
-    socket.once('battleJoin', () => socket.join('battle'));
+    // The Song Battle page (the panel, or its pop-out window): the battle as Jarchi has it, at once (a reload, after a
+    // language switch say, stays on its screen instead of waiting for Jarchi Battle), then every change on the battle screen.
+    socket.once('battleJoin', () => {
+      socket.join('battle');
+      socket.emit('battle', battle.now());
+    });
 
     // "Show chat timing": a chat widget says when it drew a live message; core/chat prints how long each step took.
     socket.on('chatShown', (r) => chat.timing(r, socket.conn.transport.name));

@@ -323,6 +323,9 @@ const btPlayed = new Set(); // ids of the songs played: their names show (Hide a
 let btFlipping = null, // the coin, from its flip until the next match: { key, side, done }
   btTab = 'game', // the battle screen's tab: game | bracket
   btChampOf = null; // the battle whose champion this window has shown (once, with confetti)
+// What a language switch's reload keeps of this window (help.js useLang, then select): the tab, and the champion already
+// shown, unless its card is open now (then it opens again).
+const btBack = () => [btTab, $('#btChamp').open ? null : btChampOf];
 
 // A call on the battle screen -> the state, shown. Refused: why, and the state as it is now (-> undefined).
 const btAct = (method, url, body) =>

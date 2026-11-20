@@ -134,7 +134,10 @@ function select(v, key) {
   }
   if (v === 'news') renderNews(S.lang);
   if (v === 'luck') showLuck();
-  if (v === 'battle') showBattle();
+  if (v === 'battle') {
+    if (key) [btTab, btChampOf] = key; // back from a language switch (help.js useLang)
+    showBattle();
+  }
   if (v === 'guide') {
     if (S.guide.topics[key]) topic = key;
     renderGuide();
