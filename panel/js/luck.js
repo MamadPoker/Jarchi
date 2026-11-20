@@ -63,13 +63,14 @@ function lkLocalize(d, other) {
   d.spins.forEach((s) => follow(s, 'text'));
   return changed;
 }
-// The first run: Jarchi's sample wheels, in the panel's language; later, its texts in the app's language. Again from
-// the server: drawn only if it changed.
+// The first run: Jarchi's sample wheels, in the panel's language; later, its texts in the app's language (a pop-out in
+// a language of its own leaves them, or it and the panel would keep changing them back). Again from the server: drawn
+// only if it changed.
 async function gotLuck(d) {
   if (!d.wheels.length) {
     d.wheels = S.panel.luckSamples.map((w) => ({ id: lkId(), name: w.name, slices: w.slices.map(([text, chance]) => ({ text, chance })) }));
     lkDirty.add('wheels').add('wheel');
-  } else if (lkLocalize(d, await stringsOf(FA ? 'en' : 'fa'))) lkDirty.add('wheels').add('spins');
+  } else if (S.lang === settings.lang && lkLocalize(d, await stringsOf(FA ? 'en' : 'fa'))) lkDirty.add('wheels').add('spins');
   if (!d.wheels.some((w) => w.id === d.wheel)) d.wheel = d.wheels[0].id;
   if (luck && !lkDirty.size && JSON.stringify(d) === JSON.stringify(luck)) return;
   luck = d;
@@ -874,7 +875,8 @@ function renderLuck() {
 }
 
 // Pop out (Luck, Song Battle): the page in its own window (/?pop=<page>). There: Always on top (the desktop app, kept
-// per page), and the language switch (no top bar there); it follows the app's language like every window (help.js useLang).
+// per page), and the language switch (no top bar there): the app's language until it's used, then that window's own
+// (help.js setLang).
 function popOut(page, name, btn, lang, top, width) {
   btn.hidden = !!POP;
   btn.onclick = () => window.open(`/?pop=${page}`, `jarchi-${page}`, `popup,width=${width},height=820`);

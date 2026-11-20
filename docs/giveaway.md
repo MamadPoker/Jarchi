@@ -2,7 +2,7 @@
 
 # Giveaway
 
-A prize wheel, giveaways from Kick and Twitch chat, and a coin flip, on three tabs: **Wheel**, **Giveaway**, **Coin flip**. They live in the panel (there's no OBS link for them). **Pop out** opens the page in its own window for a second monitor, in the panel's language and with its own **فا | EN** switch, and **Always on top** keeps it above other windows. Everything is saved in `data/luck.json`.
+A prize wheel, giveaways from Kick and Twitch chat, and a coin flip, on three tabs: **Wheel**, **Giveaway**, **Coin flip**. They live in the panel (there's no OBS link for them). **Pop out** opens the page in its own window for a second monitor, in the panel's language and with its own **فا | EN** switch (it changes only that window's language), and **Always on top** keeps it above other windows. Everything is saved in `data/luck.json`.
 
 ## Wheel
 

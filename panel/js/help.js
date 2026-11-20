@@ -106,20 +106,23 @@ function renderGuide() {
   );
 }
 
-// The app's language is settings.lang: every panel window shows it (the main one, the Luck pop-out, one in another
-// browser or an OBS dock, whatever its own storage says), at the start (start.js) and when it changes (socket 'settings').
-// jarchi.lang keeps it in this browser for the first paint (look.js FA). This window: reloaded in it, back to what was open.
-function useLang(lang) {
-  remember.set('jarchi.lang', lang);
-  if (remember.get('jarchi.lang') !== lang) return; // not kept (no storage here): a reload would come back the same
+// The app's language is settings.lang: every panel window shows it (the main one, a pop-out, one in another browser or
+// an OBS dock, whatever its own storage says), at the start (start.js) and when it changes (socket 'settings'), except
+// a pop-out given its own (look.js OWN_LANG). key keeps it in this browser for the first paint (look.js FA): jarchi.lang,
+// or that pop-out's. This window: reloaded in it, back to what was open.
+function useLang(lang, key = 'jarchi.lang') {
+  remember.set(key, lang);
+  if (remember.get(key) !== lang) return; // not kept (no storage here): a reload would come back the same
   try {
     sessionStorage.setItem('jarchi.back', JSON.stringify([view, { alert: cur, goal: curGoal, guide: topic }[view]]));
   } catch {}
   location.reload();
 }
-// The language switch (top bar, Appearance, the welcome tour, the Luck pop-out's): the app's language, so every window.
+// The language switch (top bar, Appearance, the welcome tour): the app's language, so every window. A pop-out's own
+// switch (Luck, Song Battle; the only one there): that window's language only, so OBS can show another than the panel.
 function setLang(lang) {
   if (lang === S.lang) return;
+  if (POP_LANG) return useLang(lang, POP_LANG);
   api('PATCH', '/api/settings', { lang }).then(
     () => useLang(lang),
     (err) => toast(err.message, true),
