@@ -9,6 +9,14 @@ const BT_SIZES = [4, 8, 16, 32, 64, 128],
   BT_PER = [1, 2, 3];
 const BT_SOURCES = { youtube: 'YouTube', spotify: 'Spotify', soundcloud: 'SoundCloud' };
 const BT_TAKING = ['collecting', 'closed'];
+// The sites a battle takes, by name in the panel's language: "YouTube or SoundCloud", "YouTube, Spotify or SoundCloud".
+function btSites(sources) {
+  const names = Object.keys(BT_SOURCES)
+      .filter((v) => sources.includes(v))
+      .map((v) => S.panel.battleSiteNames[v]),
+    [comma, or] = S.panel.battleSitesJoin;
+  return names.length > 1 ? names.slice(0, -1).join(comma) + or + names.at(-1) : names[0];
+}
 
 const loadBattle = () => api('GET', '/api/battle').then(gotBattle, (err) => toast(err.message, true));
 function gotBattle(st) {
@@ -78,6 +86,11 @@ function renderBattleSetup() {
   ])
     $$(`[name=${name}]`).forEach((r) => (r.checked = r.value === String(v)));
   $$('#btSources input').forEach((c) => (c.checked = s.sources.includes(c.value)));
+  // The invite line and the paste box name only the sites turned on (this battle's, while one runs).
+  const sites = btSites(s.sources);
+  $('#btInviteSub').textContent = tpl(S.panel.battleInviteSub, { sites });
+  $('#btLink').placeholder = tpl(S.panel.battleLinkHint, { sites });
+  $('#btLink').setAttribute('aria-label', $('#btLink').placeholder);
   $$('#btForm [data-k]').forEach((c) => (c.checked = s[c.dataset.k]));
   $('#btModBox').hidden = !s.mods;
   $('#btMods').replaceChildren(
