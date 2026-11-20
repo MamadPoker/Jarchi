@@ -884,10 +884,18 @@ test("History: every saved event (any can replay), Home: today's real alerts and
   const panel = sio();
   const chatPage = sio((ws) => ws.send('42["widgetJoin","chat"]'));
   const stranger = sio((ws) => ws.send('42["widgetJoin","nope"]')); // unknown names are ignored
+  const posing = sio((ws) => ws.send('42["widgetJoin","alerts-crypto"]')); // so is an alerts link that isn't an alerts overlay
   await until(() => seen.at(-1)?.chat === 1);
   chatPage.close();
   await until(() => seen.at(-1)?.chat === 0);
   assert.ok(seen.every((w) => !('nope' in w)));
+  // The crypto alerts' own link counts on its own (Home lists it while crypto alerts are on their own link).
+  const cryptoPage = sio((ws) => ws.send('42["alertsJoin","crypto"]'));
+  await until(() => seen.at(-1)?.['alerts-crypto'] === 1);
+  assert.equal(seen.at(-1).alerts, 0, 'not the main link');
+  cryptoPage.close();
+  await until(() => seen.at(-1)?.['alerts-crypto'] === 0);
   panel.close();
   stranger.close();
+  posing.close();
 });

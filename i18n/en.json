@@ -364,6 +364,7 @@
     "cryptoObsLink": "OBS link",
     "cryptoOwnLink": "Crypto alerts on their own link",
     "cryptoOwnLinkHint": "On: crypto alerts play only on the link below, not on the main alerts link, so nothing shows twice. Off: they play on the main alerts link and the link below stays empty.",
+    "cryptoAlertsWidget": "Crypto alerts",
     "cryptoImageYours": "Your image",
     "cryptoImageCoin": "Jarchi Pay's coin",
     "cryptoSoundYours": "Your sound",
