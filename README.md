@@ -103,11 +103,19 @@ Viewers type a word in Kick or Twitch chat to join; subs can get double chance. 
 <tr>
 <td valign="top">
 
+**Song Battle**<br>
+Viewers send songs on your own battle page, the songs go head to head on stream, chat votes 1 or 2, and one is the champion. [Song Battle →](docs/song-battle.md)
+
+</td>
+<td valign="top">
+
 **Crypto donations**<br>
 USDT (BEP20, TRC20) straight to your own wallet through Jarchi Pay, played in the same alert queue. [Crypto →](docs/crypto.md)
 
 </td>
-<td valign="top">
+</tr>
+<tr>
+<td colspan="2" valign="top">
 
 **Yours, on your PC**<br>
 A desktop app with a tray icon and quiet updates, a Persian right-to-left panel, and your own VPN found for you. [The panel →](docs/panel.md)
@@ -145,6 +153,7 @@ A desktop app with a tray icon and quiet updates, a Persian right-to-left panel,
 | [Goals](docs/goals.md) | Six goals and Sync from Kick / Twitch |
 | [Viewer count](docs/viewer-count.md) | Live viewers on stream |
 | [Giveaway](docs/giveaway.md) | Wheel, chat giveaways, coin flip |
+| [Song Battle](docs/song-battle.md) | Viewers' songs head to head, chat votes |
 | [Crypto donations](docs/crypto.md) | Jarchi Pay and its alerts |
 | [Proxy & VPN](docs/proxy.md) | VPNs and filtered networks |
 | [Development](docs/development.md) | Project layout, event shape, tests |

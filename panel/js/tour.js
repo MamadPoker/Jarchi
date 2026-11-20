@@ -13,7 +13,7 @@ const SPOTS = [
   ['navViewers', ['viewers']],
   ['navLive', ['queue', 'events']],
   ['navBot', ['bot']],
-  ['navContent', ['luck', 'battle', 'clips']],
+  ['navContent', ['luck', 'battle', 'clips', 'requests']],
   ['navDonations', ['donations']],
   ['navSetup', ['connections', 'appearance', 'settings', 'guide']],
   ['navMore', ['about', 'support']],
