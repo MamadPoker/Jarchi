@@ -367,8 +367,9 @@ test('goals: count from events, latch when reached, saved, styles', async () => 
   assert.equal((await fetch(`${base}/widgets/goal/kicks/`)).status, 200);
   assert.equal((await fetch(`${base}/widgets/goal/twitchSubs`)).status, 200);
   assert.equal((await fetch(`${base}/widgets/goal/nope`)).status, 404);
-  // And one alerts page per alert type, next to the main one.
+  // And one alerts page per alert type, next to the main one, and the crypto alerts' own.
   assert.equal((await fetch(`${base}/widgets/alerts/sub`)).status, 200);
+  assert.equal((await fetch(`${base}/widgets/alerts/crypto`)).status, 200);
   assert.equal((await fetch(`${base}/widgets/alerts/gift_sub/`)).status, 200);
   assert.equal((await fetch(`${base}/widgets/alerts/alerts.js`)).status, 200);
   assert.equal((await fetch(`${base}/widgets/alerts/nope`)).status, 404);

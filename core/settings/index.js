@@ -156,6 +156,7 @@ function cryptoAlerts() {
     design: CRYPTO_DESIGNS.includes(o.design) ? o.design : 'hologram',
     sound: o.sound ?? null,
     duration: o.duration ?? 8,
+    ownLink: o.ownLink === true,
     custom: { ...CRYPTO_LOOK, ...o.custom },
     tiers: (o.tiers ?? []).map((t) => ({ ...CRYPTO_LOOK, ...t })).sort((a, b) => a.min - b.min),
   };

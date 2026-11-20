@@ -811,6 +811,46 @@ test("alert links: a type's own link plays only that type, the main link skips i
   queue.events.off('play', onPlay);
 });
 
+test("crypto alerts' own link: off (the default), the main link plays them; on, only the crypto link does, and they wait while it's closed", (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
+  queue.clear();
+  const settings = require('../core/settings');
+  const plays = [];
+  const onPlay = (a, lane) => plays.push(`${lane}:${a.ev.user}`);
+  queue.events.on('play', onPlay);
+  let n = 0;
+  const donate = (user) => queue.push({ id: `c${n++}`, type: 'crypto', user, amount: '5.0000', network: 'bep20', look: 'coin' });
+  const tick = (s) => {
+    for (let i = 0; i < Math.round(s * 10); i++) t.mock.timers.tick(100);
+  };
+  const turn = (ownLink) => {
+    settings.update({ crypto: { ownLink } });
+    queue.next(); // what server/routes/settings.js does after the switch changes
+  };
+  const after = 8 + 0.6 + settings.get().alertGap + 0.1; // the coin: 8 s on screen
+
+  assert.equal(settings.get().crypto.ownLink, false);
+  queue.join(() => {}); // the main link
+  queue.join(() => {}, 'crypto'); // the crypto link, open but switched off: it gets nothing
+  donate('A');
+  assert.deepEqual(plays, ['all:A']);
+  tick(after);
+
+  turn(true);
+  donate('B');
+  assert.deepEqual(plays, ['all:A', 'crypto:B'], 'on: only the crypto link');
+  tick(after);
+  queue.leave('crypto');
+  donate('C');
+  tick(after);
+  assert.deepEqual([plays.length, queue.state().list.map((a) => a.user)], [2, ['C']], "its link closed: C waits, the main link doesn't take it");
+  turn(false);
+  assert.deepEqual(plays.slice(2), ['all:C'], 'switched off: the main link plays it');
+  tick(after);
+  queue.leave();
+  queue.events.off('play', onPlay);
+});
+
 test("History: every saved event (any can replay), Home: today's real alerts and chat, widget pages open right now", async () => {
   queue.clear();
   const home = async () => (await call('GET', '/api/home')).json();
@@ -851,10 +891,18 @@ test("History: every saved event (any can replay), Home: today's real alerts and
   const panel = sio();
   const chatPage = sio((ws) => ws.send('42["widgetJoin","chat"]'));
   const stranger = sio((ws) => ws.send('42["widgetJoin","nope"]')); // unknown names are ignored
+  const posing = sio((ws) => ws.send('42["widgetJoin","alerts-crypto"]')); // so is an alerts link that isn't an alerts overlay
   await until(() => seen.at(-1)?.chat === 1);
   chatPage.close();
   await until(() => seen.at(-1)?.chat === 0);
   assert.ok(seen.every((w) => !('nope' in w)));
+  // The crypto alerts' own link counts on its own (Home lists it while crypto alerts are on their own link).
+  const cryptoPage = sio((ws) => ws.send('42["alertsJoin","crypto"]'));
+  await until(() => seen.at(-1)?.['alerts-crypto'] === 1);
+  assert.equal(seen.at(-1).alerts, 0, 'not the main link');
+  cryptoPage.close();
+  await until(() => seen.at(-1)?.['alerts-crypto'] === 0);
   panel.close();
   stranger.close();
+  posing.close();
 });

@@ -642,6 +642,21 @@
                   <ul id="cryptoTiers" class="crypto-tiers"></ul>
                   <div><button id="cryptoTierAdd" class="ghost" data-i18n="cryptoTierAdd"></button></div>
                 </div>
+                <!-- Crypto alerts' own OBS link (/widgets/alerts/crypto): it plays them only while its switch is on, and then
+                 the main alerts link doesn't (core/alerts.js). -->
+                <div class="box crypto-sec">
+                  <h2 data-i18n="cryptoObsLink"></h2>
+                  <div class="crypto-li">
+                    <span class="stack"><b data-i18n="cryptoOwnLink"></b><small data-i18n="cryptoOwnLinkHint"></small></span>
+                    <label class="switch"><input type="checkbox" id="cryptoOwnLink" data-aria="cryptoOwnLink" /><span></span></label>
+                  </div>
+                  <div class="crypto-li">
+                    <small data-i18n="copyObsHint"></small>
+                    <div class="copy-row link-row">
+                      <code id="cryptoObsUrl" dir="ltr"></code><button id="cryptoObsCopy" class="primary" data-i18n="copy"></button>
+                    </div>
+                  </div>
+                </div>
               </div>
               <!-- Donation page (renderCryptoPage, Jarchi Pay's /api/app/page): the wallets, read only (changed on Jarchi Pay's
                site, after signing in again), the banner and picture (an upload, or back to the channel's own), the line
