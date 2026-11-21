@@ -342,4 +342,10 @@ async function say(text) {
   if (!r?.data?.[0]?.is_sent) throw fail('dropped');
 }
 
-module.exports = { status, login, disconnect, start, handle, live, stream, say, events: account };
+// A clip's title and picture (ClipQ): { title, thumbnail_url, ... }, or null without a login or when Twitch has none.
+async function clip(slug) {
+  if (!saved.refresh) return null;
+  return (await authed(`${HELIX}/clips?id=${encodeURIComponent(slug)}`)).data?.[0] ?? null;
+}
+
+module.exports = { status, login, disconnect, start, handle, live, stream, say, clip, events: account };

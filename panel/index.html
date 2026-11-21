@@ -21,7 +21,7 @@
         if (ls.getItem('jarchi.art') !== '0') de.dataset.art = '';
         if (ls.getItem('jarchi.still') === '1') de.dataset.still = '';
         const pop = new URLSearchParams(location.search).get('pop');
-        if (pop === 'luck' || pop === 'battle') de.dataset.pop = pop; // the Luck or Song Battle page's own window
+        if (['luck', 'battle', 'clips'].includes(pop)) de.dataset.pop = pop; // the Luck, Song Battle or ClipQ page's own window
         if (accent) for (const k in accent) de.style.setProperty(k, accent[k]);
         else if (de.dataset.palette === 'system') de.dataset.palette = 'jarchi';
       } catch {}
@@ -522,13 +522,94 @@
               <button id="btAgain" class="lk-btn g" data-i18n="battleNew"></button>
             </dialog>
           </section>
-          <section class="view soon" data-view="clips" hidden>
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <circle cx="12" cy="12" r="9" />
-              <path d="M12 7v5l3 2" />
-            </svg>
-            <h2 data-i18n="soonTitle"></h2>
-            <small data-i18n="clipsSoon"></small>
+          <!-- ===== ClipQ (js/clipq.js; core/clipq.js runs the queue): Open the queue, and clip links sent in Kick or Twitch chat
+           line up by themselves. The player: the clip on now in its site's player (battle-player.html, from localhost) under
+           Jarchi's buttons; Up next: the queue; Queue settings. Pop out: this page alone in its own window (/?pop=clips), for
+           OBS as a window, where this head is the title bar. ===== -->
+          <section class="view clips" data-view="clips" hidden>
+            <div class="page-head bt-head cq-head">
+              <span id="cqState" class="lk-pill"></span>
+              <button id="cqOpen" class="lk-btn g bt-sm"></button>
+              <button id="cqPop" class="ghost crypto-pop" data-title="clipqPopOutHint">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M20 4l-8 8M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" /></svg
+                ><span data-i18n="luckPopOut"></span>
+              </button>
+              <!-- The pop-out only (the panel has its top bar's): the language switch, wired with the top bar's (js/build.js). -->
+              <div id="cqLang" class="lang" role="group" data-aria="language" hidden>
+                <button data-lang="fa" lang="fa">فا</button><button data-lang="en" lang="en">EN</button>
+              </div>
+              <label id="cqTop" class="lk-top" hidden
+                ><span class="switch"><input type="checkbox" /><span></span></span><span data-i18n="luckOnTop"></span
+              ></label>
+            </div>
+            <div class="cq-grid">
+              <div class="lk-card cq-player">
+                <!-- The clip, vertical ones (Shorts, Reels) standing up; over it, a big play / pause under the mouse. -->
+                <div id="cqStage" class="cq-stage">
+                  <div id="cqMedia" class="cq-media" hidden>
+                    <iframe id="cqFrame" class="bt-frame" allow="autoplay; encrypted-media; fullscreen" data-title="navClipQ"></iframe>
+                    <button id="cqBig" class="cq-big" hidden></button>
+                  </div>
+                  <p id="cqNone" class="cq-none">
+                    <span aria-hidden="true">🎬</span><b data-i18n="clipqNothing"></b><small data-i18n="clipqNothingHint"></small>
+                  </p>
+                </div>
+                <p id="cqErr" class="bt-err" hidden></p>
+                <b id="cqTitle" class="bt-title"></b>
+                <small id="cqBy" class="bt-by"></small>
+                <div class="bt-ctl">
+                  <button id="cqPP" class="bt-pbn bt-pp"></button>
+                  <button id="cqBack" class="bt-pbn" data-title="battleBack">⏪ 10</button>
+                  <button id="cqFwd" class="bt-pbn" data-title="battleFwd">10 ⏩</button>
+                  <input id="cqSeek" type="range" min="0" step="1" data-title="clipqSeek" />
+                  <span id="cqTime" class="bt-tm"></span>
+                  <button id="cqNext" class="bt-pbn"><span data-i18n="clipqNext"></span> ⏭</button>
+                </div>
+                <div class="bt-ctl cq-ctl">
+                  <button id="cqMute" class="bt-pbn cq-mute"></button>
+                  <input id="cqVol" type="range" min="0" max="100" step="1" data-title="clipqVolume" />
+                  <button id="cqAuto" class="bt-pbn cq-auto" aria-pressed="false" data-title="clipqAutoNextHint">
+                    <span data-i18n="clipqAutoNext"></span>
+                  </button>
+                  <button id="cqClear" class="bt-pbn cq-clear"><span data-i18n="clipqClear"></span></button>
+                </div>
+                <p id="cqFixed" class="bt-hint" hidden></p>
+              </div>
+              <div class="cq-side">
+                <div class="lk-card">
+                  <div class="lk-ehead">
+                    <h2 data-i18n="clipqUpNext"></h2>
+                    <span id="cqCount" class="bt-count"></span>
+                  </div>
+                  <ol id="cqList" class="bt-list"></ol>
+                </div>
+                <div id="cqForm" class="lk-card">
+                  <h2 data-i18n="clipqSettings"></h2>
+                  <div class="lk-l" data-i18n="clipqSources"></div>
+                  <div id="cqSources" class="bt-chips" role="group" data-aria="clipqSources"></div>
+                  <div class="lk-l" data-i18n="clipqPer"></div>
+                  <div id="cqPer" class="seg lk-seg" role="radiogroup" data-aria="clipqPer"></div>
+                  <label class="lk-tg"
+                    ><span class="switch"><input type="checkbox" data-k="showSender" /><span></span></span
+                    ><span><span data-i18n="clipqShowSender"></span><small data-i18n="clipqShowSenderHint"></small></span
+                  ></label>
+                  <label class="lk-tg"
+                    ><span class="switch"><input type="checkbox" data-k="noRepeats" /><span></span></span
+                    ><span><span data-i18n="clipqNoRepeats"></span><small data-i18n="clipqNoRepeatsHint"></small></span
+                  ></label>
+                  <label class="lk-tg"
+                    ><span class="switch"><input type="checkbox" data-k="autoNext" /><span></span></span
+                    ><span><span data-i18n="clipqAutoNext"></span><small data-i18n="clipqAutoNextHint"></small></span
+                  ></label>
+                  <label class="lk-tg"
+                    ><span class="switch"><input type="checkbox" data-k="mods" /><span></span></span
+                    ><span><span data-i18n="clipqMods"></span><small data-i18n="clipqModsHint"></small></span
+                  ></label>
+                  <!-- One switch per chat command (js/clipq.js builds them), while the mods may use them. -->
+                  <div id="cqCmds" class="bt-modbox cq-cmds" hidden></div>
+                </div>
+              </div>
+            </div>
           </section>
           <section class="view soon" data-view="requests" hidden>
             <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -2464,6 +2545,7 @@
     <script src="js/crypto-alerts.js"></script>
     <script src="js/luck.js"></script>
     <script src="js/battle.js"></script>
+    <script src="js/clipq.js"></script>
     <script src="js/art.js"></script>
     <script src="js/start.js"></script>
   </body>

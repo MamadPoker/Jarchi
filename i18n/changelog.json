@@ -1,9 +1,13 @@
 [
   {
     "version": "unreleased",
-    "types": [],
-    "en": [],
-    "fa": []
+    "types": ["feature"],
+    "en": [
+      "New ClipQ page: open the queue and YouTube, Instagram, Twitch and Kick clip links sent in chat line up by themselves, then play inside Jarchi. With Auto next, mod commands in chat and a Pop out window for OBS"
+    ],
+    "fa": [
+      "بخش جدید ClipQ: صف رو باز کن تا لینک کلیپ‌های یوتیوب، اینستاگرام، توییچ و کیک که تو چت فرستاده می‌شن خودشون صف بکشن و داخل جارچی پخش بشن. با پخش خودکار بعدی، دستورهای مودها تو چت و پنجره‌ی جدا برای OBS"
+    ]
   },
   {
     "version": "1.0.10",

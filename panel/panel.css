@@ -7043,7 +7043,7 @@ button#lkAgain {
 :root[data-pop] main {
   padding: 0 22px 40px;
 }
-:root[data-pop] :is(.view.luck, .view.battle) {
+:root[data-pop] :is(.view.luck, .view.battle, .view.clips) {
   max-width: none;
 }
 :root[data-pop] .lk-pane {
@@ -8148,4 +8148,164 @@ dialog.bt-champ > b {
 .bt-champ-card > small {
   color: var(--muted);
   font-size: 12px;
+}
+
+/* ---------- ClipQ (js/clipq.js): the player with Jarchi's buttons beside Up next and Queue settings. The player's parts
+   are the battle screen's (.bt-ctl, .bt-pbn, .bt-title), in gold. Vertical clips (Shorts, Reels) stand up. ---------- */
+.view.clips {
+  max-width: 1300px;
+}
+#cqLang {
+  margin-inline-start: auto; /* the pop-out's: at the bar's end, then Always on top */
+}
+:root[data-pop] .view.clips > :not(.bt-head) {
+  width: 100%;
+  max-width: 1300px;
+  margin-inline: auto;
+}
+.cq-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(300px, 1fr);
+  gap: 16px;
+  align-items: start;
+  margin-top: 14px;
+  animation: lk-fi 0.35s ease;
+}
+@container (max-width: 900px) {
+  .cq-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.cq-player {
+  --side: var(--gold);
+}
+.cq-side {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+.cq-stage {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border-radius: 12px;
+  background: #000;
+}
+.cq-stage.tall {
+  height: min(64vh, 640px);
+  aspect-ratio: 9 / 16;
+  margin-inline: auto;
+}
+.cq-stage.playing {
+  box-shadow: 0 0 0 2px var(--side);
+}
+.cq-media {
+  position: absolute;
+  inset: 0;
+}
+.cq-none {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 0;
+  padding: 20px;
+  background: linear-gradient(135deg, var(--card2), var(--bg));
+  color: var(--muted);
+  text-align: center;
+}
+.cq-none span {
+  font-size: 40px;
+}
+.cq-none b {
+  color: var(--text);
+  font-size: 15px;
+}
+.cq-none small {
+  max-width: 340px;
+  font-size: 12.5px;
+}
+/* Over the video: nothing until the mouse is on it, then a big play / pause. */
+button.cq-big {
+  position: absolute;
+  inset: 0;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+button.cq-big:hover,
+button.cq-big:focus-visible {
+  background: none;
+  opacity: 1;
+}
+button.cq-big svg {
+  width: 84px;
+  height: 84px;
+  padding: 22px;
+  border-radius: 50%;
+  background: rgb(0 0 0 / 0.55);
+  fill: #fff;
+  stroke: none;
+}
+.cq-ctl {
+  margin-top: 8px;
+}
+.bt-ctl #cqVol {
+  flex: 0 1 140px;
+}
+button.cq-mute svg {
+  display: block;
+  width: 16px;
+  height: 16px;
+}
+button.cq-auto[aria-pressed='true'] {
+  border-color: var(--gold);
+  background: color-mix(in srgb, var(--gold) 16%, transparent);
+  color: var(--gold-text);
+}
+button.cq-clear {
+  margin-inline-start: auto;
+}
+.cq-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  background: var(--bg);
+}
+.cq-n {
+  flex: none;
+  min-width: 18px;
+  color: var(--muted);
+  font:
+    800 13px Manrope,
+    Vazirmatn,
+    sans-serif;
+  text-align: center;
+}
+.cq-thumb {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 64px;
+  height: 36px;
+  border-radius: 7px;
+  background: linear-gradient(135deg, var(--card2), var(--main-soft));
+  color: var(--muted);
+  object-fit: cover;
+}
+.cq-cmds code {
+  font:
+    700 12.5px ui-monospace,
+    Consolas,
+    monospace;
 }

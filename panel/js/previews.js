@@ -73,7 +73,7 @@ function fitPreview() {
 
 // Sidebar pages new in a version: a soft gold frame and a NEW tag until the streamer opens the page once, then never
 // again (settings.seenNew). Add a version's new pages here; one already opened stays plain.
-const NEW_PAGES = { '1.0.7': ['donations'], '1.0.9': ['luck'], '1.0.10': ['battle'] };
+const NEW_PAGES = { '1.0.7': ['donations'], '1.0.9': ['luck'], '1.0.10': ['battle'], '1.0.11': ['clips'] };
 const newPages = () => Object.values(NEW_PAGES).flat();
 function renderNew() {
   for (const p of newPages()) {
@@ -138,6 +138,7 @@ function select(v, key) {
     if (key) [btTab, btChampOf] = key; // back from a language switch (help.js useLang)
     showBattle();
   }
+  if (v === 'clips') showClipq();
   if (v === 'guide') {
     if (S.guide.topics[key]) topic = key;
     renderGuide();
