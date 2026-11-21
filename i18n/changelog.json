@@ -1,6 +1,12 @@
 [
   {
     "version": "unreleased",
+    "types": [],
+    "en": [],
+    "fa": []
+  },
+  {
+    "version": "1.0.11",
     "types": ["feature", "improve", "improve"],
     "en": [
       "New ClipQ page: open the queue and YouTube, Instagram, Twitch and Kick clip links sent in chat line up by themselves, then play inside Jarchi. With Auto next, mod commands in chat and a Pop out window for OBS",
