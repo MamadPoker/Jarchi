@@ -5,7 +5,7 @@ let chatStyles,
   chatExclusive = {}; // (chatExclusive: unlocked exclusive designs, id -> name { en, fa }, core/designs.js)
 // chat style looks and fonts (/api/chat/styles), connection status (follows the socket)
 let chatThumbs; // sample messages for the chat style thumbnails (/api/chat/thumbs: random viewers and badges each visit)
-// The Luck or Song Battle page alone in its own window (its Pop out: /?pop=luck or battle, index.html marks <html>
+// The Luck, Song Battle or ClipQ page alone in its own window (its Pop out: /?pop=luck, battle or clips, index.html marks <html>
 // before the first paint): that page's view, or '' in the panel.
 const POP = document.documentElement.dataset.pop ?? '';
 let view = 'home',

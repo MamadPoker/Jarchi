@@ -74,11 +74,12 @@ const POPOUT = {
 // The Luck page's pop-out (the panel at /?pop=luck): the whole page, with its tabs as the title bar (panel.css data-pop,
 // 46 px like this overlay) and Always on top (onTop).
 const LUCK_POP = { ...POPOUT, width: 1180, height: 820, minWidth: 720, minHeight: 560, titleBarStyle: 'hidden', titleBarOverlay: { ...BAR, height: 46 } };
-// Song Battle's pop-out (/?pop=battle): the same, wider for the two songs; streamers add it to OBS as a window.
+// Song Battle's pop-out (/?pop=battle): the same, wider for the two songs; streamers add it to OBS as a window. ClipQ's
+// (/?pop=clips) too, for the player and its queue side by side.
 const BATTLE_POP = { ...LUCK_POP, width: 1280 };
 const popOf = (url) => {
   const u = new URL(url);
-  return u.pathname === '/crypto-popout.html' ? POPOUT : ({ luck: LUCK_POP, battle: BATTLE_POP }[u.searchParams.get('pop')] ?? null);
+  return u.pathname === '/crypto-popout.html' ? POPOUT : ({ luck: LUCK_POP, battle: BATTLE_POP, clips: BATTLE_POP }[u.searchParams.get('pop')] ?? null);
 };
 ipcMain.on('window:onTop', (e, on) => BrowserWindow.fromWebContents(e.sender)?.setAlwaysOnTop(on === true));
 
