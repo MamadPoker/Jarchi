@@ -35,7 +35,7 @@ function run(m) {
   else if (m.pause) player.pause();
 }
 function ready(p) {
-  player = { volume() {}, mute() {}, ...p }; // Spotify's and SoundCloud's sound stays theirs
+  player = { volume() {}, mute() {}, ...p }; // Spotify's sound stays its own
   tell({ ready: true });
   run(waiting);
   waiting = {};
@@ -103,8 +103,20 @@ async function soundcloud(url) {
   const SC = window.SC,
     w = SC.Widget(f),
     E = SC.Widget.Events;
+  let vol = 100,
+    off = false; // SoundCloud's widget has a volume but no mute: muted is volume 0
+  const sound = () => w.setVolume(off ? 0 : vol);
   w.bind(E.READY, () =>
-    w.getDuration((d) => (tell({ dur: d / 1000 }), ready({ play: () => w.play(), pause: () => w.pause(), seek: (s) => w.seekTo(s * 1000) }))),
+    w.getDuration((d) => {
+      tell({ dur: d / 1000 });
+      ready({
+        play: () => w.play(),
+        pause: () => w.pause(),
+        seek: (s) => w.seekTo(s * 1000),
+        volume: (v) => ((vol = v * 100), sound()),
+        mute: (on) => ((off = on), sound()),
+      });
+    }),
   );
   w.bind(E.PLAY, () => tell({ playing: true }));
   w.bind(E.PAUSE, () => tell({ playing: false }));

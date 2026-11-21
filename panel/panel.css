@@ -7631,6 +7631,9 @@ button.bt-pp svg {
 .bt-ctl input[type='range']::-moz-range-progress {
   background: var(--side);
 }
+.bt-ctl input.bt-vol {
+  flex: 0 1 80px;
+}
 .bt-tm {
   color: var(--muted);
   font:

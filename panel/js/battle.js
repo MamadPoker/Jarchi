@@ -353,6 +353,24 @@ const BT_ICONS = {
   battlePlay: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>',
   battlePause: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h4v14H7zM13 5h4v14h-4z"/></svg>',
 };
+// The mute button's speaker, with sound or without (ClipQ's too).
+const BT_SOUND = {
+  on: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4zM16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/></svg>',
+  off: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4zM17 9l5 6M22 9l-5 6"/></svg>',
+};
+// A side's volume and mute, for YouTube and SoundCloud songs (Spotify's player takes neither from outside). Each new song
+// starts at the last volume set, kept in this browser for next time, and with its sound on.
+const BT_VOL = ['youtube', 'soundcloud'];
+const btVol = () => (/^\d+$/.test(remember.get('jarchi.battleVol') ?? '') ? Math.min(100, Number(remember.get('jarchi.battleVol'))) : 100);
+function btSound(s) {
+  const on = BT_VOL.includes(s.song?.source),
+    v = s.muted ? 0 : s.level;
+  s.mute.hidden = s.vol.hidden = !on;
+  s.vol.value = String(s.level);
+  s.vol.style.setProperty('--fill', `${v}%`);
+  s.mute.innerHTML = BT_SOUND[v ? 'on' : 'off'];
+  s.mute.title = S.panel[s.muted ? 'clipqUnmute' : 'clipqMute'];
+}
 function btTime(s) {
   const { playing, pos = 0, dur = 0 } = s.st,
     icon = playing ? 'battlePause' : 'battlePlay';
@@ -430,14 +448,15 @@ function btSide(s, song, x, phase, set) {
     tot = x[3] + x[4],
     p = tot ? Math.round((x[3 + i] / tot) * 100) : 0;
   if (s.song?.id !== song.id) {
-    Object.assign(s, { song, st: {}, seeking: false });
-    s.frame.src = `${BT_PLAYER}/battle-player.html?${new URLSearchParams({ source: song.source, link: song.link })}`;
+    Object.assign(s, { song, st: {}, seeking: false, level: btVol(), muted: false });
+    s.frame.src = `${BT_PLAYER}/battle-player.html?${new URLSearchParams({ source: song.source, link: song.link, ...(BT_VOL.includes(song.source) && { vol: String(s.level / 100) }) })}`;
     s.err.replaceChildren(
       S.panel.battleCantPlay,
       ' ',
       el('a', { href: song.link, target: '_blank', rel: 'noopener', textContent: tpl(S.panel.battleOpenOn, { site: BT_SOURCES[song.source] }) }),
     );
     btTime(s);
+    btSound(s);
   }
   const shown = btShown(song);
   s.title.replaceChildren(
@@ -754,6 +773,23 @@ function wireLive(socket) {
         onchange: () => ((s.seeking = false), btSay(s, { seek: Number(s.seek.value) })),
       }),
       tm: el('span', { className: 'bt-tm' }),
+      level: btVol(),
+      muted: false,
+      mute: el('button', { className: 'bt-pbn', onclick: () => ((s.muted = !s.muted), btSay(s, { muted: s.muted }), btSound(s)) }),
+      vol: el('input', {
+        type: 'range',
+        className: 'bt-vol',
+        min: '0',
+        max: '100',
+        step: '1',
+        title: S.panel.clipqVolume,
+        oninput: () => {
+          Object.assign(s, { level: Number(s.vol.value), muted: false });
+          remember.set('jarchi.battleVol', s.vol.value);
+          btSay(s, { volume: s.level / 100, muted: false });
+          btSound(s);
+        },
+      }),
       err: el('p', { className: 'bt-err', hidden: true }),
       bar: el('i'),
       pct: el('b'),
@@ -767,11 +803,12 @@ function wireLive(socket) {
       s.err,
       s.title,
       s.by,
-      el('div', { className: 'bt-ctl' }, skip(-10, '⏪ 10', S.panel.battleBack), s.pp, skip(10, '10 ⏩', S.panel.battleFwd), s.seek, s.tm),
+      el('div', { className: 'bt-ctl' }, skip(-10, '⏪ 10', S.panel.battleBack), s.pp, skip(10, '10 ⏩', S.panel.battleFwd), s.seek, s.tm, s.mute, s.vol),
       s.vote,
       s.pick,
     );
     btTime(s);
+    btSound(s);
   });
   // What each player says: where it is, playing or not. One that starts (also with its own button) stops the other.
   addEventListener('message', (e) => {
