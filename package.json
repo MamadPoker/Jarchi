@@ -37,15 +37,15 @@
     "undici": "^8.12.4"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^5.20261112.1",
+    "@cloudflare/workers-types": "^5.20261118.1",
     "@eslint/js": "^10.0.1",
     "@semantic-release/git": "11.0.1",
     "@semantic-release/release-notes-generator": "14.1.1",
     "@types/node": "^26.6.6",
     "conventional-changelog-conventionalcommits": "9.3.1",
-    "electron": "^45.2.3",
+    "electron": "^45.3.4",
     "electron-builder": "^26.18.0",
-    "eslint": "^10.14.0",
+    "eslint": "^10.15.0",
     "espree": "^11.2.0",
     "globals": "^17.14.0",
     "husky": "^9.1.7",
