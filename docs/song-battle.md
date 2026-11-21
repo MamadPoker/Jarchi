@@ -28,7 +28,7 @@ Songs come in live under **Submitted songs**. A song with the same link or name 
 
 ## The battle
 
-- Each match puts two songs face to face, each in its own site's player (YouTube's, Spotify's or SoundCloud's) with play, 10 seconds back and forward and a seek bar. A song that can't play in Jarchi has **Open it on …**.
+- Each match puts two songs face to face, each in its own site's player (YouTube's, Spotify's or SoundCloud's) with play, 10 seconds back and forward and a seek bar. YouTube and SoundCloud songs also have a volume slider and mute; each new song starts at the last volume set (kept for next time, in that window's browser). A song that can't play in Jarchi has **Open it on …**.
 - **Chat votes**: **Start vote** for 30, 60 or 90 seconds (**End now** stops it early). Viewers type **1** or **2** in Kick or Twitch chat (a Persian or Arabic keyboard's digits count too), one vote each, their last one counts. Who voted is kept only in memory for that vote; the battle keeps the counts. Then **Confirm winner**, **Vote again**, or pick the other song with **This one wins**: the final call is yours.
 - **A tie**: **Flip the coin**. The lucky coin spins in front of everyone: heads, song 1 wins; tails, song 2.
 - **Next match** goes on, round by round, up to the final.

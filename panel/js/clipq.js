@@ -97,13 +97,9 @@ function cqTime() {
   const v = cqMuted() ? 0 : cqVol();
   $('#cqVol').value = String(cqVol());
   $('#cqVol').style.setProperty('--fill', `${v}%`);
-  $('#cqMute').innerHTML = CQ_SOUND[v ? 'on' : 'off'];
+  $('#cqMute').innerHTML = BT_SOUND[v ? 'on' : 'off'];
   $('#cqMute').title = S.panel[cqMuted() ? 'clipqUnmute' : 'clipqMute'];
 }
-const CQ_SOUND = {
-  on: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4zM16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/></svg>',
-  off: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4zM17 9l5 6M22 9l-5 6"/></svg>',
-};
 function cqPlay() {
   remember.set('jarchi.clipqPlaying', String(Date.now())); // the other ClipQ window stops its clip
   cqSay({ play: true });

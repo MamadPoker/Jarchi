@@ -12,7 +12,7 @@
 - **Chat bot** and **Song Request** (viewers request songs to play on your stream): "Coming soon" pages for now.
 - **Support**: tickets to the Jarchi team: Bug, Suggestion, Question, Data request or Crypto gateway request, a subject, a message and up to 3 screenshots (PNG, JPG or WebP, 2 MB each; paste one with Ctrl+V). Replies show up on the page, with an optional sound. Up to 5 new tickets a day. Tickets go to the Jarchi server, so Support works once the Privacy Policy is accepted.
 - **?** next to every setting: a short explanation on hover, keyboard focus or a tap.
-- **Guide**: Getting started, Add Jarchi to OBS, Alerts, Goals, Chat widget, Alert queue, Proxy & VPN, and If something doesn't work (questions that open their answers). The links in it are this PC's real ones.
+- **Guide**: Getting started, Add Jarchi to OBS, Alerts, Goals, Viewer count, Chat widget, Alert queue, Giveaway, Song Battle, ClipQ, Proxy & VPN, and If something doesn't work (questions that open their answers). The links in it are this PC's real ones.
 
 ## Persian (فارسی)
 
