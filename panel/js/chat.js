@@ -77,24 +77,26 @@ function ownMark() {
   return m;
 }
 
-// The Chat page's chats: Chat 1, and Chat 2 once "+" added it. The page is the selected one's (curChat): its settings,
-// preview, tests, resets and OBS link. The channels are the same for both (Chat 1's), so are the messages.
-const CHAT_KEYS = ['chat', 'chat2'];
-let curChat = remember.get('jarchi.chat') === 'chat2' ? 'chat2' : 'chat';
+// The Chat page's chats: Chat 1, and Chat 2 to 4 once "+" added them. The page is the selected one's (curChat): its
+// settings, preview, tests, resets and OBS link. The channels are the same for all (Chat 1's), so are the messages.
+const CHAT_KEYS = ['chat', 'chat2', 'chat3', 'chat4'];
+let curChat = CHAT_KEYS.includes(remember.get('jarchi.chat')) ? remember.get('jarchi.chat') : 'chat';
 const chatCfg = () => settings[curChat] ?? settings.chat;
+const chats = () => CHAT_KEYS.filter((k) => settings[k]); // the ones there now
 const chatDefaultName = (key) => tpl(S.panel.chatN, { n: fd(CHAT_KEYS.indexOf(key) + 1) });
 const chatName = (key) => settings[key]?.name || chatDefaultName(key);
-const chatUrl = (key) => `${location.origin}/widgets/chat${key === 'chat2' ? '/2' : ''}`;
+const chatUrl = (key) => `${location.origin}/widgets/chat${key === 'chat' ? '' : `/${key.slice(4)}`}`;
 
 // The chats' tabs at the top of the Chat page (redrawn only when a chat or a name changes, so a tab keeps its focus),
-// "+" until there's a Chat 2; only Chat 2 can be deleted.
+// "+" until there are 4; every one but Chat 1 can be deleted.
 let chatTabsDrawn = '';
 function renderChatTabs() {
   const box = $('#chatTabs');
   if ($('.chat-rename', box)) return; // being renamed
-  const keys = CHAT_KEYS.filter((k) => settings[k]);
-  if (JSON.stringify(keys.map(chatName)) !== chatTabsDrawn) {
-    chatTabsDrawn = JSON.stringify(keys.map(chatName));
+  const keys = chats();
+  const drawn = JSON.stringify(keys.map((k) => [k, chatName(k)]));
+  if (drawn !== chatTabsDrawn) {
+    chatTabsDrawn = drawn;
     box.replaceChildren(
       ...keys.map((k) =>
         el(
@@ -107,8 +109,8 @@ function renderChatTabs() {
     );
   }
   $$('input', box).forEach((r) => (r.checked = r.value === curChat));
-  $('#chatAdd').hidden = !!settings.chat2;
-  $('#chatDelete').hidden = curChat !== 'chat2';
+  $('#chatAdd').hidden = keys.length === CHAT_KEYS.length;
+  $('#chatDelete').hidden = curChat === 'chat';
 }
 // The selected chat's name becomes a field in its tab: Enter or leaving it saves, Esc doesn't. Empty: its usual name.
 function renameChat() {
@@ -289,4 +291,90 @@ function renderConnWarn() {
   w.dataset.page = long[0].page;
   w.title = S.panel.connDownHint;
   $('span', w).textContent = said(long, S.panel.connDown);
+}
+
+// ---------- Live chat: the Chat page's Pop out (/?pop=livechat) ----------
+// Kick and Twitch chat to read on a second monitor, not for OBS: every message as it comes, whatever a chat's filters
+// hide in OBS, plainly (no design, nothing fades); test messages aren't chat. Newest at the bottom; scrolled up to read,
+// it stays there until scrolled back down. Moderators' deletions go from it too.
+const LC_KEEP = 500; // messages kept on screen
+const lcRemote = (u) => (u?.startsWith('https://') ? `/remote?u=${encodeURIComponent(u)}` : u); // through Jarchi's proxy setting
+// The badges worth seeing at a glance: the roles, the sub badge with its months, Kick's OG and founder, and Kick's channel
+// badge for KICKs sent in the channel (kicks_gifter). Level, event, game and the like stay out.
+const LC_BADGES = new Set(['broadcaster', 'moderator', 'lead_moderator', 'vip', 'subscriber', 'founder', 'og', 'kicks_gifter']);
+let lcStick = true;
+function lcBadges(m) {
+  return m.user.badges
+    .filter((b) => b.img && LC_BADGES.has(b.name))
+    .flatMap((b) => {
+      const sub = b.type === 'subscriber' && b.months > 0;
+      const title = sub ? tpl(S.panel.chatPopSub, { n: fmt(b.months) }) : b.name === 'kicks_gifter' ? S.panel.chatPopKicks : b.title;
+      const img = el('img', { className: 'lc-badge', src: lcRemote(b.img), alt: title, title });
+      return sub ? [img, el('small', { className: 'lc-months', title, textContent: tpl(S.panel.chatPopMonths, { n: fmt(b.months) }) })] : [img];
+    });
+}
+function lcRow(m) {
+  const logo = el('img', {
+    className: 'lc-logo',
+    src: `/assets/platform-logos/${m.platform}.svg`,
+    alt: S.platforms[m.platform],
+    title: S.platforms[m.platform],
+  });
+  const name = el('bdi', { className: 'lc-name', textContent: m.user.name });
+  if (m.user.color) name.style.setProperty('--uc', m.user.color);
+  const said = m.parts.map((p) =>
+    p.t === 'emote'
+      ? el('img', { className: 'lc-emote', src: lcRemote(p.src), alt: p.name, title: p.name })
+      : p.t === 'cheer'
+        ? el('b', { className: 'lc-cheer' }, el('img', { src: `/assets/twitch-bits/${p.gem}.gif`, alt: '' }), fmt(p.amount))
+        : p.v,
+  );
+  const text = m.parts.some((p) => p.t !== 'text' || p.v.trim()) && el('span', { className: 'lc-said', dir: 'auto' }, ...said);
+  const li = el('li', { className: `lc-row ${m.platform}${m.action ? ' lc-action' : ''}` });
+  Object.assign(li.dataset, { id: m.id, user: m.user.id, platform: m.platform });
+  if (m.event) {
+    // a sub, gift, Kicks, bits or raid: "<name> gifted 5 subs", and what they wrote under it
+    li.classList.add('lc-event');
+    li.append(el('div', {}, logo, name, ` ${did(m.event)}`), text || '');
+    return li;
+  }
+  // What it answers, and Twitch's sub notice, above it (on the row's side; their words read their own way: <bdi>).
+  if (m.reply)
+    li.append(
+      el(
+        'div',
+        { className: 'lc-reply' },
+        '↩ ',
+        el('bdi', { textContent: `@${m.reply.name}` }),
+        m.reply.text ? ': ' : '',
+        el('bdi', { textContent: m.reply.text }),
+      ),
+    );
+  if (m.system) li.append(el('div', { className: 'lc-system' }, el('bdi', { textContent: m.system })));
+  li.append(logo, ...lcBadges(m), name, text ? ': ' : '', text || '');
+  return li;
+}
+function lcAdd(msgs) {
+  const list = $('#lcList');
+  list.append(...msgs.filter((m) => !m.test).map(lcRow));
+  while (list.childElementCount > LC_KEEP) list.firstElementChild.remove();
+  $('#lcEmpty').hidden = list.childElementCount > 0;
+}
+function wireChatPop(socket) {
+  popOut('livechat', 'chatPopTitle', $('#chatPop'), null, $('#lcTop'), 420);
+  if (POP !== 'livechat') return;
+  const page = document.scrollingElement;
+  addEventListener('scroll', () => (lcStick = page.scrollHeight - page.scrollTop - page.clientHeight < 40), { passive: true });
+  new ResizeObserver(() => lcStick && page.scrollTo(0, page.scrollHeight)).observe($('#lcList')); // new rows, pictures loading
+  socket.on('chatHistory', (msgs) => {
+    $('#lcList').replaceChildren(); // (again after a reconnect)
+    lcAdd(msgs);
+  });
+  socket.on('chat', (m) => lcAdd([m]));
+  // { platform, messageId }: one message; { platform, userId }: a ban or timeout; { platform }: the whole chat cleared.
+  socket.on('chatClear', (c) =>
+    $$('#lcList > li').forEach(
+      (li) => li.dataset.platform === c.platform && (c.messageId ? li.dataset.id === c.messageId : !c.userId || li.dataset.user === c.userId) && li.remove(),
+    ),
+  );
 }

@@ -457,10 +457,18 @@ function build() {
   $('#chatUndo').onclick = () => undoRedo('undo');
   $('#chatCopy').title = S.panel.chatCopyHint;
   $('#chatCopy').onclick = () => copyLink(chatUrl(curChat), S.panel.chatCopied);
-  // The chats' tabs: "+" adds Chat 2 (a copy of Chat 1) and opens it; rename; delete Chat 2 (click twice).
-  $('#chatAdd').onclick = () => send('POST', '/api/chat/add').then(() => settings.chat2 && select('chat', 'chat2'));
+  // The chats' tabs: "+" adds the next chat (a copy of Chat 1) and opens it; rename; delete the selected one (click twice).
+  $('#chatAdd').onclick = () => {
+    const had = chats();
+    send('POST', '/api/chat/add').then(() => {
+      const added = chats().find((k) => !had.includes(k));
+      if (added) select('chat', added);
+    });
+  };
   $('#chatRename').onclick = renameChat;
-  twoClick($('#chatDelete'), $('#chatDelete span'), '', S.panel.chatDeleteConfirm, () => send('POST', '/api/chat/remove').then(() => select('chat', 'chat')));
+  twoClick($('#chatDelete'), $('#chatDelete span'), '', S.panel.chatDeleteConfirm, () =>
+    send('POST', '/api/chat/remove', { chat: curChat }).then(() => select('chat', 'chat')),
+  );
   new ResizeObserver(() => {
     if (view === 'chat') fitChat();
   }).observe($('.chat-preview'));
@@ -543,6 +551,7 @@ function build() {
   wireLuck(socket);
   wireBattle(socket);
   wireClipq(socket);
+  wireChatPop(socket);
 
   $$('[data-i18n]').forEach((e) => (e.textContent = S.panel[e.dataset.i18n]));
   const [madeA, madeB] = S.panel.madeWith.split('{heart}'); // About's "Made with ♥ by MamadPoker", the heart in gold

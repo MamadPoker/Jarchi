@@ -142,7 +142,7 @@ function get() {
     alerts: Object.fromEntries(TYPES.map((t) => [t, alert(t)])),
     goals: Object.fromEntries(GOAL_IDS.map((id) => [id, goal(id)])),
     chat: chat(),
-    chat2: saved.chat2 ? chat('chat2') : null,
+    ...Object.fromEntries(CHATS.slice(1).map((k) => [k, saved[k] ? chat(k) : null])),
     viewers: viewers(),
     profile: { ...PROFILE, ...saved.profile },
     crypto: cryptoAlerts(),
@@ -200,15 +200,15 @@ function alert(t) {
 }
 
 // A chat = its style's look + the chat defaults + the user's changes (the other designs' own changes aren't in it).
-// Chat 2 gets Chat 1's channels.
+// Chat 2 to 4 get Chat 1's channels.
 function chat(key = 'chat') {
   const { looks, ...o } = saved[key] ?? {};
   const style = o.style in CHAT_STYLES ? o.style : CHAT_DEFAULTS.style;
   return { ...CHAT_STYLES[style], ...CHAT_DEFAULTS, ...o, style, ...(key !== 'chat' && pick(chat(), CHANNELS)) };
 }
-// A chat the panel names: Chat 1, or Chat 2 while it exists.
+// A chat the panel names: Chat 1, or Chat 2 to 4 while it exists.
 function chatKey(key) {
-  if (key !== 'chat' && !(key === 'chat2' && saved.chat2)) throw bad();
+  if (key !== 'chat' && !(CHATS.includes(key) && saved[key])) throw bad();
   return key;
 }
 
@@ -434,17 +434,19 @@ function resetChatStyle(own, key = 'chat') {
   return get();
 }
 
-// The Chat page's "+": Chat 2, starting as a copy of Chat 1 (its look, the styles' own changes, filters...) with a name
-// of its own. Deleting it is a step Ctrl+Z can undo too.
+// The Chat page's "+": the first free one of Chat 2 to 4, starting as a copy of Chat 1 (its look, the styles' own
+// changes, filters...) with a name of its own. Deleting one (never Chat 1) is a step Ctrl+Z can undo too.
 function addChat() {
-  if (saved.chat2) throw bad();
+  const key = CHATS.slice(1).find((k) => !saved[k]);
+  if (!key) throw bad();
   const { name, kickChannel, twitchChannel, ...o } = saved.chat ?? {};
-  saved.chat2 = structuredClone(o);
+  saved[key] = structuredClone(o);
   persist();
   return get();
 }
-function removeChat() {
-  delete saved[chatKey('chat2')];
+function removeChat(key) {
+  if (key === 'chat') throw bad();
+  delete saved[chatKey(key)];
   persist();
   return get();
 }
@@ -567,6 +569,7 @@ module.exports = {
   GOAL_STYLES,
   CHAT_DESIGNS,
   CHAT_FONTS,
+  CHATS,
   FONTS,
   KICK_GIFTS,
   VIEWER_STYLES,

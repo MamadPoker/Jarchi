@@ -44,10 +44,18 @@ test('Twitch IRC lines -> messages, removals, room id', () => {
   );
   assert.match(m.parts[0].src, /emoticons\/v2\/25\/default/);
   assert.deepEqual(
-    m.user.badges.map((b) => b.type),
-    ['moderator', 'subscriber'],
+    m.user.badges.map((b) => [b.type, b.months]),
+    [
+      ['moderator', 0],
+      ['subscriber', 14],
+    ],
+    'the sub badge has its months (badge-info)',
   );
   assert.ok(m.user.badges.every((b) => b.img.startsWith('https://static-cdn.jtvnw.net/badges/')));
+  assert.deepEqual(
+    twitch.toBadges('founder/0', 'founder/7').map((b) => [b.type, b.name, b.months]),
+    [['subscriber', 'founder', 7]],
+  );
 
   twitch.handle('@display-name=x;id=a2;user-id=7 :x!x@x PRIVMSG #xqc :\u0001ACTION waves\u0001', 'xqc', cb);
   assert.deepEqual([out.messages[1].action, out.messages[1].text], [true, 'waves']);
@@ -143,7 +151,12 @@ test('Kick Pusher events -> messages, badges, removals', () => {
           { type: 'moderator', text: 'Moderator' },
           { type: 'subscriber', text: 'Subscriber', count: 8 },
         ],
-        badges_v2: [{ name: 'level', image_url: 'https://ext.cdn.kick.com/chat/badges/33.png' }],
+        // Picture badges: the viewer's chosen ones only (selected), like kick.com; kicks_gifter is the channel's KICKs badge.
+        badges_v2: [
+          { name: 'level', badge_type: 'global', image_url: 'https://ext.cdn.kick.com/chat/badges/33.png', selected: true },
+          { name: 'GTAWheel', badge_type: 'global', image_url: 'https://ext.cdn.kick.com/chat/badges/GTAWheel.png', selected: false },
+          { name: 'kicks_gifter', badge_type: 'channel', image_url: 'https://content.kick.com/public/chat/badges/k.png', selected: true },
+        ],
       },
     },
   });
@@ -156,12 +169,19 @@ test('Kick Pusher events -> messages, badges, removals', () => {
   );
   assert.equal(m.parts[1].src, 'https://files.kick.com/emotes/37230/fullsize');
   assert.deepEqual(
-    m.user.badges.map((b) => [b.type, b.img]),
+    m.user.badges.map((b) => [b.type, b.name, b.img, b.months]),
     [
-      ['moderator', '/assets/kick-badges/moderator.svg'],
-      ['subscriber', 'https://files.kick.com/sub6.png'],
-      ['other', 'https://ext.cdn.kick.com/chat/badges/33.png'],
+      ['moderator', 'moderator', '/assets/kick-badges/moderator.svg', 0],
+      ['subscriber', 'subscriber', 'https://files.kick.com/sub6.png', 8],
+      ['other', 'level', 'https://ext.cdn.kick.com/chat/badges/33.png', undefined],
+      ['other', 'kicks_gifter', 'https://content.kick.com/public/chat/badges/k.png', undefined],
     ],
+  );
+  const checked = chatMessage({ platform: 'kick', user: { badges: [...m.user.badges, { type: 'subscriber', name: 'x', months: 'many' }] } }).user.badges;
+  assert.deepEqual(
+    checked.map((b) => b.months),
+    [0, 8, 0, 0, 0],
+    'months go through the message check (a bad one is 0)',
   );
   const img = (badges, subs = []) => kick.kickBadges({ badges }, subs).map((b) => b.img);
   assert.deepEqual(img([{ type: 'subscriber', count: 3 }]), ['/assets/kick-badges/subscriber.svg'], "no channel sub badges: Kick's default");
@@ -767,8 +787,8 @@ test('Test connection: every host tried with the proxy setting; Off: straight, n
   }
 });
 
-// A second chat (the Chat page's "+"): its own settings and OBS link, Chat 1's channels and messages.
-test('Chat 2: a copy of Chat 1 with its own settings, link, tests and resets; Chat 1 untouched; delete, undo', async () => {
+// More chats (the Chat page's "+", up to 4): each its own settings and OBS link, Chat 1's channels and messages.
+test('Chat 2: a copy of Chat 1 with its own settings, link, tests and resets; Chat 1 untouched; up to 4; delete, undo', async () => {
   if (!server.listening) await new Promise((r) => server.once('listening', r));
   const json = async (r) => (assert.equal((r = await r).status, 200), r.json());
   let s = await json(
@@ -785,7 +805,6 @@ test('Chat 2: a copy of Chat 1 with its own settings, link, tests and resets; Ch
     ['neon', 30, 'troll', '', 'somechannel'],
     'a copy, its own name, the same channel',
   );
-  assert.equal((await call('POST', '/api/chat/add')).status, 400, 'at most 2');
   assert.equal((await call('PATCH', '/api/settings', { chat2: { twitchChannel: 'other' } })).status, 400, "the channels are Chat 1's");
   s = await json(call('PATCH', '/api/settings', { chat2: { style: 'ticker', fontSize: 22, hiddenUsers: '', name: 'In game' } }));
   assert.deepEqual([s.chat.style, s.chat.fontSize, s.chat.hiddenUsers, s.chat.name], ['neon', 30, 'troll', 'Just Chatting'], 'Chat 1 untouched');
@@ -816,13 +835,26 @@ test('Chat 2: a copy of Chat 1 with its own settings, link, tests and resets; Ch
   await new Promise((r) => setTimeout(r, sent * 180 + 300));
   bus.off('chat', onChat);
   assert.ok(seen.length === sent && seen.every((m) => m.only === 'chat2'));
-  assert.equal(chatMessage({ platform: 'twitch', only: 'chat3' }).only, null);
+  assert.equal(chatMessage({ platform: 'twitch', only: 'chat4' }).only, 'chat4');
+  assert.equal(chatMessage({ platform: 'twitch', only: 'chat5' }).only, null);
 
-  // Delete Chat 2, Ctrl+Z brings it back.
-  s = await json(call('POST', '/api/chat/remove'));
-  assert.equal(s.chat2, null);
+  // Chat 3 and 4, then no more; each has its own link.
+  await json(call('POST', '/api/chat/add'));
+  s = await json(call('POST', '/api/chat/add'));
+  assert.deepEqual([s.chat3.style, s.chat4.fontSize, s.chat4.twitchChannel], ['neon', 30, 'somechannel'], 'copies of Chat 1');
+  assert.equal((await call('POST', '/api/chat/add')).status, 400, 'at most 4');
+  assert.equal((await fetch(`${base}/widgets/chat/4`)).status, 200);
+  assert.equal((await fetch(`${base}/widgets/chat/5`)).status, 404);
+
+  // Delete Chat 2, Ctrl+Z brings it back; Chat 3 and 4 stay where they are, and "+" fills the free one again.
+  assert.equal((await call('POST', '/api/chat/remove', { chat: 'chat' })).status, 400, 'Chat 1 stays');
+  s = await json(call('POST', '/api/chat/remove', { chat: 'chat2' }));
+  assert.deepEqual([s.chat2, s.chat3?.style, s.chat4?.style], [null, 'neon', 'neon']);
   assert.equal((await call('POST', '/api/chat/test', { chat: 'chat2' })).status, 400);
   s = await json(call('POST', '/api/settings/undo'));
   assert.equal(s.chat2.name, 'In game');
+  await json(call('POST', '/api/chat/remove', { chat: 'chat3' }));
+  s = await json(call('POST', '/api/chat/add'));
+  assert.deepEqual([s.chat2.name, s.chat3.name, !!s.chat4], ['In game', '', true]);
   await json(call('POST', '/api/reset'));
 });

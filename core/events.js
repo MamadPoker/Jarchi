@@ -81,7 +81,7 @@ const today = () => count();
 
 // Chat. Connectors call emitChat() for every message and emitChatClear() when a moderator removes messages.
 // Message: { id, platform, time (Kick's / Twitch's own), skew (ms this PC's clock is ahead of theirs: see clockAhead), received (by Jarchi), kind: 'message' | 'sub' | 'event', channel, text, first, action, system, test,
-//   user: { id, login, name, color, avatar, badges: [{ type: 'broadcaster'|'moderator'|'vip'|'subscriber'|'other', name, img, title }] },
+//   user: { id, login, name, color, avatar, badges: [{ type: 'broadcaster'|'moderator'|'vip'|'subscriber'|'other', name, img, title, months (a sub badge's, else 0) }] },
 //   parts: [{ t: 'text', v } | { t: 'emote', name, src, still, provider: 'twitch'|'kick'|'7tv' } | { t: 'cheer', name, amount, gem }],
 //   event: what Kick / Twitch said happened, for the chat's special lines (Events), or null:
 //     { type: 'kicks'|'sub'|'resub'|'gift_sub'|'bits'|'raid', amount, months, gift (Kick's gift id), name (Kick's gift name) } }
@@ -113,7 +113,7 @@ function chatMessage(m) {
     action: !!m.action,
     system: String(m.system ?? '').slice(0, 300),
     test: !!m.test,
-    only: ['chat', 'chat2'].includes(m.only) ? m.only : null, // a test message for one chat (the other doesn't show it)
+    only: ['chat', 'chat2', 'chat3', 'chat4'].includes(m.only) ? m.only : null, // a test message for one chat (the others don't show it)
     // A reply: who it answers and what they said ('' when the platform didn't send it).
     reply: m.reply?.name ? { name: String(m.reply.name).slice(0, 64), text: String(m.reply.text ?? '').slice(0, 300) } : null,
     user: {
@@ -124,9 +124,13 @@ function chatMessage(m) {
       name: String(u.name ?? u.login ?? '').slice(0, 64),
       color: /^#[0-9a-f]{6}$/i.test(u.color) ? u.color : null,
       avatar: https(u.avatar) ? u.avatar : null,
-      badges: (u.badges ?? [])
-        .slice(0, 8)
-        .map((b) => ({ type: b.type, name: String(b.name ?? ''), img: badgeImg(b.img) ? b.img : null, title: String(b.title ?? b.name ?? '') })),
+      badges: (u.badges ?? []).slice(0, 8).map((b) => ({
+        type: b.type,
+        name: String(b.name ?? ''),
+        img: badgeImg(b.img) ? b.img : null,
+        title: String(b.title ?? b.name ?? ''),
+        months: count0(b.months),
+      })),
     },
     parts: (m.parts ?? [{ t: 'text', v: m.text ?? '' }])
       .filter((p) => (p.t === 'emote' ? https(p.src) : p.t === 'cheer' ? Number.isInteger(p.gem) && Number.isInteger(p.amount) : p.t === 'text'))

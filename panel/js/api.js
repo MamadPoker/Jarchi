@@ -50,13 +50,13 @@ const patchViewers = (fields) => send('PATCH', '/api/settings', { viewers: field
 // The selected chat's settings; the channels are Chat 1's.
 const patchChat = (fields) => send('PATCH', '/api/settings', { ['kickChannel' in fields || 'twitchChannel' in fields ? 'chat' : curChat]: fields });
 // Undo / redo a settings change (the server keeps the last 5 while Jarchi runs): Ctrl+Z / Ctrl+Y, and the "Saved" note's
-// Undo. On the Chat page, a step that changed only the other chat opens that one, so the change is in view.
+// Undo. On the Chat page, a step that changed only another chat opens that one, so the change is in view.
 async function undoRedo(s) {
   const was = settings;
   await send('POST', `/api/settings/${s}`);
-  const other = curChat === 'chat' ? 'chat2' : 'chat';
   const same = (k) => JSON.stringify(was[k]) === JSON.stringify(settings[k]);
-  if (view === 'chat' && settings[other] && same(curChat) && !same(other)) select('chat', other);
+  const other = chats().find((k) => !same(k));
+  if (view === 'chat' && other && same(curChat)) select('chat', other);
 }
 
 // Change a goal's count (the selected one's by default): { add: n } or { set: n }.

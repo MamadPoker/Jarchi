@@ -80,7 +80,7 @@ function renderSettings() {
 
 function renderChat() {
   const ed = $('main [data-view=chat]');
-  if (!settings[curChat]) curChat = 'chat'; // Chat 2 deleted (here, in another window, or undone)
+  if (!settings[curChat]) curChat = 'chat'; // that chat deleted (here, in another window, or undone)
   const c = chatCfg();
   const src = `${chatUrl(curChat).slice(location.origin.length)}?preview`;
   if ($('#chatPreview').getAttribute('src') !== src) $('#chatPreview').src = src;

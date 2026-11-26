@@ -21,7 +21,7 @@
         if (ls.getItem('jarchi.art') !== '0') de.dataset.art = '';
         if (ls.getItem('jarchi.still') === '1') de.dataset.still = '';
         const pop = new URLSearchParams(location.search).get('pop');
-        if (['luck', 'battle', 'clips'].includes(pop)) de.dataset.pop = pop; // the Luck, Song Battle or ClipQ page's own window
+        if (['luck', 'battle', 'clips', 'livechat'].includes(pop)) de.dataset.pop = pop; // the Luck, Song Battle, ClipQ or live chat's own window
         if (accent) for (const k in accent) de.style.setProperty(k, accent[k]);
         else if (de.dataset.palette === 'system') de.dataset.palette = 'jarchi';
       } catch {}
@@ -1992,7 +1992,7 @@
            settings in five tabs (right). No Save button: every change saves by itself (send(), the "Saved" note). ===== -->
           <section class="view chat-page" data-view="chat" hidden>
             <div class="page-head">
-              <!-- The chats (renderChatTabs): Chat 1, Chat 2 or "+", rename the selected one, delete Chat 2 -->
+              <!-- The chats (renderChatTabs): Chat 1 to 4 and "+", rename the selected one, delete it (not Chat 1) -->
               <div class="row chat-tabs">
                 <div id="chatTabs" class="seg" role="radiogroup" data-aria="chatList"></div>
                 <button id="chatAdd" class="icon-btn" data-title="chatAdd">
@@ -2022,6 +2022,10 @@
                   <button id="chatAllFx" data-i18n="chatAllFx"></button>
                 </div>
               </div>
+              <button id="chatPop" class="ghost crypto-pop" data-title="chatPopOutHint">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M20 4l-8 8M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" /></svg
+                ><span data-i18n="luckPopOut"></span>
+              </button>
               <button id="chatCopy" class="primary">
                 <svg viewBox="0 0 24 24" aria-hidden="true">
                   <rect x="9" y="9" width="11" height="11" rx="2" />
@@ -2227,6 +2231,18 @@
               <ol id="qHistory" class="q-list"></ol>
               <p id="qNoHistory" class="q-empty" data-i18n="qNoHistory"></p>
             </div>
+          </section>
+          <!-- ===== Live chat (js/chat.js lcAdd): only in the Chat page's Pop out (/?pop=livechat), to read on a second
+           monitor. This head is the window's title bar. ===== -->
+          <section class="view livechat" data-view="livechat" hidden>
+            <div class="page-head bt-head">
+              <b class="lc-title" data-i18n="chatPopTitle"></b>
+              <label id="lcTop" class="lk-top" hidden
+                ><span class="switch"><input type="checkbox" /><span></span></span><span data-i18n="luckOnTop"></span
+              ></label>
+            </div>
+            <p id="lcEmpty" class="lc-empty" data-i18n="chatPopEmpty"></p>
+            <ol id="lcList" class="lc-list"></ol>
           </section>
         </main>
       </div>

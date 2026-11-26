@@ -47,12 +47,12 @@ const copyBtn = (name, url) => {
   return b;
 };
 // The widget pages: [id the server counts them by, name, OBS link]. Only the switched-on ones are needed (alerts and
-// viewers always: they have no switch). One chat is "Chat"; with Chat 2 each goes by its name. Viewers: one per link,
+// viewers always: they have no switch). One chat is "Chat"; with more, each goes by its name. Viewers: one per link,
 // "Viewers (Kick)", "Viewers (Twitch)", "Viewers (Total)". Crypto alerts: while they're on their own link.
 const widgetPages = () => [
   ['alerts', S.panel.groupAlerts, `${location.origin}/widgets/alerts`],
   ...(settings.crypto.ownLink ? [['alerts-crypto', S.panel.cryptoAlertsWidget, `${location.origin}/widgets/alerts/crypto`]] : []),
-  ...CHAT_KEYS.filter((k) => settings[k]).map((k) => [k, settings.chat2 ? chatName(k) : S.panel.chatName, chatUrl(k)]),
+  ...chats().map((k, i, all) => [k, all.length > 1 ? chatName(k) : S.panel.chatName, chatUrl(k)]),
   ...Object.keys(settings.goals).map((id) => [id, goalName(id), `${location.origin}/widgets/goal/${id}`]),
   ...VIEWER_SOURCES.map((p) => [
     `viewers-${p}`,
@@ -75,7 +75,8 @@ function issues() {
     .map((p) => [tpl(S.panel.issuePlatform, { platform: S.platforms[p] }), ['chat']]); // the channel names are on the Chat page for now
   if (!open.alerts) out.push([S.panel.issueAlerts, ['alert'], 'obs']);
   for (const k of CHAT_KEYS) {
-    if (settings[k]?.enabled && !open[k]) out.push([settings.chat2 ? tpl(S.panel.issueChatN, { chat: chatName(k) }) : S.panel.issueChat, ['chat', k], 'obs']);
+    if (settings[k]?.enabled && !open[k])
+      out.push([chats().length > 1 ? tpl(S.panel.issueChatN, { chat: chatName(k) }) : S.panel.issueChat, ['chat', k], 'obs']);
   }
   for (const [id, g] of Object.entries(settings.goals))
     if (g.enabled && !open[id]) out.push([tpl(S.panel.issueGoal, { goal: goalName(id) }), ['goal', id], 'obs']);

@@ -874,7 +874,7 @@ function renderLuck() {
   renderCoin();
 }
 
-// Pop out (Luck, Song Battle): the page in its own window (/?pop=<page>). There: Always on top (the desktop app, kept
+// Pop out (Luck, Song Battle, ClipQ, the live chat): the page in its own window (/?pop=<page>). There: Always on top (the desktop app, kept
 // per page), and the language switch (no top bar there): the app's language until it's used, then that window's own
 // (help.js setLang).
 function popOut(page, name, btn, lang, top, width) {
@@ -882,7 +882,7 @@ function popOut(page, name, btn, lang, top, width) {
   btn.onclick = () => window.open(`/?pop=${page}`, `jarchi-${page}`, `popup,width=${width},height=820`);
   if (POP !== page) return;
   document.title = `Jarchi · ${S.panel[name]}`;
-  lang.hidden = false;
+  if (lang) lang.hidden = false; // (the live chat has none: the app's language)
   const app = window.jarchiApp,
     box = $('input', top),
     key = `jarchi.${page}Top`;

@@ -126,10 +126,10 @@ function publish(m) {
   if (!msg.user.avatar && either('avatars')) lookUpAvatar(msg);
 }
 
-// A setting that's on in Chat 1 or Chat 2 (the messages are the same for both).
+// A setting that's on in any of the chats (the messages are the same for all).
 const either = (k) => {
   const s = settings.get();
-  return s.chat[k] || !!s.chat2?.[k];
+  return settings.CHATS.some((c) => !!s[c]?.[k]);
 };
 
 // ---------- Profile pictures: cached, and Kick lookups rate-limited (one website API call per new chatter) ----------
@@ -437,7 +437,7 @@ function build(kind, c) {
   return { list, effects: picked, events };
 }
 
-// kind 'sample' | 'burst' | 'all', for one chat (key 'chat' | 'chat2': only that one shows them) -> { sent, effects, events }.
+// kind 'sample' | 'burst' | 'all', for one chat (key 'chat' | 'chat2'..'chat4': only that one shows them) -> { sent, effects, events }.
 function test(kind, key = 'chat') {
   if (!globalRequested) {
     globalRequested = true;

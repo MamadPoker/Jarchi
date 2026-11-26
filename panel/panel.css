@@ -7043,7 +7043,7 @@ button#lkAgain {
 :root[data-pop] main {
   padding: 0 22px 40px;
 }
-:root[data-pop] :is(.view.luck, .view.battle, .view.clips) {
+:root[data-pop] :is(.view.luck, .view.battle, .view.clips, .view.livechat) {
   max-width: none;
 }
 :root[data-pop] .lk-pane {
@@ -7070,6 +7070,103 @@ button#lkAgain {
 }
 :root[data-pop] .lk-tabs button {
   padding: 5px 14px;
+}
+
+/* The live chat (the Chat page's Pop out, js/chat.js lcRow): the chat to read, plain, in the panel's colors, without
+   the background art behind the words. Names keep their own color, made light enough (dark enough in light mode) to read. */
+:root[data-pop='livechat'] .bg-art {
+  display: none;
+}
+:root[data-pop='livechat'] main {
+  padding-bottom: 10px;
+}
+.lc-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lc-empty {
+  margin: 48px 0;
+  color: var(--muted);
+  text-align: center;
+}
+.lc-list {
+  margin: 0;
+  padding: 8px 0 0;
+  list-style: none;
+  font-size: 20px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.lc-row {
+  padding: 4px 10px;
+  border-radius: 6px;
+}
+.lc-row:hover {
+  background: var(--hover);
+}
+.lc-row.kick {
+  --pc: #53fc18;
+}
+.lc-row.twitch {
+  --pc: #9146ff;
+}
+.lc-row img {
+  vertical-align: middle;
+}
+.lc-logo {
+  width: 20px;
+  height: 20px;
+  margin-inline-end: 7px;
+}
+.lc-badge {
+  height: 22px;
+  margin-inline-end: 5px;
+}
+.lc-months {
+  margin-inline: -2px 6px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+  vertical-align: middle;
+}
+.lc-name {
+  color: oklch(from var(--uc, var(--pc)) max(l, 0.72) c h);
+  font-weight: 700;
+}
+:root[data-theme='light'] .lc-name {
+  color: oklch(from var(--uc, var(--pc)) min(l, 0.5) c h);
+}
+.lc-emote {
+  height: 36px;
+  margin: -6px 1px;
+}
+.lc-cheer img {
+  height: 26px;
+  margin-inline-end: 2px;
+}
+.lc-action .lc-said {
+  font-style: italic;
+}
+.lc-reply,
+.lc-system {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 15px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lc-event {
+  margin: 4px 0;
+  padding-block: 6px;
+  border-inline-start: 3px solid var(--pc);
+  background: var(--card);
+}
+.lc-event > div {
+  font-weight: 600;
 }
 
 /* ---------- Song Battle (js/battle.js): Connect (the Crypto page's hero), then the setup, the page link with its QR code

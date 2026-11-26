@@ -30,8 +30,11 @@ module.exports = function register(app, { ROOT }) {
     }
   });
 
-  // Chat 2's OBS link; Chat 1's is /widgets/chat (below).
-  app.get('/widgets/chat/2{/}', (req, res) => res.sendFile(path.join(ROOT, 'widgets', 'chat', 'index.html')));
+  // Chat 2's to 4's OBS links (/widgets/chat/2..4); Chat 1's is /widgets/chat (below).
+  app.get('/widgets/chat/:n{/}', (req, res, next) => {
+    if (!settings.CHATS.slice(1).includes(`chat${req.params.n}`)) return next();
+    res.sendFile(path.join(ROOT, 'widgets', 'chat', 'index.html'));
+  });
   app.use('/uploads', express.static(UPLOADS_DIR, { setHeaders: (res) => res.set('X-Content-Type-Options', 'nosniff') }));
   // One goal page, an OBS URL per goal: Kick's /widgets/goal/subs, /kicks, /followers; Twitch's /twitchSubs, /bits, /twitchFollowers.
   app.get('/widgets/goal/:id{/}', (req, res, next) => {
