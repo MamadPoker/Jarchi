@@ -7975,9 +7975,13 @@ button.bt-vcoin {
   line-height: 1.8;
 }
 
-/* A tie: the two songs, and the lucky coin between them. */
+/* A tie: the two songs, and the lucky coin between them. Like the battle screen, it grows with the page's width:
+   --coin is the coin's size (its logo, shadow and room to be tossed follow). */
+.bt-tie {
+  --coin: clamp(170px, 17cqi, 320px);
+}
 .bt-tside {
-  padding: 22px 14px 14px;
+  padding: clamp(22px, 1.6cqi, 30px) clamp(14px, 1.1cqi, 22px) clamp(14px, 1.1cqi, 22px);
   text-align: center;
 }
 .bt-tcover {
@@ -8008,12 +8012,12 @@ button.bt-vcoin {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
+  gap: clamp(12px, 1cqi, 20px);
   text-align: center;
 }
 .bt-tlabel {
   color: var(--gold-text);
-  font-size: clamp(18px, 1.5cqi, 30px);
+  font-size: clamp(18px, 2cqi, 38px);
   font-weight: 900;
 }
 .bt-coinw {
@@ -8021,20 +8025,20 @@ button.bt-vcoin {
   flex-direction: column;
   align-items: center;
   justify-content: flex-end;
-  height: 250px;
+  height: calc(var(--coin) + 80px); /* the toss goes 70 px up (js/battle.js btFlip) */
   perspective: 700px;
   filter: drop-shadow(0 14px 18px rgb(0 0 0 / 0.55));
 }
 .lk-coin.bt-coin {
-  width: 170px;
-  height: 170px;
+  width: var(--coin);
+  height: var(--coin);
   cursor: default;
 }
 .bt-coin .lk-clogo {
-  width: 74px;
+  width: 43.5%;
 }
 .bt-csh {
-  width: 120px;
+  width: calc(var(--coin) * 0.7);
   height: 12px;
   margin-top: 18px;
   border-radius: 50%;
@@ -8047,25 +8051,37 @@ button.bt-vcoin {
 .bt-cres > span {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 5px 12px 5px 6px;
+  gap: 0.5em;
+  padding: 0.4em 0.95em 0.4em 0.5em;
   border: 1px solid color-mix(in srgb, var(--side) 40%, transparent);
   border-radius: 999px;
   background: var(--bg);
   color: var(--side);
-  font-size: 12.5px;
+  font-size: clamp(12.5px, 1.1cqi, 21px);
   font-weight: 700;
 }
 .bt-cres u {
   display: inline-grid;
   place-items: center;
-  width: 22px;
-  height: 22px;
-  border-radius: 7px;
+  width: 1.75em;
+  height: 1.75em;
+  border-radius: 0.55em;
   font:
-    900 13px Manrope,
+    900 1em Manrope,
     sans-serif;
   text-decoration: none;
+}
+/* Flip the coin and Back: bigger than the battle screen's buttons, the result line under them too. */
+.bt-tmid button.lk-btn {
+  padding: 0.7em 1.5em;
+  font-size: clamp(15px, 1.4cqi, 26px);
+}
+.bt-tmid button.lk-btn.bt-sm {
+  padding: 0.55em 1.1em;
+  font-size: clamp(13px, 1.05cqi, 20px);
+}
+.bt-tmid .bt-dim {
+  font-size: clamp(12.5px, 1.1cqi, 21px);
 }
 .bt-dim {
   color: var(--muted);
