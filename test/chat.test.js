@@ -44,10 +44,18 @@ test('Twitch IRC lines -> messages, removals, room id', () => {
   );
   assert.match(m.parts[0].src, /emoticons\/v2\/25\/default/);
   assert.deepEqual(
-    m.user.badges.map((b) => b.type),
-    ['moderator', 'subscriber'],
+    m.user.badges.map((b) => [b.type, b.months]),
+    [
+      ['moderator', 0],
+      ['subscriber', 14],
+    ],
+    'the sub badge has its months (badge-info)',
   );
   assert.ok(m.user.badges.every((b) => b.img.startsWith('https://static-cdn.jtvnw.net/badges/')));
+  assert.deepEqual(
+    twitch.toBadges('founder/0', 'founder/7').map((b) => [b.type, b.name, b.months]),
+    [['subscriber', 'founder', 7]],
+  );
 
   twitch.handle('@display-name=x;id=a2;user-id=7 :x!x@x PRIVMSG #xqc :\u0001ACTION waves\u0001', 'xqc', cb);
   assert.deepEqual([out.messages[1].action, out.messages[1].text], [true, 'waves']);
@@ -143,7 +151,12 @@ test('Kick Pusher events -> messages, badges, removals', () => {
           { type: 'moderator', text: 'Moderator' },
           { type: 'subscriber', text: 'Subscriber', count: 8 },
         ],
-        badges_v2: [{ name: 'level', image_url: 'https://ext.cdn.kick.com/chat/badges/33.png' }],
+        // Picture badges: the viewer's chosen ones only (selected), like kick.com; kicks_gifter is the channel's KICKs badge.
+        badges_v2: [
+          { name: 'level', badge_type: 'global', image_url: 'https://ext.cdn.kick.com/chat/badges/33.png', selected: true },
+          { name: 'GTAWheel', badge_type: 'global', image_url: 'https://ext.cdn.kick.com/chat/badges/GTAWheel.png', selected: false },
+          { name: 'kicks_gifter', badge_type: 'channel', image_url: 'https://content.kick.com/public/chat/badges/k.png', selected: true },
+        ],
       },
     },
   });
@@ -156,12 +169,19 @@ test('Kick Pusher events -> messages, badges, removals', () => {
   );
   assert.equal(m.parts[1].src, 'https://files.kick.com/emotes/37230/fullsize');
   assert.deepEqual(
-    m.user.badges.map((b) => [b.type, b.img]),
+    m.user.badges.map((b) => [b.type, b.name, b.img, b.months]),
     [
-      ['moderator', '/assets/kick-badges/moderator.svg'],
-      ['subscriber', 'https://files.kick.com/sub6.png'],
-      ['other', 'https://ext.cdn.kick.com/chat/badges/33.png'],
+      ['moderator', 'moderator', '/assets/kick-badges/moderator.svg', 0],
+      ['subscriber', 'subscriber', 'https://files.kick.com/sub6.png', 8],
+      ['other', 'level', 'https://ext.cdn.kick.com/chat/badges/33.png', undefined],
+      ['other', 'kicks_gifter', 'https://content.kick.com/public/chat/badges/k.png', undefined],
     ],
+  );
+  const checked = chatMessage({ platform: 'kick', user: { badges: [...m.user.badges, { type: 'subscriber', name: 'x', months: 'many' }] } }).user.badges;
+  assert.deepEqual(
+    checked.map((b) => b.months),
+    [0, 8, 0, 0, 0],
+    'months go through the message check (a bad one is 0)',
   );
   const img = (badges, subs = []) => kick.kickBadges({ badges }, subs).map((b) => b.img);
   assert.deepEqual(img([{ type: 'subscriber', count: 3 }]), ['/assets/kick-badges/subscriber.svg'], "no channel sub badges: Kick's default");

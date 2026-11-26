@@ -146,11 +146,21 @@ function badgeImage(b, subBadges) {
   return ICONS.has(b.type) ? `${BADGES}/${b.type}.svg` : null;
 }
 
-// Badges (identity.badges) + Kick's image badges (badges_v2).
+// Badges (identity.badges; a subscriber's count is their months) + Kick's picture badges (badges_v2: global ones such as
+// the watch-time "level" and event or game badges, and channel ones such as "kicks_gifter", for KICKs sent in this
+// channel). A picture badge the viewer hasn't switched on (selected: false) isn't shown, as on kick.com.
 function kickBadges(identity, subBadges) {
   const out = [];
-  for (const b of identity?.badges ?? []) out.push({ type: ROLE[b.type] ?? 'other', name: b.type, img: badgeImage(b, subBadges), title: b.text || b.type });
-  for (const b of identity?.badges_v2 ?? []) if (b.image_url) out.push({ type: 'other', name: b.name, img: b.image_url, title: b.name });
+  for (const b of identity?.badges ?? [])
+    out.push({
+      type: ROLE[b.type] ?? 'other',
+      name: b.type,
+      img: badgeImage(b, subBadges),
+      title: b.text || b.type,
+      months: b.type === 'subscriber' ? b.count : 0,
+    });
+  for (const b of identity?.badges_v2 ?? [])
+    if (b.image_url && b.selected !== false) out.push({ type: 'other', name: b.name, img: b.image_url, title: b.name });
   return out;
 }
 

@@ -882,7 +882,7 @@ function popOut(page, name, btn, lang, top, width) {
   btn.onclick = () => window.open(`/?pop=${page}`, `jarchi-${page}`, `popup,width=${width},height=820`);
   if (POP !== page) return;
   document.title = `Jarchi · ${S.panel[name]}`;
-  lang.hidden = false;
+  if (lang) lang.hidden = false; // (the live chat has none: the app's language)
   const app = window.jarchiApp,
     box = $('input', top),
     key = `jarchi.${page}Top`;

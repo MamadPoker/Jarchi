@@ -62,16 +62,17 @@ function emoteParts(text, tag) {
   return parts;
 }
 
-// badges "broadcaster/1,subscriber/12" (+ badge-info "subscriber/14") -> badge list. Badges we have no image for are dropped.
+// badges "broadcaster/1,subscriber/12" (+ badge-info "subscriber/14", or "founder/14": the months) -> badge list. Badges
+// we have no image for are dropped.
 function toBadges(tag, info) {
-  const months = /subscriber\/(\d+)/.exec(info || '')?.[1];
+  const months = /(?:subscriber|founder)\/(\d+)/.exec(info || '')?.[1];
   return (tag || '')
     .split(',')
     .filter(Boolean)
     .map((b) => {
       const [set, version] = b.split('/');
       const title = set === 'subscriber' && months ? `Subscriber (${months} months)` : set.replace(/[-_]/g, ' ');
-      return { type: ROLE[set] ?? 'other', name: set, img: badges.image(set, version), title };
+      return { type: ROLE[set] ?? 'other', name: set, img: badges.image(set, version), title, months: ROLE[set] === 'subscriber' ? Number(months) || 0 : 0 };
     })
     .filter((b) => b.img);
 }

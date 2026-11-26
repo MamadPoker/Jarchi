@@ -299,7 +299,20 @@ function renderConnWarn() {
 // it stays there until scrolled back down. Moderators' deletions go from it too.
 const LC_KEEP = 500; // messages kept on screen
 const lcRemote = (u) => (u?.startsWith('https://') ? `/remote?u=${encodeURIComponent(u)}` : u); // through Jarchi's proxy setting
+// The badges worth seeing at a glance: the roles, the sub badge with its months, Kick's OG and founder, and Kick's channel
+// badge for KICKs sent in the channel (kicks_gifter). Level, event, game and the like stay out.
+const LC_BADGES = new Set(['broadcaster', 'moderator', 'lead_moderator', 'vip', 'subscriber', 'founder', 'og', 'kicks_gifter']);
 let lcStick = true;
+function lcBadges(m) {
+  return m.user.badges
+    .filter((b) => b.img && LC_BADGES.has(b.name))
+    .flatMap((b) => {
+      const sub = b.type === 'subscriber' && b.months > 0;
+      const title = sub ? tpl(S.panel.chatPopSub, { n: fmt(b.months) }) : b.name === 'kicks_gifter' ? S.panel.chatPopKicks : b.title;
+      const img = el('img', { className: 'lc-badge', src: lcRemote(b.img), alt: title, title });
+      return sub ? [img, el('small', { className: 'lc-months', title, textContent: tpl(S.panel.chatPopMonths, { n: fmt(b.months) }) })] : [img];
+    });
+}
 function lcRow(m) {
   const logo = el('img', {
     className: 'lc-logo',
@@ -338,8 +351,7 @@ function lcRow(m) {
       ),
     );
   if (m.system) li.append(el('div', { className: 'lc-system' }, el('bdi', { textContent: m.system })));
-  const badges = m.user.badges.filter((b) => b.img).map((b) => el('img', { className: 'lc-badge', src: lcRemote(b.img), alt: b.title, title: b.title }));
-  li.append(logo, ...badges, name, text ? ': ' : '', text || '');
+  li.append(logo, ...lcBadges(m), name, text ? ': ' : '', text || '');
   return li;
 }
 function lcAdd(msgs) {
@@ -349,7 +361,7 @@ function lcAdd(msgs) {
   $('#lcEmpty').hidden = list.childElementCount > 0;
 }
 function wireChatPop(socket) {
-  popOut('livechat', 'chatPopTitle', $('#chatPop'), $('#lcLang'), $('#lcTop'), 420);
+  popOut('livechat', 'chatPopTitle', $('#chatPop'), null, $('#lcTop'), 420);
   if (POP !== 'livechat') return;
   const page = document.scrollingElement;
   addEventListener('scroll', () => (lcStick = page.scrollHeight - page.scrollTop - page.clientHeight < 40), { passive: true });
