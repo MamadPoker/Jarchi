@@ -8184,16 +8184,17 @@ dialog.bt-champ > b {
 }
 /* Full screen: the card alone, the clip as big as the screen leaves above its buttons. Esc leaves it. */
 .cq-player:fullscreen {
-  --cq-h: calc(100vh - 150px);
+  --cq-h: calc(100vh - 200px); /* room for the title, the line under it, both rows of buttons and the hint */
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: safe center; /* taller than the screen (an error line too): it scrolls from the top */
   padding: 16px 24px;
   border: 0;
   border-radius: 0;
   overflow: auto;
 }
-.cq-player:fullscreen .cq-stage {
+/* Nothing shrinks: the title (overflow: hidden for its …) would be squeezed to half its height. */
+.cq-player:fullscreen > * {
   flex: none;
 }
 .cq-side {
