@@ -25,6 +25,7 @@ const DEFAULTS = {
   commands: { skip: true, remove: true, block: true, close: true },
 };
 const MAX = 200; // clips waiting: a flood of links stops here
+const PLAYED = 5; // Played: the last clips Next took out of the player, for Previous
 
 const bool = (v) => typeof v === 'boolean';
 const RULES = {
@@ -49,10 +50,11 @@ function get() {
 const events = new EventEmitter(); // 'state': the settings or the queue changed
 let open = false,
   now = null, // the clip in the player: { id, source, key, vid, link, vertical, title, thumb, video, by, at }
-  queue = []; // the clips after it, in the order they came
+  queue = [], // the clips after it, in the order they came
+  played = []; // the clips before it, the last one first
 const seen = new Set(), // source:id of every clip since the queue last opened (Skip repeated links)
   blocked = new Set(); // names a mod's !block keeps out until the queue closes
-const state = () => ({ settings: get(), open, now, queue });
+const state = () => ({ settings: get(), open, now, queue, played });
 const changed = () => (events.emit('state', state()), state());
 
 // A change from the panel: the fields it sends replace the saved ones (commands: one by one). One bad field: nothing changes.
@@ -107,10 +109,22 @@ const clipsIn = (text, sources) =>
     .map((w) => clipOf(w.replace(/^[([{<'"«]+|[)\]}>.,!?'"»؛،]+$/g, '')))
     .filter((c) => c && sources.includes(c.source));
 
-// Its title, picture and (Kick) the video, asked once it's in the queue; until then (looked: false) the panel names it
-// by its site. A site that doesn't answer leaves it as it is: it still plays, but a Kick clip needs Kick's answer to.
+// Its title, picture and (Kick, Instagram) the video, asked once it's in the queue; until then (looked: false) the panel
+// names it by its site. A site that doesn't answer leaves it as it is: it still plays, but a Kick clip needs Kick's
+// answer to, and an Instagram one without its video plays in Instagram's embed, which takes none of Jarchi's buttons.
 const https = (u) => (/^https:\/\//.test(u ?? '') ? u : null);
 const title = (t) => String(t ?? '').slice(0, 200);
+// An Instagram clip's video on Instagram's CDN, from its embed page: the post's data is in it (contextJSON, a JSON
+// string), when it's asked for without a browser's headers (tested). null: a photo, several in one post, or not there.
+function igVideo(html) {
+  try {
+    const json = String(html).match(/"contextJSON":("(?:[^"\\]|\\.)*")/)?.[1],
+      v = json && JSON.parse(JSON.parse(json)).gql_data?.shortcode_media?.video_url;
+    return /^https:\/\/[\w.-]+\.(fbcdn\.net|cdninstagram\.com)\/\S+\.mp4(\?\S*)?$/.test(v ?? '') ? v : null;
+  } catch {
+    return null;
+  }
+}
 async function look(c) {
   try {
     if (c.source === 'youtube') {
@@ -128,6 +142,9 @@ async function look(c) {
           thumb: https(k.thumbnail_url),
           video: /^https:\/\/clips\.kick\.com\/\S+\.m3u8$/.test(k.clip_url ?? '') ? k.clip_url : null,
         });
+    } else if (c.source === 'instagram') {
+      const r = await fetch(`${c.link}embed/`, { signal: AbortSignal.timeout(10000) });
+      if (r.ok) c.video = igVideo(await r.text());
     }
   } catch {}
   c.looked = true;
@@ -171,16 +188,28 @@ function setOpen(on) {
   open = on;
   return changed();
 }
-// The next clip into the player (none left: an empty player). from: the clip the window was on, so two windows that
-// both finished it go on only once.
+// The next clip into the player (none left: an empty player); the one it was on goes to Played. from: the clip the
+// window was on, so two windows that both finished it go on only once.
 function next(from) {
   if (from && now?.id !== from) return state();
+  if (now) played = [now, ...played].slice(0, PLAYED);
   now = queue.shift() ?? null;
   return changed();
 }
+// Previous (no id: the last one played), or a clip of Played, back into the player; the one it was on goes back to the
+// top of Up next, so a Next pressed by mistake loses nothing.
+function back(id, from) {
+  const c = id ? played.find((x) => x.id === id) : played[0];
+  if (!c || (from && now?.id !== from)) return state();
+  played = played.filter((x) => x !== c);
+  if (now) queue.unshift(now);
+  now = c;
+  return changed();
+}
+// Out of Up next; the clip in the player: gone, the next one in, and not to Played (it was taken out, not played).
 function remove(id) {
-  if (now?.id === id) return next();
-  queue = queue.filter((c) => c.id !== id);
+  if (now?.id === id) now = queue.shift() ?? null;
+  else queue = queue.filter((c) => c.id !== id);
   return changed();
 }
 // Clear queue: everything waiting goes; the clip in the player stays.
@@ -213,4 +242,4 @@ function heard(m) {
 }
 bus.on('chat', heard);
 
-module.exports = { get, update, state, setOpen, next, remove, clear, clipsIn, heard, events };
+module.exports = { get, update, state, setOpen, next, back, remove, clear, clipsIn, igVideo, heard, events };

@@ -8154,21 +8154,20 @@ dialog.bt-champ > b {
 }
 
 /* ---------- ClipQ (js/clipq.js): the player with Jarchi's buttons beside Up next and Queue settings. The player's parts
-   are the battle screen's (.bt-ctl, .bt-pbn, .bt-title), in gold. Vertical clips (Shorts, Reels) stand up. ---------- */
+   are the battle screen's (.bt-ctl, .bt-pbn, .bt-title), in gold. The player takes all the width the side column
+   leaves; the clip stands in its own shape (--ar), as big as fits under the window's height. ---------- */
 .view.clips {
-  max-width: 1300px;
+  max-width: none;
 }
 #cqLang {
   margin-inline-start: auto; /* the pop-out's: at the bar's end, then Always on top */
 }
 :root[data-pop] .view.clips > :not(.bt-head) {
   width: 100%;
-  max-width: 1300px;
-  margin-inline: auto;
 }
 .cq-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.6fr) minmax(300px, 1fr);
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 360px);
   gap: 16px;
   align-items: start;
   margin-top: 14px;
@@ -8181,6 +8180,21 @@ dialog.bt-champ > b {
 }
 .cq-player {
   --side: var(--gold);
+  --cq-h: max(260px, calc(100vh - 330px)); /* the stage's tallest: the window less the bars, title and buttons */
+}
+/* Full screen: the card alone, the clip as big as the screen leaves above its buttons. Esc leaves it. */
+.cq-player:fullscreen {
+  --cq-h: calc(100vh - 150px);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 16px 24px;
+  border: 0;
+  border-radius: 0;
+  overflow: auto;
+}
+.cq-player:fullscreen .cq-stage {
+  flex: none;
 }
 .cq-side {
   display: grid;
@@ -8188,16 +8202,14 @@ dialog.bt-champ > b {
   min-width: 0;
 }
 .cq-stage {
+  --ar: 1.7778; /* 16:9 until js/clipq.js sets the clip's */
   position: relative;
-  aspect-ratio: 16 / 9;
+  width: min(100%, calc(var(--cq-h) * var(--ar)));
+  aspect-ratio: var(--ar);
+  margin-inline: auto;
   overflow: hidden;
   border-radius: 12px;
   background: #000;
-}
-.cq-stage.tall {
-  height: min(64vh, 640px);
-  aspect-ratio: 9 / 16;
-  margin-inline: auto;
 }
 .cq-stage.playing {
   box-shadow: 0 0 0 2px var(--side);
@@ -8231,7 +8243,7 @@ dialog.bt-champ > b {
   max-width: 340px;
   font-size: 12.5px;
 }
-/* Over the video: nothing until the mouse is on it, then a big play / pause. */
+/* Over the video: nothing until the mouse moves on it (.awake, js/clipq.js), then a big play / pause that fades. */
 button.cq-big {
   position: absolute;
   inset: 0;
@@ -8241,11 +8253,13 @@ button.cq-big {
   border-radius: 0;
   background: none;
   opacity: 0;
-  transition: opacity 0.2s;
+  transition: opacity 0.4s;
 }
-button.cq-big:hover,
-button.cq-big:focus-visible {
+button.cq-big:hover {
   background: none;
+}
+.cq-stage.awake button.cq-big,
+button.cq-big:focus-visible {
   opacity: 1;
 }
 button.cq-big svg {
@@ -8263,10 +8277,18 @@ button.cq-big svg {
 .bt-ctl #cqVol {
   flex: 0 1 140px;
 }
-button.cq-mute svg {
+button.cq-mute svg,
+button.cq-full svg,
+button.cq-again svg {
   display: block;
   width: 16px;
   height: 16px;
+}
+button.cq-again:hover {
+  color: var(--gold-text);
+}
+.cq-played .cq-row {
+  opacity: 0.75;
 }
 button.cq-auto[aria-pressed='true'] {
   border-color: var(--gold);
