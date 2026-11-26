@@ -23,7 +23,7 @@ const strings = require('../i18n/en.json');
 
 module.exports = function sockets({ io, view, changed, DEV }) {
   // Widget pages open right now, in OBS or a browser (the panel's previews don't count): the Home page's green dots.
-  const WIDGETS = ['alerts', 'alerts-crypto', 'chat', 'chat2', ...settings.GOAL_IDS, 'viewers-kick', 'viewers-twitch', 'viewers-total'];
+  const WIDGETS = ['alerts', 'alerts-crypto', ...settings.CHATS, ...settings.GOAL_IDS, 'viewers-kick', 'viewers-twitch', 'viewers-total'];
   // seen: every widget link ever opened, kept (data/widgets.json): Home lists a Viewer count link only once it's in use.
   const open = Object.fromEntries(WIDGETS.map((w) => [w, 0]));
   const SEEN_FILE = path.join(DATA_DIR, 'widgets.json');

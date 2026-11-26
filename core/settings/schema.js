@@ -674,10 +674,11 @@ const CHAT_SHARED = CHAT_LOOK.filter((k) => !CHAT_OWN.includes(k));
 const pick = (o, keys) => Object.fromEntries(keys.filter((k) => k in o).map((k) => [k, o[k]]));
 // The panel's style thumbnails: each design's own look, over the user's shared values (what picking it gives).
 const CHAT_DESIGNS = Object.fromEntries(Object.entries(CHAT_STYLES).map(([id, s]) => [id, pick(s, CHAT_OWN)]));
-// Up to 2 chats, each with all of these settings of its own: Chat 1 is saved.chat (as before there was a second one, so
-// its settings and OBS link /widgets/chat stay), Chat 2 is saved.chat2 (/widgets/chat/2), there once "+" added it. Both
-// show the same messages: the channels are Chat 1's (Chat 2 shows them, never keeps its own).
-const CHATS = ['chat', 'chat2'];
+// Up to 4 chats, each with all of these settings of its own: Chat 1 is saved.chat (as before there was a second one, so
+// its settings and OBS link /widgets/chat stay), Chat 2 to 4 are saved.chat2..chat4 (/widgets/chat/2..4), there once "+"
+// added them. Each keeps its key (and link) when another is deleted. All show the same messages: the channels are Chat
+// 1's (the others show them, never keep their own).
+const CHATS = ['chat', 'chat2', 'chat3', 'chat4'];
 const CHANNELS = ['kickChannel', 'twitchChannel'];
 const CHAT_DEFAULTS = {
   name: '', // the Chat page's tab ('' = "Chat 1" / "Chat 2" in the panel's language)

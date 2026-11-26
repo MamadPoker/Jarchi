@@ -767,8 +767,8 @@ test('Test connection: every host tried with the proxy setting; Off: straight, n
   }
 });
 
-// A second chat (the Chat page's "+"): its own settings and OBS link, Chat 1's channels and messages.
-test('Chat 2: a copy of Chat 1 with its own settings, link, tests and resets; Chat 1 untouched; delete, undo', async () => {
+// More chats (the Chat page's "+", up to 4): each its own settings and OBS link, Chat 1's channels and messages.
+test('Chat 2: a copy of Chat 1 with its own settings, link, tests and resets; Chat 1 untouched; up to 4; delete, undo', async () => {
   if (!server.listening) await new Promise((r) => server.once('listening', r));
   const json = async (r) => (assert.equal((r = await r).status, 200), r.json());
   let s = await json(
@@ -785,7 +785,6 @@ test('Chat 2: a copy of Chat 1 with its own settings, link, tests and resets; Ch
     ['neon', 30, 'troll', '', 'somechannel'],
     'a copy, its own name, the same channel',
   );
-  assert.equal((await call('POST', '/api/chat/add')).status, 400, 'at most 2');
   assert.equal((await call('PATCH', '/api/settings', { chat2: { twitchChannel: 'other' } })).status, 400, "the channels are Chat 1's");
   s = await json(call('PATCH', '/api/settings', { chat2: { style: 'ticker', fontSize: 22, hiddenUsers: '', name: 'In game' } }));
   assert.deepEqual([s.chat.style, s.chat.fontSize, s.chat.hiddenUsers, s.chat.name], ['neon', 30, 'troll', 'Just Chatting'], 'Chat 1 untouched');
@@ -816,13 +815,26 @@ test('Chat 2: a copy of Chat 1 with its own settings, link, tests and resets; Ch
   await new Promise((r) => setTimeout(r, sent * 180 + 300));
   bus.off('chat', onChat);
   assert.ok(seen.length === sent && seen.every((m) => m.only === 'chat2'));
-  assert.equal(chatMessage({ platform: 'twitch', only: 'chat3' }).only, null);
+  assert.equal(chatMessage({ platform: 'twitch', only: 'chat4' }).only, 'chat4');
+  assert.equal(chatMessage({ platform: 'twitch', only: 'chat5' }).only, null);
 
-  // Delete Chat 2, Ctrl+Z brings it back.
-  s = await json(call('POST', '/api/chat/remove'));
-  assert.equal(s.chat2, null);
+  // Chat 3 and 4, then no more; each has its own link.
+  await json(call('POST', '/api/chat/add'));
+  s = await json(call('POST', '/api/chat/add'));
+  assert.deepEqual([s.chat3.style, s.chat4.fontSize, s.chat4.twitchChannel], ['neon', 30, 'somechannel'], 'copies of Chat 1');
+  assert.equal((await call('POST', '/api/chat/add')).status, 400, 'at most 4');
+  assert.equal((await fetch(`${base}/widgets/chat/4`)).status, 200);
+  assert.equal((await fetch(`${base}/widgets/chat/5`)).status, 404);
+
+  // Delete Chat 2, Ctrl+Z brings it back; Chat 3 and 4 stay where they are, and "+" fills the free one again.
+  assert.equal((await call('POST', '/api/chat/remove', { chat: 'chat' })).status, 400, 'Chat 1 stays');
+  s = await json(call('POST', '/api/chat/remove', { chat: 'chat2' }));
+  assert.deepEqual([s.chat2, s.chat3?.style, s.chat4?.style], [null, 'neon', 'neon']);
   assert.equal((await call('POST', '/api/chat/test', { chat: 'chat2' })).status, 400);
   s = await json(call('POST', '/api/settings/undo'));
   assert.equal(s.chat2.name, 'In game');
+  await json(call('POST', '/api/chat/remove', { chat: 'chat3' }));
+  s = await json(call('POST', '/api/chat/add'));
+  assert.deepEqual([s.chat2.name, s.chat3.name, !!s.chat4], ['In game', '', true]);
   await json(call('POST', '/api/reset'));
 });

@@ -1,5 +1,5 @@
 // Chat widget (/widgets/chat): Kick + Twitch chat in one box, transparent page, chat at the top-left. /widgets/chat/2 is
-// Chat 2: the same messages, with its own settings (s.chat2; null = there's no Chat 2, nothing shows).
+// Chat 2 (3, 4 likewise): the same messages, with its own settings (s.chat2; null = there's no Chat 2, nothing shows).
 // Live (OBS): settings, messages and removals arrive over Socket.IO. ?preview: shown even when the chat is off (panel).
 // ?thumb: no socket; the panel posts { strings, cfg, messages } to draw a still style thumbnail.
 //
@@ -7,7 +7,7 @@
 // which slides the older rows up smoothly; a CSS mask fades them out in a soft zone at the far edge. Rows that leave
 // (max messages, hide-after, moderation) fade out first, then their height closes, so nothing ever jumps.
 const params = new URLSearchParams(location.search);
-const KEY = /^\/widgets\/chat\/2\/?$/.test(location.pathname) ? 'chat2' : 'chat';
+const KEY = `chat${location.pathname.match(/^\/widgets\/chat\/([2-4])\/?$/)?.[1] ?? ''}`;
 const root = document.getElementById('chat');
 const viewport = root.querySelector('.viewport');
 const list = root.querySelector('.list');

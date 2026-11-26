@@ -27,21 +27,23 @@ function show() {
   win.focus();
 }
 
-// Last size and position; the position is dropped when it's on no screen any more (a monitor unplugged since).
-function savedBounds() {
+// A window's last size and position (the panel's, the live chat's); the position is dropped when it's on no screen any
+// more (a monitor unplugged since). none: what a window never closed before gets.
+/** @param {Partial<Electron.Rectangle>} [none] @returns {Partial<Electron.Rectangle> & { maximized?: boolean }} */
+function savedBounds(file = WINDOW_FILE, none = { width: 1280, height: 820 }) {
   try {
-    const b = JSON.parse(fs.readFileSync(WINDOW_FILE, 'utf8'));
+    const b = JSON.parse(fs.readFileSync(file, 'utf8'));
     const onScreen = screen
       .getAllDisplays()
       .some(({ workArea: a }) => b.x < a.x + a.width && b.x + b.width > a.x && b.y < a.y + a.height && b.y + b.height > a.y);
     return onScreen ? b : { width: b.width, height: b.height, maximized: b.maximized };
   } catch {
-    return { width: 1280, height: 820 };
+    return none;
   }
 }
-function saveBounds() {
+function saveBounds(w = win, file = WINDOW_FILE) {
   try {
-    fs.writeFileSync(WINDOW_FILE, JSON.stringify({ ...win.getNormalBounds(), maximized: win.isMaximized() }));
+    fs.writeFileSync(file, JSON.stringify({ ...w.getNormalBounds(), maximized: w.isMaximized() }));
   } catch {}
 }
 
@@ -77,9 +79,18 @@ const LUCK_POP = { ...POPOUT, width: 1180, height: 820, minWidth: 720, minHeight
 // Song Battle's pop-out (/?pop=battle): the same, wider for the two songs; streamers add it to OBS as a window. ClipQ's
 // (/?pop=clips) too, for the player and its queue side by side.
 const BATTLE_POP = { ...LUCK_POP, width: 1280 };
+// The Chat page's pop-out (/?pop=livechat): the chat to read on a second monitor, narrow and tall. It opens where it was
+// last closed, at that size (CHAT_POP_FILE).
+const CHAT_POP_FILE = path.join(DATA_DIR, 'chat-window.json');
+const chatPop = () => {
+  const { maximized, ...bounds } = savedBounds(CHAT_POP_FILE, {});
+  return { ...LUCK_POP, width: 420, height: 820, minWidth: 340, minHeight: 300, ...bounds };
+};
 const popOf = (url) => {
   const u = new URL(url);
-  return u.pathname === '/crypto-popout.html' ? POPOUT : ({ luck: LUCK_POP, battle: BATTLE_POP, clips: BATTLE_POP }[u.searchParams.get('pop')] ?? null);
+  if (u.pathname === '/crypto-popout.html') return POPOUT;
+  const pop = u.searchParams.get('pop');
+  return pop === 'livechat' ? chatPop() : ({ luck: LUCK_POP, battle: BATTLE_POP, clips: BATTLE_POP }[pop] ?? null);
 };
 ipcMain.on('window:onTop', (e, on) => BrowserWindow.fromWebContents(e.sender)?.setAlwaysOnTop(on === true));
 
@@ -141,6 +152,7 @@ function open() {
   // in a pop-out (a song's "Open it on YouTube", the players' own) opens in the browser, as in the panel.
   win.webContents.on('did-create-window', (child, { url }) => {
     if (popOf(url)?.titleBarOverlay) child.webContents.on('did-change-theme-color', (e, color) => tintBar(child, color));
+    if (new URL(url).searchParams.get('pop') === 'livechat') child.on('close', () => saveBounds(child, CHAT_POP_FILE));
     child.webContents.setWindowOpenHandler(({ url: to }) => (outside(to), { action: 'deny' }));
     child.webContents.on('will-navigate', (e, to) => own(to) || (e.preventDefault(), outside(to)));
   });
