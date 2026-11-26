@@ -1,9 +1,9 @@
 // The player page (battle-player.html) of the battle screen and ClipQ: one song or clip in its site's own player
-// (YouTube's, Spotify's, SoundCloud's; Kick's clips as a video, with hls.js; Twitch's and Instagram's embeds), driven by
-// the panel's buttons (js/battle.js, js/clipq.js) over postMessage: { play } or { pause }, { seek: seconds }, { volume:
-// 0..1 }, { muted }, in one message or several. ?vol= and ?muted=1 set the sound, ?play=1 starts it once it's ready.
-// It tells the panel { st: { ready, playing, ended, pos, dur, ar (a video's width / height), error } }. Its own page on
-// http://localhost because YouTube refuses most music videos (error 150) on a page at http://127.0.0.1, where the panel
+// (YouTube's, Spotify's, SoundCloud's; Kick's and Instagram's clips as a video, Kick's with hls.js; Twitch's embed, and
+// Instagram's for a clip Jarchi has no video for), driven by the panel's buttons (js/battle.js, js/clipq.js) over
+// postMessage: { play } or { pause }, { seek: seconds }, { volume: 0..1 }, { muted }, in one message or several. ?vol=
+// and ?muted=1 set the sound, ?play=1 starts it once it's ready. It tells the panel { st: { ready, playing, ended, pos,
+// dur, ar (a video's width / height), error } }. Its own page on http://localhost because YouTube refuses most music videos (error 150) on a page at http://127.0.0.1, where the panel
 // is, and plays them here. It answers only the panel, and does nothing anywhere else.
 const q = new URLSearchParams(location.search),
   box = document.getElementById('p'),
@@ -125,8 +125,8 @@ async function soundcloud(url) {
   w.bind(E.ERROR, broken);
 }
 
-// A clip's own video. Kick's are HLS (.ts pieces), which Chromium doesn't play by itself: hls.js does, from Jarchi
-// (/js/hls.js, the hls.js package's file).
+// A clip's own video: Instagram's an .mp4 the video plays itself; Kick's HLS (.ts pieces), which Chromium doesn't play
+// by itself: hls.js does, from Jarchi (/js/hls.js, the hls.js package's file).
 async function video(src) {
   const v = Object.assign(document.createElement('video'), { playsInline: true });
   v.onloadedmetadata = () => {
@@ -144,6 +144,7 @@ async function video(src) {
   v.onended = () => tell({ playing: false, ended: true, pos: v.duration });
   v.ontimeupdate = () => tell({ pos: v.currentTime });
   box.append(v);
+  if (!new URL(src).pathname.endsWith('.m3u8')) return Object.assign(v, { onerror: broken, src });
   try {
     await script('/js/hls.js');
   } catch {
@@ -167,8 +168,23 @@ function twitch(slug) {
   ready({ play: () => at(true), pause() {}, seek() {} });
   if (!f.src) at(false);
 }
-// Instagram's embed: the same, with no way to start it from here at all.
-const instagram = (link) => box.append(Object.assign(document.createElement('iframe'), { src: `${link}embed/`, allow: 'autoplay; encrypted-media' }));
+// Instagram's embed: the same, with no way to start it from here at all. It tells how tall it is at this width
+// ({"type":"MEASURE","details":{"height"}}, tested): the panel shapes the player to that (ar), so it shows whole, with no
+// bars. Its height follows its width, so the panel's shape and this one meet in a few steps; under 0.5% it stops.
+function instagram(link) {
+  const f = Object.assign(document.createElement('iframe'), { src: `${link}embed/`, allow: 'autoplay; encrypted-media', scrolling: 'no' }); // a pixel over: no scrollbar
+  addEventListener('message', (e) => {
+    if (e.source !== f.contentWindow || e.origin !== 'https://www.instagram.com') return;
+    let h = 0;
+    try {
+      const d = JSON.parse(e.data);
+      if (d.type === 'MEASURE') h = Number(d.details.height);
+    } catch {}
+    const ar = h > 0 && innerWidth / h;
+    if (ar && Math.abs(ar / (st.ar || 1) - 1) > 0.005) tell({ ar });
+  });
+  box.append(f);
+}
 
 if (PANEL.includes(to)) {
   addEventListener('message', (e) => {
@@ -177,7 +193,8 @@ if (PANEL.includes(to)) {
     else waiting = { ...waiting, ...(e.data.play && { pause: false }), ...(e.data.pause && { play: false }), ...e.data };
   });
   // The link as Jarchi Battle and ClipQ (core/clipq.js) keep it, one form per site: youtube.com/watch?v=,
-  // open.spotify.com/track/, soundcloud.com/; Kick's clip video, clips.twitch.tv/<slug>, instagram.com/(p|reel)/<code>/.
+  // open.spotify.com/track/, soundcloud.com/; Kick's clip video, clips.twitch.tv/<slug>, Instagram's clip video or
+  // instagram.com/(p|reel)/<code>/.
   let u = null;
   try {
     u = new URL(q.get('link'));
@@ -190,6 +207,8 @@ if (PANEL.includes(to)) {
   else if (q.get('source') === 'soundcloud' && u?.hostname === 'soundcloud.com') soundcloud(u.href);
   else if (q.get('source') === 'kick' && u?.hostname === 'clips.kick.com' && u.pathname.endsWith('.m3u8')) video(u.href);
   else if (q.get('source') === 'twitch' && tw) twitch(tw);
+  else if (q.get('source') === 'instagram' && u?.protocol === 'https:' && /\.(fbcdn\.net|cdninstagram\.com)$/.test(u.hostname) && u.pathname.endsWith('.mp4'))
+    video(u.href);
   else if (q.get('source') === 'instagram' && u?.hostname === 'www.instagram.com' && /^\/(p|reel)\/[\w-]+\/$/.test(u.pathname)) instagram(u.href);
   else broken();
 }

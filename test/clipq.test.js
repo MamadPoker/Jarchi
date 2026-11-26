@@ -21,7 +21,8 @@ const yt = (n) => `https://youtu.be/abcdefghij${n}`;
 const keys = () => [clipq.state().now, ...clipq.state().queue].filter(Boolean).map((c) => c.key);
 function fresh(settings = {}) {
   clipq.setOpen(false);
-  while (clipq.state().now) clipq.next();
+  while (clipq.state().played.length) clipq.back();
+  while (clipq.state().now) clipq.remove(clipq.state().now.id);
   clipq.update({ sources: ALL, perViewer: 0, noRepeats: true, mods: false, commands: { skip: true, remove: true, block: true, close: true }, ...settings });
   clipq.setOpen(true);
 }
@@ -86,6 +87,42 @@ test('the queue: only while open, the first clip waits in the player, per viewer
   clipq.update({ noRepeats: false });
   say(yt(1), 'third');
   assert.deepEqual(keys(), ['youtube:abcdefghij2', 'youtube:abcdefghij1']);
+});
+
+test('Previous and Played: a clip Next took out comes back, the one in the player goes back to the top of Up next', () => {
+  fresh();
+  say(`${yt(1)} ${yt(2)} ${yt(3)}`);
+  const played = () => clipq.state().played.map((c) => c.key);
+  clipq.back();
+  assert.deepEqual(keys(), ['youtube:abcdefghij1', 'youtube:abcdefghij2', 'youtube:abcdefghij3']); // nothing played yet
+  clipq.next();
+  clipq.next();
+  assert.deepEqual(played(), ['youtube:abcdefghij2', 'youtube:abcdefghij1']); // the last one first
+  clipq.back(undefined, 'not-this-one'); // another window's Previous, for a clip already gone: nothing
+  assert.equal(clipq.state().now.key, 'youtube:abcdefghij3');
+  clipq.back(undefined, clipq.state().now.id); // Previous
+  assert.deepEqual(keys(), ['youtube:abcdefghij2', 'youtube:abcdefghij3']);
+  assert.deepEqual(played(), ['youtube:abcdefghij1']);
+  clipq.back(clipq.state().played[0].id); // Played's clip 1
+  assert.deepEqual(keys(), ['youtube:abcdefghij1', 'youtube:abcdefghij2', 'youtube:abcdefghij3']);
+  assert.deepEqual(played(), []);
+  for (let n = 4; n <= 9; n++) say(yt(n), `v${n}`);
+  while (clipq.state().now) clipq.next(); // to the end: an empty player, Previous still works
+  assert.equal(played().length, 5); // only the last 5
+  clipq.back();
+  assert.equal(clipq.state().now.key, 'youtube:abcdefghij9');
+});
+
+test("an Instagram clip's video, from its embed page: only a .mp4 on Instagram's CDN", () => {
+  const page = (media) =>
+    `<script>x.init([{"isSidecar":false,"contextJSON":${JSON.stringify(JSON.stringify({ gql_data: { shortcode_media: media } }))}}])</script>`;
+  const mp4 = 'https://instagram.fadb6-5.fna.fbcdn.net/o1/v/t16/f2/m69/AQPf.mp4?strext=1&oh=00_x&oe=6B0E424A';
+  assert.equal(clipq.igVideo(page({ is_video: true, video_duration: 71.4, video_url: mp4 })), mp4);
+  assert.equal(clipq.igVideo(page({ is_video: false, display_url: 'https://scontent.cdninstagram.com/a.jpg' })), null); // a photo
+  assert.equal(clipq.igVideo(page({ video_url: 'https://evil.example/x.mp4' })), null);
+  assert.equal(clipq.igVideo(page({ video_url: 'javascript:alert(1)//.fbcdn.net/x.mp4' })), null);
+  assert.equal(clipq.igVideo('<html>Instagram changed its page</html>'), null);
+  assert.equal(clipq.igVideo('"contextJSON":"{not json"'), null);
 });
 
 test("mods' commands: off until allowed, each with its switch, only with a mod or broadcaster badge", () => {

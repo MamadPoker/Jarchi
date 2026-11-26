@@ -1,9 +1,9 @@
 [
   {
     "version": "unreleased",
-    "types": [],
-    "en": [],
-    "fa": []
+    "types": ["improve"],
+    "en": ["ClipQ: full screen, a bigger player, Previous and a Played list, and Instagram clips fit their frame and work with Jarchi's buttons and Auto next"],
+    "fa": ["ClipQ: حالت تمام‌صفحه، پخش‌کننده‌ی بزرگ‌تر، دکمه‌ی قبلی و لیست پخش‌شده‌ها، و کلیپ‌های اینستاگرام حالا درست تو قاب جا می‌شن و با دکمه‌های جارچی و پخش خودکار بعدی کار می‌کنن"]
   },
   {
     "version": "1.0.11",

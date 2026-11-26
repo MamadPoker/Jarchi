@@ -544,7 +544,8 @@
             </div>
             <div class="cq-grid">
               <div class="lk-card cq-player">
-                <!-- The clip, vertical ones (Shorts, Reels) standing up; over it, a big play / pause under the mouse. -->
+                <!-- The clip in its own shape (Shorts, Reels standing up); over it, a big play / pause while the mouse moves.
+                 Full screen takes this whole card, its buttons too. -->
                 <div id="cqStage" class="cq-stage">
                   <div id="cqMedia" class="cq-media" hidden>
                     <iframe id="cqFrame" class="bt-frame" allow="autoplay; encrypted-media; fullscreen" data-title="navClipQ"></iframe>
@@ -563,6 +564,7 @@
                   <button id="cqFwd" class="bt-pbn" data-title="battleFwd">10 ⏩</button>
                   <input id="cqSeek" type="range" min="0" step="1" data-title="clipqSeek" />
                   <span id="cqTime" class="bt-tm"></span>
+                  <button id="cqPrev" class="bt-pbn">⏮ <span data-i18n="clipqPrev"></span></button>
                   <button id="cqNext" class="bt-pbn"><span data-i18n="clipqNext"></span> ⏭</button>
                 </div>
                 <div class="bt-ctl cq-ctl">
@@ -572,6 +574,7 @@
                     <span data-i18n="clipqAutoNext"></span>
                   </button>
                   <button id="cqClear" class="bt-pbn cq-clear"><span data-i18n="clipqClear"></span></button>
+                  <button id="cqFull" class="bt-pbn cq-full"></button>
                 </div>
                 <p id="cqFixed" class="bt-hint" hidden></p>
               </div>
@@ -582,6 +585,10 @@
                     <span id="cqCount" class="bt-count"></span>
                   </div>
                   <ol id="cqList" class="bt-list"></ol>
+                  <div id="cqPlayedBox" hidden>
+                    <div class="lk-l" data-i18n="clipqPlayed"></div>
+                    <ol id="cqPlayed" class="bt-list cq-played"></ol>
+                  </div>
                 </div>
                 <div id="cqForm" class="lk-card">
                   <h2 data-i18n="clipqSettings"></h2>
