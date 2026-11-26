@@ -365,7 +365,7 @@
 
           <!-- ===== Song Battle (js/battle.js; core/battle.js talks to Jarchi Battle, battle.jarchi.app). Not connected: what
            it is, and Connect (a one-time link in the browser, where the streamer signs in with Kick or Twitch). Connected:
-           the setup (fixed once a battle opens: Jarchi Battle takes it then), the page link with its QR code, and the songs
+           the setup (while a battle takes songs, a change is that battle's too), the page link with its QR code, and the songs
            viewers send, live while the battle collects; Open for songs, Start battle, Cancel battle. Nothing shows before the
            first state (js/battle.js renderBattle). Pop out: this page alone in its own window (/?pop=battle), for OBS as a
            window, where this head is the title bar. ===== -->
@@ -405,7 +405,7 @@
             <div id="btOn" class="bt-grid" hidden>
               <div class="lk-card">
                 <h2 data-i18n="battleSetup"></h2>
-                <p id="btFixed" class="bt-fixed" data-i18n="battleFixed" hidden></p>
+                <p id="btOpenEdit" class="bt-fixed" data-i18n="battleOpenEdit" hidden></p>
                 <fieldset id="btForm" class="bt-form">
                   <label class="lk-l" for="btTopic" data-i18n="battleTopic"></label>
                   <div class="bt-row">
@@ -489,7 +489,7 @@
             </div>
             <!-- The battle screen, once it's live (core/battle.js runs it): the match on now, its two songs face to face, each in
              its site's own player (battle-player.html) under Jarchi's buttons (js/battle.js builds them), and the vote between
-             them. A tie: the lucky coin. Bracket: every round, then the champion. After the final: the champion. -->
+             them. A tie: the coin in the middle opens the lucky coin. Bracket: every round, then the champion. After the final: the champion. -->
             <div id="btLive" class="bt-live" hidden>
               <div id="btBracket" class="bt-brk" hidden></div>
               <div id="btArena" class="bt-arena">
@@ -511,6 +511,7 @@
                   </div>
                   <button id="btFlip" class="lk-btn g" data-i18n="battleFlip"></button>
                   <small id="btTmsg" class="bt-dim" aria-live="polite"></small>
+                  <button id="btCoinBack" class="lk-btn o bt-sm" data-i18n="battleCoinBack"></button>
                 </div>
                 <div class="bt-tside s2"></div>
               </div>

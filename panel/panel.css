@@ -7108,12 +7108,6 @@ button#lkAgain {
   padding: 0;
   border: 0;
 }
-.bt-form:disabled {
-  opacity: 0.6;
-}
-.bt-form:disabled * {
-  cursor: default;
-}
 .bt-fixed {
   margin: 8px 0 0;
   padding: 7px 10px;
@@ -7410,7 +7404,12 @@ button.bt-x:hover {
 }
 
 /* The battle screen: the match on now, song 1 (teal) on the left and song 2 (gold) on the right in both languages
-   (what chat types), each in its site's player under Jarchi's buttons; the vote in the middle. A tie: the coin. */
+   (what chat types), each in its site's player under Jarchi's buttons; the vote in the middle. A tie: the coin. It
+   takes the page's whole width, and everything on it grows with that width (cqi: 1 % of it), from the sizes it has
+   at 1300 px: on a 1080p screen the players are 16:9 and as tall as the window leaves, with no scrolling. */
+.view.battle:has(> .bt-live:not([hidden])) {
+  max-width: none;
+}
 .bt-live:not([hidden]) {
   display: grid;
   gap: 14px;
@@ -7419,14 +7418,14 @@ button.bt-x:hover {
 .bt-arena:not([hidden]),
 .bt-tie:not([hidden]) {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 220px minmax(0, 1fr);
-  gap: 18px;
+  grid-template-columns: minmax(0, 1fr) clamp(220px, 17cqi, 340px) minmax(0, 1fr);
+  gap: clamp(18px, 1.6cqi, 32px);
   align-items: center;
   padding-top: 16px;
   direction: ltr;
 }
 .bt-tie:not([hidden]) {
-  grid-template-columns: minmax(0, 1fr) 300px minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) clamp(300px, 23cqi, 440px) minmax(0, 1fr);
 }
 [dir='rtl'] :is(.bt-arena, .bt-tie) > * {
   direction: rtl;
@@ -7445,7 +7444,7 @@ button.bt-x:hover {
 .bt-tside {
   --side: var(--teal);
   position: relative;
-  padding: 14px;
+  padding: clamp(14px, 1.1cqi, 22px);
   border: 1px solid color-mix(in srgb, var(--side) 50%, transparent);
   border-radius: 16px;
   background: var(--card2);
@@ -7476,23 +7475,26 @@ button.bt-x:hover {
   z-index: 2;
   display: grid;
   place-items: center;
-  width: 34px;
-  height: 34px;
+  width: clamp(34px, 2.6cqi, 50px);
+  height: clamp(34px, 2.6cqi, 50px);
   border-radius: 10px;
   background: var(--side);
   box-shadow: 0 4px 14px var(--shadow);
   color: var(--on-gold);
   font:
-    900 19px Manrope,
+    900 clamp(19px, 1.5cqi, 28px) Manrope,
     sans-serif;
 }
 .s2 > .bt-num {
   right: 14px;
   left: auto;
 }
+/* 16:9, as wide as the card, and no taller than the window leaves under the head and above the card's buttons. */
 .bt-media {
   position: relative;
-  height: 232px;
+  aspect-ratio: 16 / 9;
+  min-height: 232px;
+  max-height: calc(100vh - var(--tb, 0px) - 530px);
   overflow: hidden;
   border-radius: 12px;
   background: #000;
@@ -7500,6 +7502,31 @@ button.bt-x:hover {
 }
 .bt-side.playing .bt-media {
   box-shadow: 0 0 0 2px var(--side);
+}
+/* Full screen: that song's card alone, the video as big as the screen leaves above its buttons. Esc leaves it. */
+.bt-side:fullscreen {
+  display: flex;
+  flex-direction: column;
+  --pad: max(40px, calc((100vw - (100vh - 330px) * 16 / 9) / 2)); /* the sides: the video 16:9 */
+  justify-content: safe center;
+  padding: 24px var(--pad);
+  border: 0;
+  border-radius: 0;
+  overflow: auto;
+}
+.bt-side:fullscreen > * {
+  flex: none;
+}
+.bt-side:fullscreen .bt-media {
+  max-height: calc(100vh - 330px);
+}
+.bt-side:fullscreen > .bt-num {
+  top: 10px;
+  left: calc(var(--pad) - 20px);
+}
+.bt-side.s2:fullscreen > .bt-num {
+  right: calc(var(--pad) - 20px);
+  left: auto;
 }
 .bt-frame {
   display: block;
@@ -7554,7 +7581,7 @@ button.bt-x:hover {
   margin-top: 11px;
   overflow: hidden;
   font:
-    800 15px Manrope,
+    800 clamp(15px, 1.25cqi, 26px) Manrope,
     Vazirmatn,
     sans-serif;
   text-overflow: ellipsis;
@@ -7574,7 +7601,7 @@ button.bt-x:hover {
   margin-top: 3px;
   color: var(--muted);
   font:
-    600 12.5px Manrope,
+    600 clamp(12.5px, 0.95cqi, 18px) Manrope,
     Vazirmatn,
     sans-serif;
 }
@@ -7587,7 +7614,7 @@ button.bt-x:hover {
 }
 button.bt-pbn {
   flex: none;
-  padding: 4px 8px;
+  padding: 0.35em 0.7em;
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--bg);
@@ -7620,6 +7647,30 @@ button.bt-pp svg {
   flex: 1;
   min-width: 40px;
 }
+/* The battle screen's buttons grow with it (ClipQ's stay as they are). */
+.bt-side .bt-ctl {
+  gap: clamp(6px, 0.5cqi, 10px);
+}
+.bt-side button.bt-pbn {
+  font-size: clamp(11.5px, 0.9cqi, 17px);
+}
+.bt-side button.bt-pp {
+  width: clamp(32px, 2.6cqi, 48px);
+  height: clamp(32px, 2.6cqi, 48px);
+}
+.bt-side button.bt-pp svg {
+  width: 45%;
+  height: 45%;
+}
+.bt-side .bt-tm {
+  font-size: clamp(11px, 0.85cqi, 16px);
+}
+.bt-live button.lk-btn {
+  font-size: clamp(15px, 1.1cqi, 20px);
+}
+.bt-live button.lk-btn.bt-sm {
+  font-size: clamp(13px, 0.95cqi, 17px);
+}
 [dir] .bt-ctl input[type='range']::-webkit-slider-runnable-track {
   background:
     linear-gradient(var(--side), var(--side)) 0 0 / var(--fill, 0%) 100% no-repeat,
@@ -7646,7 +7697,7 @@ button.bt-pp svg {
   margin-top: 14px;
 }
 .bt-vb {
-  height: 12px;
+  height: clamp(12px, 1cqi, 20px);
   overflow: hidden;
   border: 1px solid var(--border);
   border-radius: 9px;
@@ -7667,13 +7718,13 @@ button.bt-pp svg {
 }
 .bt-vn b {
   font:
-    900 22px Manrope,
+    900 clamp(22px, 2.2cqi, 42px) Manrope,
     Vazirmatn,
     sans-serif;
 }
 .bt-vn span {
   color: var(--muted);
-  font-size: 12.5px;
+  font-size: clamp(12.5px, 1cqi, 18px);
 }
 .bt-pick:not([hidden]) {
   display: block;
@@ -7683,10 +7734,11 @@ button.bt-pp svg {
 
 /* The middle card: VS, then the timer ring and the vote's buttons, who leads, or the winner. */
 .bt-pod {
+  --vs: clamp(52px, 4.2cqi, 78px); /* the VS badge (a tie: the coin, bigger) */
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 14px;
+  gap: clamp(14px, 1.1cqi, 22px);
   padding: 18px 14px 16px;
   border: 1px solid var(--tint);
   border-radius: 22px;
@@ -7696,10 +7748,11 @@ button.bt-pp svg {
 }
 .bt-vsb {
   display: grid;
+  flex: none;
   place-items: center;
-  width: 52px;
-  height: 52px;
-  margin-top: -44px;
+  width: var(--vs);
+  height: var(--vs);
+  margin-top: calc(var(--vs) / -2 - 18px);
   border-radius: 50%;
   background: linear-gradient(135deg, var(--danger), color-mix(in srgb, var(--danger), #000 35%));
   box-shadow:
@@ -7707,13 +7760,48 @@ button.bt-pp svg {
     0 0 28px color-mix(in srgb, var(--danger) 45%, transparent);
   color: var(--on-color);
   font:
-    900 20px Manrope,
+    900 calc(var(--vs) * 0.38) Manrope,
     sans-serif;
+}
+/* A tie: the coin where VS was, waiting to be pressed (it opens the coin flip). */
+button.bt-vcoin {
+  --vs: clamp(78px, 6.2cqi, 116px);
+  position: relative;
+  overflow: hidden;
+  padding: 0;
+  border: 0;
+  background: none;
+  box-shadow:
+    0 0 0 5px var(--bg),
+    0 0 30px color-mix(in srgb, var(--gold) 55%, transparent);
+  cursor: pointer;
+  animation: bt-coin 1.6s ease-in-out infinite;
+}
+.bt-vcoin svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.bt-vcoin .lk-clogo {
+  width: 44%;
+}
+@keyframes bt-coin {
+  50% {
+    box-shadow:
+      0 0 0 5px var(--bg),
+      0 0 46px color-mix(in srgb, var(--gold) 80%, transparent);
+    transform: scale(1.06) rotate(-6deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  button.bt-vcoin {
+    animation: none;
+  }
 }
 .bt-ring {
   position: relative;
-  width: 128px;
-  height: 128px;
+  width: clamp(128px, 11cqi, 210px);
+  height: clamp(128px, 11cqi, 210px);
 }
 .bt-ring svg {
   width: 100%;
@@ -7747,7 +7835,7 @@ button.bt-pp svg {
 }
 .bt-ring b {
   font:
-    900 38px Manrope,
+    900 clamp(38px, 3.4cqi, 66px) Manrope,
     Vazirmatn,
     sans-serif;
   line-height: 1;
@@ -7755,14 +7843,14 @@ button.bt-pp svg {
 .bt-ring small {
   margin-top: 2px;
   color: var(--muted);
-  font-size: 11.5px;
+  font-size: clamp(11.5px, 0.9cqi, 17px);
 }
 .bt-pst {
   display: flex;
   align-items: center;
   min-height: 30px;
   color: var(--muted);
-  font-size: 13.5px;
+  font-size: clamp(13.5px, 1.05cqi, 20px);
   font-weight: 800;
 }
 .bt-livep {
@@ -7791,7 +7879,7 @@ button.bt-pp svg {
   display: block;
   margin-bottom: 6px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: clamp(12px, 0.9cqi, 17px);
 }
 .bt-keys div {
   display: flex;
@@ -7802,13 +7890,13 @@ button.bt-pp svg {
 .bt-keys span {
   display: grid;
   place-items: center;
-  width: 44px;
-  height: 40px;
+  width: clamp(44px, 3.4cqi, 64px);
+  height: clamp(40px, 3.1cqi, 58px);
   border: 1px solid color-mix(in srgb, currentColor 50%, transparent);
   border-bottom: 4px solid;
   border-radius: 11px;
   font:
-    900 20px Manrope,
+    900 clamp(20px, 1.6cqi, 30px) Manrope,
     sans-serif;
 }
 .bt-keys .k1,
@@ -7834,7 +7922,7 @@ button.bt-pp svg {
 }
 .bt-len {
   color: var(--muted);
-  font-size: 12px;
+  font-size: clamp(12px, 0.9cqi, 17px);
 }
 .bt-len select {
   padding: 3px 6px;
@@ -7854,7 +7942,7 @@ button.bt-pp svg {
   overflow: hidden;
   color: var(--gold-text);
   font:
-    800 17px Manrope,
+    800 clamp(17px, 1.4cqi, 28px) Manrope,
     Vazirmatn,
     sans-serif;
   text-overflow: ellipsis;
@@ -7862,11 +7950,11 @@ button.bt-pp svg {
 .bt-pwin small,
 .bt-mh {
   color: var(--muted);
-  font-size: 12px;
+  font-size: clamp(12px, 0.9cqi, 17px);
   line-height: 1.8;
 }
 .bt-pc {
-  font-size: 40px;
+  font-size: clamp(40px, 3.2cqi, 60px);
   animation: lk-pop 0.5s cubic-bezier(0.3, 1.6, 0.5, 1);
 }
 .bt-pmsg {
@@ -7876,26 +7964,30 @@ button.bt-pp svg {
   padding: 10px 0;
 }
 .bt-pmsg span {
-  font-size: 30px;
+  font-size: clamp(30px, 2.4cqi, 46px);
 }
 .bt-pmsg b {
-  font-size: 15px;
+  font-size: clamp(15px, 1.2cqi, 24px);
 }
 .bt-pmsg small {
   color: var(--muted);
-  font-size: 12px;
+  font-size: clamp(12px, 0.9cqi, 17px);
   line-height: 1.8;
 }
 
-/* A tie: the two songs, and the lucky coin between them. */
+/* A tie: the two songs, and the lucky coin between them. Like the battle screen, it grows with the page's width:
+   --coin is the coin's size (its logo, shadow and room to be tossed follow). */
+.bt-tie {
+  --coin: clamp(170px, 17cqi, 320px);
+}
 .bt-tside {
-  padding: 22px 14px 14px;
+  padding: clamp(22px, 1.6cqi, 30px) clamp(14px, 1.1cqi, 22px) clamp(14px, 1.1cqi, 22px);
   text-align: center;
 }
 .bt-tcover {
   display: block;
   width: 100%;
-  height: 120px;
+  height: clamp(120px, 14cqi, 300px);
   margin-bottom: 10px;
   border-radius: 12px;
   background: var(--card);
@@ -7904,7 +7996,7 @@ button.bt-pp svg {
 }
 .bt-tside b {
   font:
-    800 15px Manrope,
+    800 clamp(15px, 1.25cqi, 26px) Manrope,
     Vazirmatn,
     sans-serif;
 }
@@ -7912,7 +8004,7 @@ button.bt-pp svg {
   margin-top: 4px;
   color: var(--muted);
   font:
-    700 13px Manrope,
+    700 clamp(13px, 1cqi, 19px) Manrope,
     Vazirmatn,
     sans-serif;
 }
@@ -7920,12 +8012,12 @@ button.bt-pp svg {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
+  gap: clamp(12px, 1cqi, 20px);
   text-align: center;
 }
 .bt-tlabel {
   color: var(--gold-text);
-  font-size: 18px;
+  font-size: clamp(18px, 2cqi, 38px);
   font-weight: 900;
 }
 .bt-coinw {
@@ -7933,20 +8025,20 @@ button.bt-pp svg {
   flex-direction: column;
   align-items: center;
   justify-content: flex-end;
-  height: 250px;
+  height: calc(var(--coin) + 80px); /* the toss goes 70 px up (js/battle.js btFlip) */
   perspective: 700px;
   filter: drop-shadow(0 14px 18px rgb(0 0 0 / 0.55));
 }
 .lk-coin.bt-coin {
-  width: 170px;
-  height: 170px;
+  width: var(--coin);
+  height: var(--coin);
   cursor: default;
 }
 .bt-coin .lk-clogo {
-  width: 74px;
+  width: 43.5%;
 }
 .bt-csh {
-  width: 120px;
+  width: calc(var(--coin) * 0.7);
   height: 12px;
   margin-top: 18px;
   border-radius: 50%;
@@ -7959,25 +8051,37 @@ button.bt-pp svg {
 .bt-cres > span {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 5px 12px 5px 6px;
+  gap: 0.5em;
+  padding: 0.4em 0.95em 0.4em 0.5em;
   border: 1px solid color-mix(in srgb, var(--side) 40%, transparent);
   border-radius: 999px;
   background: var(--bg);
   color: var(--side);
-  font-size: 12.5px;
+  font-size: clamp(12.5px, 1.1cqi, 21px);
   font-weight: 700;
 }
 .bt-cres u {
   display: inline-grid;
   place-items: center;
-  width: 22px;
-  height: 22px;
-  border-radius: 7px;
+  width: 1.75em;
+  height: 1.75em;
+  border-radius: 0.55em;
   font:
-    900 13px Manrope,
+    900 1em Manrope,
     sans-serif;
   text-decoration: none;
+}
+/* Flip the coin and Back: bigger than the battle screen's buttons, the result line under them too. */
+.bt-tmid button.lk-btn {
+  padding: 0.7em 1.5em;
+  font-size: clamp(15px, 1.4cqi, 26px);
+}
+.bt-tmid button.lk-btn.bt-sm {
+  padding: 0.55em 1.1em;
+  font-size: clamp(13px, 1.05cqi, 20px);
+}
+.bt-tmid .bt-dim {
+  font-size: clamp(12.5px, 1.1cqi, 21px);
 }
 .bt-dim {
   color: var(--muted);
@@ -8056,7 +8160,7 @@ dialog.bt-champ > b {
 #btLang {
   margin-inline-start: auto; /* the pop-out's: at the bar's end, then Always on top */
 }
-:root[data-pop] .view.battle > :not(.bt-head, dialog) {
+:root[data-pop] .view.battle > :not(.bt-head, dialog, .bt-live) {
   width: 100%;
   max-width: 1300px;
   margin-inline: auto;

@@ -82,6 +82,12 @@ globalThis.fetch = async (url, init = {}) => {
     return json(s, 201);
   }
   if (at.startsWith(`DELETE ${on}/songs/`)) return done();
+  if (at === `PATCH ${on}/settings`) {
+    const { topic = b.topic, ...set } = jb.asked.at(-1).body;
+    if (b.status !== 'collecting') return json({ error: 'state' }, 409);
+    if (set.size < b.songs.length) return json({ error: 'size' }, 409);
+    return (Object.assign(b, { topic, settings: { ...b.settings, ...set } }), done());
+  }
   if (at === `POST ${on}/start`) return b.status === 'live' ? json({ error: 'state' }, 409) : ((b.status = 'live'), done());
   if (at === `POST ${on}/cancel`) return ((jb.battle = null), done());
   if (b.status !== 'live' && /\/(live|finish)$/.test(at)) return json({ error: 'state' }, 409);
@@ -120,9 +126,10 @@ test('Song Battle: connect once, a battle with its live song list, start, cancel
   assert.equal(jb.asked.at(-1).at, 'GET /api/app/battles/current');
 
   // The setup: kept for the next battle; a wrong field changes nothing.
-  assert.throws(() => battle.update({ size: 5 }), { code: 'bad_request' });
-  assert.throws(() => battle.update({ moderators: [{ platform: 'kick', username: 'no spaces' }] }), { code: 'bad_request' });
-  battle.update({ size: 16, mods: false, moderators: [{ platform: 'twitch', username: 'Mod_1' }], voting: 'me' });
+  await assert.rejects(battle.update({ size: 5 }), { code: 'bad_request' });
+  await assert.rejects(battle.update({ moderators: [{ platform: 'kick', username: 'no spaces' }] }), { code: 'bad_request' });
+  await battle.update({ size: 16, mods: false, moderators: [{ platform: 'twitch', username: 'Mod_1' }], voting: 'me' });
+  assert.equal(jb.asked.at(-1).at, 'GET /api/app/battles/current', 'no battle: nothing to tell Jarchi Battle');
   assert.equal(battle.now().setup.size, 16);
 
   // Open for songs: Jarchi Battle gets the setup (moderators off: none; voting is Jarchi's own), then the battle.
@@ -169,6 +176,26 @@ test('Song Battle: connect once, a battle with its live song list, start, cancel
   await assert.rejects(battle.add('https://youtu.be/abcdefghijk'), { code: 'battle_full' });
   await assert.rejects(battle.add(''), { code: 'battle_link' });
 
+  // Late joiners: a bigger battle while it takes songs, on Jarchi Battle first, only what changed (Mods help too: the
+  // list). Kept for the next battle too. What would break it changes nothing: under the songs it has, no topic.
+  st = await battle.update({ size: 32, showNames: true, mods: true });
+  assert.deepEqual(jb.asked.at(-1), {
+    at: `PATCH /api/app/battles/${ID}/settings`,
+    query: '',
+    auth: `Bearer ${APP_KEY}`,
+    body: { size: 32, showNames: true, moderators: [{ platform: 'twitch', username: 'Mod_1' }] },
+  });
+  assert.deepEqual([st.battle.settings.size, st.battle.settings.showNames, st.battle.settings.perViewer, st.setup.size], [32, true, 1, 32]);
+  jb.battle.songs.push(song(6), song(5));
+  await assert.rejects(battle.update({ size: 4, topic: 'Smaller' }), { code: 'battle_size' });
+  await assert.rejects(battle.update({ topic: '' }), { code: 'battle_topic' });
+  jb.battle.songs.splice(-2);
+  st = battle.now();
+  assert.deepEqual([st.battle.settings.size, st.battle.topic, st.setup.size], [32, '2000s hits', 32]);
+  const asked = jb.asked.length;
+  await battle.update({ voteTime: 10 }); // the battle screen's own: Jarchi Battle isn't asked
+  assert.deepEqual([jb.asked.length, battle.now().setup.voteTime], [asked, 10]);
+
   // Remove, then Start (2 songs at least).
   st = await battle.remove(song(3).id);
   assert.equal(jb.asked.at(-1).at, `DELETE /api/app/battles/${ID}/songs/${song(3).id}`);
@@ -178,6 +205,11 @@ test('Song Battle: connect once, a battle with its live song list, start, cancel
   );
   st = await battle.start();
   assert.equal(st.battle.status, 'live');
+  st = await battle.update({ size: 64 }); // live: for the next battle only
+  assert.deepEqual(
+    [jb.asked.filter((a) => !a.at.endsWith('/live')).at(-1).at, st.battle.settings.size, st.setup.size],
+    [`POST /api/app/battles/${ID}/start`, 32, 64],
+  );
   assert.equal((await battle.feed()).battle.status, 'live'); // no feed while live
   assert.notEqual(jb.asked.at(-1).at.split('?')[0], `GET /api/app/battles/${ID}/songs`);
 
@@ -197,7 +229,7 @@ test('Song Battle: connect once, a battle with its live song list, start, cancel
 
   // Cancel: no battle; the setup is still there for the next one.
   st = await battle.cancel();
-  assert.deepEqual([st.battle, st.setup.size], [null, 16]);
+  assert.deepEqual([st.battle, st.setup.size], [null, 64]);
   await assert.rejects(battle.start(), { code: 'battle_state' });
 
   // The key stopped (a newer connection for this channel): not connected, connect again.
@@ -245,8 +277,8 @@ test('Song Battle screen: chat votes (one each, the last counts), the winners, a
   let battle = start();
   await battle.request();
   assert.equal((await battle.refresh()).state, 'connected');
-  battle.update({ voting: 'chat', voteTime: 30 });
-  assert.throws(() => battle.update({ voteTime: 45 }), { code: 'bad_request' });
+  await battle.update({ voting: 'chat', voteTime: 30 });
+  await assert.rejects(battle.update({ voteTime: 45 }), { code: 'bad_request' });
   await battle.create({ topic: 'Live' });
   jb.battle.songs = [1, 2, 3, 4].map((n) => song(n));
   await battle.refresh();
@@ -281,9 +313,9 @@ test('Song Battle screen: chat votes (one each, the last counts), the winners, a
   // Vote again: from 0. "I pick the winner": no vote to start.
   battle.resetVote();
   assert.deepEqual([match().slice(3), battle.now().battle.vote], [[0, 0], null]);
-  battle.update({ voting: 'me' });
+  await battle.update({ voting: 'me' });
   assert.throws(() => battle.openVote(), { code: 'battle_state' });
-  battle.update({ voting: 'chat' });
+  await battle.update({ voting: 'chat' });
   battle.openVote();
   say('voter_a', '2');
   battle.closeVote();

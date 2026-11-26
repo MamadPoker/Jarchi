@@ -1,7 +1,7 @@
 // ---------- Song Battle (core/battle.js: Jarchi Battle, battle.jarchi.app) ----------
 // Not connected: Connect opens Jarchi Battle's one-time link in the browser; while it waits, the state is asked every
 // 3 s and when the window comes back, until the key is in. Connected: the setup (saved as it changes, for the next
-// battle; while a battle runs, that battle's, fixed), the page link with its QR code, and the battle's songs: the feed
+// battle; while a battle takes songs, that battle's too), the page link with its QR code, and the battle's songs: the feed
 // every 3 s while it takes songs and the page is in view. The songs stay blurred until the mouse is on one, so a cover
 // or a title that isn't fit for the stream stays off it. After Start: the battle screen (further down).
 let bt = null; // core/battle.js now(): { state, channel, platform, page, battle, setup, lost, error }
@@ -26,19 +26,23 @@ function gotBattle(st) {
 // The page opened (select).
 const showBattle = () => (bt && renderBattle(), loadBattle());
 
-// What the setup shows: the battle's own settings while one runs (mods: it has some), else the saved setup.
+// What the setup shows: the battle's own settings while one runs, else the saved setup. The mods as the streamer typed
+// them (the battle has them in lower case).
 function btSetup() {
   const b = bt.battle;
-  return b ? { ...bt.setup, ...b.settings, topic: b.topic, mods: b.settings.moderators.length > 0 } : bt.setup;
+  return b ? { ...bt.setup, ...b.settings, topic: b.topic, mods: bt.setup.mods, moderators: bt.setup.moderators } : bt.setup;
 }
-// A setup change: shown at once, saved for the next battle.
+// A setup change: shown at once, saved for the next battle, and the battle's too while it takes songs (core/battle.js
+// update). Refused (a size under the songs it has, say): why, and the settings as they are.
 function btSave(fields) {
+  const b = bt.battle;
   Object.assign(bt.setup, fields);
-  renderBattleSetup();
-  api('PATCH', '/api/battle/setup', fields).then(
-    (st) => (bt.setup = st.setup),
-    (err) => (toast(err.message, true), loadBattle()),
-  );
+  if (BT_TAKING.includes(b?.status))
+    for (const k in fields)
+      if (k === 'topic') b.topic = fields.topic;
+      else if (k in b.settings) b.settings[k] = fields[k];
+  renderBattle();
+  api('PATCH', '/api/battle/setup', fields).then(gotBattle, (err) => (toast(err.message, true), loadBattle()));
 }
 
 function renderBattle() {
@@ -74,10 +78,9 @@ function renderBattle() {
 
 function renderBattleSetup() {
   const s = btSetup(),
-    locked = !!bt.battle;
-  $('#btForm').disabled = locked;
-  $('#btFixed').hidden = !locked;
-  $('#btOpen').hidden = locked;
+    open = !!bt.battle;
+  $('#btOpenEdit').hidden = !open;
+  $('#btOpen').hidden = open;
   if ($('#btTopic') !== document.activeElement) $('#btTopic').value = s.topic;
   for (const [name, v] of [
     ['btSize', s.size],
@@ -100,14 +103,12 @@ function renderBattleSetup() {
         { className: 'bt-mod' },
         lkIco(m.platform),
         el('bdi', { textContent: m.username }),
-        locked
-          ? ''
-          : el('button', {
-              className: 'bt-x',
-              textContent: '✕',
-              title: tpl(S.panel.battleModRemove, { name: m.username }),
-              onclick: () => btSave({ moderators: bt.setup.moderators.filter((_, k) => k !== i) }),
-            }),
+        el('button', {
+          className: 'bt-x',
+          textContent: '✕',
+          title: tpl(S.panel.battleModRemove, { name: m.username }),
+          onclick: () => btSave({ moderators: bt.setup.moderators.filter((_, k) => k !== i) }),
+        }),
       ),
     ),
   );
@@ -321,6 +322,7 @@ const BT_RING = 326.7; // the timer ring's length (radius 52)
 const btSides = [0, 1].map((i) => ({ i, song: null, st: {}, seeking: false })); // wireLive() adds each card's parts
 const btPlayed = new Set(); // ids of the songs played: their names show (Hide a song's name)
 let btFlipping = null, // the coin, from its flip until the next match: { key, side, done }
+  btCoinAt = null, // the tied match whose coin this window opened (btKey)
   btTab = 'game', // the battle screen's tab: game | bracket
   btChampOf = null; // the battle whose champion this window has shown (once, with confetti)
 // What a language switch's reload keeps of this window (help.js useLang, then select): the tab, and the champion already
@@ -342,10 +344,19 @@ function btPlay(s) {
 const btClock = (t) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
 const btShown = (s) => !btSetup().hideTitles || btPlayed.has(s.id) || bt.battle?.status === 'finished'; // over: all of them
 const btName = (s) => (btShown(s) ? s.title : S.panel.battleHidden);
+const btKey = (b) => `${b.id}:${b.current}`; // the match on now
 const btRoundName = (matches) => S.panel.battleRounds[matches] ?? tpl(S.panel.battleRoundOf, { n: fd(matches * 2) });
 // The battle's songs leave their players when it isn't live any more: nothing plays on.
 function btStop() {
+  btUnfull();
   for (const s of btSides) if (s.song) Object.assign(s, { song: null, st: {} }).frame.src = 'about:blank';
+}
+// A song's full screen ends when its card leaves (the coin, the champion, the battle cancelled in the other window).
+const btUnfull = () => document.fullscreenElement?.closest('#btArena') && document.exitFullscreen().catch(() => {});
+// The coin flips: no song plays on, in this window or the other one (wireLive: the storage event).
+function btPauseAll() {
+  btSides.forEach((s) => s.st.playing && btSay(s, { pause: true }));
+  remember.set('jarchi.battlePlaying', String(Date.now()));
 }
 
 // A side's buttons and time, from what its player says. Play / pause are drawn: the ▶ glyph differs from font to font.
@@ -422,12 +433,12 @@ function renderLive() {
   }
   if (!x) return;
   const set = btSetup(),
-    key = `${b.id}:${r}:${m}`,
+    key = btKey(b),
     songs = [0, 1].map((i) => b.songs.find((s) => s.id === x[i])),
     v = b.vote,
     phase =
       x[2] !== null ? 'won' : set.voting !== 'chat' ? 'judge' : v?.status === 'open' ? 'open' : v?.status !== 'done' ? 'ready' : x[3] === x[4] ? 'tie' : 'lead',
-    tie = phase === 'tie' || btFlipping?.key === key,
+    coin = btFlipping?.key === key || (phase === 'tie' && btCoinAt === key),
     real = (y) => y[0] && y[1];
   if (!songs[0] || !songs[1]) return;
   const total = R[r].filter(real).length;
@@ -435,10 +446,14 @@ function renderLive() {
     total > 1
       ? tpl(S.panel.battleRound, { round: btRoundName(R[r].length), n: fd(R[r].slice(0, m + 1).filter(real).length), total: fd(total) })
       : btRoundName(R[r].length);
-  $('#btArena').hidden = tie || brk; // on the Bracket tab the players play on, out of sight
-  $('#btTie').hidden = !tie || brk;
+  // A tie waits for the streamer: the coin in the middle opens the coin flip. Until then the songs, Vote again and
+  // This one wins stay.
+  if (phase !== 'tie') btCoinAt = null;
+  $('#btArena').hidden = coin || brk; // on the Bracket tab the players play on, out of sight
+  $('#btTie').hidden = !coin || brk;
+  if ($('#btArena').hidden) btUnfull();
   btSides.forEach((s, i) => btSide(s, songs[i], x, phase, set));
-  if (tie) renderTie(x, songs, set, key);
+  if (coin) renderTie(x, songs, set, key);
   renderPod(phase, x, songs, `${key}:${phase}:${songs.map(btShown)}`, r === R.length - 1);
   btTick();
 }
@@ -511,7 +526,7 @@ function renderPod(phase, x, songs, at, final) {
           el(
             'select',
             { onchange: (e) => (btSave({ voteTime: Number(e.target.value) }), btTick()) },
-            ...[30, 60, 90].map((n) => new Option(tpl(S.panel.battleLengthN, { n: fd(n) }), String(n), false, n === btSetup().voteTime)),
+            ...[10, 30, 60, 90].map((n) => new Option(tpl(S.panel.battleLengthN, { n: fd(n) }), String(n), false, n === btSetup().voteTime)),
           ),
         ),
       ),
@@ -566,9 +581,33 @@ function renderPod(phase, x, songs, at, final) {
         btn('g', S.panel[final ? 'battleToChampion' : 'battleNext'], (e) => btNext(e.target)),
       ),
     ],
-    tie: () => [],
+    tie: () => [
+      el(
+        'div',
+        { className: 'bt-pwin' },
+        el('small', { textContent: S.panel.battleVoteEnded }),
+        el('b', { textContent: S.panel.battleTie }),
+        el('small', { textContent: S.panel.battleCoinHint }),
+      ),
+      el(
+        'div',
+        { className: 'bt-pb' },
+        btn('o bt-sm', S.panel.battleVoteAgain, () => btAct('DELETE', '/api/battle/vote')),
+      ),
+    ],
   };
-  pod.replaceChildren(el('div', { className: 'bt-vsb', textContent: 'VS' }), ...parts[phase]());
+  pod.replaceChildren(
+    phase === 'tie'
+      ? el('button', {
+          className: 'bt-vsb bt-vcoin',
+          title: S.panel.battleCoinOpen,
+          ariaLabel: S.panel.battleCoinOpen,
+          innerHTML: lkHeads('bv'),
+          onclick: () => ((btCoinAt = btKey(bt.battle)), renderLive()),
+        })
+      : el('div', { className: 'bt-vsb', textContent: 'VS' }),
+    ...parts[phase](),
+  );
 }
 // The timer ring: seconds left while a vote is on, else the length it will run.
 function btTick() {
@@ -699,6 +738,7 @@ function renderTie(x, songs, set, key) {
       el('div', { className: 'bt-tv', textContent: `${tpl(S.panel.battlePct, { p: fd(50) })} · ${tpl(S.panel.battleVotes, { n: fd(x[3]) })}` }),
     );
   });
+  $('#btCoinBack').hidden = !!btFlipping;
   if (btFlipping) return;
   $('#btFlip').disabled = false;
   $('#btTmsg').textContent = S.panel.battleFlipHint;
@@ -708,13 +748,15 @@ function renderTie(x, songs, set, key) {
 function btFlip() {
   const b = bt.battle,
     [r, m] = b.current,
-    key = `${b.id}:${r}:${m}`,
+    key = btKey(b),
     side = Math.random() < 0.5 ? 0 : 1,
     coin = $('#btCoin'),
     t0 = performance.now(),
     a1 = (7 + Math.floor(Math.random() * 3)) * 360 + side * 180;
   btFlipping = { key, side, done: false };
+  btPauseAll();
   $('#btFlip').disabled = true;
+  $('#btCoinBack').hidden = true;
   $('#btTmsg').textContent = '';
   lkMetal(0, 0.14, 2600);
   lkWhoosh(2.2);
@@ -773,6 +815,10 @@ function wireLive(socket) {
         onchange: () => ((s.seeking = false), btSay(s, { seek: Number(s.seek.value) })),
       }),
       tm: el('span', { className: 'bt-tm' }),
+      full: el('button', {
+        className: 'bt-pbn',
+        onclick: () => (document.fullscreenElement ? document.exitFullscreen() : s.card.requestFullscreen()).catch(() => {}),
+      }),
       level: btVol(),
       muted: false,
       mute: el('button', { className: 'bt-pbn', onclick: () => ((s.muted = !s.muted), btSay(s, { muted: s.muted }), btSound(s)) }),
@@ -803,13 +849,32 @@ function wireLive(socket) {
       s.err,
       s.title,
       s.by,
-      el('div', { className: 'bt-ctl' }, skip(-10, '⏪ 10', S.panel.battleBack), s.pp, skip(10, '10 ⏩', S.panel.battleFwd), s.seek, s.tm, s.mute, s.vol),
+      el(
+        'div',
+        { className: 'bt-ctl' },
+        skip(-10, '⏪ 10', S.panel.battleBack),
+        s.pp,
+        skip(10, '10 ⏩', S.panel.battleFwd),
+        s.seek,
+        s.tm,
+        s.mute,
+        s.vol,
+        s.full,
+      ),
       s.vote,
       s.pick,
     );
     btTime(s);
     btSound(s);
   });
+  // Full screen: either song's whole card, its buttons too. Esc leaves it (clipq.js listens for it, on every page).
+  const full = () =>
+    btSides.forEach((s) => {
+      const on = document.fullscreenElement === s.card;
+      Object.assign(s.full, { innerHTML: CQ_FULL[on ? 'off' : 'on'], title: S.panel[on ? 'clipqFullExit' : 'clipqFull'] });
+    });
+  addEventListener('fullscreenchange', full);
+  full();
   // What each player says: where it is, playing or not. One that starts (also with its own button) stops the other.
   addEventListener('message', (e) => {
     const s = e.origin === BT_PLAYER && btSides.find((x) => x.frame.contentWindow === e.source);
@@ -837,6 +902,7 @@ function wireLive(socket) {
     el('div', { className: 'face', style: 'transform: rotateY(180deg) translateZ(7.3px)', innerHTML: lkTails(2, 'bt') }),
   );
   $('#btFlip').onclick = btFlip;
+  $('#btCoinBack').onclick = () => ((btCoinAt = null), renderLive());
   $('#btAgain').onclick = btClear;
   $$('#btTabs [data-tab]').forEach(
     (b) =>
