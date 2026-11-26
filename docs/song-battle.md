@@ -10,7 +10,7 @@ Press **Connect** and sign in with Kick or Twitch on the page that opens in your
 
 ## Set up a battle
 
-**Battle settings**, kept for the next battle (once a battle is open its settings are fixed; to change them, cancel it):
+**Battle settings**, kept for the next battle. While a battle takes songs, a change counts for it right away too: raise **Songs in the battle** and late joiners can send theirs. Only the number of songs can't go under the songs already in (take some out first):
 
 - **Topic** (optional), or **A random topic**.
 - **Songs in the battle**: 4, 8, 16, 32, 64 or 128. **Songs each viewer can send**: 1 to 3.
@@ -28,9 +28,9 @@ Songs come in live under **Submitted songs**. A song with the same link or name 
 
 ## The battle
 
-- Each match puts two songs face to face, each in its own site's player (YouTube's, Spotify's or SoundCloud's) with play, 10 seconds back and forward and a seek bar. YouTube and SoundCloud songs also have a volume slider and mute; each new song starts at the last volume set (kept for next time, in that window's browser). A song that can't play in Jarchi has **Open it on …**.
-- **Chat votes**: **Start vote** for 30, 60 or 90 seconds (**End now** stops it early). Viewers type **1** or **2** in Kick or Twitch chat (a Persian or Arabic keyboard's digits count too), one vote each, their last one counts. Who voted is kept only in memory for that vote; the battle keeps the counts. Then **Confirm winner**, **Vote again**, or pick the other song with **This one wins**: the final call is yours.
-- **A tie**: **Flip the coin**. The lucky coin spins in front of everyone: heads, song 1 wins; tails, song 2.
+- Each match puts two songs face to face, each in its own site's player (YouTube's, Spotify's or SoundCloud's) with play, 10 seconds back and forward, a seek bar and full screen (that song's card fills the screen, its buttons too; **Esc** leaves it). YouTube and SoundCloud songs also have a volume slider and mute; each new song starts at the last volume set (kept for next time, in that window's browser). A song that can't play in Jarchi has **Open it on …**.
+- **Chat votes**: **Start vote** for 10, 30, 60 or 90 seconds (**End now** stops it early). Viewers type **1** or **2** in Kick or Twitch chat (a Persian or Arabic keyboard's digits count too), one vote each, their last one counts. Who voted is kept only in memory for that vote; the battle keeps the counts. Then **Confirm winner**, **Vote again**, or pick the other song with **This one wins**: the final call is yours.
+- **A tie**: a coin takes the place of VS in the middle, and nothing happens until you press it. It opens the lucky coin: **Flip the coin** pauses the songs and spins it in front of everyone (heads, song 1 wins; tails, song 2). Until then, **Vote again** and **This one wins** work as always.
 - **Next match** goes on, round by round, up to the final.
 
 ## Bracket and Pop out

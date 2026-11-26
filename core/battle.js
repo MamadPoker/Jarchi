@@ -3,8 +3,8 @@
 //   no key: POST /api/app/request (a one-time /connect link: the streamer opens it in the browser and signs in with
 //   Kick or Twitch there, which says whose channel it is) and POST /api/app/status (none | pending | connected; the
 //   first connected answer hands out the key, once);
-//   with the key: a new battle, the current one (all of it, after a restart), its song feed, the streamer's own song,
-//   taking a song out, start, the live state (live), finish and cancel.
+//   with the key: a new battle, the current one (all of it, after a restart), its settings changed while it takes
+//   songs, its song feed, the streamer's own song, taking a song out, start, the live state (live), finish and cancel.
 // The key is sealed in data/battle.json like the Kick and Twitch logins (core/store.js), and never sent to the panel.
 // Nothing goes to Jarchi Battle before the Privacy Policy is accepted (it learns this install's id) or before the
 // streamer presses Connect. Until a battle is live the panel asks while its page is open (the state every 2.5 s while a
@@ -25,8 +25,8 @@ const FILE = path.join(DATA_DIR, 'battle.json');
 const SECRET = ['key'];
 // Jarchi Battle's errors the panel has words for (i18n errors.battle_<code>); any other is battle_failed.
 // not_found: that battle or song isn't there any more; the rest are a song's (link, source, notfound, limit, full,
-// closed, service) or a setting's (bad, with the field).
-const ERRORS = ['rate', 'key', 'state', 'bad', 'link', 'source', 'notfound', 'limit', 'full', 'closed', 'service', 'not_found'];
+// closed, service) or a setting's (bad, with the field; size: fewer songs than the battle has already).
+const ERRORS = ['rate', 'key', 'state', 'bad', 'size', 'link', 'source', 'notfound', 'limit', 'full', 'closed', 'service', 'not_found'];
 const failed = (status, code) => Object.assign(new Error(code), { status, code: `battle_${code}` });
 
 // The setup on the page, kept for the next battle. Jarchi Battle takes all of it but voting (the battle screen's: chat
@@ -62,7 +62,7 @@ const RULES = {
     Array.isArray(v) &&
     v.length <= 50 &&
     v.every((m) => ['kick', 'twitch'].includes(m?.platform) && typeof m.username === 'string' && /^[\w-]{1,30}$/.test(m.username)),
-  voteTime: (v) => [30, 60, 90].includes(v),
+  voteTime: (v) => [10, 30, 60, 90].includes(v),
 };
 
 let saved = store.load(FILE, SECRET); // { key, channel, platform, setup }
@@ -172,11 +172,41 @@ async function request() {
   return { url: r.url };
 }
 
-// The setup changed on the page: the fields sent replace the saved ones. One bad field: nothing changes.
-function update(patch) {
+// What Jarchi Battle keeps of a setup, for a new battle or the one taking songs.
+const forBattle = (s) => ({
+  topic: s.topic.trim(),
+  size: s.size,
+  perViewer: s.perViewer,
+  sources: s.sources,
+  signIn: s.signIn,
+  showNames: s.showNames,
+  blurCovers: s.blurCovers,
+  hideTitles: s.hideTitles,
+  moderators: s.mods ? s.moderators : [],
+});
+const TAKING = ['collecting', 'closed'];
+
+// The setup changed on the page: the fields sent replace the saved ones. One bad field: nothing changes. While a
+// battle takes songs, the change is that battle's too (a bigger size lets late joiners in), first on Jarchi Battle: if
+// it refuses, nothing changes. What would break it is refused with why: no topic, a size under the songs it has
+// (Jarchi Battle's call: it counts them).
+// Voting and its length are Jarchi's own, so they change any time, a live battle too.
+function patched(patch) {
   if (!patch || typeof patch !== 'object' || Object.entries(patch).some(([k, v]) => !RULES[k]?.(v)))
     throw Object.assign(new Error('bad_request'), { status: 400, code: 'bad_request' });
-  keep({ setup: { ...setup(), ...patch } });
+  return { ...setup(), ...patch };
+}
+async function update(patch) {
+  const next = patched(patch),
+    keys = Object.keys(forBattle(next)).filter((k) => k in patch || (k === 'moderators' && 'mods' in patch));
+  if (keys.length && TAKING.includes(battle?.status)) {
+    const fields = Object.fromEntries(Object.entries(forBattle(next)).filter(([k]) => keys.includes(k)));
+    if (fields.topic === '') throw failed(400, 'topic');
+    await onBattle('PATCH', '/settings', fields);
+    const { topic = battle.topic, ...set } = fields;
+    battle = { ...battle, topic, settings: { ...battle.settings, ...set } };
+  }
+  keep({ setup: next });
   return now();
 }
 
@@ -194,27 +224,17 @@ async function onBattle(method, p, body) {
 // A new battle with this setup (saved for the next one too), collecting songs. It cancels an earlier one that hasn't
 // finished, on Jarchi Battle's side.
 async function create(patch) {
-  update(patch ?? {});
+  keep({ setup: patched(patch ?? {}) });
   const s = setup();
   if (!s.topic.trim()) throw Object.assign(failed(400, 'bad'), { field: 'topic' });
-  await call('POST', 'battles', {
-    topic: s.topic.trim(),
-    size: s.size,
-    perViewer: s.perViewer,
-    sources: s.sources,
-    signIn: s.signIn,
-    showNames: s.showNames,
-    blurCovers: s.blurCovers,
-    hideTitles: s.hideTitles,
-    moderators: s.mods ? s.moderators : [],
-  });
+  await call('POST', 'battles', forBattle(s));
   return refresh();
 }
 
 // The song feed: every song changed since the last ask (new, taken out, its similar mark), merged by id.
 let feeding;
 async function pull() {
-  if (!battle || !['collecting', 'closed'].includes(battle.status)) return now();
+  if (!TAKING.includes(battle?.status)) return now();
   const { id, cursor } = battle,
     r = await onBattle('GET', `/songs?since=${cursor}`);
   if (battle?.id !== id) return now(); // cancelled, or a new battle, meanwhile

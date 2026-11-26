@@ -1,9 +1,15 @@
 [
   {
     "version": "unreleased",
-    "types": ["improve"],
-    "en": ["ClipQ: full screen, a bigger player, Previous and a Played list, and Instagram clips fit their frame and work with Jarchi's buttons and Auto next"],
-    "fa": ["ClipQ: حالت تمام‌صفحه، پخش‌کننده‌ی بزرگ‌تر، دکمه‌ی قبلی و لیست پخش‌شده‌ها، و کلیپ‌های اینستاگرام حالا درست تو قاب جا می‌شن و با دکمه‌های جارچی و پخش خودکار بعدی کار می‌کنن"]
+    "types": ["improve", "improve"],
+    "en": [
+      "ClipQ: full screen, a bigger player, Previous and a Played list, and Instagram clips fit their frame and work with Jarchi's buttons and Auto next",
+      "Song Battle: a bigger battle screen, full screen for each song, settings you can change while songs come in, 10-second votes, and on a tie the coin waits for you"
+    ],
+    "fa": [
+      "ClipQ: حالت تمام‌صفحه، پخش‌کننده‌ی بزرگ‌تر، دکمه‌ی قبلی و لیست پخش‌شده‌ها، و کلیپ‌های اینستاگرام حالا درست تو قاب جا می‌شن و با دکمه‌های جارچی و پخش خودکار بعدی کار می‌کنن",
+      "سانگ بتل: صفحه‌ی بتل بزرگ‌تر، تمام‌صفحه برای هر آهنگ، تنظیمات وقتی آهنگ‌ها دارن میان هم عوض می‌شن، رأی‌گیری ۱۰ ثانیه‌ای، و موقع مساوی سکه منتظر شما می‌مونه"
+    ]
   },
   {
     "version": "1.0.11",
