@@ -551,6 +551,7 @@ function build() {
   wireLuck(socket);
   wireBattle(socket);
   wireClipq(socket);
+  wireBot();
   wireChatPop(socket);
 
   $$('[data-i18n]').forEach((e) => (e.textContent = S.panel[e.dataset.i18n]));

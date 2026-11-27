@@ -139,6 +139,7 @@ function select(v, key) {
     showBattle();
   }
   if (v === 'clips') showClipq();
+  if (v === 'bot') showBot();
   if (v === 'guide') {
     if (S.guide.topics[key]) topic = key;
     renderGuide();

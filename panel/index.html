@@ -353,14 +353,49 @@
             </div>
           </section>
 
-          <!-- ===== Bot: not built yet ===== -->
-          <section class="view soon" data-view="bot" hidden>
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <circle cx="12" cy="12" r="9" />
-              <path d="M12 7v5l3 2" />
-            </svg>
-            <h2 data-i18n="soonTitle"></h2>
-            <small data-i18n="botSoon"></small>
+          <!-- ===== Bot (js/bot.js; core/bot.js talks to TheJarchi, bot.jarchi.app). "Coming soon" until it's open to this
+           channel (only the owner's for now); then: the main switch and Send a test, the /mod notice until "I did it", the
+           thank-you messages (each with its switch, its message as a chat line, Edit), and what comes later. ===== -->
+          <section class="view bot soon" data-view="bot" hidden>
+            <div id="botSoon" class="bot-soon">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="12" cy="12" r="9" />
+                <path d="M12 7v5l3 2" />
+              </svg>
+              <h2 data-i18n="soonTitle"></h2>
+              <small data-i18n="botSoon"></small>
+            </div>
+            <div id="botPage" class="bot-page" hidden>
+              <div class="lk-card bot-bar">
+                <span id="botDot" class="bot-dot" aria-hidden="true"></span>
+                <b id="botState"></b>
+                <label class="bot-main"
+                  ><span class="switch"><input id="botOn" type="checkbox" data-aria="botSwitch" /><span></span></span
+                ></label>
+                <button id="botTest" class="ghost" data-i18n="botTest"></button>
+              </div>
+              <p id="botError" class="bot-error" role="status" hidden></p>
+              <div id="botMod" class="bot-mod" hidden>
+                <p data-i18n="botModText"></p>
+                <div class="bot-mod-row">
+                  <code id="botModCmd" dir="ltr">/mod TheJarchi</code>
+                  <button id="botModDone" class="ghost" data-i18n="botModDone"></button>
+                </div>
+              </div>
+              <div id="botThanks" class="lk-card">
+                <h2 data-i18n="botThanks"></h2>
+                <p class="lk-sub" data-i18n="botThanksHint"></p>
+                <ol id="botList" class="bot-list"></ol>
+              </div>
+              <div class="lk-card bot-later">
+                <h2><span data-i18n="botFeatures"></span> <span class="lk-pill" data-i18n="soonTitle"></span></h2>
+                <p class="lk-sub" data-i18n="botFeaturesHint"></p>
+              </div>
+              <div class="lk-card bot-later">
+                <h2><span data-i18n="botCommands"></span> <span class="lk-pill" data-i18n="soonTitle"></span></h2>
+                <p class="lk-sub" data-i18n="botCommandsHint"></p>
+              </div>
+            </div>
           </section>
 
           <!-- ===== Song Battle (js/battle.js; core/battle.js talks to Jarchi Battle, battle.jarchi.app). Not connected: what
@@ -2578,6 +2613,7 @@
     <script src="js/luck.js"></script>
     <script src="js/battle.js"></script>
     <script src="js/clipq.js"></script>
+    <script src="js/bot.js"></script>
     <script src="js/art.js"></script>
     <script src="js/start.js"></script>
   </body>
