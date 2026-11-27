@@ -17,9 +17,10 @@
 //   /designs...     an install's exclusive chat designs, unlocked with a code (see "Exclusive chat designs" below).
 //   /admin/...      Jarchi's admin app: counts, the installs, downloads, tickets, team messages (see "Admin API" below).
 //                   Needs ADMIN_KEY.
+//   POST /bot/ticket  a signed ticket for Jarchi's chat bot saying whose channel a Kick token is (see "Bot tickets").
 // Every request is counted per day (UTC) in DB, so the admin app can show it against Cloudflare's free limit; the same
 // row counts the installs active that day (see ping).
-// Settings (secrets): KICK_CLIENT_ID, KICK_CLIENT_SECRET, ADMIN_KEY. Deploy: see README.md here.
+// Settings (secrets): KICK_CLIENT_ID, KICK_CLIENT_SECRET, ADMIN_KEY, BOT_TICKET_KEY. Deploy: see README.md here.
 /**
  * wrangler.toml's bindings, and the secrets set with wrangler secret put.
  * @typedef {object} Env
@@ -29,6 +30,7 @@
  * @property {string} KICK_CLIENT_ID
  * @property {string} KICK_CLIENT_SECRET
  * @property {string} ADMIN_KEY
+ * @property {string} BOT_TICKET_KEY
  */
 const KICK_ID = 'https://id.kick.com';
 const KICK_API = 'https://api.kick.com/public/v1';
@@ -73,6 +75,8 @@ export default {
         return socket(req, env);
       case '/ping':
         return req.method === 'POST' ? ping(req, url, env) : text('POST only', 405);
+      case '/bot/ticket':
+        return req.method === 'POST' ? botTicket(req, env) : fail('method', 405);
     }
     return text('Not found', 404);
   },
@@ -1073,9 +1077,10 @@ const codeRowOf = (r) => ({
   revokedAt: r.revoked_at,
 });
 const MINE_DESIGN = 'EXISTS (SELECT 1 FROM design_codes c WHERE c.design_id = d.id AND c.install_id = ?1)';
-// A try counted in the install's window (a new one once an hour has passed); the count after it.
-const TRY = `INSERT INTO redeem_tries (install_id, window_start, tries) VALUES (?1, ?2, 1)
-ON CONFLICT (install_id) DO UPDATE SET
+// A try counted in its key's window (a new one once ?3 ms have passed); the count after it. redeem_tries is per install,
+// bot_ticket_tries per install and per Kick user.
+const TRY = (table, key) => `INSERT INTO ${table} (${key}, window_start, tries) VALUES (?1, ?2, 1)
+ON CONFLICT (${key}) DO UPDATE SET
   tries = CASE WHEN ?2 - window_start >= ?3 THEN 1 ELSE tries + 1 END,
   window_start = CASE WHEN ?2 - window_start >= ?3 THEN ?2 ELSE window_start END
 RETURNING tries`;
@@ -1094,7 +1099,7 @@ async function designs(req, url, env) {
   if (!(await env.DB.prepare('SELECT 1 FROM installs WHERE id = ?1').bind(install).first())) return fail('unknown_install', 403);
   if (m[1] === 'redeem') {
     const now = Date.now(),
-      { tries } = /** @type {{ tries: number }} */ (await env.DB.prepare(TRY).bind(install, now, HOUR_MS).first());
+      { tries } = /** @type {{ tries: number }} */ (await env.DB.prepare(TRY('redeem_tries', 'install_id')).bind(install, now, HOUR_MS).first());
     if (tries > REDEEM_MAX) return fail('rate', 429);
     const code = codeOf((await req.json().catch(() => null))?.code);
     if (!codeOk(code)) return fail('bad_code', 404);
@@ -1162,6 +1167,51 @@ const designsAdmin = async (env) =>
       createdAt: d.created_at,
     })),
   );
+
+// ---------- Bot tickets ----------
+// Jarchi's chat bot (bot.jarchi.app) posts in a channel only for the Jarchi that owns it, and a ticket from here is the
+// proof. POST /bot/ticket with "Authorization: Bearer <the streamer's Kick access token>" and "X-Jarchi-Install: <its
+// install id>" (one that has pinged) -> { ticket }, always for the token's own channel: Kick says whose it is, and
+// nothing in the request can name another. A ticket is "jt1.<payload>.<signature>", base64url without =: the payload
+// is { aud: "bot.jarchi.app", sub: <the Kick user id, a string>, name, install, iat, exp } (ms, TICKET_MS apart),
+// signed (Ed25519, over "jt1.<payload>") with BOT_TICKET_KEY, a private JWK; the bot has its public key. The Kick token
+// is used for that one request to Kick, and neither it nor the ticket is kept. INSTALL_TICKETS tries an hour per
+// install, counted before asking Kick, right or wrong, and USER_TICKETS tickets an hour per Kick user (bot_ticket_tries,
+// migrations/0005_bot_tickets.sql). Errors are JSON { error }: method, not_ready (no BOT_TICKET_KEY), bad_request,
+// unknown_install, unauthorized (Kick didn't say yes), rate.
+const INSTALL_TICKETS = 10,
+  USER_TICKETS = 5,
+  TICKET_MS = 5 * 60 * 1000;
+const BEARER = /^Bearer [\x21-\x7e]{1,4096}$/;
+const base64url = (bytes) =>
+  btoa(String.fromCharCode(...bytes))
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
+
+/** @param {Env} env */
+async function botTicket(req, env) {
+  if (!env.BOT_TICKET_KEY) return fail('not_ready', 503);
+  const install = req.headers.get('x-jarchi-install') ?? '',
+    auth = req.headers.get('authorization') ?? '',
+    now = Date.now();
+  if (!UUID.test(install)) return fail('bad_request');
+  if (!(await env.DB.prepare('SELECT 1 FROM installs WHERE id = ?1').bind(install).first())) return fail('unknown_install', 403);
+  const tries = async (who) => /** @type {{ tries: number }} */ (await env.DB.prepare(TRY('bot_ticket_tries', 'who')).bind(who, now, HOUR_MS).first()).tries;
+  await env.DB.prepare('DELETE FROM bot_ticket_tries WHERE window_start <= ?1')
+    .bind(now - HOUR_MS)
+    .run();
+  if ((await tries(`install:${install}`)) > INSTALL_TICKETS) return fail('rate', 429);
+  const r = BEARER.test(auth) ? await fetch(`${KICK_API}/users`, { headers: { authorization: auth } }).catch(() => null) : null;
+  const me = r?.ok ? (await r.json().catch(() => null))?.data?.[0] : null;
+  if (!Number.isSafeInteger(me?.user_id) || me.user_id < 1 || typeof me.name !== 'string' || !me.name) return fail('unauthorized', 401);
+  if ((await tries(`user:${me.user_id}`)) > USER_TICKETS) return fail('rate', 429);
+  const payload = { aud: 'bot.jarchi.app', sub: String(me.user_id), name: me.name, install, iat: now, exp: now + TICKET_MS };
+  const body = `jt1.${base64url(new TextEncoder().encode(JSON.stringify(payload)))}`;
+  const key = await crypto.subtle.importKey('jwk', JSON.parse(env.BOT_TICKET_KEY), { name: 'Ed25519' }, false, ['sign']);
+  const signature = new Uint8Array(await crypto.subtle.sign({ name: 'Ed25519' }, key, new TextEncoder().encode(body)));
+  return json({ ticket: `${body}.${base64url(signature)}` });
+}
 
 // One channel: the Jarchi sockets open for it (usually one), handed each of its events. Hibernates between them; the
 // keepalive ("ping" -> "pong") is answered without waking it.

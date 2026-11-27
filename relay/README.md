@@ -90,6 +90,22 @@ Errors are JSON `{ "error": "..." }`: `bad_request`, `unknown_install`, `bad_cod
 
 A design's files are **never in this repo** (it's public): a design is added straight to D1 from a file kept elsewhere, e.g. `npx wrangler d1 execute jarchi-stats --remote --file "<its .sql>"` with `INSERT INTO designs (id, name_en, name_fa, data, created_at) VALUES ('x-<name>', ..., '{"look": {...}, "css": "..."}', ...)` (`ON CONFLICT (id) DO UPDATE` to change one; Jarchi downloads its designs again at every start). The id is `x-` and up to 30 of `a-z 0-9 -`; its CSS styles `.style-x-<name>` in the chat widget (`widgets/chat`), whose rows also carry `data-turn` (0-23, the message's order) for a design to take turns with.
 
+## Bot tickets (`POST /bot/ticket`)
+
+For Jarchi's chat bot at `bot.jarchi.app`: the bot posts in a channel only for the Jarchi that owns it, and this ticket is the proof. Jarchi sends `Authorization: Bearer <the streamer's Kick access token>` and `X-Jarchi-Install: <its install id>` (an install that has pinged) and gets `{ "ticket": "..." }` (`no-store`), always for the token's own channel: Kick's `GET /public/v1/users` says whose it is, and nothing in the request can name another.
+
+A ticket is `jt1.<payload>.<signature>`, base64url without `=`. The payload is `{ "aud": "bot.jarchi.app", "sub": "<Kick user id>", "name", "install", "iat", "exp" }` (ms; `exp` is 5 minutes after `iat`); the signature is Ed25519 over `jt1.<payload>` with the Worker secret `BOT_TICKET_KEY` (a private JWK). The bot checks it with the public key (`TICKET_PUBLIC_KEY` in its `.env`). The Kick token is used for that one request to Kick, and neither it nor the ticket is kept.
+
+Limits: 10 tries an hour per install (counted before asking Kick, right or wrong) and 5 tickets an hour per Kick user, in `bot_ticket_tries` (`migrations/0005_bot_tickets.sql`), whose rows are deleted after an hour. Errors are JSON `{ "error": "..." }`: `method`, `not_ready` (no `BOT_TICKET_KEY`), `bad_request`, `unknown_install`, `unauthorized` (Kick didn't say yes), `rate`.
+
+The key pair, made once from this folder so the private key goes straight into the secret and never touches a file (it prints only the public key):
+
+```
+node -e "const k=require('crypto').generateKeyPairSync('ed25519').privateKey.export({format:'jwk'});console.error('TICKET_PUBLIC_KEY='+k.x);process.stdout.write(JSON.stringify(k))" | npx wrangler secret put BOT_TICKET_KEY
+```
+
+If the secret ever leaks, run it again and give the bot the new public key; the bot's channels keep their keys.
+
 ## Support tickets (`/support/...`)
 
 The Support page in Jarchi (`core/support.js`, only once the Privacy Policy is accepted). Each install sends `X-Jarchi-Install: <its install id>` and `Authorization: Bearer <its ticket token>`: 64 random hex digits that Jarchi makes for its first ticket and keeps in its settings, never shown. A ticket can only be read with the token it was made with, and an install keeps the token of its first ticket. Only installs that have pinged can make tickets; a ticket keeps the Kick / Twitch channel names of that install's last ping.
