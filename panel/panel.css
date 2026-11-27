@@ -7633,12 +7633,12 @@ button.bt-x:hover {
 }
 .bt-side.blur .bt-media,
 .bt-tside.blur .bt-tcover,
-.bt-cw.blur .bt-cover {
+:is(.bt-res, .bt-brk).blur img {
   filter: blur(14px) saturate(0.8);
 }
 .bt-side.blur:hover .bt-media,
 .bt-tside.blur:hover .bt-tcover,
-.bt-cw.blur:hover .bt-cover {
+:is(.bt-res, .bt-brk).blur img:hover {
   filter: none;
 }
 .bt-curtain:not([hidden]) {
@@ -8188,45 +8188,271 @@ button.bt-vcoin {
   color: var(--gold-text);
 }
 
-/* After the final: the champion. */
-dialog.bt-champ {
-  overflow: visible;
-  padding: 26px 34px;
-  border: 1px solid var(--gold-line);
-  border-radius: 20px;
-  background: radial-gradient(circle at 50% 20%, color-mix(in srgb, var(--gold) 16%, var(--card)), var(--card) 70%);
-  color: var(--text);
-  text-align: center;
+/* After the final: the champion's stage (Reveal, the drumroll, then its card with confetti) beside who sent what.
+   As big as the battle screen: sizes in em of a font that grows with the page's width. */
+.bt-res:not([hidden]) {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+  gap: 1.1em;
+  align-items: start;
+  padding-top: 16px;
+  font-size: clamp(17px, 1.5cqi, 30px);
 }
-dialog.bt-champ[open] {
+@container (max-width: 900px) {
+  .bt-res:not([hidden]) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.bt-stage {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
+  justify-content: center;
+  gap: 0.55em;
+  min-height: 22em;
+  padding: 1.4em 1.1em;
+  border: 2px solid var(--gold-line);
+  border-radius: 22px;
+  background: radial-gradient(circle at 50% 25%, color-mix(in srgb, var(--gold) 20%, var(--card)), var(--card) 70%);
+  text-align: center;
+}
+.bt-stage.won {
   animation: lk-pop 0.5s cubic-bezier(0.3, 1.6, 0.5, 1);
 }
-dialog.bt-champ::backdrop {
-  background: rgba(3, 8, 7, 0.75);
-  backdrop-filter: blur(3px);
+.bt-stage > .lk-btn.o {
+  margin-top: 0.5em;
 }
 .bt-cup {
-  font-size: 56px;
   line-height: 1;
 }
-dialog.bt-champ > b {
+.bt-q {
+  display: grid;
+  place-items: center;
+  width: 2em;
+  height: 2em;
+  border: 3px dashed var(--gold-line);
+  border-radius: 0.25em;
   color: var(--gold-text);
-  font-size: 18px;
+  font:
+    900 4em Manrope,
+    sans-serif;
 }
-.bt-cw {
+.bt-big {
+  max-width: 100%;
+  font:
+    900 1.7em/1.2 Manrope,
+    Vazirmatn,
+    sans-serif;
+  overflow-wrap: anywhere;
+}
+.bt-live button.bt-reveal {
+  padding: 0.6em 1.4em;
+  font-size: 1.15em;
+}
+.bt-drumi {
+  font-size: 4.5em;
+  line-height: 1;
+  animation: bt-drum 0.12s infinite alternate;
+}
+.bt-drum {
+  color: var(--gold-text);
+  animation: lk-fi 0.4s ease;
+}
+@keyframes bt-drum {
+  to {
+    transform: rotate(-6deg) scale(1.06);
+  }
+}
+.bt-crown {
+  position: relative;
+  z-index: 1;
+  margin-bottom: -0.45em;
+  font-size: 3.2em;
+  line-height: 1;
+}
+.bt-ccover {
+  width: clamp(160px, 17cqi, 340px);
+  height: clamp(160px, 17cqi, 340px);
+  border: 3px solid var(--gold);
+  border-radius: 20px;
+  background: linear-gradient(135deg, var(--card2), var(--main-soft));
+  box-shadow: 0 0 34px color-mix(in srgb, var(--gold) 40%, transparent);
+  object-fit: cover;
+}
+.bt-stage > small.bt-gd {
+  font:
+    900 1em Manrope,
+    Vazirmatn,
+    sans-serif;
+  letter-spacing: 0.02em;
+}
+.bt-sent {
   display: flex;
   align-items: center;
-  gap: 10px;
-  max-width: 380px;
-  padding: 8px 12px 8px 8px;
+  gap: 0.35em;
+  min-width: 0;
+  color: var(--muted);
+  font:
+    700 0.95em Manrope,
+    Vazirmatn,
+    sans-serif;
+}
+.bt-cstats {
+  display: flex;
+  gap: 0.7em;
+}
+.bt-cstats span {
+  display: grid;
+  min-width: 5em;
+  padding: 0.35em 0.9em;
   border: 1px solid var(--border);
-  border-radius: 11px;
-  background: var(--bg);
-  text-align: start;
+  border-radius: 14px;
+  background: var(--card2);
+  color: var(--muted);
+  font-weight: 700;
+}
+.bt-cstats b {
+  color: var(--text);
+  font:
+    900 1.7em Manrope,
+    sans-serif;
+}
+/* Who sent what: a row per song, rank 1 first, with the same columns all the way down. */
+.bt-rks {
+  display: grid;
+  gap: 0.5em;
+  min-width: 0;
+}
+.bt-rh,
+.bt-rk {
+  display: grid;
+  grid-template-columns: 2.2em 2.8em minmax(0, 1fr) 8.5em 3.4em 3.4em;
+  gap: 0.6em;
+  align-items: center;
+}
+.bt-rh {
+  padding: 0 0.7em;
+}
+.bt-rh b {
+  grid-column: 1 / 5;
+  font:
+    900 1.25em Manrope,
+    Vazirmatn,
+    sans-serif;
+}
+.bt-rh small {
+  color: var(--muted);
+  font-size: 0.85em;
+  font-weight: 700;
+  text-align: center;
+}
+.bt-rks ol {
+  display: grid;
+  gap: 0.45em;
+  max-height: calc(100vh - 200px);
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+.bt-rk {
+  padding: 0.4em 0.7em;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--card2);
+}
+.bt-rk.m1 {
+  border-color: var(--gold);
+  background: color-mix(in srgb, var(--gold) 14%, var(--card2));
+}
+.bt-rk .bt-cover {
+  width: 2.8em;
+  height: 2.8em;
+  border-radius: 10px;
+}
+.bt-rk .bt-txt b {
+  font-size: 1em;
+}
+.bt-rk .bt-txt small {
+  font-size: 0.8em;
+}
+.bt-rk .bt-txt small bdi,
+.bt-mt small bdi {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bt-rn {
+  display: grid;
+  place-items: center;
+  width: 2.2em;
+  height: 2.2em;
+  border-radius: 50%;
+  background: var(--border-hi);
+  font:
+    900 1em Manrope,
+    sans-serif;
+}
+.m1 .bt-rn {
+  background: linear-gradient(135deg, #f6d77a, var(--gold));
+  color: var(--on-gold);
+}
+.m2 .bt-rn {
+  background: linear-gradient(135deg, #eef1f5, #a9b1bc);
+  color: #1b1f24;
+}
+.m3 .bt-rn {
+  background: linear-gradient(135deg, #e9a66b, #a8652d);
+  color: #24140a;
+}
+.bt-far {
+  overflow: hidden;
+  padding: 0.25em 0.5em;
+  border-radius: 9px;
+  background: var(--card);
+  color: var(--muted);
+  font:
+    800 0.8em Manrope,
+    Vazirmatn,
+    sans-serif;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.m1 .bt-far {
+  color: var(--gold-text);
+}
+.bt-n {
+  font:
+    900 1.05em Manrope,
+    sans-serif;
+  text-align: center;
+}
+.bt-res .bt-rk.veil > :is(.bt-cover, .bt-txt) {
+  filter: blur(12px);
+}
+.bt-rk.in {
+  animation: bt-rin 0.5s cubic-bezier(0.2, 0.8, 0.3, 1.2) both;
+  animation-delay: calc(var(--i) * 120ms);
+}
+@keyframes bt-rin {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.96);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bt-drumi {
+    animation: none;
+  }
+}
+:root[data-still] .bt-drumi {
+  animation: none;
+}
+:is(.bt-res, .bt-brk) .lk-ico {
+  width: 1.25em;
+  height: 1.25em;
 }
 
 /* The battle page's head: while a battle is live, Game | Bracket, the round and a dot per match (done teal, on now
@@ -8263,95 +8489,182 @@ dialog.bt-champ > b {
   margin-inline: auto;
 }
 
-/* The Bracket tab: a column per round, left to right in both languages, then the champion's card. */
+/* The Bracket tab: a column per round, left to right in both languages, then the champion's. As big as the battle
+   screen: the columns share the page's width (scrolling sideways when more than fit), each match its two songs with
+   cover, name, who sent it and the votes; the winner lit, the other dimmed, the final in gold. */
 .bt-brk:not([hidden]) {
   display: flex;
-  gap: 18px;
+  gap: 1em;
   align-items: stretch;
   padding: 16px 2px 6px;
   overflow-x: auto;
   direction: ltr;
+  font-size: clamp(16px, 1.35cqi, 26px);
 }
-[dir='rtl'] :is(.bt-rcol, .bt-champ-card) {
+[dir='rtl'] .bt-rcol {
   direction: rtl;
 }
 .bt-rcol {
   display: flex;
-  flex: 0 0 170px;
+  flex: 1 0 13em;
   flex-direction: column;
-  gap: 10px;
+  gap: 0.7em;
+  min-width: 0;
 }
 .bt-rcol h5 {
   margin: 0;
   color: var(--muted);
-  font-size: 12px;
-  font-weight: 700;
+  font:
+    900 1.05em Manrope,
+    Vazirmatn,
+    sans-serif;
   text-align: center;
+}
+:is(.bt-rcol.fin, .bt-ccol) h5 {
+  color: var(--gold-text);
 }
 .bt-ms {
   display: flex;
   flex: 1;
   flex-direction: column;
   justify-content: space-around;
-  gap: 14px;
+  gap: 0.9em;
 }
 .bt-m {
   overflow: hidden;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 14px;
   background: var(--card2);
 }
-.bt-m.fin {
-  border-color: var(--gold-line);
+.fin .bt-m {
+  border: 2px solid var(--gold);
+  background: linear-gradient(160deg, color-mix(in srgb, var(--gold) 18%, var(--card2)), var(--card2));
+  box-shadow: 0 0 22px color-mix(in srgb, var(--gold) 25%, transparent);
 }
 .bt-m.cur {
   border-color: var(--gold);
-  box-shadow: 0 0 18px color-mix(in srgb, var(--gold) 25%, transparent);
+  box-shadow: 0 0 18px color-mix(in srgb, var(--gold) 30%, transparent);
+}
+.bt-m.bye {
+  border-style: dashed;
 }
 .bt-m p {
+  display: flex;
+  align-items: center;
+  gap: 0.55em;
+  min-height: 3.6em;
   margin: 0;
-  padding: 6px 10px;
-  overflow: hidden;
-  color: var(--muted);
-  font:
-    700 12.5px Manrope,
-    Vazirmatn,
-    sans-serif;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  padding: 0.45em 0.6em;
+  border-inline-start: 4px solid transparent;
+  transition: opacity 0.3s;
 }
 .bt-m p + p {
   border-top: 1px solid var(--border);
 }
 .bt-m p.w {
-  background: color-mix(in srgb, var(--teal) 22%, var(--card2));
+  border-inline-start-color: var(--teal);
+  background: color-mix(in srgb, var(--teal) 24%, var(--card2));
+}
+.fin .bt-m p.w {
+  border-inline-start-color: var(--gold);
+  background: color-mix(in srgb, var(--gold) 26%, var(--card2));
+}
+.bt-m p.l {
+  opacity: 0.45;
+  filter: grayscale(0.6);
+}
+.bt-m p.bt-mx {
+  justify-content: center;
+  color: var(--muted);
+  font:
+    800 0.9em Manrope,
+    Vazirmatn,
+    sans-serif;
+  text-align: center;
+}
+.bt-mc {
+  flex: none;
+  width: 2.6em;
+  height: 2.6em;
+  border-radius: 9px;
+  background: linear-gradient(135deg, var(--card2), var(--main-soft));
+  object-fit: cover;
+}
+.bt-mt {
+  display: grid;
+  flex: 1;
+  gap: 0.15em;
+  min-width: 0;
+}
+.bt-mt b {
+  overflow: hidden;
+  font:
+    800 1em Manrope,
+    Vazirmatn,
+    sans-serif;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bt-mt small {
+  display: flex;
+  align-items: center;
+  gap: 0.35em;
+  min-width: 0;
+  color: var(--muted);
+  font:
+    600 0.82em Manrope,
+    Vazirmatn,
+    sans-serif;
+}
+.bt-m em {
+  flex: none;
+  color: var(--muted);
+  font:
+    800 0.82em Manrope,
+    Vazirmatn,
+    sans-serif;
+  font-style: normal;
+}
+.bt-m p.w em {
   color: var(--text);
+}
+.bt-mcoin {
+  flex: none;
+  font-size: 1.2em;
+}
+.bt-ccol {
+  flex-basis: 14em;
 }
 .bt-champ-card {
   display: flex;
-  flex: 0 0 auto;
   flex-direction: column;
   align-items: center;
-  align-self: center;
-  gap: 8px;
-  max-width: 300px;
-  margin-left: auto; /* physical: the bracket runs left to right in both languages */
-  padding: 18px 22px;
-  border: 1px solid var(--gold-line);
-  border-radius: 16px;
-  background: radial-gradient(circle at 50% 20%, color-mix(in srgb, var(--gold) 18%, transparent), transparent 70%);
+  gap: 0.55em;
+  padding: 1.1em;
+  border: 2px solid var(--gold-line);
+  border-radius: 18px;
+  background: radial-gradient(circle at 50% 20%, color-mix(in srgb, var(--gold) 20%, transparent), transparent 70%);
   text-align: center;
 }
 .bt-champ-card .bt-cup {
-  font-size: 46px;
+  font-size: 3em;
 }
-.bt-champ-card > b {
-  color: var(--gold-text);
-  font-size: 16px;
+.bt-champ-card .bt-mc {
+  width: 7em;
+  height: 7em;
+  border: 2px solid var(--gold);
+  border-radius: 14px;
 }
-.bt-champ-card > small {
-  color: var(--muted);
-  font-size: 12px;
+.bt-champ-card > b:not(.bt-q) {
+  max-width: 100%;
+  font:
+    900 1.25em Manrope,
+    Vazirmatn,
+    sans-serif;
+  overflow-wrap: anywhere;
+}
+.bt-champ-card .bt-q {
+  font-size: 3em;
 }
 
 /* ---------- ClipQ (js/clipq.js): the player with Jarchi's buttons beside Up next and Queue settings. The player's parts

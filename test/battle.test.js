@@ -339,17 +339,18 @@ test('Song Battle screen: chat votes (one each, the last counts), the winners, a
   st = await battle.refresh();
   assert.deepEqual([st.battle.bracket, st.battle.current, st.battle.vote], [saves.at(-1).body.bracket, at, null]);
 
-  // Next match, until the final; then the champion: the last bracket saved first, then finish.
+  // Next match, until the final (a win by the coin says so); the final's winner is the champion at once: the last
+  // bracket saved first, then finish.
   await assert.rejects(
     battle.next().then(() => battle.next()),
     { code: 'battle_state' },
   ); // the next one has no winner yet
   assert.deepEqual(battle.now().battle.current, [0, 1]);
-  battle.pick(1);
+  battle.pick(1, true);
   st = await battle.next();
-  assert.deepEqual(st.battle.current, [1, 0]);
-  battle.pick(0);
-  st = await battle.next();
+  assert.deepEqual([st.battle.current, st.battle.coins], [[1, 0], ['0,1']]);
+  assert.throws(() => battle.reveal(), { code: 'battle_state' });
+  st = await battle.pick(0);
   const final = jb.asked.slice(-2);
   assert.deepEqual(
     final.map((a) => a.at),
@@ -358,6 +359,39 @@ test('Song Battle screen: chat votes (one each, the last counts), the winners, a
   assert.equal(final[0].body.bracket[1][0][2], 0);
   assert.equal(final[1].body.champion, final[0].body.bracket[1][0][0]);
   assert.deepEqual([st.battle.status, st.battle.champion], ['finished', final[1].body.champion]);
+
+  // Who sent what: every song by how far it got (the two out in the semi-finals share 3rd, more votes first); a bye
+  // isn't a win. Reveal: once, in every window.
+  const R = st.battle.bracket;
+  assert.deepEqual(
+    st.battle.ranks.map((s) => [s.id, s.rank, s.out, s.wins, s.votes]),
+    [
+      [R[1][0][0], 1, 0, 2, 0],
+      [R[1][0][1], 2, 1, 1, 0],
+      [R[0][0][1], 3, 2, 0, 1],
+      [R[0][1][0], 3, 2, 0, 0],
+    ],
+  );
+  assert.deepEqual(
+    battle
+      .ranks([
+        [
+          ['a', null, 0, 0, 0],
+          ['b', 'c', 1, 2, 5],
+        ],
+        [['a', 'c', 0, 4, 3]],
+      ])
+      .map((s) => [s.id, s.rank, s.wins, s.votes]),
+    [
+      ['a', 1, 1, 4],
+      ['c', 2, 1, 8],
+      ['b', 3, 0, 2],
+    ],
+  );
+  assert.equal(st.battle.revealed, undefined);
+  const shown = battle.reveal().battle.revealed;
+  assert.ok(shown <= Date.now());
+  assert.equal(battle.reveal().battle.revealed, shown);
 
   // The finished battle stays for the bracket and the champion (Jarchi Battle's "current" has none now), until New battle.
   assert.equal((await battle.refresh()).battle.status, 'finished');

@@ -489,9 +489,11 @@
             </div>
             <!-- The battle screen, once it's live (core/battle.js runs it): the match on now, its two songs face to face, each in
              its site's own player (battle-player.html) under Jarchi's buttons (js/battle.js builds them), and the vote between
-             them. A tie: the coin in the middle opens the lucky coin. Bracket: every round, then the champion. After the final: the champion. -->
+             them. A tie: the coin in the middle opens the lucky coin. Bracket: every round, then the champion. After the final: the
+             champion (after Reveal) and who sent what. -->
             <div id="btLive" class="bt-live" hidden>
               <div id="btBracket" class="bt-brk" hidden></div>
+              <div id="btResults" class="bt-res" hidden></div>
               <div id="btArena" class="bt-arena">
                 <div class="bt-side s1"></div>
                 <div id="btPod" class="bt-pod"></div>
@@ -516,12 +518,6 @@
                 <div class="bt-tside s2"></div>
               </div>
             </div>
-            <dialog id="btChamp" class="bt-champ">
-              <div class="bt-cup" aria-hidden="true">🏆</div>
-              <b data-i18n="battleChampion"></b>
-              <div id="btChampSong"></div>
-              <button id="btAgain" class="lk-btn g" data-i18n="battleNew"></button>
-            </dialog>
           </section>
           <!-- ===== ClipQ (js/clipq.js; core/clipq.js runs the queue): Open the queue, and clip links sent in Kick or Twitch chat
            line up by themselves. The player: the clip on now in its site's player (battle-player.html, from localhost) under
