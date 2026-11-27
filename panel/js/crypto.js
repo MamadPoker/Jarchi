@@ -1,7 +1,7 @@
 // ---------- Crypto (Jarchi Pay, core/pay.js) ----------
 // Not active: the coin, what the gateway is, and Request (pending: waiting for Jarchi; rejected: until when). Active: the
 // donation page's link, the totals and the donations, newest first; a wallet step until an address is set (BEP20, TRC20
-// or both: null = that network isn't used), and a warning with Cancel while a wallet change waits. The state: GET /api/crypto when the page opens or the window comes
+// or both: null = that network isn't used), a warning with Cancel while a wallet change waits, and the Open / Closed switch. The state: GET /api/crypto when the page opens or the window comes
 // back (from the browser, where the request and the wallets are done), and by socket when it changes (an approval opens
 // the active page by itself). The list again every 30 s while the page is in view. The first time it's active: the
 // welcome and the page's tour (cryptoHello, below).
@@ -73,11 +73,21 @@ function renderCrypto() {
   }
   $('#cryptoUrl').textContent = pay.page.replace(/^https?:\/\//, '');
   hint('#cryptoError', pay.error && (S.errors[pay.error] ?? S.errors.crypto_failed));
-  const w = pay.wallets; // null: not asked yet (offline)
+  const w = pay.wallets, // null: not asked yet (offline)
+    p = pay.pause;
+  $('#cryptoOpen').closest('label').hidden = !p;
+  $('#cryptoOpen').checked = !p?.paused;
+  $('#cryptoOpen').disabled = false;
+  $('#cryptoOpenText').textContent = !p?.paused
+    ? S.panel.cryptoOpen
+    : p.pausedAt
+      ? tpl(S.panel.cryptoClosedSince, { time: dateTime(p.pausedAt) })
+      : S.panel.cryptoClosed;
   $('#cryptoWallet').hidden = !w || !!(w.bep20 || w.trc20);
   $('#cryptoChange').hidden = !w?.pending;
   if (w?.pending) {
-    $('#cryptoChangeText').textContent = tpl(S.panel.cryptoChange, { date: dateTime(w.pending.effectiveAt) });
+    const at = w.pending.effectiveAt;
+    $('#cryptoChangeText').textContent = at > Date.now() ? tpl(S.panel.cryptoChange, { date: dateTime(at) }) : S.panel.cryptoChangeNow;
     $('#cryptoChangeTo').textContent = changeLines(w);
   }
   renderDonations();
@@ -280,12 +290,16 @@ function wireCrypto() {
   $('#cryptoPop').title = S.panel.cryptoPopOutHint;
   $('#cryptoPop').onclick = () => window.open('/crypto-popout.html', 'jarchiDonations', 'popup,width=380,height=600');
   $('#cryptoMore').onclick = () => loadDonations(true);
-  $('#cryptoWalletSet').onclick = $('#cryptoWalletChange').onclick = () =>
+  // A change (an address is set) starts working 24 hours after it's saved on Jarchi Pay: said before the link opens.
+  $('#cryptoWalletSet').onclick = $('#cryptoWalletChange').onclick = async () => {
+    if ((pay.wallets?.bep20 || pay.wallets?.trc20) && !(await cryptoSure(S.panel.cryptoWalletSure, S.panel.cryptoWalletSureGo))) return;
     api('POST', '/api/crypto/wallets/link').then(
       ({ url }) => window.open(url, '_blank', 'noopener'),
       (err) => toast(err.message, true),
     );
-  $('#cryptoChangeCancel').onclick = () =>
+  };
+  $('#cryptoChangeCancel').onclick = async () =>
+    (await cryptoSure(S.panel.cryptoChangeCancelSure, S.panel.cryptoChangeCancel)) &&
     api('POST', '/api/crypto/wallets/cancel').then(
       (st) => {
         gotCrypto(st);
@@ -293,10 +307,33 @@ function wireCrypto() {
       },
       (err) => (toast(err.message, true), loadCrypto()),
     );
+  // Open / Closed: closing asks first. Refused: the switch goes back to what Jarchi Pay says.
+  $('#cryptoOpen').onchange = async (e) => {
+    const open = e.target.checked;
+    if (!open && !(await cryptoSure(S.panel.cryptoCloseSure, S.panel.cryptoCloseGo))) return renderCrypto();
+    e.target.disabled = true;
+    api('POST', `/api/crypto/${open ? 'resume' : 'pause'}`).then(gotCrypto, (err) => {
+      toast(err.message, true);
+      renderCrypto();
+      loadCrypto();
+    });
+  };
+  $('#cryptoSureNo').onclick = () => $('#cryptoSure').close();
+  $('#cryptoSureYes').onclick = () => $('#cryptoSure').close('yes');
   addEventListener('focus', () => view === 'donations' && loadCrypto()); // back from the browser: the request sent, the wallets set
   wireCryptoAlerts();
   wireCryptoPage();
   wireCryptoHello();
+}
+
+// Are you sure: the question and the Yes button's words -> true for Yes (Not now or Escape: false).
+function cryptoSure(text, yes) {
+  const d = $('#cryptoSure');
+  $('#cryptoSureText').textContent = text;
+  $('#cryptoSureYes').textContent = yes;
+  d.returnValue = '';
+  d.showModal();
+  return new Promise((ok) => d.addEventListener('close', () => ok(d.returnValue === 'yes'), { once: true }));
 }
 
 // ---------- The gateway approved: a welcome and a tour, once ----------

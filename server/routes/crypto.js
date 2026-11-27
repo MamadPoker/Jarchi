@@ -13,6 +13,8 @@ module.exports = function register(app, { changed, raw, upload }) {
   app.get('/api/crypto/donations', async (req, res) => res.json(await pay.donations(req.query)));
   app.post('/api/crypto/wallets/link', async (req, res) => res.json(await pay.walletLink()));
   app.post('/api/crypto/wallets/cancel', async (req, res) => res.json(await pay.cancelChange()));
+  app.post('/api/crypto/pause', async (req, res) => res.json(await pay.setPaused(true)));
+  app.post('/api/crypto/resume', async (req, res) => res.json(await pay.setPaused(false)));
   // The donation page's look (the Crypto page's Donation page tab): the line and the links, the picture and the banner.
   app.get('/api/crypto/page', async (req, res) => res.json(await pay.page()));
   app.put('/api/crypto/page', async (req, res) => res.json(await pay.savePage(req.body)));
