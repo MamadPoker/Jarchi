@@ -124,7 +124,8 @@ function chatMessage(m) {
       name: String(u.name ?? u.login ?? '').slice(0, 64),
       color: /^#[0-9a-f]{6}$/i.test(u.color) ? u.color : null,
       avatar: https(u.avatar) ? u.avatar : null,
-      badges: (u.badges ?? []).slice(0, 8).map((b) => ({
+      // Room for a Kick viewer with many event badges (badges_v2) besides the ones that matter (roles, kicks_gifter).
+      badges: (u.badges ?? []).slice(0, 16).map((b) => ({
         type: b.type,
         name: String(b.name ?? ''),
         img: badgeImg(b.img) ? b.img : null,

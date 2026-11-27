@@ -149,13 +149,15 @@ test('Kick Pusher events -> messages, badges, removals', () => {
         color: '#E5FFAB',
         badges: [
           { type: 'moderator', text: 'Moderator' },
+          { type: 'vip', text: 'VIP' },
           { type: 'subscriber', text: 'Subscriber', count: 8 },
         ],
-        // Picture badges: the viewer's chosen ones only (selected), like kick.com; kicks_gifter is the channel's KICKs badge.
+        // Picture badges; kicks_gifter is the channel's KICKs badge. The viewer chose to show misc ones on Kick (selected):
+        // Jarchi keeps them all, so the chats still show the important ones and the roles stay.
         badges_v2: [
-          { name: 'level', badge_type: 'global', image_url: 'https://ext.cdn.kick.com/chat/badges/33.png', selected: true },
-          { name: 'GTAWheel', badge_type: 'global', image_url: 'https://ext.cdn.kick.com/chat/badges/GTAWheel.png', selected: false },
-          { name: 'kicks_gifter', badge_type: 'channel', image_url: 'https://content.kick.com/public/chat/badges/k.png', selected: true },
+          { name: 'level', badge_type: 'global', image_url: 'https://ext.cdn.kick.com/chat/badges/33.png', selected: false },
+          { name: 'GTAWheel', badge_type: 'global', image_url: 'https://ext.cdn.kick.com/chat/badges/GTAWheel.png', selected: true },
+          { name: 'kicks_gifter', badge_type: 'channel', image_url: 'https://content.kick.com/public/chat/badges/k.png', selected: false },
         ],
       },
     },
@@ -172,17 +174,21 @@ test('Kick Pusher events -> messages, badges, removals', () => {
     m.user.badges.map((b) => [b.type, b.name, b.img, b.months]),
     [
       ['moderator', 'moderator', '/assets/kick-badges/moderator.svg', 0],
+      ['vip', 'vip', '/assets/kick-badges/vip.svg', 0],
       ['subscriber', 'subscriber', 'https://files.kick.com/sub6.png', 8],
       ['other', 'level', 'https://ext.cdn.kick.com/chat/badges/33.png', undefined],
+      ['other', 'GTAWheel', 'https://ext.cdn.kick.com/chat/badges/GTAWheel.png', undefined],
       ['other', 'kicks_gifter', 'https://content.kick.com/public/chat/badges/k.png', undefined],
     ],
   );
   const checked = chatMessage({ platform: 'kick', user: { badges: [...m.user.badges, { type: 'subscriber', name: 'x', months: 'many' }] } }).user.badges;
   assert.deepEqual(
     checked.map((b) => b.months),
-    [0, 8, 0, 0, 0],
+    [0, 0, 8, 0, 0, 0, 0],
     'months go through the message check (a bad one is 0)',
   );
+  const many = Array.from({ length: 20 }, (_, i) => ({ type: 'other', name: `event${i}`, img: 'https://ext.cdn.kick.com/chat/badges/e.png' }));
+  assert.equal(chatMessage({ platform: 'kick', user: { badges: many } }).user.badges.length, 16, 'room for many event badges, at most 16');
   const img = (badges, subs = []) => kick.kickBadges({ badges }, subs).map((b) => b.img);
   assert.deepEqual(img([{ type: 'subscriber', count: 3 }]), ['/assets/kick-badges/subscriber.svg'], "no channel sub badges: Kick's default");
   assert.deepEqual(img([{ type: 'subscriber' }], info.subBadges), ['https://files.kick.com/sub1.png']);

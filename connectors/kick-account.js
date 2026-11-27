@@ -8,7 +8,7 @@
 const path = require('node:path');
 const crypto = require('node:crypto');
 const { EventEmitter } = require('node:events');
-const { DATA_DIR, PORT } = require('../core/config');
+const { DATA_DIR, PORT, TEST } = require('../core/config');
 const store = require('../core/store');
 const { emitEvent, setConnected, logIncoming } = require('../core/events');
 const net = require('../core/net');
@@ -17,9 +17,14 @@ const { fail, single, tokens, backoff, liveOf } = require('./account');
 
 const FILE = path.join(DATA_DIR, 'kick.json');
 const SECRET = ['access', 'refresh']; // sealed in the file (core/secrets.js)
-// Jarchi's own relay; KICK_RELAY_URL in .env sets another (your own deploy of relay/).
+// Jarchi's own relay; KICK_RELAY_URL in .env sets another (your own deploy of relay/). Every request to the relay (usage
+// pings, tickets, team messages, designs, the Kick login) is `${RELAY}/...`. A test copy (core/config.js TEST) gets no
+// relay ('') instead of Jarchi's own, even when KICK_RELAY_URL names it: an address with no host is one fetch can't send
+// anywhere, so nothing leaves. A test's own fake relay (KICK_RELAY_URL) stays.
 const JARCHI_RELAY = 'https://jarchi-kick.thejarchi.workers.dev';
-const RELAY = (process.env.KICK_RELAY_URL || JARCHI_RELAY).replace(/\/+$/, '');
+const hostOf = (u) => (URL.canParse(u) ? new URL(u).host : '');
+const WANTED = (process.env.KICK_RELAY_URL || JARCHI_RELAY).replace(/\/+$/, '');
+const RELAY = TEST && hostOf(WANTED) === hostOf(JARCHI_RELAY) ? '' : WANTED;
 const API = 'https://api.kick.com/public/v1';
 // Follows; and subs, renewals and gifted subs as a second source beside the public chat socket (kick-chat official()).
 const EVENTS = ['channel.followed', 'channel.subscription.new', 'channel.subscription.renewal', 'channel.subscription.gifts'].map((name) => ({
@@ -43,7 +48,7 @@ function set(next) {
   st = { ...st, uri: '', why: '', ...next };
   account.emit('status', status());
 }
-const RELAY_HOST = URL.canParse(RELAY) ? new URL(RELAY).host : '';
+const RELAY_HOST = hostOf(RELAY);
 // A failed request -> { error, why }: an HTTP answer (403: Kick refusing this network) or no answer at all (net.why()).
 const reason = (err, host) =>
   err.status

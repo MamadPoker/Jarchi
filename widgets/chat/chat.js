@@ -38,9 +38,10 @@ const KICK_DEFAULT = '#FFFFFF';
 // (assets/kick-avatars), picked by the name so it's the same one every time.
 const kickAvatar = (m) => `/assets/kick-avatars/default-avatar-${(hash(m.user.login) % 6) + 1}.webp`;
 const BADGE_KEY = { broadcaster: 'badgeBroadcaster', moderator: 'badgeMod', vip: 'badgeVip', subscriber: 'badgeSub', other: 'badgeOther' };
-// "Badges: Important only": roles and statuses (Twitch's "partner" is its verified check), and Kick's sub gifter. Twitch's
+// "Badges: Important only": roles and statuses (Twitch's "partner" is its verified check), Kick's sub gifter and its
+// channel badge for KICKs sent in the channel (kicks_gifter), whatever badges the viewer chose to show on Kick. Twitch's
 // gifter tiers, Prime, levels and the like only with "All".
-const IMPORTANT = new Set(['broadcaster', 'moderator', 'vip', 'og', 'founder', 'subscriber', 'verified', 'partner', 'staff', 'sub_gifter']);
+const IMPORTANT = new Set(['broadcaster', 'moderator', 'vip', 'og', 'founder', 'subscriber', 'verified', 'partner', 'staff', 'sub_gifter', 'kicks_gifter']);
 // "Make names readable": what's behind a see-through chat is the stream, taken as dark (like the text shadow does).
 const STREAM = '#111111';
 // Per style: name colors for "Style colors", and colors that messages take turns with (null = the box color option).

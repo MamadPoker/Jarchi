@@ -1356,7 +1356,7 @@
       "badgeVip": "The VIPs' badge.",
       "badgeSub": "The subscribers' badge.",
       "badgeOther": "Every other badge, for example OG, founder or sub gifter.",
-      "badgeMode": "**Important only**: broadcaster, mod, VIP, OG, founder, sub, Kick's sub gifter, verified and staff. **All**: every badge, Twitch's gifter tiers and levels too.",
+      "badgeMode": "**Important only**: broadcaster, mod, VIP, OG, founder, sub, Kick's sub gifter and KICKs badge, verified and staff, whatever badges the viewer picked on Kick. **All**: every badge, Twitch's gifter tiers and levels too.",
       "badgeSize": "How big badges are next to the name. 100% is as tall as the name.",
       "badgeBg": "A small dark square behind Kick's and Twitch's own badges (OG, mod, VIP, verified, founder, broadcaster, staff, sub gifter), which are made for dark chats. **Auto**: only where the message background is light. **Always**: on every message. **Off**: never. Sub badges never get one.",
       "ogHat": "Kick viewers with the OG badge get a black hat with MP on it.",
