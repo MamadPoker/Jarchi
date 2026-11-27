@@ -13,6 +13,7 @@ const KEY = crypto.randomBytes(32).toString('base64'); // as electron/main.js ha
 const PAY = 'https://pay.test';
 const TOKEN = `jpa_${'x'.repeat(43)}`;
 const WALLETS = { bep20: null, trc20: null, pending: null };
+const OPEN = { paused: false, pausedAt: null };
 const disk = () =>
   fs
     .readdirSync(dir)
@@ -28,7 +29,7 @@ function start(key = '') {
 }
 
 // Jarchi Pay: this install's request (status: its token goes out once), whether the token still works, every call.
-const jp = { status: { status: 'none' }, live: true, down: false, asked: [], fresh: [], cursor: 7, since: [], signals: [] }; // fresh: paid since the last ask
+const jp = { status: { status: 'none' }, pause: OPEN, live: true, down: false, asked: [], fresh: [], cursor: 7, since: [], signals: [] }; // fresh: paid since the last ask
 globalThis.fetch = async (url, init = {}) => {
   const u = new URL(url),
     at = `${init.method ?? 'GET'} ${u.pathname}`;
@@ -45,6 +46,10 @@ globalThis.fetch = async (url, init = {}) => {
   }
   if (init.headers?.authorization !== `Bearer ${TOKEN}` || !jp.live) return json({ error: 'token' }, 401);
   if (at === 'GET /api/app/wallets') return json(WALLETS);
+  if (at === 'GET /api/app/pause') return json(jp.pause);
+  if (at === 'POST /api/app/pause') return json((jp.pause = { paused: true, pausedAt: 42 }));
+  if (at === 'POST /api/app/resume') return json((jp.pause = OPEN));
+  if (at === 'POST /api/app/wallets/cancel') return json({ error: 'none' }, 404);
   if (at === 'GET /api/app/donations') return json({ search: u.search });
   if (at === 'GET /api/app/donations/new') jp.since.push(u.search);
   if (at === 'GET /api/app/donations/new')
@@ -83,7 +88,7 @@ test('Jarchi Pay: request, token once and sealed, 401 = not active, dev runs nev
   const told = [];
   pay.events.on('state', (s) => told.push(s.state));
   const [a, b] = await Promise.all([pay.refresh(), pay.refresh()]);
-  assert.deepEqual(a, { state: 'active', channel: 'mamadpoker', page: `${PAY}/mamadpoker`, wallets: WALLETS });
+  assert.deepEqual(a, { state: 'active', channel: 'mamadpoker', page: `${PAY}/mamadpoker`, wallets: WALLETS, pause: OPEN });
   assert.equal(a, b);
   assert.deepEqual(told, ['active']);
   assert.ok(!disk().includes(TOKEN), 'never plain on disk');
@@ -95,12 +100,34 @@ test('Jarchi Pay: request, token once and sealed, 401 = not active, dev runs nev
   assert.equal((await pay.refresh()).state, 'active');
   assert.deepEqual(
     jp.asked.slice(n).map((c) => [c.at, c.auth]),
-    [['GET /api/app/wallets', `Bearer ${TOKEN}`]],
+    [
+      ['GET /api/app/wallets', `Bearer ${TOKEN}`],
+      ['GET /api/app/pause', `Bearer ${TOKEN}`],
+    ],
   );
   assert.deepEqual(await pay.donations({ today: '5', week: '1', cursor: '7_x', other: 'y' }), { search: '?cursor=7_x&today=5&week=1' });
   await assert.rejects(pay.walletLink(), { code: 'crypto_failed' }); // a link that isn't Jarchi Pay's is never opened
+  await assert.rejects(pay.cancelChange(), { code: 'crypto_none' }); // nothing waiting (or already applied)
+  // Donations closed, then open again: the state says so (the panel's switch).
+  assert.deepEqual((await pay.setPaused(true)).pause, { paused: true, pausedAt: 42 });
+  assert.deepEqual((await pay.refresh()).pause, { paused: true, pausedAt: 42 });
+  assert.deepEqual((await pay.setPaused(false)).pause, OPEN);
+  assert.deepEqual(
+    jp.asked.filter((c) => /pause|resume/.test(c.at) && c.at.startsWith('POST')).map((c) => [c.at, c.body]),
+    [
+      ['POST /api/app/pause', undefined],
+      ['POST /api/app/resume', undefined],
+    ],
+  );
   jp.down = true; // offline: still active, says why
-  assert.deepEqual(await pay.refresh(), { state: 'active', channel: 'mamadpoker', page: `${PAY}/mamadpoker`, wallets: WALLETS, error: 'crypto_offline' });
+  assert.deepEqual(await pay.refresh(), {
+    state: 'active',
+    channel: 'mamadpoker',
+    page: `${PAY}/mamadpoker`,
+    wallets: WALLETS,
+    pause: OPEN,
+    error: 'crypto_offline',
+  });
   jp.down = false;
 
   // A dev run can't open it: approved, but lost here (ask again).

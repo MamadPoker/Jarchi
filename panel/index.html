@@ -801,12 +801,22 @@
               <p id="cryptoWhy" class="crypto-why" hidden></p>
             </div>
             <div id="cryptoActive" class="crypto-active" hidden>
+              <!-- A wallet change waiting its 24 hours, on top of every tab: the new addresses, and Cancel. -->
+              <div id="cryptoChange" class="crypto-warn" role="alert" hidden>
+                <span id="cryptoChangeText"></span>
+                <code id="cryptoChangeTo" dir="ltr"></code>
+                <div><button id="cryptoChangeCancel" class="danger" data-i18n="cryptoChangeCancel"></button></div>
+              </div>
               <div class="page-head">
                 <div class="crypto-tabs" role="tablist">
                   <button role="tab" data-tab="donations" data-i18n="cryptoTabDonations"></button
                   ><button role="tab" data-tab="alerts" data-i18n="cryptoTabAlerts"></button
                   ><button role="tab" data-tab="page" data-i18n="cryptoTabPage"></button>
                 </div>
+                <!-- Donations open or closed on Jarchi Pay (closed: the donate page takes none and hides the wallets). -->
+                <label class="lk-top"
+                  ><span class="switch"><input type="checkbox" id="cryptoOpen" /><span></span></span><span id="cryptoOpenText"></span
+                ></label>
                 <button id="cryptoPop" class="ghost crypto-pop">
                   <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M20 4l-8 8M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" /></svg
                   ><span data-i18n="cryptoPopOut"></span>
@@ -822,12 +832,6 @@
                 <h2 data-i18n="cryptoWalletTitle"></h2>
                 <small data-i18n="cryptoWalletText"></small>
                 <div><button id="cryptoWalletSet" class="primary" data-i18n="cryptoWalletSet"></button></div>
-              </div>
-              <!-- A wallet change waiting its 24 hours: the new addresses, and Cancel. -->
-              <div id="cryptoChange" class="crypto-warn" role="alert" hidden>
-                <span id="cryptoChangeText"></span>
-                <code id="cryptoChangeTo" dir="ltr"></code>
-                <div><button id="cryptoChangeCancel" class="danger" data-i18n="cryptoChangeCancel"></button></div>
               </div>
               <div id="cryptoDonations" class="crypto-active">
                 <div class="crypto-stats">
@@ -2445,6 +2449,14 @@
         <div class="profile-actions">
           <button id="cryptoOpenAgain" class="ghost" data-i18n="cryptoOpenAgain"></button><button class="primary" data-close data-i18n="updateClose"></button>
         </div>
+      </div>
+    </dialog>
+    <!-- Are you sure (cryptoSure): closing donations, starting a wallet change, cancelling one. -->
+    <dialog id="cryptoSure" class="profile-dialog" aria-labelledby="cryptoSureText">
+      <p id="cryptoSureText"></p>
+      <div class="profile-actions">
+        <button id="cryptoSureNo" class="ghost" data-i18n="cryptoSureNo"></button>
+        <button id="cryptoSureYes" class="primary strong"></button>
       </div>
     </dialog>
     <!-- A crypto look's editor (openLook): Your own alert, or one amount alert. A live preview (the real overlay) and every

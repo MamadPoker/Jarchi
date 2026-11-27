@@ -4,13 +4,13 @@
 //   Kick or Twitch there, which says whose channel it is) and POST /api/app/status (none | pending | rejected |
 //   approved; an approved request hands out its token once);
 //   with the token: GET donations, GET donations/new (the crypto alerts), GET wallets, POST wallets/link, POST wallets/cancel,
-//   GET / PUT page (the donation page's look and its emoji), PUT / DELETE page/avatar | page/banner.
+//   GET pause, POST pause / resume, GET / PUT page (the donation page's look and its emoji), PUT / DELETE page/avatar | page/banner.
 // The token is this install's key to its streamer's donations: sealed in data/pay.json with the installed app's key
 // (core/secrets.js: Electron safeStorage), never written plain and never sent to the panel. A dev run has no key, so it
 // keeps a new token only while it runs. Jarchi Pay learns this install's id, and nothing at all before the Privacy
 // Policy is accepted (the policy covers that id).
 // refresh(): at start, every 10 minutes and when the Crypto page opens. No token: the request's status. A token: the
-// wallets (a 401 = the token was stopped: deactivated, or a newer one for that channel) -> back to the status.
+// wallets and whether donations are open (a 401 = the token was stopped: deactivated, or a newer one for that channel) -> back to the status.
 const path = require('node:path');
 const { EventEmitter } = require('node:events');
 const { randomUUID } = require('node:crypto');
@@ -89,9 +89,10 @@ async function ask() {
   try {
     if (token) {
       try {
-        return set({ ...active(), wallets: await call('GET', 'wallets') });
+        const [wallets, pause] = await Promise.all([call('GET', 'wallets'), call('GET', 'pause')]);
+        return set({ ...active(), wallets, pause });
       } catch (err) {
-        if (token) return set({ ...active(), wallets: state.wallets ?? null, error: err.code }); // offline, disabled
+        if (token) return set({ ...active(), wallets: state.wallets ?? null, pause: state.pause ?? null, error: err.code }); // offline, disabled
       }
     }
     const s = await call('POST', 'status', { installId: settings.installId() });
@@ -125,6 +126,9 @@ function donations(q) {
 }
 const walletLink = async () => link(await call('POST', 'wallets/link'));
 const cancelChange = async () => (await call('POST', 'wallets/cancel'), refresh());
+// Donations open or closed (the Crypto page's switch): Jarchi Pay's { paused, pausedAt }. Closed: the donate page takes
+// no donations and hides the wallet addresses. Both calls are safe to send again.
+const setPaused = async (on) => set({ ...state, pause: await call('POST', on ? 'pause' : 'resume') });
 
 // The donation page's look: { bio, socials, links, avatar, banner: { url, custom }, emoji }. bio: one line for both
 // languages ('' = Jarchi Pay's own); socials: an id each (Jarchi Pay makes the link on the platform's own site; website:
@@ -227,6 +231,7 @@ module.exports = {
   donations,
   walletLink,
   cancelChange,
+  setPaused,
   page,
   savePage,
   setPicture,
