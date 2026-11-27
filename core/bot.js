@@ -51,18 +51,7 @@ async function call(method, p, body, again = true) {
   if (!me()) throw failed(400, 'kick');
   if (!stats.accepted()) throw failed(403, 'privacy');
   if (!keyFor()) await register();
-  let r;
-  try {
-    r = await fetch(`${BOT}${p}`, {
-      method,
-      headers: { authorization: `Bearer ${key}`, ...(body && { 'content-type': 'application/json' }) },
-      body: body && JSON.stringify(body),
-      signal: AbortSignal.timeout(8000),
-    });
-  } catch {
-    throw failed(502, 'offline');
-  }
-  const data = await r.json().catch(() => ({}));
+  const { r, data } = await ask(method, p, body, key);
   if (r.ok) return data;
   if (data.error === 'bad_key' && again) {
     key = null;
@@ -71,28 +60,39 @@ async function call(method, p, body, again = true) {
   throw failed(r.status === 400 ? 400 : 502, ERRORS.includes(data.error) ? data.error : 'failed', data.error === 'bad_text' && data.why);
 }
 
-// A ticket from the relay, then the channel's key from the bot. One at a time (two at once: the second's ticket ends the first's key).
+// One request to the bot -> { r, data: its JSON }. No answer, or one that isn't the bot's JSON (Cloudflare's error page
+// while the tunnel is down: HTTP 530, error 1033): offline.
+async function ask(method, p, body, auth) {
+  let r;
+  try {
+    r = await fetch(`${BOT}${p}`, {
+      method,
+      headers: { ...(auth && { authorization: `Bearer ${auth}` }), ...(body && { 'content-type': 'application/json' }) },
+      body: body && JSON.stringify(body),
+      signal: AbortSignal.timeout(8000),
+    });
+  } catch {
+    throw failed(502, 'offline');
+  }
+  const data = await r.json().catch(() => null);
+  if (!data || typeof data !== 'object') throw failed(502, 'offline');
+  return { r, data };
+}
+
+// A ticket from the relay, then the channel's key from the bot. One at a time (two at once: the second's ticket ends the
+// first's key). The bot is asked whether it's up first: the relay gives 5 tickets an hour, none to spend on a bot that's down.
 let registering = null;
 const register = () =>
   (registering ??= (async () => {
+    const up = await fetch(`${BOT}/health`, { signal: AbortSignal.timeout(8000) }).catch(() => null);
+    if (!up?.ok || (await up.text().catch(() => '')).trim() !== 'ok') throw failed(502, 'offline');
     let ticket;
     try {
       ticket = await kickAccount.botTicket(settings.installId());
     } catch (err) {
       throw failed(502, err.code === 'off' || err.code === 'expired' ? 'kick' : err.status === 429 ? 'rate' : err.status ? 'failed' : 'offline');
     }
-    let r;
-    try {
-      r = await fetch(`${BOT}/v1/register`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ ticket }),
-        signal: AbortSignal.timeout(8000),
-      });
-    } catch {
-      throw failed(502, 'offline');
-    }
-    const data = await r.json().catch(() => ({}));
+    const { r, data } = await ask('POST', '/v1/register', { ticket });
     if (!r.ok || typeof data.key !== 'string') throw failed(502, ['blocked', 'paused', 'rate'].includes(data.error) ? data.error : 'failed');
     key = data.key;
     keep({ channel: me(), key: secrets.on ? secrets.seal('botKey', key) : undefined });

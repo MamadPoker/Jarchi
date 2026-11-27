@@ -32,7 +32,8 @@ function start({ key = KEY, login = 'MamadPoker', installed = '1' } = {}) {
 }
 
 // The relay hands out tickets, the bot a key for each (the newest one only works) and takes events.
-const fake = { tickets: 0, key: null, events: [], down: false, hold: false, asked: [] };
+// down: no answer at all; tunnel: Cloudflare's own page (the tunnel isn't connected); hold: an answer that never comes.
+const fake = { tickets: 0, key: null, events: [], down: false, tunnel: false, hold: false, asked: [] };
 globalThis.fetch = async (url, init = {}) => {
   const u = new URL(url),
     at = `${init.method ?? 'GET'} ${u.origin}${u.pathname}`,
@@ -46,7 +47,9 @@ globalThis.fetch = async (url, init = {}) => {
   }
   assert.equal(u.origin, BOT);
   if (fake.down) throw new TypeError('fetch failed');
+  if (fake.tunnel) return new Response('error code: 1033', { status: 530 });
   if (fake.hold) await new Promise(() => {}); // a bot that never answers
+  if (at === `GET ${BOT}/health`) return new Response('ok');
   if (at === `POST ${BOT}/v1/register`) return json({ key: (fake.key = `jbk_${JSON.parse(init.body).ticket}`), channel: { id: '7', slug: 'mamadpoker' } });
   if (h.authorization !== `Bearer ${fake.key}`) return json({ error: 'bad_key' }, 401);
   if (at === `GET ${BOT}/v1/settings`) return json(SETTINGS);
@@ -138,6 +141,26 @@ test("a bot that's down or never answers never holds up an alert", async () => {
   assert.equal(st.error, 'offline');
   assert.equal(st.bot, null);
   fake.down = false;
+
+  // The tunnel down: Cloudflare answers for the bot. Offline, never "failed".
+  fake.tunnel = true;
+  assert.equal((await bot.state()).error, 'offline');
+  fake.tunnel = false;
+});
+
+test('no relay ticket is spent while the bot is down', async () => {
+  fs.rmSync(path.join(dir, 'bot.json')); // no key yet: opening the page would register
+  const { bot } = start();
+  const tickets = fake.tickets;
+  for (const mode of ['tunnel', 'down']) {
+    fake[mode] = true;
+    const st = await bot.state();
+    fake[mode] = false;
+    assert.equal(st.error, 'offline', mode);
+    assert.equal(fake.tickets, tickets, `${mode}: no ticket asked for`);
+  }
+  assert.equal((await bot.state()).error, ''); // back up: registers then
+  assert.equal(fake.tickets, tickets + 1);
 });
 
 test('a dev run keeps the key in memory only', async () => {
