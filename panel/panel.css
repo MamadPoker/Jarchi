@@ -7172,7 +7172,7 @@ button#lkAgain {
 /* ---------- Song Battle (js/battle.js): Connect (the Crypto page's hero), then the setup, the page link with its QR code
    and the songs viewers send, as in the design. The songs are blurred until the mouse (or the keyboard) is on one. ---------- */
 .view.battle {
-  max-width: 1300px;
+  max-width: 1900px;
 }
 .bt-logo {
   padding-top: 10px;
@@ -7181,10 +7181,21 @@ button#lkAgain {
 }
 .bt-grid:not([hidden]) {
   display: grid;
-  grid-template-columns: minmax(0, 1.25fr) minmax(0, 0.85fr) minmax(0, 1.1fr);
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr) minmax(0, 1.1fr);
   gap: 16px;
   align-items: start;
   animation: lk-fi 0.35s ease;
+}
+/* A wider page, a bigger setup (the Text size zoom comes on top): it's on stream, the invite card above all. */
+@container (min-width: 1500px) {
+  .bt-grid:not([hidden]) {
+    zoom: 1.15;
+  }
+}
+@container (min-width: 1900px) {
+  .bt-grid:not([hidden]) {
+    zoom: 1.3;
+  }
 }
 @container (max-width: 1100px) {
   .bt-grid:not([hidden]) {
@@ -7326,11 +7337,15 @@ button.lk-btn.bt-go {
 .bt-share {
   text-align: center;
 }
+.bt-share h2 {
+  font-size: 20px;
+}
+/* The QR code and the link as big as the card lets them be: viewers scan and read them off the stream on a phone. */
 .bt-qr {
-  width: 170px;
-  margin: 4px auto 10px;
-  padding: 10px;
-  border-radius: 14px;
+  width: min(100%, 300px);
+  margin: 4px auto 12px;
+  padding: 14px;
+  border-radius: 18px;
   background: #fff; /* a QR code reads dark on light, in every theme */
 }
 .bt-qr img {
@@ -7341,24 +7356,24 @@ button.lk-btn.bt-go {
 .bt-pin {
   margin-bottom: 8px;
   color: var(--muted);
-  font-size: 13px;
+  font-size: 14px;
 }
 .bt-link {
-  padding: 5px 5px 5px 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+  padding: 10px;
   border: 1px solid var(--border);
   border-radius: 10px;
   background: var(--bg);
 }
 .bt-link code {
-  flex: 1;
+  flex: 1 1 100%;
   min-width: 0;
-  overflow: hidden;
   font:
-    700 13px Manrope,
+    800 22px Manrope,
     sans-serif;
-  text-align: start;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+  text-align: center;
 }
 .bt-warn {
   margin: 8px 0 0;
@@ -8483,9 +8498,9 @@ button.bt-vcoin {
 #btLang {
   margin-inline-start: auto; /* the pop-out's: at the bar's end, then Always on top */
 }
-:root[data-pop] .view.battle > :not(.bt-head, dialog, .bt-live) {
+:root[data-pop] .view.battle > :not(.bt-head, .bt-live) {
   width: 100%;
-  max-width: 1300px;
+  max-width: 1900px;
   margin-inline: auto;
 }
 
