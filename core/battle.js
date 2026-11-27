@@ -79,7 +79,10 @@ function now() {
   return {
     state: on ? 'connected' : link ? 'pending' : 'none',
     ...(on && { channel: saved.channel, platform: saved.platform, page: `${BATTLE}/${saved.channel}` }),
-    battle: on && battle ? { ...battle, vote: vote && { status: vote.status, endsAt: vote.endsAt } } : null,
+    battle:
+      on && battle
+        ? { ...battle, vote: vote && { status: vote.status, endsAt: vote.endsAt }, ...(battle.status === 'finished' && { ranks: ranks(battle.bracket) }) }
+        : null,
     setup: setup(),
     ...(lost && { lost }),
     ...(error && { error }),
@@ -131,6 +134,7 @@ function took(b) {
     cursor: b.cursor ?? 0,
     bracket: mine?.bracket ?? b.bracket ?? [],
     current: mine?.current ?? b.current ?? null,
+    coins: mine?.coins ?? [], // only here: after a restart, no win shows its coin
   };
   if (battle?.status === 'live' && !battle.bracket.length)
     begin(); // started, but its bracket was never saved
@@ -314,6 +318,7 @@ function changed() {
 }
 function begin() {
   battle.bracket = bracketFor(battle.songs.map((s) => s.id));
+  battle.coins = [];
   battle.current = nextMatch(battle.bracket);
   changed();
 }
@@ -372,13 +377,21 @@ function resetVote() {
   changed();
   return now();
 }
-// Confirm winner, "This one wins" (either song, any time) or the coin: the match's winner (0: song 1, 1: song 2).
-function pick(side) {
+// Confirm winner, "This one wins" (either song, any time) or the coin (coin: the bracket shows it): the match's winner
+// (0: song 1, 1: song 2). The final's goes straight on to the champion, who waits for Reveal (no winner's card that
+// would tell it first); if that fails (offline), the final's card stays, with The champion to try again.
+function pick(side, coin) {
   const x = match();
   if (![0, 1].includes(side) || !x || x[2] !== null) throw wrong();
   stopVote();
   x[2] = side;
+  if (coin === true) battle.coins.push(String(battle.current));
   promote(battle.bracket, ...battle.current);
+  if (!nextMatch(battle.bracket))
+    return next().catch((err) => {
+      changed();
+      throw err;
+    });
   changed();
   return now();
 }
@@ -406,6 +419,33 @@ async function next() {
   battle = { ...battle, status: 'finished', champion: song.id };
   changed();
   return now();
+}
+// Reveal the champion (the results' button): in every battle window at once, its drumroll from then.
+function reveal() {
+  if (battle?.status !== 'finished') throw wrong();
+  battle.revealed ??= Date.now();
+  events.emit('state', now());
+  return now();
+}
+// A finished battle's songs by how far each got, best first: { id, rank, out, wins, votes }. out: the matches in the
+// round it went out in (1 the final, 2 a semi-final…; 0 the champion), so the songs out in one round share a rank
+// (1, 2, 3, 3, 5…), more votes first. A bye isn't a win.
+function ranks(R) {
+  const all = new Map();
+  R.forEach((round, r) =>
+    round.forEach((x) =>
+      [0, 1].forEach((i) => {
+        if (!x[i]) return;
+        const s = all.get(x[i]) ?? { id: x[i], wins: 0, votes: 0 };
+        s.out = x[2] === i && r === R.length - 1 ? 0 : round.length; // a winner's comes with its next round
+        s.rank = s.out ? s.out + 1 : 1;
+        s.wins += Number(x[2] === i && !!x[1 - i]);
+        s.votes += x[3 + i];
+        all.set(x[i], s);
+      }),
+    ),
+  );
+  return [...all.values()].sort((a, b) => a.rank - b.rank || b.votes - a.votes);
 }
 // New battle, after the champion: back to the setup.
 function clear() {
@@ -459,8 +499,10 @@ module.exports = {
   resetVote,
   pick,
   next,
+  reveal,
   clear,
   bracketFor,
+  ranks,
   events,
   BATTLE,
 };

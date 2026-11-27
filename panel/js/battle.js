@@ -54,10 +54,10 @@ function renderBattle() {
   $('#btHero').hidden = on;
   $('#btOn').hidden = !on || live || done;
   $('#btLive').hidden = !live && !done;
-  $('#btTabs').hidden = $('#btRound').hidden = $('#btEnd').hidden = !live;
+  $('#btTabs').hidden = !live && !done;
+  $('#btRound').hidden = $('#btEnd').hidden = !live;
   $('#btProg').hidden = !live && !done;
   $$('#btTabs [data-tab]').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.tab === btTab)));
-  if (!done && $('#btChamp').open) $('#btChamp').close(); // New battle pressed in the other window
   if (!live) btStop();
   if (live || done) return renderLive();
   if (!on) {
@@ -324,10 +324,10 @@ const btPlayed = new Set(); // ids of the songs played: their names show (Hide a
 let btFlipping = null, // the coin, from its flip until the next match: { key, side, done }
   btCoinAt = null, // the tied match whose coin this window opened (btKey)
   btTab = 'game', // the battle screen's tab: game | bracket
-  btChampOf = null; // the battle whose champion this window has shown (once, with confetti)
+  btChampOf = null; // the battle whose champion this window has revealed (its drumroll and confetti, once)
 // What a language switch's reload keeps of this window (help.js useLang, then select): the tab, and the champion already
-// shown, unless its card is open now (then it opens again).
-const btBack = () => [btTab, $('#btChamp').open ? null : btChampOf];
+// revealed.
+const btBack = () => [btTab, btChampOf];
 
 // A call on the battle screen -> the state, shown. Refused: why, and the state as it is now (-> undefined).
 const btAct = (method, url, body) =>
@@ -407,7 +407,7 @@ function btReadPlayed(b) {
   } catch {}
 }
 
-// The battle screen: the Game tab (the match on now) or the Bracket; finished: the bracket with its champion. In the
+// The battle screen: the Game tab (the match on now; finished: the champion and who sent what) or the Bracket. In the
 // head, a dot per match (byes aside): done, on now, still to come.
 function renderLive() {
   const b = bt.battle,
@@ -415,7 +415,7 @@ function renderLive() {
     done = b.status === 'finished',
     [r, m] = b.current ?? [],
     x = R[r]?.[m],
-    brk = done || btTab === 'bracket';
+    brk = btTab === 'bracket';
   btReadPlayed(b);
   const dots = R.flatMap((round, ri) => round.map((y, mi) => (ri || y[1] ? (y[2] !== null ? 'd' : !done && ri === r && mi === m ? 'c' : '-') : ''))).filter(
     Boolean,
@@ -427,9 +427,10 @@ function renderLive() {
   }
   $('#btBracket').hidden = !brk;
   if (brk) renderBracket(b, done);
+  $('#btResults').hidden = !done || brk;
   if (done) {
     $('#btArena').hidden = $('#btTie').hidden = true;
-    return btChampion(b);
+    return brk || renderResults(b);
   }
   if (!x) return;
   const set = btSetup(),
@@ -623,99 +624,184 @@ function btTick() {
   ring.classList.toggle('on', open);
 }
 
-// Next match; after the final, the champion (renderLive: the bracket and the champion card).
+// Next match (after the final, its winner goes on to the champion by itself: this tries again if that failed).
 async function btNext(btn) {
   btn.disabled = true;
   await btAct('POST', '/api/battle/next');
   btn.disabled = false;
 }
 // New battle, after the champion: back to the setup, in both windows.
-const btClear = () => btAct('POST', '/api/battle/clear').then((st) => st && $('#btChamp').open && $('#btChamp').close());
+const btClear = () => btAct('POST', '/api/battle/clear');
+const btNewBtn = () => el('button', { className: 'lk-btn o', textContent: S.panel.battleNew, onclick: btClear });
+// Who sent a song, with its platform's logo: "Sent by …".
+const btSentBy = (s) => el('small', { className: 'bt-sent' }, `${S.panel.battleSentBy} `, ...btWho(s.by));
+const BT_DRUM = 2000; // "And the champion is…"
 
-// The champion: its cover, title, where it's from and (Show who sent) who sent it; blurred like the covers.
-function btChampSong(b) {
-  const s = b.songs.find((x) => x.id === b.champion),
-    set = btSetup();
-  return el(
-    'div',
-    { className: `bt-cw${set.blurCovers ? ' blur' : ''}` },
-    btCover(s),
+// After the final: the champion waits for Reveal (pressed in either battle window, it's both: core/battle.js reveal),
+// then "And the champion is…" for 2 s, then its card with confetti. Beside it, who sent what: every song by how far it
+// got (core/battle.js ranks), the top two blurred until the reveal, then the rows come in one by one. Once per battle
+// in each window (btChampOf): one that comes to it later (a pop-out opened after, say) shows the champion at once.
+// Covers blurred like on the Game tab (Blur the covers).
+function renderResults(b) {
+  const box = $('#btResults'),
+    set = btSetup(),
+    left = b.revealed ? b.revealed + BT_DRUM - Date.now() : 0,
+    fresh = !!b.revealed && btChampOf !== b.id && left > -3000,
+    phase = !b.revealed ? 'wait' : fresh && left > 0 ? 'drum' : 'won',
+    at = `${b.id}:${phase}:${set.blurCovers}`;
+  if (box.dataset.at === at) return;
+  box.dataset.at = at;
+  if (phase === 'drum') setTimeout(() => view === 'battle' && renderBattle(), left);
+  const won = phase === 'won',
+    anim = won && fresh && !calm(),
+    song = (id) => b.songs.find((s) => s.id === id),
+    champ = song(b.champion),
+    top = b.ranks[0],
+    voted = b.ranks.some((r) => r.votes),
+    stat = (n, label) => el('span', {}, el('b', { textContent: fd(n) }), label);
+  if (won) btChampOf = b.id;
+  const stage = {
+    wait: () => [
+      el('div', { className: 'bt-q', textContent: '?', ariaHidden: 'true' }),
+      el('b', { className: 'bt-big', textContent: S.panel.battleWhoWon }),
+      el('button', { className: 'lk-btn g bt-reveal', textContent: S.panel.battleReveal, onclick: () => btAct('POST', '/api/battle/reveal') }),
+    ],
+    drum: () => [
+      el('div', { className: 'bt-drumi', textContent: '🥁', ariaHidden: 'true' }),
+      el('b', { className: 'bt-big bt-drum', textContent: S.panel.battleDrum }),
+    ],
+    won: () => [
+      el('span', { className: 'bt-crown', textContent: '👑', ariaHidden: 'true' }),
+      btCover(champ, 'bt-ccover'),
+      el('small', { className: 'bt-gd', textContent: S.panel.battleChampion }),
+      el('b', { className: 'bt-big' }, el('bdi', { textContent: champ.title })),
+      btSentBy(champ),
+      el('div', { className: 'bt-cstats' }, stat(top.wins, S.panel.battleWins), ...(voted ? [stat(top.votes, S.panel.battleVotesTitle)] : [])),
+    ],
+  }[phase]();
+  const rows = b.ranks.map((r, i) => {
+    const s = song(r.id);
+    return el(
+      'li',
+      { className: `bt-rk${r.rank <= 3 ? ` m${r.rank}` : ''}${!won && r.rank <= 2 ? ' veil' : ''}${anim ? ' in' : ''}`, style: `--i: ${Math.min(i, 20)}` },
+      el('span', { className: 'bt-rn', textContent: fd(r.rank) }),
+      btCover(s),
+      el('span', { className: 'bt-txt' }, el('b', {}, el('bdi', { textContent: s.title })), el('small', {}, ...btWho(s.by))),
+      el('span', { className: 'bt-far', textContent: r.out ? btRoundName(r.out) : S.panel.battleChampionTitle }),
+      el('b', { className: 'bt-n', textContent: fd(r.wins) }),
+      voted ? el('b', { className: 'bt-n', textContent: fd(r.votes) }) : '',
+    );
+  });
+  box.classList.toggle('blur', set.blurCovers);
+  box.replaceChildren(
+    el('div', { className: `bt-stage ${phase}` }, ...stage, btNewBtn()),
     el(
-      'span',
-      { className: 'bt-txt' },
-      el('b', {}, el('bdi', { textContent: s.title })),
-      el('small', {}, el('span', { className: 'bt-src', textContent: BT_SOURCES[s.source] }), ...(set.showNames ? btWho(s.by) : [])),
+      'div',
+      { className: 'bt-rks' },
+      el(
+        'div',
+        { className: 'bt-rh' },
+        el('b', { textContent: S.panel.battleWhoSent }),
+        el('small', { textContent: S.panel.battleWins }),
+        voted ? el('small', { textContent: S.panel.battleVotesTitle }) : '',
+      ),
+      el('ol', {}, ...rows),
     ),
   );
+  if (anim) btConfetti($('.bt-stage', box));
 }
-// Once per battle in each window: the champion's card over the bracket, with confetti, and New battle.
-function btChampion(b) {
-  if (btChampOf === b.id) return;
-  btChampOf = b.id;
-  const d = $('#btChamp');
-  $('#btChampSong').replaceChildren(btChampSong(b));
-  d.showModal();
-  if (calm()) return;
+function btConfetti(box) {
   const r = (a, z) => a + Math.random() * (z - a),
     bits = el(
       'div',
       { className: 'confetti' },
-      ...Array.from({ length: 40 }, (_, n) =>
+      ...Array.from({ length: 60 }, (_, n) =>
         el('i', {
-          style: `--x: ${r(-240, 240)}px; --y: ${r(-230, -80)}px; --r: ${r(-720, 720)}deg; --c: ${CONFETTI[n % CONFETTI.length]}; animation-delay: ${r(0, 200)}ms`,
+          style: `--x: ${r(-360, 360)}px; --y: ${r(-320, -100)}px; --r: ${r(-720, 720)}deg; --c: ${CONFETTI[n % CONFETTI.length]}; animation-delay: ${r(0, 250)}ms`,
         }),
       ),
     );
-  d.append(bits);
+  box.append(bits);
   setTimeout(() => bits.remove(), 2000);
 }
 
-// The Bracket tab, as in the design: a column per round (its name on top), each match its two songs, the winner
-// highlighted, the match on now marked; a bye is "—", a place still to be won "?". Then the champion's card (once
-// there is one, with New battle). Names hidden like on the Game tab. Made again only when something in it changed.
+// The Bracket tab: a column per round, left to right in both languages (its name on top), each match its two songs
+// with cover, name, who sent it (Show who sent; at the end, always) and, once decided, the votes: the winner highlighted
+// (🪙: by the coin), the other dimmed, the match on now marked, the final in gold. A bye says so; a place still to be
+// won is "?". Then the champion ("?" until Reveal, and the final's result with it). Names hidden like on the Game tab.
+// Made again only when something in it changed.
 function renderBracket(b, done) {
   const R = b.bracket,
     c = !done && b.current,
+    set = btSetup(),
+    names = set.showNames || done,
     song = (id) => b.songs.find((s) => s.id === id),
+    champ = b.revealed && song(b.champion),
     at = JSON.stringify([
       b.id,
-      R.map((round) => round.map((x) => x.slice(0, 3))),
+      R.map((round) => round.map((x) => (x[2] === null ? x.slice(0, 3) : x))),
       c,
-      b.champion ?? null,
+      b.coins,
+      !!champ,
+      names,
+      set.blurCovers,
       R.flat()
         .flatMap((x) => x.slice(0, 2))
         .map((id) => id && btShown(song(id))),
     ]);
   if ($('#btBracket').dataset.at === at) return;
   $('#btBracket').dataset.at = at;
+  const side = (x, i, w, bye, coin) => {
+    const s = x[i] && song(x[i]);
+    if (!s) return el('p', { className: 'bt-mx' }, bye ? S.panel.battleBye : S.panel.battleTbd);
+    return el(
+      'p',
+      { className: bye || w === null ? '' : w === i ? 'w' : 'l' },
+      btShown(s) ? btCover(s, 'bt-mc') : el('span', { className: 'bt-mc' }), // a cover tells the name too
+      el('span', { className: 'bt-mt' }, el('b', {}, el('bdi', { textContent: btName(s) })), names ? el('small', {}, ...btWho(s.by)) : ''),
+      w !== null && x[3] + x[4] ? el('em', { textContent: tpl(S.panel.battleVotes, { n: fd(x[3 + i]) }) }) : '',
+      w === i && coin ? el('span', { className: 'bt-mcoin', textContent: '🪙', title: S.panel.battleByCoin }) : '',
+    );
+  };
+  $('#btBracket').classList.toggle('blur', set.blurCovers);
   $('#btBracket').replaceChildren(
     ...R.map((round, ri) =>
       el(
         'div',
-        { className: 'bt-rcol' },
+        { className: `bt-rcol${ri === R.length - 1 ? ' fin' : ''}` },
         el('h5', { textContent: btRoundName(round.length) }),
         el(
           'div',
           { className: 'bt-ms' },
-          ...round.map((x, mi) =>
-            el(
+          ...round.map((x, mi) => {
+            const bye = !ri && !x[1],
+              w = ri === R.length - 1 && !champ ? null : x[2];
+            return el(
               'div',
-              { className: `bt-m${ri === R.length - 1 ? ' fin' : ''}${c && c[0] === ri && c[1] === mi ? ' cur' : ''}` },
-              ...[0, 1].map((i) =>
-                el('p', { className: x[2] === i ? 'w' : '' }, x[i] ? el('bdi', { textContent: btName(song(x[i])) }) : ri ? S.panel.battleTbd : '—'),
-              ),
-            ),
-          ),
+              { className: `bt-m${bye ? ' bye' : ''}${c && c[0] === ri && c[1] === mi ? ' cur' : ''}` },
+              ...[0, 1].map((i) => side(x, i, w, bye, b.coins?.includes(String([ri, mi])))),
+            );
+          }),
         ),
       ),
     ),
     el(
       'div',
-      { className: 'bt-champ-card' },
-      el('div', { className: 'bt-cup', textContent: '🏆', ariaHidden: 'true' }),
-      el('b', { textContent: S.panel.battleChampionTitle }),
-      b.champion ? btChampSong(b) : el('small', { textContent: S.panel.battleNoChampion }),
-      ...(done ? [el('button', { className: 'lk-btn g', textContent: S.panel.battleNew, onclick: btClear })] : []),
+      { className: 'bt-rcol bt-ccol' },
+      el('h5', { textContent: S.panel.battleChampionTitle }),
+      el(
+        'div',
+        { className: 'bt-ms' },
+        el(
+          'div',
+          { className: 'bt-champ-card' },
+          el('div', { className: 'bt-cup', textContent: '🏆', ariaHidden: 'true' }),
+          ...(champ
+            ? [btCover(champ, 'bt-mc'), el('b', {}, el('bdi', { textContent: champ.title })), btSentBy(champ)]
+            : [el('b', { className: 'bt-q', textContent: '?' })]),
+          ...(done ? [btNewBtn()] : []),
+        ),
+      ),
     ),
   );
 }
@@ -777,7 +863,8 @@ function btFlip() {
     );
     renderLive();
     setTimeout(async () => {
-      if ((await btAct('POST', '/api/battle/winner', { side })) && view === 'battle') await btNext($('#btFlip'));
+      const st = await btAct('POST', '/api/battle/winner', { side, coin: true });
+      if (st?.battle?.status === 'live' && view === 'battle') await btNext($('#btFlip')); // the final's: the champion now
       btFlipping = null;
       if (view === 'battle') renderBattle();
     }, 1600);
@@ -903,7 +990,6 @@ function wireLive(socket) {
   );
   $('#btFlip').onclick = btFlip;
   $('#btCoinBack').onclick = () => ((btCoinAt = null), renderLive());
-  $('#btAgain').onclick = btClear;
   $$('#btTabs [data-tab]').forEach(
     (b) =>
       (b.onclick = () => {
