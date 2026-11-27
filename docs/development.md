@@ -6,7 +6,7 @@
 
 ```
 server/index.js      HTTP server setup, the API guard, what the routes share, accounts filling the chat channels, start and stop
-server/routes/       the API routes, one file per area (settings, home, alerts, net, chat, accounts, support, crypto, luck, battle, goals), then widgets.js: what OBS loads
+server/routes/       the API routes, one file per area (settings, home, alerts, net, chat, accounts, support, crypto, luck, battle, clipq, bot, goals), then widgets.js: what OBS loads
 server/sockets.js    Socket.IO: open widget pages, what each one gets when it joins, every change that goes out
 core/config.js       port and data folder (the one place to change them)
 core/events.js       event bus + the normalized event shape
@@ -19,6 +19,7 @@ core/goals.js        goal counters, fed by the event bus; Kick's own goals with 
 core/store.js        JSON files in the data folder
 core/secrets.js      the Kick and Twitch tokens sealed at rest (installed app), and blanked out of every log line
 core/pay.js          Jarchi Pay (the Crypto page): only its public app API; its token sealed in data/pay.json, never plain (a dev run keeps it in memory)
+core/bot.js          TheJarchi, the chat bot (bot.jarchi.app, the Bot page): a relay ticket for its key, sealed in data/bot.json, never plain; sends it the Kick events without the alert waiting
 core/battle.js       Jarchi Battle (the Song Battle page): only its app API; its key sealed in data/battle.json like the logins; runs a live battle (bracket, chat votes, the timer), saved there with vote counts only
 core/qr.js           the Song Battle link's QR code, made here as an SVG (the link never goes to a QR service)
 core/chat.js         runs the chat connectors, adds 7TV emotes, test messages

@@ -173,7 +173,7 @@ async function authed(url, init = {}, again = true) {
   if (Date.now() > saved.expires - 60000) await refresh();
   const res = await fetch(url, {
     ...init,
-    headers: { authorization: `Bearer ${saved.access}`, 'content-type': 'application/json' },
+    headers: { authorization: `Bearer ${saved.access}`, 'content-type': 'application/json', ...init.headers },
     signal: AbortSignal.timeout(10000),
   });
   if (res.status === 401 && again) {
@@ -292,8 +292,15 @@ async function say(text) {
   }
 }
 
+// A ticket from the relay saying whose channel this login is, for Jarchi's chat bot (core/bot.js registers with it).
+// install: this install's id, which has to have pinged the relay. Throws like authed() ('off': no login).
+async function botTicket(install) {
+  if (!saved.refresh || !RELAY) throw fail('off');
+  return (await authed(`${RELAY}/bot/ticket`, { method: 'POST', headers: { 'x-jarchi-install': install } })).ticket;
+}
+
 setInterval(() => ws?.readyState === WebSocket.OPEN && ws.send('ping'), 30000).unref();
 // Every hour: the login still works (one Kick no longer takes ends it: refresh() -> forget()), and still subscribed.
 setInterval(() => st.state === 'connected' && subscribe().catch(() => {}), 3600000).unref();
 
-module.exports = { status, login, callback, disconnect, start, handle, live, stream, say, slug, RELAY, events: account };
+module.exports = { status, login, callback, disconnect, start, handle, live, stream, say, botTicket, slug, RELAY, events: account };

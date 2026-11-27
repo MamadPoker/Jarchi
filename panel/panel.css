@@ -2887,6 +2887,163 @@ main {
 .soon h2 {
   font-size: 20px;
 }
+/* ---------- Bot (js/bot.js): the status bar, the /mod notice, the thank-you messages ---------- */
+.view.bot:not(.soon) {
+  max-width: 820px;
+}
+.bot-soon {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+}
+.bot-page {
+  display: grid;
+  gap: 14px;
+}
+.bot-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+.bot-bar b {
+  flex: 1;
+  font-size: 16px;
+}
+.bot-dot {
+  width: 10px;
+  height: 10px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--muted);
+}
+.bot-dot.on {
+  background: var(--ok);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--ok) 20%, transparent);
+}
+.bot-main {
+  display: flex;
+  cursor: pointer;
+}
+.bot-error {
+  margin: 0;
+  padding: 10px 14px;
+  border: 1px solid var(--danger-line);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--danger) 10%, transparent);
+  color: var(--danger-text);
+}
+/* The /mod notice: yellow until "I did it" */
+.bot-mod {
+  display: grid;
+  gap: 10px;
+  padding: 14px 16px;
+  border: 1px solid var(--warn-line);
+  border-radius: 14px;
+  background: var(--warn-soft);
+}
+.bot-mod p {
+  margin: 0;
+  color: var(--warn);
+  font-weight: 600;
+}
+.bot-mod-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.bot-mod code {
+  padding: 7px 12px;
+  border: 1px solid var(--warn-line);
+  border-radius: 8px;
+  background: var(--bg);
+  font-size: 14px;
+}
+.bot-list {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.bot-row {
+  display: grid;
+  gap: 8px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--card2);
+}
+.bot-row-head,
+.bot-row-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.bot-row-line .bot-line {
+  flex: 1;
+}
+.bot-row.off .bot-line {
+  opacity: 0.45;
+}
+/* A message as Kick's chat shows it: dark in both themes */
+.bot-line {
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--preview-dark);
+  color: #efeff1;
+  font-size: 14px;
+  line-height: 1.45;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+.bot-line b {
+  color: var(--kick-mark);
+}
+.bot-editor {
+  display: grid;
+  gap: 8px;
+}
+.bot-editor .lk-l {
+  margin: 4px 0 0;
+}
+.bot-ins-row,
+.bot-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.bot-ins {
+  padding: 4px 10px;
+  font-size: 12.5px;
+}
+.bot-check {
+  display: flex;
+  gap: 10px;
+  min-height: 1.3em;
+}
+.bot-why {
+  color: var(--danger);
+}
+.bot-count {
+  margin-inline-start: auto;
+  color: var(--muted);
+}
+.bot-count.over {
+  color: var(--danger);
+}
+.bot-later h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.bot-later .lk-sub {
+  margin: 0;
+}
 .about img {
   width: 160px;
   height: auto;
