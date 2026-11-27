@@ -13,7 +13,7 @@ const twitchAccount = require('../connectors/twitch-account');
 
 const FILE = path.join(DATA_DIR, 'clipq.json');
 const SOURCES = ['youtube', 'instagram', 'twitch', 'kick'];
-const COMMANDS = ['skip', 'remove', 'block', 'close'];
+const COMMANDS = ['skip', 'remove', 'block', 'open', 'close'];
 // perViewer: clips one viewer can have in the queue at the same time (the one on now counts), 0 = no limit.
 const DEFAULTS = {
   sources: SOURCES,
@@ -22,7 +22,7 @@ const DEFAULTS = {
   noRepeats: true,
   autoNext: false,
   mods: false,
-  commands: { skip: true, remove: true, block: true, close: true },
+  commands: { skip: true, remove: true, block: true, open: true, close: true },
 };
 const MAX = 200; // clips waiting: a flood of links stops here
 const PLAYED = 5; // Played: the last clips Next took out of the player, for Previous
@@ -232,6 +232,7 @@ function command(m, text) {
     const c = queue[Number(digits(arg)) - 1];
     if (/^\d+$/.test(digits(arg)) && c) remove(c.id);
   } else if (cmd === '!block' && s.commands.block && open && /^@?[\w-]{1,30}$/.test(arg)) blocked.add(nameKey(arg));
+  else if (cmd === '!clipq' && arg === 'open' && s.commands.open && !open) setOpen(true);
   else if (cmd === '!clipq' && arg === 'close' && s.commands.close && open) setOpen(false);
 }
 function heard(m) {
