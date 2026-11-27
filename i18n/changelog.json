@@ -1,6 +1,12 @@
 [
   {
     "version": "unreleased",
+    "types": [],
+    "en": [],
+    "fa": []
+  },
+  {
+    "version": "1.0.12",
     "types": ["improve", "improve", "feature", "improve", "improve", "feature"],
     "en": [
       "ClipQ: full screen, a bigger player, Previous and a Played list, Instagram clips fit their frame and work with Jarchi's buttons and Auto next, and mods can open the queue with !clipq open",
