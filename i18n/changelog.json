@@ -3,7 +3,7 @@
     "version": "unreleased",
     "types": ["improve", "improve", "feature", "improve", "improve", "feature"],
     "en": [
-      "ClipQ: full screen, a bigger player, Previous and a Played list, and Instagram clips fit their frame and work with Jarchi's buttons and Auto next",
+      "ClipQ: full screen, a bigger player, Previous and a Played list, Instagram clips fit their frame and work with Jarchi's buttons and Auto next, and mods can open the queue with !clipq open",
       "Song Battle: a bigger battle screen, full screen for each song, settings you can change while songs come in, 10-second votes, and on a tie the coin waits for you",
       "Chat: Pop out opens your Kick and Twitch chat in its own window to read on a second monitor, and you can now have up to 4 chats, each with its own OBS link and look",
       "Chat: Kick's KICKs badge, for viewers who sent KICKs in your channel, now shows with the important badges",
@@ -11,7 +11,7 @@
       "Crypto: an Open / Closed switch stops donations for a while, and a wallet address change now asks first and shows on top of the Crypto page until it starts working"
     ],
     "fa": [
-      "ClipQ: حالت تمام‌صفحه، پخش‌کننده‌ی بزرگ‌تر، دکمه‌ی قبلی و لیست پخش‌شده‌ها، و کلیپ‌های اینستاگرام حالا درست تو قاب جا می‌شن و با دکمه‌های جارچی و پخش خودکار بعدی کار می‌کنن",
+      "ClipQ: حالت تمام‌صفحه، پخش‌کننده‌ی بزرگ‌تر، دکمه‌ی قبلی و لیست پخش‌شده‌ها، کلیپ‌های اینستاگرام حالا درست تو قاب جا می‌شن و با دکمه‌های جارچی و پخش خودکار بعدی کار می‌کنن، و مودها با !clipq open صف رو باز می‌کنن",
       "سانگ بتل: صفحه‌ی بتل بزرگ‌تر، تمام‌صفحه برای هر آهنگ، تنظیمات وقتی آهنگ‌ها دارن میان هم عوض می‌شن، رأی‌گیری ۱۰ ثانیه‌ای، و موقع مساوی سکه منتظر شما می‌مونه",
       "چت: با «پنجره‌ی جدا» چت Kick و Twitch تو یه پنجره‌ی جدا باز می‌شه تا روی مانیتور دوم بخونیش، و حالا تا ۴ چت می‌تونی داشته باشی، هرکدوم با لینک OBS و ظاهر خودش",
       "چت: نشان KICKs در Kick، برای بیننده‌هایی که تو کانالت KICKs فرستادن، حالا کنار نشان‌های مهم نشون داده می‌شه",

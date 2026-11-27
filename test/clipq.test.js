@@ -23,7 +23,14 @@ function fresh(settings = {}) {
   clipq.setOpen(false);
   while (clipq.state().played.length) clipq.back();
   while (clipq.state().now) clipq.remove(clipq.state().now.id);
-  clipq.update({ sources: ALL, perViewer: 0, noRepeats: true, mods: false, commands: { skip: true, remove: true, block: true, close: true }, ...settings });
+  clipq.update({
+    sources: ALL,
+    perViewer: 0,
+    noRepeats: true,
+    mods: false,
+    commands: { skip: true, remove: true, block: true, open: true, close: true },
+    ...settings,
+  });
   clipq.setOpen(true);
 }
 
@@ -151,7 +158,7 @@ test("mods' commands: off until allowed, each with its switch, only with a mod o
   assert.deepEqual(keys(), ['youtube:abcdefghij3']);
 });
 
-test('!block keeps a viewer out until the queue closes; !clipq close closes it', () => {
+test('!block keeps a viewer out until the queue closes; !clipq close closes it, !clipq open opens it', () => {
   fresh({ mods: true });
   mod('!block @Spam_Guy'); // Kick's login for Spam_Guy is spam-guy
   say(yt(1), 'spam-guy');
@@ -164,6 +171,17 @@ test('!block keeps a viewer out until the queue closes; !clipq close closes it',
   assert.deepEqual(keys(), ['youtube:abcdefghij2', 'youtube:abcdefghij1']);
   clipq.update({ commands: { close: false } });
   mod('!clipq close');
+  assert.equal(clipq.state().open, true);
+  clipq.setOpen(false);
+  say('!clipq open'); // no badge
+  clipq.update({ commands: { open: false } });
+  mod('!clipq open'); // its switch is off
+  assert.equal(clipq.state().open, false);
+  clipq.update({ commands: { open: true }, mods: false });
+  mod('!clipq open'); // "Mods can manage the queue" is off
+  assert.equal(clipq.state().open, false);
+  clipq.update({ mods: true });
+  say('!ClipQ Open', 'boss', [{ type: 'broadcaster', name: 'broadcaster' }]);
   assert.equal(clipq.state().open, true);
 });
 

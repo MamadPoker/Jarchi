@@ -293,7 +293,7 @@
     "clipqNoRepeatsHint": "A clip already sent since the queue opened isn't added again",
     "clipqMods": "Mods can manage the queue",
     "clipqModsHint": "Your mods (and you) run these commands in chat",
-    "clipqCmds": {"skip":["!skip","Next clip"],"remove":["!remove <number>","Takes that clip out of Up next"],"block":["!block <name>","Ignores that viewer's links until the queue closes"],"close":["!clipq close","Closes the queue"]},
+    "clipqCmds": {"skip":["!skip","Next clip"],"remove":["!remove <number>","Takes that clip out of Up next"],"block":["!block <name>","Ignores that viewer's links until the queue closes"],"open":["!clipq open","Opens the queue"],"close":["!clipq close","Closes the queue"]},
     "clipqKinds": {"youtube":"YouTube video","short":"YouTube Short","reel":"Instagram Reel","post":"Instagram post","twitch":"Twitch clip","kick":"Kick clip"},
     "songRequestSoon": "Viewers request songs to play on your stream. Coming soon.",
     "luckWheel": "Wheel",
@@ -1589,7 +1589,7 @@
           ["Play", "Nothing plays by itself: press **Play**, or click the video. The buttons go 10 seconds back or forward, the bar jumps to any point, and **Next** brings the next clip. With **Auto next**, each clip plays after the one before. **Previous** brings back the clip before, and **Played**, under **Up next**, keeps the last 5, each with a button that puts it back in the player. The full-screen button, next to **Clear queue**, fills the screen with the player and its buttons; **Esc** leaves it."],
           ["Twitch and Instagram", "Twitch clips play in Twitch's own player, with its own buttons on the video. Jarchi's buttons and **Auto next** can't reach them: press **Next** when one is done. YouTube, Kick and Instagram clips take every button. If Instagram doesn't give Jarchi a clip's video (a photo, or several in one post), it shows in Instagram's own player: press **Next** there too."],
           ["Queue settings", "Which links it takes, how many clips one viewer can have in the queue at the same time, whether to show who sent each clip, and whether to skip a link that was already sent."],
-          ["Mods in chat", "Turn on **Mods can manage the queue** and pick the commands: `!skip` (next clip), `!remove 2` (takes clip 2 out of **Up next**), `!block name` (ignores that viewer's links until the queue closes) and `!clipq close`. Only people with a mod or broadcaster badge can use them."],
+          ["Mods in chat", "Turn on **Mods can manage the queue** and pick the commands: `!skip` (next clip), `!remove 2` (takes clip 2 out of **Up next**), `!block name` (ignores that viewer's links until the queue closes) and `!clipq open` / `!clipq close` (opens or closes the queue). Only people with a mod or broadcaster badge can use them."],
           ["Pop out for OBS", "**Pop out** opens the player in its own window, with its own **فا | EN** switch and **Always on top**. In OBS, add it as a **Window Capture**, and add Jarchi as an **Application Audio Capture** for the sound."]
         ],
         "tip": "A Twitch clip shows its title and picture once your Twitch account is connected on **Connections**. Without it, the clip still plays."
